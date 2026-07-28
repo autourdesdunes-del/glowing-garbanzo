@@ -10,7 +10,8 @@
       "Bash(mv CLAUDE.md brief_reconstruction_claude_code.md travel_crm.jsx reference/)",
       "Bash(SRC=\"/private/tmp/claude-501/-Users-melaniemartin-Desktop-autour-des-dunes-CRM-files/ceebe42a-b71f-4d88-a949-986195301c48/scratchpad/scaffold/ad-crm\" *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git mv *)"
     ]
   }
 }

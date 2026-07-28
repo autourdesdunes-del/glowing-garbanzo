@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "Read(//Users/melaniemartin/**)",
+      "Bash(command -v node npm npx git)",
+      "Bash(curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh)",
+      "Bash(bash)",
+      "Bash(mkdir -p reference)",
+      "Bash(mv CLAUDE.md brief_reconstruction_claude_code.md travel_crm.jsx reference/)",
+      "Bash(SRC=\"/private/tmp/claude-501/-Users-melaniemartin-Desktop-autour-des-dunes-CRM-files/ceebe42a-b71f-4d88-a949-986195301c48/scratchpad/scaffold/ad-crm\" *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}

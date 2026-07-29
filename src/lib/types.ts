@@ -1,3 +1,22 @@
+export type CatalogueItem = {
+  id: string;
+  nom: string;
+  disponibilites: string;
+  pu_adulte: number;
+  pu_enfant: number;
+  pu_bebe: number;
+  marge_pct: number;
+  horaire_approx: string;
+  inclus: string;
+  non_inclus: string;
+  a_prevoir: string;
+  point_rdv: string;
+  photo_path: string;
+  valide: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ReservationOption = {
   id: string;
   reservation_id: string;

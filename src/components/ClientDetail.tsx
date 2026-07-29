@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Client, Reservation, ReservationOption } from "@/lib/types";
+import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
 import {
   ActivitesStep,
   BilletAvionStep,
@@ -18,10 +18,12 @@ export default function ClientDetail({
   client,
   onChange,
   onDelete,
+  catalogue,
 }: {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
   onDelete: () => void;
+  catalogue: CatalogueItem[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [step, setStep] = useState(0);
@@ -167,6 +169,7 @@ export default function ClientDetail({
           onAddOption={addOption}
           onUpdateOption={updateOption}
           onDeleteOption={deleteOption}
+          catalogue={catalogue}
         />
       )}
       {step === 4 && (

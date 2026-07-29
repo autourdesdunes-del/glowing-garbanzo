@@ -1,6 +1,6 @@
 "use client";
 
-import { Client, Reservation, ReservationOption } from "@/lib/types";
+import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
 import { MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
 import { Field } from "@/components/client-steps";
@@ -27,6 +27,7 @@ export default function ReservationCard({
   onUpdateOption,
   onDeleteOption,
   onToggleSoldePaye,
+  catalogue,
 }: {
   r: Reservation;
   client: Client;
@@ -39,7 +40,22 @@ export default function ReservationCard({
   onUpdateOption: (optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (optId: string) => void;
   onToggleSoldePaye: () => void;
+  catalogue: CatalogueItem[];
 }) {
+  const pickFromCatalogue = (id: string) => {
+    const item = catalogue.find((a) => a.id === id);
+    if (!item) return;
+    onUpdate({
+      nom_activite: item.nom,
+      pu_adulte: item.pu_adulte,
+      pu_enfant: item.pu_enfant,
+      horaire_approx: item.horaire_approx,
+      inclus: item.inclus,
+      non_inclus: item.non_inclus,
+      a_prevoir: item.a_prevoir,
+      point_rdv: item.point_rdv,
+    });
+  };
   const { nbAd, nbEnf } = participantsFor(r, client);
   const total = resaTotalMontant(r, client, options);
   const soldeIci = client.solde_activite_id === r.id;
@@ -155,6 +171,24 @@ export default function ReservationCard({
           {r.statut_resa === "Confirmée" ? "Repasser en brouillon" : "✓ Marquer comme confirmée"}
         </button>
       </div>
+
+      {catalogue.length > 0 && (
+        <select
+          defaultValue=""
+          onChange={(e) => {
+            if (e.target.value) pickFromCatalogue(e.target.value);
+            e.target.value = "";
+          }}
+          className="input mb-2"
+        >
+          <option value="">— Choisir dans le catalogue —</option>
+          {catalogue.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.nom}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div className="mb-3 flex items-center gap-2">
         <input

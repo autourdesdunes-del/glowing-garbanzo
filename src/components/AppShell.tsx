@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Client, EMPTY_CLIENT } from "@/lib/types";
+import { CatalogueItem, Client, EMPTY_CLIENT } from "@/lib/types";
 import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
+import CatalogueView from "@/components/CatalogueView";
 
 type Mode = "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
 
@@ -30,6 +31,7 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
 
   const [mode, setMode] = useState<Mode>("team");
   const [clients, setClients] = useState<Client[]>([]);
+  const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -37,14 +39,18 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [{ data, error }, { data: cat, error: catError }] = await Promise.all([
+        supabase.from("clients").select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("catalogue_activites")
+          .select("*")
+          .order("created_at", { ascending: false }),
+      ]);
       if (!error && data) {
         setClients(data as Client[]);
         if (data.length && !selectedId) setSelectedId(data[0].id);
       }
+      if (!catError && cat) setCatalogue(cat as CatalogueItem[]);
       setLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,6 +104,25 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
     setClients(next);
     if (selectedId === id) setSelectedId(next[0] ? next[0].id : null);
     await supabase.from("clients").delete().eq("id", id);
+  };
+
+  const addCatalogueItem = async () => {
+    const { data, error } = await supabase
+      .from("catalogue_activites")
+      .insert({})
+      .select()
+      .single();
+    if (!error && data) setCatalogue((prev) => [data as CatalogueItem, ...prev]);
+  };
+
+  const updateCatalogueItem = async (id: string, patch: Partial<CatalogueItem>) => {
+    setCatalogue((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+    await supabase.from("catalogue_activites").update(patch).eq("id", id);
+  };
+
+  const deleteCatalogueItem = async (id: string) => {
+    setCatalogue((prev) => prev.filter((a) => a.id !== id));
+    await supabase.from("catalogue_activites").delete().eq("id", id);
   };
 
   const handleSignOut = async () => {
@@ -218,13 +243,25 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
                 client={selected}
                 onChange={updateSelected}
                 onDelete={() => deleteClient(selected.id)}
+                catalogue={catalogue}
               />
             )}
           </main>
         </div>
       )}
 
-      {mode !== "team" && (
+      {mode === "catalogue" && (
+        <div className="flex-1 overflow-y-auto">
+          <CatalogueView
+            items={catalogue}
+            onAdd={addCatalogueItem}
+            onUpdate={updateCatalogueItem}
+            onDelete={deleteCatalogueItem}
+          />
+        </div>
+      )}
+
+      {mode !== "team" && mode !== "catalogue" && (
         <div className="flex flex-1 items-center justify-center text-neutral-400">
           Bientôt disponible.
         </div>

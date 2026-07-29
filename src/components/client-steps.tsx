@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  CatalogueItem,
   Client,
   Paiement,
   Remboursement,
@@ -419,6 +420,7 @@ export function ActivitesStep({
   onAddOption,
   onUpdateOption,
   onDeleteOption,
+  catalogue,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -428,6 +430,7 @@ export function ActivitesStep({
   onAddOption: (resaId: string) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
+  catalogue: CatalogueItem[];
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -463,6 +466,7 @@ export function ActivitesStep({
           onUpdateOption={(optId, patch) => onUpdateOption(r.id, optId, patch)}
           onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
           onToggleSoldePaye={() => onChange({ solde_paye: !client.solde_paye })}
+          catalogue={catalogue}
         />
       ))}
     </div>

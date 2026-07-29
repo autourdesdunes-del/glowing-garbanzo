@@ -177,7 +177,9 @@ export default function ClientDetail({
           resaOptions={resaOptions}
         />
       )}
-      {step === 5 && <SuiviStep client={client} onChange={onChange} />}
+      {step === 5 && (
+        <SuiviStep client={client} onChange={onChange} reservations={reservations} />
+      )}
 
       <div className="mt-8 flex items-center justify-between border-t border-[#8B4531]/10 pt-4">
         <button

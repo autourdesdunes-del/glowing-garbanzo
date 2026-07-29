@@ -35,6 +35,29 @@ export type Reservation = {
   updated_at: string;
 };
 
+export type Remboursement = {
+  id: string;
+  client_id: string;
+  montant: number;
+  raison: string;
+  raison_autre: string;
+  activite_id: string | null;
+  date_probleme: string | null;
+  mode: string;
+  par: string;
+  date_remboursement: string | null;
+  statut: "En attente" | "Effectué";
+  created_at: string;
+};
+
+export type Verification = {
+  id: string;
+  client_id: string;
+  nom: string;
+  date: string | null;
+  created_at: string;
+};
+
 export type Paiement = {
   id: string;
   client_id: string;

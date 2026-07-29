@@ -2,12 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Client, Paiement, Reservation, ReservationOption } from "@/lib/types";
+import {
+  Client,
+  Paiement,
+  Remboursement,
+  Reservation,
+  ReservationOption,
+  Verification,
+} from "@/lib/types";
 import {
   BILLET_STATUTS,
   CANAUX,
   INFOS_MANQUANTES_OPTIONS,
   MODES_PAIEMENT,
+  RAISONS_REMBOURSEMENT,
   RELATIONS,
   STATUTS,
 } from "@/lib/constants";
@@ -673,13 +681,231 @@ export function PaiementsStep({
   );
 }
 
-export function SuiviStep({ client, onChange }: StepProps) {
+function fmtDate(dateStr: string | null) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+export function SuiviStep({
+  client,
+  onChange,
+  reservations,
+}: StepProps & { reservations: Reservation[] }) {
+  const supabase = createClient();
+  const [remboursements, setRemboursements] = useState<Remboursement[]>([]);
+  const [verifications, setVerifications] = useState<Verification[]>([]);
+  const [verifNom, setVerifNom] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: rembs }, { data: verifs }] = await Promise.all([
+        supabase
+          .from("remboursements")
+          .select("*")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("verifications")
+          .select("*")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: true }),
+      ]);
+      setRemboursements((rembs as Remboursement[]) || []);
+      setVerifications((verifs as Verification[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  const addRemboursement = async () => {
+    const { data, error } = await supabase
+      .from("remboursements")
+      .insert({ client_id: client.id })
+      .select()
+      .single();
+    if (!error && data) setRemboursements((prev) => [...prev, data as Remboursement]);
+  };
+
+  const updateRemboursement = async (id: string, patch: Partial<Remboursement>) => {
+    setRemboursements((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    await supabase.from("remboursements").update(patch).eq("id", id);
+  };
+
+  const deleteRemboursement = async (id: string) => {
+    setRemboursements((prev) => prev.filter((r) => r.id !== id));
+    await supabase.from("remboursements").delete().eq("id", id);
+  };
+
+  const addVerification = async () => {
+    if (!verifNom.trim()) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from("verifications")
+      .insert({ client_id: client.id, nom: verifNom.trim(), date: today })
+      .select()
+      .single();
+    if (!error && data) setVerifications((prev) => [...prev, data as Verification]);
+  };
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Suivi</h2>
 
-      <div className="rounded-md bg-white p-3 text-sm text-neutral-500">
-        Remboursements et vérification du dossier — bientôt disponibles.
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[#5C2A1D]">Remboursements</h3>
+          <button
+            onClick={addRemboursement}
+            className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            + Ajouter un remboursement
+          </button>
+        </div>
+        {remboursements.length === 0 && (
+          <div className="text-sm text-neutral-400">Aucun remboursement.</div>
+        )}
+        <div className="space-y-3">
+          {remboursements.map((r) => (
+            <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Montant (€)">
+                  <input
+                    type="number"
+                    value={r.montant}
+                    onChange={(e) =>
+                      updateRemboursement(r.id, { montant: Number(e.target.value) })
+                    }
+                    className="input"
+                  />
+                </Field>
+                <Field label="Raison">
+                  <select
+                    value={r.raison}
+                    onChange={(e) => updateRemboursement(r.id, { raison: e.target.value })}
+                    className="input"
+                  >
+                    {RAISONS_REMBOURSEMENT.map((x) => (
+                      <option key={x}>{x}</option>
+                    ))}
+                  </select>
+                </Field>
+                {r.raison === "Autre" && (
+                  <Field label="Préciser la raison">
+                    <input
+                      value={r.raison_autre}
+                      onChange={(e) =>
+                        updateRemboursement(r.id, { raison_autre: e.target.value })
+                      }
+                      className="input"
+                    />
+                  </Field>
+                )}
+                <Field label="Activité liée">
+                  <select
+                    value={r.activite_id ?? ""}
+                    onChange={(e) =>
+                      updateRemboursement(r.id, { activite_id: e.target.value || null })
+                    }
+                    className="input"
+                  >
+                    <option value="">Non liée</option>
+                    {reservations.map((res) => (
+                      <option key={res.id} value={res.id}>
+                        {res.nom_activite || "Activité sans nom"}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Date du problème">
+                  <input
+                    type="date"
+                    value={r.date_probleme ?? ""}
+                    onChange={(e) =>
+                      updateRemboursement(r.id, { date_probleme: e.target.value || null })
+                    }
+                    className="input"
+                  />
+                </Field>
+                <Field label="Mode de remboursement">
+                  <select
+                    value={r.mode}
+                    onChange={(e) => updateRemboursement(r.id, { mode: e.target.value })}
+                    className="input"
+                  >
+                    {MODES_PAIEMENT.map((m) => (
+                      <option key={m}>{m}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Fait par">
+                  <input
+                    value={r.par}
+                    onChange={(e) => updateRemboursement(r.id, { par: e.target.value })}
+                    className="input"
+                  />
+                </Field>
+                <Field label="Date du remboursement">
+                  <input
+                    type="date"
+                    value={r.date_remboursement ?? ""}
+                    onChange={(e) =>
+                      updateRemboursement(r.id, { date_remboursement: e.target.value || null })
+                    }
+                    className="input"
+                  />
+                </Field>
+                <Field label="Statut">
+                  <select
+                    value={r.statut}
+                    onChange={(e) =>
+                      updateRemboursement(r.id, {
+                        statut: e.target.value as Remboursement["statut"],
+                      })
+                    }
+                    className="input"
+                  >
+                    <option>En attente</option>
+                    <option>Effectué</option>
+                  </select>
+                </Field>
+              </div>
+              <button
+                onClick={() => deleteRemboursement(r.id)}
+                className="mt-2 text-xs text-red-600 hover:underline"
+              >
+                Retirer
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Vérification du dossier</h3>
+        <div className="flex gap-2">
+          <input
+            value={verifNom}
+            onChange={(e) => setVerifNom(e.target.value)}
+            placeholder="Votre prénom"
+            className="input"
+          />
+          <button
+            onClick={addVerification}
+            className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            Marquer vérifié aujourd&apos;hui
+          </button>
+        </div>
+        {verifications.length === 0 && (
+          <div className="mt-2 text-sm text-neutral-400">Pas encore vérifié.</div>
+        )}
+        <div className="mt-2 space-y-1">
+          {verifications.map((v) => (
+            <div key={v.id} className="text-sm text-neutral-600">
+              ✓ Vérifié par <strong>{v.nom}</strong> le {fmtDate(v.date)}
+            </div>
+          ))}
+        </div>
       </div>
 
       <Field label="Commentaires internes">

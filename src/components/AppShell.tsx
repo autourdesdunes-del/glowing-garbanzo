@@ -3,11 +3,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client, EMPTY_CLIENT, Reservation, ReservationOption } from "@/lib/types";
+import {
+  CatalogueItem,
+  Client,
+  EMPTY_CLIENT,
+  Remboursement,
+  Reservation,
+  ReservationOption,
+} from "@/lib/types";
 import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import CatalogueView from "@/components/CatalogueView";
 import PlanningView from "@/components/PlanningView";
+import SuivisView from "@/components/SuivisView";
 
 type Mode = "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
 
@@ -40,6 +48,8 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
   const [allReservations, setAllReservations] = useState<Reservation[]>([]);
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
+  const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
+  const [suivisLoaded, setSuivisLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -61,7 +71,7 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
   }, []);
 
   useEffect(() => {
-    if (mode !== "planning") return;
+    if (mode !== "planning" && mode !== "suivis") return;
     (async () => {
       const { data: resas } = await supabase.from("reservations").select("*");
       const list = (resas as Reservation[]) || [];
@@ -83,6 +93,12 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
         setAllResaOptions({});
       }
       setPlanningLoaded(true);
+
+      if (mode === "suivis") {
+        const { data: rembs } = await supabase.from("remboursements").select("*");
+        setAllRemboursements((rembs as Remboursement[]) || []);
+        setSuivisLoaded(true);
+      }
     })();
   }, [mode, supabase]);
 
@@ -134,6 +150,11 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
     setClients(next);
     if (selectedId === id) setSelectedId(next[0] ? next[0].id : null);
     await supabase.from("clients").delete().eq("id", id);
+  };
+
+  const updateClientById = async (id: string, patch: Partial<Client>) => {
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    await supabase.from("clients").update(patch).eq("id", id);
   };
 
   const addCatalogueItem = async () => {
@@ -309,11 +330,33 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
         </div>
       )}
 
-      {mode !== "team" && mode !== "catalogue" && mode !== "planning" && (
-        <div className="flex flex-1 items-center justify-center text-neutral-400">
-          Bientôt disponible.
+      {mode === "suivis" && (
+        <div className="flex-1 overflow-y-auto">
+          {!suivisLoaded ? (
+            <div className="p-6 text-neutral-400">Chargement…</div>
+          ) : (
+            <SuivisView
+              clients={clients}
+              reservations={allReservations}
+              remboursements={allRemboursements}
+              onUpdateClient={updateClientById}
+              onOpenClient={(id) => {
+                setSelectedId(id);
+                setMode("team");
+              }}
+            />
+          )}
         </div>
       )}
+
+      {mode !== "team" &&
+        mode !== "catalogue" &&
+        mode !== "planning" &&
+        mode !== "suivis" && (
+          <div className="flex flex-1 items-center justify-center text-neutral-400">
+            Bientôt disponible.
+          </div>
+        )}
     </div>
   );
 }

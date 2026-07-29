@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ad-crm-dev",
+      "runtimeExecutable": "/Users/melaniemartin/Desktop/autour des dunes CRM/files/.claude/dev.sh",
+      "runtimeArgs": [],
+      "port": 3000
+    }
+  ]
+}

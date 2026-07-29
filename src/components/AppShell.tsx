@@ -16,6 +16,10 @@ import ClientDetail from "@/components/ClientDetail";
 import CatalogueView from "@/components/CatalogueView";
 import PlanningView from "@/components/PlanningView";
 import SuivisView from "@/components/SuivisView";
+import ClientPreviewView from "@/components/ClientPreviewView";
+import DirectionView from "@/components/DirectionView";
+
+const DIRECTOR_PIN = "2026";
 
 type Mode = "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
 
@@ -50,6 +54,9 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
   const [suivisLoaded, setSuivisLoaded] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  const [directionUnlocked, setDirectionUnlocked] = useState(false);
+  const [pinInput, setPinInput] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -71,7 +78,7 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
   }, []);
 
   useEffect(() => {
-    if (mode !== "planning" && mode !== "suivis") return;
+    if (mode !== "planning" && mode !== "suivis" && mode !== "direction") return;
     (async () => {
       const { data: resas } = await supabase.from("reservations").select("*");
       const list = (resas as Reservation[]) || [];
@@ -212,7 +219,10 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
           {TABS.map((t) => (
             <button
               key={t.key}
-              onClick={() => setMode(t.key)}
+              onClick={() => {
+                setMode(t.key);
+                if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
+              }}
               className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
                 mode === t.key
                   ? "bg-[#0F5C56] text-white"
@@ -349,10 +359,84 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
         </div>
       )}
 
+      {mode === "preview" && (
+        <div className="flex-1 overflow-y-auto">
+          {clients.length === 0 ? (
+            <div className="p-6 text-neutral-400">Créez un client pour voir son aperçu.</div>
+          ) : (
+            <>
+              <div className="mx-auto max-w-xl px-6 pt-6">
+                <select
+                  value={previewId ?? ""}
+                  onChange={(e) => setPreviewId(e.target.value)}
+                  className="input w-full"
+                >
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nom || "Sans nom"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {(() => {
+                const previewClient = clients.find((c) => c.id === previewId) || clients[0];
+                return <ClientPreviewView client={previewClient} catalogue={catalogue} />;
+              })()}
+            </>
+          )}
+        </div>
+      )}
+
+      {mode === "direction" && (
+        <div className="flex-1 overflow-y-auto">
+          {!directionUnlocked ? (
+            <div className="flex flex-1 items-center justify-center p-10">
+              <div className="w-full max-w-xs rounded-md bg-white p-6 text-center">
+                <p className="mb-3 text-sm text-neutral-600">
+                  Accès direction — code requis
+                </p>
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && pinInput === DIRECTOR_PIN) {
+                      setDirectionUnlocked(true);
+                    }
+                  }}
+                  className="input mb-3 w-full text-center"
+                  placeholder="Code"
+                />
+                <button
+                  onClick={() => {
+                    if (pinInput === DIRECTOR_PIN) setDirectionUnlocked(true);
+                  }}
+                  className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+                >
+                  Déverrouiller
+                </button>
+              </div>
+            </div>
+          ) : !planningLoaded ? (
+            <div className="p-6 text-neutral-400">Chargement…</div>
+          ) : (
+            <DirectionView
+              clients={clients}
+              reservations={allReservations}
+              resaOptions={allResaOptions}
+              catalogue={catalogue}
+              onUpdateCatalogueItem={updateCatalogueItem}
+            />
+          )}
+        </div>
+      )}
+
       {mode !== "team" &&
         mode !== "catalogue" &&
         mode !== "planning" &&
-        mode !== "suivis" && (
+        mode !== "suivis" &&
+        mode !== "preview" &&
+        mode !== "direction" && (
           <div className="flex flex-1 items-center justify-center text-neutral-400">
             Bientôt disponible.
           </div>

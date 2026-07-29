@@ -4,13 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Client, EMPTY_CLIENT } from "@/lib/types";
-import {
-  CANAUX,
-  INFOS_MANQUANTES_OPTIONS,
-  RELATIONS,
-  STATUTS,
-  STATUT_COLORS,
-} from "@/lib/constants";
+import { STATUT_COLORS } from "@/lib/constants";
+import ClientDetail from "@/components/ClientDetail";
 
 type Mode = "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
 
@@ -96,6 +91,13 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
       setClients((prev) => [data as Client, ...prev]);
       setSelectedId(data.id);
     }
+  };
+
+  const deleteClient = async (id: string) => {
+    const next = clients.filter((c) => c.id !== id);
+    setClients(next);
+    if (selectedId === id) setSelectedId(next[0] ? next[0].id : null);
+    await supabase.from("clients").delete().eq("id", id);
   };
 
   const handleSignOut = async () => {
@@ -212,7 +214,11 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
                 Sélectionne ou crée un client pour commencer.
               </div>
             ) : (
-              <ContactStep client={selected} onChange={updateSelected} />
+              <ClientDetail
+                client={selected}
+                onChange={updateSelected}
+                onDelete={() => deleteClient(selected.id)}
+              />
             )}
           </main>
         </div>
@@ -224,242 +230,5 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
         </div>
       )}
     </div>
-  );
-}
-
-function ContactStep({
-  client,
-  onChange,
-}: {
-  client: Client;
-  onChange: (patch: Partial<Client>) => void;
-}) {
-  const toggleInfoManquante = (opt: string) => {
-    const has = client.infos_manquantes.includes(opt);
-    onChange({
-      infos_manquantes: has
-        ? client.infos_manquantes.filter((o) => o !== opt)
-        : [...client.infos_manquantes, opt],
-    });
-  };
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Contact</h2>
-
-      <Field label="Nom du client">
-        <input
-          value={client.nom}
-          onChange={(e) => onChange({ nom: e.target.value })}
-          className="input"
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Statut">
-          <select
-            value={client.statut}
-            onChange={(e) => onChange({ statut: e.target.value })}
-            className="input"
-          >
-            {STATUTS.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Contact via">
-          <select
-            value={client.canal}
-            onChange={(e) => onChange({ canal: e.target.value })}
-            className="input"
-          >
-            {CANAUX.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
-
-      {client.canal === "Autre" && (
-        <Field label="Préciser le canal">
-          <input
-            value={client.canal_autre}
-            onChange={(e) => onChange({ canal_autre: e.target.value })}
-            className="input"
-          />
-        </Field>
-      )}
-
-      {(client.canal === "Instagram" || client.canal === "TikTok") && (
-        <Field label="Pseudo">
-          <input
-            value={client.pseudo_contact}
-            onChange={(e) => onChange({ pseudo_contact: e.target.value })}
-            className="input"
-          />
-        </Field>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Téléphone">
-          <input
-            value={client.telephone}
-            onChange={(e) => onChange({ telephone: e.target.value })}
-            className="input"
-          />
-        </Field>
-        <Field label="Email">
-          <input
-            value={client.email}
-            onChange={(e) => onChange({ email: e.target.value })}
-            className="input"
-          />
-        </Field>
-      </div>
-
-      <Field label="Relation grâce à">
-        <select
-          value={client.relation_grace_a}
-          onChange={(e) => onChange({ relation_grace_a: e.target.value })}
-          className="input"
-        >
-          {RELATIONS.map((r) => (
-            <option key={r}>{r}</option>
-          ))}
-        </select>
-      </Field>
-      {client.relation_grace_a === "Autre" && (
-        <Field label="Préciser">
-          <input
-            value={client.relation_autre}
-            onChange={(e) => onChange({ relation_autre: e.target.value })}
-            className="input"
-          />
-        </Field>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Hôtel">
-          <input
-            value={client.hotel}
-            onChange={(e) => onChange({ hotel: e.target.value })}
-            className="input"
-          />
-        </Field>
-        <Field label="Chambre">
-          <input
-            value={client.chambre}
-            onChange={(e) => onChange({ chambre: e.target.value })}
-            className="input"
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Date début séjour">
-          <input
-            type="date"
-            value={client.date_debut ?? ""}
-            onChange={(e) => onChange({ date_debut: e.target.value || null })}
-            className="input"
-          />
-        </Field>
-        <Field label="Date fin séjour">
-          <input
-            type="date"
-            value={client.date_fin ?? ""}
-            onChange={(e) => onChange({ date_fin: e.target.value || null })}
-            className="input"
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Adultes">
-          <input
-            type="number"
-            min={0}
-            value={client.adultes}
-            onChange={(e) => onChange({ adultes: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
-        <Field label="Enfants">
-          <input
-            type="number"
-            min={0}
-            value={client.enfants}
-            onChange={(e) => onChange({ enfants: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
-      </div>
-
-      <Field label="Âges des enfants">
-        <input
-          value={client.ages_enfants}
-          onChange={(e) => onChange({ ages_enfants: e.target.value })}
-          className="input"
-        />
-      </Field>
-
-      <Field label="Lien passeport (Drive)">
-        <input
-          value={client.lien_passeport}
-          onChange={(e) => onChange({ lien_passeport: e.target.value })}
-          className="input"
-        />
-      </Field>
-
-      <Field label="Infos manquantes">
-        <div className="flex flex-wrap gap-2">
-          {INFOS_MANQUANTES_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => toggleInfoManquante(opt)}
-              className={`rounded-full border px-3 py-1 text-xs ${
-                client.infos_manquantes.includes(opt)
-                  ? "border-[#C9973E] bg-[#C9973E] text-white"
-                  : "border-neutral-300 text-neutral-600"
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-      </Field>
-
-      <Field label="Commentaires">
-        <textarea
-          value={client.commentaires}
-          onChange={(e) => onChange({ commentaires: e.target.value })}
-          className="input h-24"
-        />
-      </Field>
-
-      <style jsx global>{`
-        .input {
-          width: 100%;
-          border: 1px solid #d4d4d4;
-          border-radius: 0.375rem;
-          padding: 0.4rem 0.6rem;
-          font-size: 0.875rem;
-        }
-        .input:focus {
-          outline: none;
-          border-color: #0f5c56;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-neutral-700">{label}</span>
-      {children}
-    </label>
   );
 }

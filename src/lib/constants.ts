@@ -28,6 +28,16 @@ export const INFOS_MANQUANTES_OPTIONS = [
   "Autre",
 ] as const;
 
+export const MODES_PAIEMENT = [
+  "PayPal",
+  "Espèces EUR",
+  "Espèces EGP",
+  "Carte bleue",
+  "Virement bancaire",
+] as const;
+
+export const BILLET_STATUTS = ["En attente", "Validé", "Refusé"] as const;
+
 export const STATUT_COLORS: Record<string, string> = {
   Prospect: "#8B4531",
   "En négociation": "#C9973E",

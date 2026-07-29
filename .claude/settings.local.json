@@ -13,7 +13,9 @@
       "Bash(git commit *)",
       "Bash(git mv *)",
       "Bash(zsh -ic 'which npm')",
-      "Bash(chmod +x \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/.claude/dev.sh\")"
+      "Bash(chmod +x \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/.claude/dev.sh\")",
+      "Bash(sed -n '1,234p' src/components/AppShell.tsx)",
+      "Bash(mv /tmp/AppShell_trimmed.tsx src/components/AppShell.tsx)"
     ]
   }
 }

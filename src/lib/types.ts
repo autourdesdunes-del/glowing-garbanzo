@@ -1,3 +1,12 @@
+export type Paiement = {
+  id: string;
+  client_id: string;
+  montant: number;
+  mode: string;
+  date: string | null;
+  created_at: string;
+};
+
 export type Client = {
   id: string;
   nom: string;

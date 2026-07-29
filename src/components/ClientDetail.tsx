@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Client } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { Client, Reservation, ReservationOption } from "@/lib/types";
 import {
   ActivitesStep,
   BilletAvionStep,
@@ -22,7 +23,99 @@ export default function ClientDetail({
   onChange: (patch: Partial<Client>) => void;
   onDelete: () => void;
 }) {
+  const supabase = useMemo(() => createClient(), []);
   const [step, setStep] = useState(0);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
+
+  useEffect(() => {
+    setStep(0);
+    (async () => {
+      const { data: resas } = await supabase
+        .from("reservations")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: true });
+      const list = (resas as Reservation[]) || [];
+      setReservations(list);
+
+      if (list.length) {
+        const { data: opts } = await supabase
+          .from("reservation_options")
+          .select("*")
+          .in(
+            "reservation_id",
+            list.map((r) => r.id)
+          );
+        const grouped: Record<string, ReservationOption[]> = {};
+        ((opts as ReservationOption[]) || []).forEach((o) => {
+          grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
+        });
+        setResaOptions(grouped);
+      } else {
+        setResaOptions({});
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  const addReservation = async () => {
+    const { data, error } = await supabase
+      .from("reservations")
+      .insert({ client_id: client.id })
+      .select()
+      .single();
+    if (!error && data) setReservations((prev) => [...prev, data as Reservation]);
+  };
+
+  const updateReservation = async (id: string, patch: Partial<Reservation>) => {
+    setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    await supabase.from("reservations").update(patch).eq("id", id);
+  };
+
+  const deleteReservation = async (id: string) => {
+    setReservations((prev) => prev.filter((r) => r.id !== id));
+    setResaOptions((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    await supabase.from("reservations").delete().eq("id", id);
+  };
+
+  const addOption = async (resaId: string) => {
+    const { data, error } = await supabase
+      .from("reservation_options")
+      .insert({ reservation_id: resaId, nom: "Guide francophone", prix: 0 })
+      .select()
+      .single();
+    if (!error && data) {
+      setResaOptions((prev) => ({
+        ...prev,
+        [resaId]: [...(prev[resaId] || []), data as ReservationOption],
+      }));
+    }
+  };
+
+  const updateOption = async (
+    resaId: string,
+    optId: string,
+    patch: Partial<ReservationOption>
+  ) => {
+    setResaOptions((prev) => ({
+      ...prev,
+      [resaId]: (prev[resaId] || []).map((o) => (o.id === optId ? { ...o, ...patch } : o)),
+    }));
+    await supabase.from("reservation_options").update(patch).eq("id", optId);
+  };
+
+  const deleteOption = async (resaId: string, optId: string) => {
+    setResaOptions((prev) => ({
+      ...prev,
+      [resaId]: (prev[resaId] || []).filter((o) => o.id !== optId),
+    }));
+    await supabase.from("reservation_options").delete().eq("id", optId);
+  };
 
   return (
     <div>
@@ -59,9 +152,31 @@ export default function ClientDetail({
 
       {step === 0 && <ContactStep client={client} onChange={onChange} />}
       {step === 1 && <SejourStep client={client} onChange={onChange} />}
-      {step === 2 && <BilletAvionStep client={client} onChange={onChange} />}
-      {step === 3 && <ActivitesStep />}
-      {step === 4 && <PaiementsStep client={client} onChange={onChange} />}
+      {step === 2 && (
+        <BilletAvionStep client={client} onChange={onChange} reservations={reservations} />
+      )}
+      {step === 3 && (
+        <ActivitesStep
+          client={client}
+          onChange={onChange}
+          reservations={reservations}
+          resaOptions={resaOptions}
+          onAddReservation={addReservation}
+          onUpdateReservation={updateReservation}
+          onDeleteReservation={deleteReservation}
+          onAddOption={addOption}
+          onUpdateOption={updateOption}
+          onDeleteOption={deleteOption}
+        />
+      )}
+      {step === 4 && (
+        <PaiementsStep
+          client={client}
+          onChange={onChange}
+          reservations={reservations}
+          resaOptions={resaOptions}
+        />
+      )}
       {step === 5 && <SuiviStep client={client} onChange={onChange} />}
 
       <div className="mt-8 flex items-center justify-between border-t border-[#8B4531]/10 pt-4">

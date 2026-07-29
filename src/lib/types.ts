@@ -1,3 +1,40 @@
+export type ReservationOption = {
+  id: string;
+  reservation_id: string;
+  nom: string;
+  prix: number;
+};
+
+export type Reservation = {
+  id: string;
+  client_id: string;
+  nom_activite: string;
+  date_debut: string | null;
+  date_fin: string | null;
+  moment: string;
+  pu_adulte: number;
+  pu_enfant: number;
+  participants_mode: "tous" | "custom";
+  participants_adultes: number;
+  participants_enfants: number;
+  participants_noms: string;
+  pax_override: string;
+  transfert_inclus: boolean;
+  transfert_montant: number;
+  horaire_approx: string;
+  pickup_reel: string;
+  point_rdv: string;
+  inclus: string;
+  non_inclus: string;
+  a_prevoir: string;
+  info_importante: string;
+  cout_reel: number;
+  photo_path: string;
+  statut_resa: "Brouillon" | "Confirmée";
+  created_at: string;
+  updated_at: string;
+};
+
 export type Paiement = {
   id: string;
   client_id: string;

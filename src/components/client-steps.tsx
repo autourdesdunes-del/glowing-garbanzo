@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Client, Paiement } from "@/lib/types";
+import { Client, Paiement, Reservation, ReservationOption } from "@/lib/types";
 import {
   BILLET_STATUTS,
   CANAUX,
@@ -11,6 +11,12 @@ import {
   RELATIONS,
   STATUTS,
 } from "@/lib/constants";
+import { resaTotalMontant } from "@/lib/resa";
+import ReservationCard from "@/components/ReservationCard";
+
+function euros(n: number) {
+  return (Number(n) || 0).toLocaleString("fr-FR");
+}
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -294,7 +300,11 @@ export function SejourStep({ client, onChange }: StepProps) {
   );
 }
 
-export function BilletAvionStep({ client, onChange }: StepProps) {
+export function BilletAvionStep({
+  client,
+  onChange,
+  reservations,
+}: StepProps & { reservations: Reservation[] }) {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
@@ -331,6 +341,20 @@ export function BilletAvionStep({ client, onChange }: StepProps) {
               onChange={(e) => onChange({ billet_date: e.target.value || null })}
               className="input"
             />
+          </Field>
+          <Field label="Activité liée">
+            <select
+              value={client.billet_activite_id ?? ""}
+              onChange={(e) => onChange({ billet_activite_id: e.target.value || null })}
+              className="input"
+            >
+              <option value="">Non liée</option>
+              {reservations.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.nom_activite || "Activité sans nom"}
+                </option>
+              ))}
+            </select>
           </Field>
           <div className="grid grid-cols-2 gap-4">
             <Field label="Acompte billet payé">
@@ -376,21 +400,73 @@ export function BilletAvionStep({ client, onChange }: StepProps) {
   );
 }
 
-export function ActivitesStep() {
+export function ActivitesStep({
+  client,
+  onChange,
+  reservations,
+  resaOptions,
+  onAddReservation,
+  onUpdateReservation,
+  onDeleteReservation,
+  onAddOption,
+  onUpdateOption,
+  onDeleteOption,
+}: StepProps & {
+  reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  onAddReservation: () => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onDeleteReservation: (id: string) => void;
+  onAddOption: (resaId: string) => void;
+  onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
+  onDeleteOption: (resaId: string, optId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
   return (
-    <div className="mx-auto max-w-2xl">
-      <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">
-        Activités réservées
-      </h2>
-      <p className="mt-3 text-sm text-neutral-500">
-        Bientôt disponible — la gestion des activités réservées (catalogue, options,
-        transfert, statut brouillon/confirmée) arrive dans une prochaine étape.
-      </p>
+    <div className="mx-auto max-w-2xl space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">
+          Activités réservées
+        </h2>
+        <button
+          onClick={onAddReservation}
+          className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+        >
+          + Ajouter une activité
+        </button>
+      </div>
+
+      {reservations.length === 0 && (
+        <div className="text-sm text-neutral-400">Aucune activité.</div>
+      )}
+
+      {reservations.map((r) => (
+        <ReservationCard
+          key={r.id}
+          r={r}
+          client={client}
+          options={resaOptions[r.id] || []}
+          expanded={!!expanded[r.id]}
+          onToggleExpanded={(v) => setExpanded((prev) => ({ ...prev, [r.id]: v }))}
+          onUpdate={(patch) => onUpdateReservation(r.id, patch)}
+          onDelete={() => onDeleteReservation(r.id)}
+          onAddOption={() => onAddOption(r.id)}
+          onUpdateOption={(optId, patch) => onUpdateOption(r.id, optId, patch)}
+          onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
+          onToggleSoldePaye={() => onChange({ solde_paye: !client.solde_paye })}
+        />
+      ))}
     </div>
   );
 }
 
-export function PaiementsStep({ client, onChange }: StepProps) {
+export function PaiementsStep({
+  client,
+  onChange,
+  reservations,
+  resaOptions,
+}: StepProps & { reservations: Reservation[]; resaOptions: Record<string, ReservationOption[]> }) {
   const supabase = createClient();
   const [paiements, setPaiements] = useState<Paiement[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -428,10 +504,10 @@ export function PaiementsStep({ client, onChange }: StepProps) {
     await supabase.from("paiements").delete().eq("id", id);
   };
 
-  // Le total du séjour se calcule à partir des activités réservées — pas encore
-  // implémentées (voir étape Activités), donc 0 pour l'instant. Ne jamais en faire
-  // un champ saisi à la main.
-  const totalSejour = 0;
+  const totalSejour = reservations.reduce(
+    (sum, r) => sum + resaTotalMontant(r, client, resaOptions[r.id] || []),
+    0
+  );
   const totalPaye =
     paiements.reduce((sum, p) => sum + (Number(p.montant) || 0), 0) +
     (client.solde_paye ? Number(client.solde_montant) || 0 : 0);
@@ -442,8 +518,7 @@ export function PaiementsStep({ client, onChange }: StepProps) {
       <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Paiements</h2>
 
       <div className="rounded-md bg-white p-3 text-sm text-neutral-600">
-        Total séjour (calculé automatiquement à partir des activités — pas encore
-        d&apos;activités enregistrées) : <strong>{totalSejour} €</strong>
+        Total séjour (calculé automatiquement) : <strong>{euros(totalSejour)} €</strong>
       </div>
 
       <div>
@@ -544,6 +619,11 @@ export function PaiementsStep({ client, onChange }: StepProps) {
                 className="input"
               >
                 <option value="">RDV dédié à l&apos;hôtel</option>
+                {reservations.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    À l&apos;activité — {r.nom_activite || "Activité sans nom"}
+                  </option>
+                ))}
               </select>
             </Field>
           </div>
@@ -586,7 +666,8 @@ export function PaiementsStep({ client, onChange }: StepProps) {
       </div>
 
       <div className="rounded-md bg-white p-3 text-sm text-neutral-600">
-        Payé : <strong>{totalPaye} €</strong> — Reste à payer : <strong>{reste} €</strong>
+        Payé : <strong>{euros(totalPaye)} €</strong> — Reste à payer :{" "}
+        <strong>{euros(reste)} €</strong>
       </div>
     </div>
   );

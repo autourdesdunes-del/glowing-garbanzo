@@ -38,6 +38,15 @@ export const MODES_PAIEMENT = [
 
 export const BILLET_STATUTS = ["En attente", "Validé", "Refusé"] as const;
 
+export const MOMENTS = ["Matin", "Après-midi", "Journée", "Plusieurs jours"] as const;
+export const OPTIONS_PRESETS = ["Guide francophone", "Privatif", "Autre"] as const;
+export const RAISONS_REMBOURSEMENT = [
+  "Annulation",
+  "Problème activité",
+  "Dédommagement",
+  "Autre",
+] as const;
+
 export const STATUT_COLORS: Record<string, string> = {
   Prospect: "#8B4531",
   "En négociation": "#C9973E",

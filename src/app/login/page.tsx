@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -10,6 +10,44 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [mode, setMode] = useState<"checking" | "login" | "set-password">("checking");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPassword2, setNewPassword2] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    const isInviteOrRecovery =
+      window.location.hash.includes("type=invite") ||
+      window.location.hash.includes("type=recovery");
+
+    // Instantiating the client above already triggers Supabase's automatic
+    // detection of access_token/refresh_token in the URL hash (invite/recovery
+    // links land here with #access_token=...). We just need to react once
+    // that session is established.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) return;
+      if (isInviteOrRecovery) {
+        setMode("set-password");
+      } else {
+        router.replace("/");
+        router.refresh();
+      }
+    });
+
+    // If there was no invite/recovery token in the URL, just show the normal
+    // login form right away instead of waiting on an auth event that won't fire.
+    if (!isInviteOrRecovery) {
+      supabase.auth.getSession().then(({ data }) => {
+        if (!data.session) setMode("login");
+      });
+    }
+
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,6 +62,90 @@ export default function LoginPage() {
     }
     router.replace("/");
     router.refresh();
+  }
+
+  async function handleSetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (newPassword.length < 8) {
+      setError("Le mot de passe doit faire au moins 8 caractères.");
+      return;
+    }
+    if (newPassword !== newPassword2) {
+      setError("Les deux mots de passe ne correspondent pas.");
+      return;
+    }
+    setLoading(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setLoading(false);
+    if (error) {
+      setError("Impossible d'enregistrer le mot de passe. Réessaie.");
+      return;
+    }
+    router.replace("/");
+    router.refresh();
+  }
+
+  if (mode === "checking") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F2E6D2] px-4">
+        <p className="text-sm text-neutral-500">Connexion…</p>
+      </div>
+    );
+  }
+
+  if (mode === "set-password") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F2E6D2] px-4">
+        <form
+          onSubmit={handleSetPassword}
+          className="w-full max-w-sm rounded-xl bg-white p-8 shadow-md"
+        >
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#5C2A1D] font-bold text-[#F2E6D2]">
+              AD
+            </div>
+            <h1 className="text-lg font-semibold text-[#5C2A1D]">Bienvenue !</h1>
+            <p className="text-sm text-neutral-500">Choisis ton mot de passe pour finaliser ton compte</p>
+          </div>
+
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Nouveau mot de passe
+          </label>
+          <input
+            type="password"
+            required
+            minLength={8}
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#0F5C56] focus:outline-none"
+          />
+
+          <label className="mb-1 block text-sm font-medium text-neutral-700">
+            Confirmer le mot de passe
+          </label>
+          <input
+            type="password"
+            required
+            minLength={8}
+            value={newPassword2}
+            onChange={(e) => setNewPassword2(e.target.value)}
+            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#0F5C56] focus:outline-none"
+          />
+
+          {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {loading ? "Enregistrement…" : "Valider et accéder à l'espace"}
+          </button>
+        </form>
+      </div>
+    );
   }
 
   return (

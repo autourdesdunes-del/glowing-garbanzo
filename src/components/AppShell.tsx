@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client, EMPTY_CLIENT } from "@/lib/types";
+import { CatalogueItem, Client, EMPTY_CLIENT, Reservation, ReservationOption } from "@/lib/types";
 import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import CatalogueView from "@/components/CatalogueView";
+import PlanningView from "@/components/PlanningView";
 
 type Mode = "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
 
@@ -36,6 +37,9 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [allReservations, setAllReservations] = useState<Reservation[]>([]);
+  const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
+  const [planningLoaded, setPlanningLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -55,6 +59,32 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (mode !== "planning") return;
+    (async () => {
+      const { data: resas } = await supabase.from("reservations").select("*");
+      const list = (resas as Reservation[]) || [];
+      setAllReservations(list);
+      if (list.length) {
+        const { data: opts } = await supabase
+          .from("reservation_options")
+          .select("*")
+          .in(
+            "reservation_id",
+            list.map((r) => r.id)
+          );
+        const grouped: Record<string, ReservationOption[]> = {};
+        ((opts as ReservationOption[]) || []).forEach((o) => {
+          grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
+        });
+        setAllResaOptions(grouped);
+      } else {
+        setAllResaOptions({});
+      }
+      setPlanningLoaded(true);
+    })();
+  }, [mode, supabase]);
 
   const filtered = clients.filter((c) =>
     (c.nom || "").toLowerCase().includes(query.toLowerCase())
@@ -261,7 +291,25 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
         </div>
       )}
 
-      {mode !== "team" && mode !== "catalogue" && (
+      {mode === "planning" && (
+        <div className="flex-1 overflow-y-auto">
+          {!planningLoaded ? (
+            <div className="p-6 text-neutral-400">Chargement…</div>
+          ) : (
+            <PlanningView
+              clients={clients}
+              reservations={allReservations}
+              resaOptions={allResaOptions}
+              onOpenClient={(id) => {
+                setSelectedId(id);
+                setMode("team");
+              }}
+            />
+          )}
+        </div>
+      )}
+
+      {mode !== "team" && mode !== "catalogue" && mode !== "planning" && (
         <div className="flex flex-1 items-center justify-center text-neutral-400">
           Bientôt disponible.
         </div>

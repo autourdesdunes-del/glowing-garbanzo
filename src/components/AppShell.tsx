@@ -13,6 +13,7 @@ import {
 } from "@/lib/types";
 import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
+import DashboardView from "@/components/DashboardView";
 import ChangePasswordButton from "@/components/ChangePasswordButton";
 import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
@@ -24,8 +25,16 @@ import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
 
-type Mode = "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
+type Mode = "dashboard" | "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
 
+function IconHome() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+      <path d="M3 9.5 10 3l7 6.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 8.5V17h10V8.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function IconUsers() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
@@ -82,6 +91,7 @@ function IconShield() {
 }
 
 const TABS: { key: Mode; label: string; icon: () => React.ReactElement }[] = [
+  { key: "dashboard", label: "Tableau de bord", icon: IconHome },
   { key: "team", label: "Vue équipe", icon: IconUsers },
   { key: "catalogue", label: "Catalogue", icon: IconBook },
   { key: "suivis", label: "Suivis", icon: IconChecklist },
@@ -125,7 +135,7 @@ function AppShellInner({
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
-  const [mode, setMode] = useState<Mode>("team");
+  const [mode, setMode] = useState<Mode>("dashboard");
   const [clients, setClients] = useState<Client[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -159,7 +169,8 @@ function AppShellInner({
   }, []);
 
   useEffect(() => {
-    if (mode !== "planning" && mode !== "suivis" && mode !== "direction") return;
+    if (mode !== "planning" && mode !== "suivis" && mode !== "direction" && mode !== "dashboard")
+      return;
     // Direction shows revenue/margin data — don't even fetch it into the
     // browser for team members who don't have the Direction role.
     if (mode === "direction" && !isDirection) return;
@@ -380,6 +391,25 @@ function AppShellInner({
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col">
+      {mode === "dashboard" && (
+        <div className="flex-1 overflow-y-auto">
+          {!planningLoaded ? (
+            <Spinner />
+          ) : (
+            <DashboardView
+              clients={clients}
+              reservations={allReservations}
+              resaOptions={allResaOptions}
+              isDirection={isDirection}
+              onOpenClient={(id) => {
+                setSelectedId(id);
+                setMode("team");
+              }}
+            />
+          )}
+        </div>
+      )}
+
       {mode === "team" && (
         <div className="flex flex-1">
           <aside className="flex w-72 flex-col border-r border-[#8B4531]/20 bg-white">
@@ -545,7 +575,8 @@ function AppShellInner({
         </div>
       )}
 
-      {mode !== "team" &&
+      {mode !== "dashboard" &&
+        mode !== "team" &&
         mode !== "catalogue" &&
         mode !== "planning" &&
         mode !== "suivis" &&

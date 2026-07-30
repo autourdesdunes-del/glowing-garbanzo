@@ -90,6 +90,9 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
 
   useEffect(() => {
     if (mode !== "planning" && mode !== "suivis" && mode !== "direction") return;
+    // Direction shows revenue/margin data — don't even fetch it into the
+    // browser until the PIN has been entered, not just hide it visually.
+    if (mode === "direction" && !directionUnlocked) return;
     (async () => {
       const { data: resas } = await supabase.from("reservations").select("*");
       const list = (resas as Reservation[]) || [];
@@ -118,7 +121,7 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
         setSuivisLoaded(true);
       }
     })();
-  }, [mode, supabase]);
+  }, [mode, supabase, directionUnlocked]);
 
   const filtered = clients.filter((c) =>
     (c.nom || "").toLowerCase().includes(query.toLowerCase())

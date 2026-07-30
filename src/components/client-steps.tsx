@@ -423,6 +423,7 @@ export function ActivitesStep({
   onUpdateOption,
   onDeleteOption,
   catalogue,
+  canSeeMargins,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -433,6 +434,7 @@ export function ActivitesStep({
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
   catalogue: CatalogueItem[];
+  canSeeMargins: boolean;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -469,6 +471,7 @@ export function ActivitesStep({
           onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
           onToggleSoldePaye={() => onChange({ solde_paye: !client.solde_paye })}
           catalogue={catalogue}
+          canSeeMargins={canSeeMargins}
         />
       ))}
     </div>

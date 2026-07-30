@@ -23,8 +23,6 @@ import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
 
-const DIRECTOR_PIN = "2026";
-
 type Mode = "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
 
 function IconUsers() {
@@ -97,17 +95,30 @@ function fmtDate(dateStr: string | null) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-export default function AppShell({ userEmail }: { userEmail: string }) {
+export default function AppShell({
+  userEmail,
+  role,
+}: {
+  userEmail: string;
+  role: "direction" | "equipe";
+}) {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <AppShellInner userEmail={userEmail} />
+        <AppShellInner userEmail={userEmail} role={role} />
       </ConfirmProvider>
     </ToastProvider>
   );
 }
 
-function AppShellInner({ userEmail }: { userEmail: string }) {
+function AppShellInner({
+  userEmail,
+  role,
+}: {
+  userEmail: string;
+  role: "direction" | "equipe";
+}) {
+  const isDirection = role === "direction";
   const confirm = useConfirm();
   const toast = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -126,8 +137,6 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [directionUnlocked, setDirectionUnlocked] = useState(false);
-  const [pinInput, setPinInput] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -151,8 +160,8 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
   useEffect(() => {
     if (mode !== "planning" && mode !== "suivis" && mode !== "direction") return;
     // Direction shows revenue/margin data — don't even fetch it into the
-    // browser until the PIN has been entered, not just hide it visually.
-    if (mode === "direction" && !directionUnlocked) return;
+    // browser for team members who don't have the Direction role.
+    if (mode === "direction" && !isDirection) return;
     (async () => {
       const { data: resas } = await supabase.from("reservations").select("*");
       const list = (resas as Reservation[]) || [];
@@ -181,7 +190,7 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
         setSuivisLoaded(true);
       }
     })();
-  }, [mode, supabase, directionUnlocked]);
+  }, [mode, supabase, isDirection]);
 
   const filtered = clients.filter((c) =>
     (c.nom || "").toLowerCase().includes(query.toLowerCase())
@@ -318,7 +327,7 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
         </div>
 
         <nav className="flex-1 space-y-0.5 px-2.5">
-          {TABS.map((t) => {
+          {TABS.filter((t) => t.key !== "direction" || isDirection).map((t) => {
             const Icon = t.icon;
             const active = mode === t.key;
             return (
@@ -430,6 +439,8 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
                 client={selected}
                 onChange={updateSelected}
                 onDelete={() => deleteClient(selected.id)}
+                canDelete={isDirection}
+                canSeeMargins={isDirection}
                 catalogue={catalogue}
               />
             )}
@@ -444,6 +455,7 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
             onAdd={addCatalogueItem}
             onUpdate={updateCatalogueItem}
             onDelete={deleteCatalogueItem}
+            canSeeMargins={isDirection}
           />
         </div>
       )}
@@ -515,32 +527,12 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
 
       {mode === "direction" && (
         <div className="flex-1 overflow-y-auto">
-          {!directionUnlocked ? (
+          {!isDirection ? (
             <div className="flex flex-1 items-center justify-center p-10">
-              <div className="w-full max-w-xs rounded-md bg-white p-6 text-center">
-                <p className="mb-3 text-sm text-neutral-600">
-                  Accès direction — code requis
+              <div className="w-full max-w-sm rounded-md bg-white p-6 text-center">
+                <p className="text-sm text-neutral-500">
+                  Cette section est réservée à la Direction.
                 </p>
-                <input
-                  type="password"
-                  value={pinInput}
-                  onChange={(e) => setPinInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && pinInput === DIRECTOR_PIN) {
-                      setDirectionUnlocked(true);
-                    }
-                  }}
-                  className="input mb-3 w-full text-center"
-                  placeholder="Code"
-                />
-                <button
-                  onClick={() => {
-                    if (pinInput === DIRECTOR_PIN) setDirectionUnlocked(true);
-                  }}
-                  className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-                >
-                  Déverrouiller
-                </button>
               </div>
             </div>
           ) : !planningLoaded ? (

@@ -29,6 +29,7 @@ export default function ReservationCard({
   onDeleteOption,
   onToggleSoldePaye,
   catalogue,
+  canSeeMargins,
 }: {
   r: Reservation;
   client: Client;
@@ -42,6 +43,7 @@ export default function ReservationCard({
   onDeleteOption: (optId: string) => void;
   onToggleSoldePaye: () => void;
   catalogue: CatalogueItem[];
+  canSeeMargins: boolean;
 }) {
   const pickFromCatalogue = (id: string) => {
     const item = catalogue.find((a) => a.id === id);
@@ -259,14 +261,16 @@ export default function ReservationCard({
             className="input"
           />
         </Field>
-        <Field label="Coût réel (interne)">
-          <input
-            type="number"
-            value={r.cout_reel}
-            onChange={(e) => onUpdate({ cout_reel: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
+        {canSeeMargins && (
+          <Field label="Coût réel (interne)">
+            <input
+              type="number"
+              value={r.cout_reel}
+              onChange={(e) => onUpdate({ cout_reel: Number(e.target.value) })}
+              className="input"
+            />
+          </Field>
+        )}
       </div>
 
       <div className="mt-3">

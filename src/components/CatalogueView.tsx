@@ -13,11 +13,13 @@ export default function CatalogueView({
   onAdd,
   onUpdate,
   onDelete,
+  canSeeMargins,
 }: {
   items: CatalogueItem[];
   onAdd: () => void;
   onUpdate: (id: string, patch: Partial<CatalogueItem>) => void;
   onDelete: (id: string) => void;
+  canSeeMargins: boolean;
 }) {
   return (
     <div className="mx-auto max-w-3xl space-y-3 p-6">
@@ -125,14 +127,16 @@ export default function CatalogueView({
                     className="input"
                   />
                 </Field>
-                <Field label="Marge cible (%)">
-                  <input
-                    type="number"
-                    value={a.marge_pct}
-                    onChange={(e) => onUpdate(a.id, { marge_pct: Number(e.target.value) })}
-                    className="input"
-                  />
-                </Field>
+                {canSeeMargins && (
+                  <Field label="Marge cible (%)">
+                    <input
+                      type="number"
+                      value={a.marge_pct}
+                      onChange={(e) => onUpdate(a.id, { marge_pct: Number(e.target.value) })}
+                      className="input"
+                    />
+                  </Field>
+                )}
                 <Field label="Horaire approximatif">
                   <input
                     value={a.horaire_approx}

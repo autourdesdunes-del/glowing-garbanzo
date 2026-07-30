@@ -17,7 +17,9 @@
       "Bash(sed -n '1,234p' src/components/AppShell.tsx)",
       "Bash(mv /tmp/AppShell_trimmed.tsx src/components/AppShell.tsx)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/login)",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "Bash(grep -n \"ActivitesStep$\\\\|<ActivitesStep\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ClientDetail.tsx\")",
+      "Bash(grep -n \"Coût réel\\\\|catalogue,\\\\n}: {\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ReservationCard.tsx\")"
     ]
   }
 }

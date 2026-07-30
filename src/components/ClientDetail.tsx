@@ -20,11 +20,15 @@ export default function ClientDetail({
   client,
   onChange,
   onDelete,
+  canDelete,
+  canSeeMargins,
   catalogue,
 }: {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
   onDelete: () => void;
+  canDelete: boolean;
+  canSeeMargins: boolean;
   catalogue: CatalogueItem[];
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -149,12 +153,14 @@ export default function ClientDetail({
           placeholder="Nom du client"
           className="font-heading w-full max-w-md rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#5C2A1D] hover:border-neutral-200 focus:border-[#0F5C56] focus:outline-none"
         />
-        <button
-          onClick={onDelete}
-          className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
-        >
-          Supprimer ce client
-        </button>
+        {canDelete && (
+          <button
+            onClick={onDelete}
+            className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+          >
+            Supprimer ce client
+          </button>
+        )}
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
@@ -191,6 +197,7 @@ export default function ClientDetail({
           onUpdateOption={updateOption}
           onDeleteOption={deleteOption}
           catalogue={catalogue}
+          canSeeMargins={canSeeMargins}
         />
       )}
       {step === 4 && (

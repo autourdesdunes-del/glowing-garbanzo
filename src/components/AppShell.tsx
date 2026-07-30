@@ -19,6 +19,7 @@ import PlanningView from "@/components/PlanningView";
 import SuivisView from "@/components/SuivisView";
 import ClientPreviewView from "@/components/ClientPreviewView";
 import DirectionView from "@/components/DirectionView";
+import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 
 const DIRECTOR_PIN = "2026";
 
@@ -40,6 +41,15 @@ function fmtDate(dateStr: string | null) {
 }
 
 export default function AppShell({ userEmail }: { userEmail: string }) {
+  return (
+    <ConfirmProvider>
+      <AppShellInner userEmail={userEmail} />
+    </ConfirmProvider>
+  );
+}
+
+function AppShellInner({ userEmail }: { userEmail: string }) {
+  const confirm = useConfirm();
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -154,6 +164,14 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
   };
 
   const deleteClient = async (id: string) => {
+    const client = clients.find((c) => c.id === id);
+    const ok = await confirm({
+      title: "Supprimer ce client ?",
+      message: `${client?.nom || "Ce client"} sera supprimé définitivement, avec toutes ses réservations, paiements et remboursements. Cette action est irréversible.`,
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (!ok) return;
     const next = clients.filter((c) => c.id !== id);
     setClients(next);
     if (selectedId === id) setSelectedId(next[0] ? next[0].id : null);
@@ -180,6 +198,13 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
   };
 
   const deleteCatalogueItem = async (id: string) => {
+    const ok = await confirm({
+      title: "Retirer cette activité du catalogue ?",
+      message: "Elle ne sera plus proposée pour de nouvelles réservations. Les réservations déjà créées à partir de ce modèle ne sont pas affectées.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
     setCatalogue((prev) => prev.filter((a) => a.id !== id));
     await supabase.from("catalogue_activites").delete().eq("id", id);
   };

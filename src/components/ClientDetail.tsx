@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
+import { useConfirm } from "@/components/ConfirmProvider";
 import {
   ActivitesStep,
   BilletAvionStep,
@@ -26,6 +27,7 @@ export default function ClientDetail({
   catalogue: CatalogueItem[];
 }) {
   const supabase = useMemo(() => createClient(), []);
+  const confirm = useConfirm();
   const [step, setStep] = useState(0);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
@@ -76,6 +78,13 @@ export default function ClientDetail({
   };
 
   const deleteReservation = async (id: string) => {
+    const ok = await confirm({
+      title: "Retirer cette activité ?",
+      message: "Ses options et son lien éventuel au solde seront aussi retirés. Cette action est irréversible.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
     setReservations((prev) => prev.filter((r) => r.id !== id));
     setResaOptions((prev) => {
       const next = { ...prev };

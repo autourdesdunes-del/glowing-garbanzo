@@ -22,6 +22,7 @@ import {
 } from "@/lib/constants";
 import { resaTotalMontant } from "@/lib/resa";
 import ReservationCard from "@/components/ReservationCard";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -480,6 +481,7 @@ export function PaiementsStep({
   resaOptions,
 }: StepProps & { reservations: Reservation[]; resaOptions: Record<string, ReservationOption[]> }) {
   const supabase = createClient();
+  const confirm = useConfirm();
   const [paiements, setPaiements] = useState<Paiement[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -512,6 +514,12 @@ export function PaiementsStep({
   };
 
   const deletePaiement = async (id: string) => {
+    const ok = await confirm({
+      message: "Retirer cet acompte ? Cette action est irréversible.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
     setPaiements((prev) => prev.filter((p) => p.id !== id));
     await supabase.from("paiements").delete().eq("id", id);
   };
@@ -697,6 +705,7 @@ export function SuiviStep({
   reservations,
 }: StepProps & { reservations: Reservation[] }) {
   const supabase = createClient();
+  const confirm = useConfirm();
   const [remboursements, setRemboursements] = useState<Remboursement[]>([]);
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [verifNom, setVerifNom] = useState("");
@@ -736,6 +745,12 @@ export function SuiviStep({
   };
 
   const deleteRemboursement = async (id: string) => {
+    const ok = await confirm({
+      message: "Retirer ce remboursement ? Cette action est irréversible.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
     setRemboursements((prev) => prev.filter((r) => r.id !== id));
     await supabase.from("remboursements").delete().eq("id", id);
   };

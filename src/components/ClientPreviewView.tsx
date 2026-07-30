@@ -254,7 +254,7 @@ export default function ClientPreviewView({
             <div
               className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs ${
                 i < trackerStep
-                  ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                  ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
                   : i === trackerStep
                     ? "border-[#C9973E] bg-[#C9973E] text-white"
                     : "border-neutral-300 bg-white text-neutral-400"
@@ -312,7 +312,7 @@ export default function ClientPreviewView({
           <span className="text-xs text-neutral-500">montant total du séjour</span>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-100">
-          <div className="h-full bg-[#0F5C56]" style={{ width: pct + "%" }} />
+          <div className="h-full bg-[#5C2A1D]" style={{ width: pct + "%" }} />
         </div>
         <div className="mt-1 flex justify-between text-xs text-neutral-500">
           <span>{euros(totalPaye)} € déjà payés</span>
@@ -407,7 +407,7 @@ export default function ClientPreviewView({
                 <button
                   disabled={!!interests[a.id]}
                   onClick={() => setInterests({ ...interests, [a.id]: true })}
-                  className="mt-2 w-full rounded-md bg-[#0F5C56] px-2 py-1 text-xs text-white disabled:opacity-50"
+                  className="mt-2 w-full rounded-md bg-[#5C2A1D] px-2 py-1 text-xs text-white disabled:opacity-50"
                 >
                   {interests[a.id] ? "Intérêt enregistré ✓" : "Je suis intéressé(e)"}
                 </button>
@@ -440,7 +440,7 @@ export default function ClientPreviewView({
               href="https://wa.me/201556221115"
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-[#0F5C56]"
+              className="font-medium text-[#5C2A1D]"
             >
               Contacter ma conseillère →
             </a>
@@ -457,14 +457,14 @@ export default function ClientPreviewView({
               href="https://wa.me/201556221115"
               target="_blank"
               rel="noreferrer"
-              className="mt-1 block font-medium text-[#0F5C56]"
+              className="mt-1 block font-medium text-[#5C2A1D]"
             >
               Voir les conditions →
             </a>
           </div>
           <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
             <span>Je ne trouve pas mon transfert</span>
-            <a href="tel:+201556221115" className="mt-1 block font-medium text-[#0F5C56]">
+            <a href="tel:+201556221115" className="mt-1 block font-medium text-[#5C2A1D]">
               Numéro spécial transfert →
             </a>
           </div>

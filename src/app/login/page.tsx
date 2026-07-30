@@ -165,7 +165,7 @@ export default function LoginPage() {
             minLength={8}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#0F5C56] focus:outline-none"
+            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#5C2A1D] focus:outline-none"
           />
 
           <label className="mb-1 block text-sm font-medium text-neutral-700">
@@ -177,7 +177,7 @@ export default function LoginPage() {
             minLength={8}
             value={newPassword2}
             onChange={(e) => setNewPassword2(e.target.value)}
-            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#0F5C56] focus:outline-none"
+            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#5C2A1D] focus:outline-none"
           />
 
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -185,7 +185,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             {loading ? "Enregistrement…" : "Valider et accéder à l'espace"}
           </button>
@@ -214,7 +214,7 @@ export default function LoginPage() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#0F5C56] focus:outline-none"
+          className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#5C2A1D] focus:outline-none"
         />
 
         <label className="mb-1 block text-sm font-medium text-neutral-700">Mot de passe</label>
@@ -223,7 +223,7 @@ export default function LoginPage() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#0F5C56] focus:outline-none"
+          className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#5C2A1D] focus:outline-none"
         />
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -231,7 +231,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {loading ? "Connexion…" : "Se connecter"}
         </button>

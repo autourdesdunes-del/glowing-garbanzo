@@ -66,12 +66,12 @@ export default function ChangePasswordButton() {
 
             {success ? (
               <div>
-                <p className="mb-4 text-sm text-[#0F5C56]">
+                <p className="mb-4 text-sm text-[#5C2A1D]">
                   Mot de passe mis à jour ✓
                 </p>
                 <button
                   onClick={close}
-                  className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+                  className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
                 >
                   Fermer
                 </button>
@@ -104,7 +104,7 @@ export default function ChangePasswordButton() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                 >
                   {loading ? "Enregistrement…" : "Enregistrer"}
                 </button>

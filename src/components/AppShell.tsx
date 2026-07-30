@@ -387,7 +387,7 @@ function AppShellInner({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Rechercher un client…"
-                className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#0F5C56] focus:outline-none"
+                className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#5C2A1D] focus:outline-none"
               />
               <button
                 onClick={addClient}

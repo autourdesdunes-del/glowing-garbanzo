@@ -58,7 +58,7 @@ export default function ConfirmProvider({ children }: { children: React.ReactNod
               <button
                 onClick={() => respond(true)}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 ${
-                  options.danger ? "bg-red-600" : "bg-[#0F5C56]"
+                  options.danger ? "bg-red-600" : "bg-[#5C2A1D]"
                 }`}
               >
                 {options.confirmLabel || "Confirmer"}

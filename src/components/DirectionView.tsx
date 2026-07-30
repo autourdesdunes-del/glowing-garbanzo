@@ -142,7 +142,7 @@ export default function DirectionView({
           )}
           <button
             onClick={exportCsv}
-            className="rounded-md bg-[#0F5C56] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             Exporter en CSV
           </button>
@@ -150,9 +150,9 @@ export default function DirectionView({
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <StatTile label="CA total" value={`${euros(caTotal)} €`} accent="#0F5C56" />
+        <StatTile label="CA total" value={`${euros(caTotal)} €`} accent="#5C2A1D" />
         <StatTile label="Marge totale" value={`${euros(margeTotal)} €`} accent="#C9973E" />
-        <StatTile label="Marge" value={`${margePct}%`} accent="#5C2A1D" />
+        <StatTile label="Marge" value={`${margePct}%`} accent="#8B4531" />
       </div>
 
       <section>

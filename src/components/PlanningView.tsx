@@ -102,7 +102,7 @@ export default function PlanningView({
             onClick={() => setFilter(f.key)}
             className={`rounded-full border px-3 py-1.5 text-sm ${
               filter === f.key
-                ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
                 : "border-neutral-300 bg-white text-neutral-600"
             }`}
           >
@@ -168,7 +168,7 @@ export default function PlanningView({
                   <span
                     className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs ${
                       infoStatut === "Complet"
-                        ? "bg-[#0F5C56]/10 text-[#0F5C56]"
+                        ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
                         : "bg-red-50 text-red-600"
                     }`}
                   >

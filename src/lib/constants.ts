@@ -50,6 +50,6 @@ export const RAISONS_REMBOURSEMENT = [
 export const STATUT_COLORS: Record<string, string> = {
   Prospect: "#8B4531",
   "En négociation": "#C9973E",
-  "Client confirmé": "#0F5C56",
+  "Client confirmé": "#5C2A1D",
   Perdu: "#9CA3AF",
 };

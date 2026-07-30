@@ -90,7 +90,7 @@ export default function SuivisView({
             onClick={() => setSub(s.key)}
             className={`rounded-full border px-3 py-1.5 text-sm ${
               sub === s.key
-                ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
                 : "border-neutral-300 bg-white text-neutral-600"
             }`}
           >
@@ -247,7 +247,7 @@ export default function SuivisView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.statut === "Effectué"
-                          ? "bg-[#0F5C56]/10 text-[#0F5C56]"
+                          ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
                           : "bg-[#C9973E]/20 text-[#8B4531]"
                       }`}
                     >
@@ -305,7 +305,7 @@ export default function SuivisView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         c.billet_acompte_paye
-                          ? "bg-[#0F5C56]/10 text-[#0F5C56]"
+                          ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
                           : "bg-[#C9973E]/20 text-[#8B4531]"
                       }`}
                     >
@@ -314,7 +314,7 @@ export default function SuivisView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         c.billet_envoye
-                          ? "bg-[#0F5C56]/10 text-[#0F5C56]"
+                          ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
                           : "bg-[#C9973E]/20 text-[#8B4531]"
                       }`}
                     >
@@ -332,7 +332,7 @@ export default function SuivisView({
                             href={c.billet_lien}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-[#0F5C56] underline"
+                            className="text-[#5C2A1D] underline"
                           >
                             Voir le billet
                           </a>

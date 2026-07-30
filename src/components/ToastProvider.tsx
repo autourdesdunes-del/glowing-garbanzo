@@ -34,7 +34,7 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
           <div
             key={t.id}
             className={`rounded-md px-4 py-2 text-sm text-white shadow-lg ${
-              t.tone === "error" ? "bg-red-600" : "bg-[#0F5C56]"
+              t.tone === "error" ? "bg-red-600" : "bg-[#5C2A1D]"
             }`}
           >
             {t.message}

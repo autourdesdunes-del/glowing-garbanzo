@@ -71,10 +71,10 @@ export default function ReservationCard({
       return (
         <div
           onClick={() => onToggleExpanded(true)}
-          className="cursor-pointer rounded-md border border-[#0F5C56]/30 bg-white p-3"
+          className="cursor-pointer rounded-md border border-[#5C2A1D]/30 bg-white p-3"
         >
           <div className="flex items-center gap-2">
-            <span className="text-[#0F5C56]">✓</span>
+            <span className="text-[#5C2A1D]">✓</span>
             <span className="font-medium text-[#5C2A1D]">
               {r.nom_activite || "Activité sans nom"}
             </span>
@@ -155,7 +155,7 @@ export default function ReservationCard({
     <div className="rounded-md border border-[#8B4531]/20 bg-white p-4">
       <div className="mb-3 flex items-center justify-between">
         {r.statut_resa === "Confirmée" ? (
-          <span className="rounded-full bg-[#0F5C56] px-3 py-1 text-xs text-white">
+          <span className="rounded-full bg-[#5C2A1D] px-3 py-1 text-xs text-white">
             ✓ Confirmée
           </span>
         ) : (
@@ -169,7 +169,7 @@ export default function ReservationCard({
               statut_resa: r.statut_resa === "Confirmée" ? "Brouillon" : "Confirmée",
             })
           }
-          className="rounded-md bg-[#0F5C56] px-3 py-1.5 text-sm text-white hover:opacity-90"
+          className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm text-white hover:opacity-90"
         >
           {r.statut_resa === "Confirmée" ? "Repasser en brouillon" : "✓ Marquer comme confirmée"}
         </button>
@@ -281,7 +281,7 @@ export default function ReservationCard({
             onClick={() => onUpdate({ participants_mode: "tous" })}
             className={`rounded-full border px-3 py-1 text-xs ${
               r.participants_mode === "tous"
-                ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
@@ -389,7 +389,7 @@ export default function ReservationCard({
             onClick={() => onUpdate({ transfert_inclus: true })}
             className={`rounded-full border px-3 py-1 text-xs ${
               r.transfert_inclus
-                ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
@@ -495,7 +495,7 @@ export default function ReservationCard({
             </span>
             <button
               onClick={onToggleSoldePaye}
-              className="rounded-md bg-[#0F5C56] px-3 py-1 text-xs text-white hover:opacity-90"
+              className="rounded-md bg-[#5C2A1D] px-3 py-1 text-xs text-white hover:opacity-90"
             >
               {client.solde_paye ? "Annuler" : "Marquer le solde encaissé"}
             </button>

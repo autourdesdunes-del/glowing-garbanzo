@@ -151,7 +151,7 @@ export default function ClientDetail({
           value={client.nom}
           onChange={(e) => onChange({ nom: e.target.value })}
           placeholder="Nom du client"
-          className="font-heading w-full max-w-md rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#5C2A1D] hover:border-neutral-200 focus:border-[#0F5C56] focus:outline-none"
+          className="font-heading w-full max-w-md rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#5C2A1D] hover:border-neutral-200 focus:border-[#5C2A1D] focus:outline-none"
         />
         {canDelete && (
           <button
@@ -170,7 +170,7 @@ export default function ClientDetail({
             onClick={() => setStep(i)}
             className={`rounded-full px-3 py-1.5 text-sm font-medium ${
               i === step
-                ? "bg-[#0F5C56] text-white"
+                ? "bg-[#5C2A1D] text-white"
                 : "bg-white text-[#5C2A1D] hover:bg-[#F2E6D2]"
             }`}
           >

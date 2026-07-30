@@ -53,9 +53,9 @@ export default function CatalogueView({
             <div
               key={a.id}
               onClick={() => onUpdate(a.id, { valide: false })}
-              className="flex cursor-pointer items-center gap-3 rounded-md border border-[#0F5C56]/30 bg-white p-3"
+              className="flex cursor-pointer items-center gap-3 rounded-md border border-[#5C2A1D]/30 bg-white p-3"
             >
-              <span className="text-[#0F5C56]">✓</span>
+              <span className="text-[#5C2A1D]">✓</span>
               <span className="font-medium text-[#5C2A1D]">{a.nom || "Sans nom"}</span>
               <span className="text-xs text-neutral-500">
                 {a.disponibilites || "Disponibilités ?"}
@@ -73,7 +73,7 @@ export default function CatalogueView({
                 </span>
                 <button
                   onClick={() => onUpdate(a.id, { valide: true })}
-                  className="rounded-md bg-[#0F5C56] px-3 py-1.5 text-sm text-white hover:opacity-90"
+                  className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm text-white hover:opacity-90"
                 >
                   ✓ Valider cette activité
                 </button>

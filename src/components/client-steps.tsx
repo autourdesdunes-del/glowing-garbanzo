@@ -462,7 +462,7 @@ export function ActivitesStep({
           onClick={() => setView("liste")}
           className={`rounded-full border px-3 py-1 text-xs font-medium ${
             view === "liste"
-              ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+              ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
               : "border-neutral-300 text-neutral-600"
           }`}
         >
@@ -472,7 +472,7 @@ export function ActivitesStep({
           onClick={() => setView("itineraire")}
           className={`rounded-full border px-3 py-1 text-xs font-medium ${
             view === "itineraire"
-              ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+              ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
               : "border-neutral-300 text-neutral-600"
           }`}
         >

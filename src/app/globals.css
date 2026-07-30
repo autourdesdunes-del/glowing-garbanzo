@@ -4,7 +4,6 @@
   --color-terracotta: #5c2a1d;
   --color-terracotta-light: #8b4531;
   --color-sand: #f2e6d2;
-  --color-teal: #0f5c56;
   --color-gold: #c9973e;
 
   --background: var(--color-sand);
@@ -43,5 +42,5 @@ h1, h2, h3, h4 {
 }
 .input:focus {
   outline: none;
-  border-color: var(--color-teal);
+  border-color: var(--color-terracotta);
 }

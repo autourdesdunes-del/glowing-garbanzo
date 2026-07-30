@@ -47,6 +47,13 @@ export const RAISONS_REMBOURSEMENT = [
   "Autre",
 ] as const;
 
+export const CATALOGUE_CATEGORIES = [
+  "Excursion",
+  "Transfert",
+  "Séjour multi-jours",
+  "Autre",
+] as const;
+
 export const STATUT_COLORS: Record<string, string> = {
   Prospect: "#8B4531",
   "En négociation": "#C9973E",

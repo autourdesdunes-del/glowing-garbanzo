@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { CatalogueItem } from "@/lib/types";
+import { CATALOGUE_CATEGORIES } from "@/lib/constants";
 import { Field } from "@/components/client-steps";
 import PhotoUpload from "@/components/PhotoUpload";
 
@@ -21,6 +23,10 @@ export default function CatalogueView({
   onDelete: (id: string) => void;
   canSeeMargins: boolean;
 }) {
+  const [categoryFilter, setCategoryFilter] = useState<string>("Toutes");
+  const filtered =
+    categoryFilter === "Toutes" ? items : items.filter((a) => a.categorie === categoryFilter);
+
   return (
     <div className="mx-auto max-w-3xl space-y-3 p-6">
       <div className="flex items-center justify-between">
@@ -41,14 +47,30 @@ export default function CatalogueView({
         </button>
       </div>
 
-      {items.length === 0 && (
+      <div className="flex flex-wrap gap-2">
+        {["Toutes", ...CATALOGUE_CATEGORIES].map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setCategoryFilter(cat)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              categoryFilter === cat
+                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                : "border-neutral-300 text-neutral-600"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
         <div className="text-sm text-neutral-400">
-          Aucune activité dans le catalogue pour l&apos;instant.
+          Aucune activité dans cette catégorie pour l&apos;instant.
         </div>
       )}
 
       <div className="space-y-3">
-        {items.map((a) =>
+        {filtered.map((a) =>
           a.valide ? (
             <div
               key={a.id}
@@ -57,6 +79,9 @@ export default function CatalogueView({
             >
               <span className="text-[#5C2A1D]">✓</span>
               <span className="font-medium text-[#5C2A1D]">{a.nom || "Sans nom"}</span>
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">
+                {a.categorie}
+              </span>
               <span className="text-xs text-neutral-500">
                 {a.disponibilites || "Disponibilités ?"}
               </span>
@@ -95,6 +120,17 @@ export default function CatalogueView({
               </div>
 
               <div className="grid grid-cols-3 gap-3">
+                <Field label="Catégorie">
+                  <select
+                    value={a.categorie}
+                    onChange={(e) => onUpdate(a.id, { categorie: e.target.value })}
+                    className="input"
+                  >
+                    {CATALOGUE_CATEGORIES.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </Field>
                 <Field label="Disponibilités">
                   <input
                     placeholder="ex. tous les jours, sauf vendredi"

@@ -11,6 +11,7 @@ export type ActivityLogEntry = {
 export type CatalogueItem = {
   id: string;
   nom: string;
+  categorie: string;
   disponibilites: string;
   pu_adulte: number;
   pu_enfant: number;

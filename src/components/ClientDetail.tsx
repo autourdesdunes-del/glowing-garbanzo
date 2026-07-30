@@ -254,6 +254,8 @@ export default function ClientDetail({
             </span>
           )}
         </div>
+
+        <TagEditor tags={client.tags} onChange={(tags) => onChange({ tags })} />
       </div>
 
       {autresSejours.length > 0 && (
@@ -329,6 +331,65 @@ export default function ClientDetail({
       <Section title="Suivi" open={open.Suivi} onToggle={() => toggle("Suivi")}>
         <SuiviStep client={client} onChange={onChange} reservations={reservations} />
       </Section>
+    </div>
+  );
+}
+
+const TAG_SUGGESTIONS = ["VIP", "Récurrent", "Urgent"];
+
+function TagEditor({
+  tags,
+  onChange,
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [input, setInput] = useState("");
+
+  const addTag = (tag: string) => {
+    const clean = tag.trim();
+    if (!clean || tags.includes(clean)) return;
+    onChange([...tags, clean]);
+    setInput("");
+  };
+  const removeTag = (tag: string) => onChange(tags.filter((t) => t !== tag));
+
+  const availableSuggestions = TAG_SUGGESTIONS.filter((s) => !tags.includes(s));
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2">
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          className="flex items-center gap-1 rounded-full bg-[#5C2A1D] px-2.5 py-1 text-xs text-white"
+        >
+          {tag}
+          <button onClick={() => removeTag(tag)} className="text-white/70 hover:text-white">
+            ✕
+          </button>
+        </span>
+      ))}
+      {availableSuggestions.map((s) => (
+        <button
+          key={s}
+          onClick={() => addTag(s)}
+          className="rounded-full border border-dashed border-neutral-300 px-2.5 py-1 text-xs text-neutral-400 hover:border-[#5C2A1D] hover:text-[#5C2A1D]"
+        >
+          + {s}
+        </button>
+      ))}
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            addTag(input);
+          }
+        }}
+        placeholder="+ étiquette…"
+        className="w-24 border-b border-transparent bg-transparent px-1 py-1 text-xs text-neutral-500 outline-none focus:border-neutral-300"
+      />
     </div>
   );
 }

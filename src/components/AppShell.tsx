@@ -142,6 +142,7 @@ function AppShellInner({
   const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [allReservations, setAllReservations] = useState<Reservation[]>([]);
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
@@ -205,9 +206,10 @@ function AppShellInner({
     })();
   }, [mode, supabase, isDirection]);
 
-  const filtered = clients.filter((c) =>
-    (c.nom || "").toLowerCase().includes(query.toLowerCase())
-  );
+  const allTags = Array.from(new Set(clients.flatMap((c) => c.tags))).sort();
+  const filtered = clients
+    .filter((c) => (c.nom || "").toLowerCase().includes(query.toLowerCase()))
+    .filter((c) => !tagFilter || c.tags.includes(tagFilter));
   const selected = clients.find((c) => c.id === selectedId) || null;
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -452,6 +454,23 @@ function AppShellInner({
               />
               <QuickAddClient onCreate={addClient} />
             </div>
+            {allTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 border-b border-[#8B4531]/10 p-2">
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+                    className={`rounded-full border px-2 py-0.5 text-xs ${
+                      tagFilter === tag
+                        ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                        : "border-neutral-200 text-neutral-500"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 && (
                 <div className="p-4 text-sm text-neutral-400">Aucun client.</div>
@@ -479,6 +498,14 @@ function AppShellInner({
                         {fmtDate(c.date_debut)}
                       </span>
                     )}
+                    {c.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded-full bg-[#F2E6D2] px-2 py-0.5 text-[#5C2A1D]"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 </button>
               ))}

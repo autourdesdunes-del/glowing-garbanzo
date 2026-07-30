@@ -138,6 +138,7 @@ export type Client = {
   solde_assigne_a: string;
   au_revoir_envoye: boolean;
   avis_envoye: boolean;
+  tags: string[];
   created_at: string;
   updated_at: string;
 };
@@ -174,4 +175,5 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   solde_assigne_a: "",
   au_revoir_envoye: false,
   avis_envoye: false,
+  tags: [],
 };

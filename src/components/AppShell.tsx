@@ -14,6 +14,7 @@ import {
 import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import DashboardView from "@/components/DashboardView";
+import GlobalSearch from "@/components/GlobalSearch";
 import ChangePasswordButton from "@/components/ChangePasswordButton";
 import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
@@ -399,6 +400,14 @@ function AppShellInner({
           <h1 className="font-heading text-base font-semibold text-[#5C2A1D]">
             {currentTab?.label}
           </h1>
+          <GlobalSearch
+            clients={clients}
+            reservations={allReservations}
+            onOpenClient={(id) => {
+              setSelectedId(id);
+              setMode("team");
+            }}
+          />
           <div className="flex items-center gap-3 text-sm text-neutral-500">
             <span className="max-w-[220px] truncate">{userEmail}</span>
             <ChangePasswordButton />

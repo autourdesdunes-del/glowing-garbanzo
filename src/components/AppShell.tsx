@@ -15,6 +15,7 @@ import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import DashboardView from "@/components/DashboardView";
 import GlobalSearch from "@/components/GlobalSearch";
+import PipelineView from "@/components/PipelineView";
 import ChangePasswordButton from "@/components/ChangePasswordButton";
 import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
@@ -143,6 +144,7 @@ function AppShellInner({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [teamView, setTeamView] = useState<"liste" | "pipeline">("liste");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [allReservations, setAllReservations] = useState<Reservation[]>([]);
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
@@ -443,7 +445,41 @@ function AppShellInner({
       )}
 
       {mode === "team" && (
-        <div className="flex flex-1">
+        <div className="flex flex-1 flex-col">
+          <div className="flex justify-end gap-1 border-b border-[#8B4531]/10 bg-white px-3 py-1.5">
+            <button
+              onClick={() => setTeamView("liste")}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
+                teamView === "liste"
+                  ? "bg-[#5C2A1D] text-white"
+                  : "text-[#5C2A1D] hover:bg-[#F2E6D2]"
+              }`}
+            >
+              Liste
+            </button>
+            <button
+              onClick={() => setTeamView("pipeline")}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
+                teamView === "pipeline"
+                  ? "bg-[#5C2A1D] text-white"
+                  : "text-[#5C2A1D] hover:bg-[#F2E6D2]"
+              }`}
+            >
+              Pipeline
+            </button>
+          </div>
+
+          {teamView === "pipeline" ? (
+            <PipelineView
+              clients={clients}
+              onUpdateStatut={(id, statut) => updateClientById(id, { statut })}
+              onOpenClient={(id) => {
+                setSelectedId(id);
+                setTeamView("liste");
+              }}
+            />
+          ) : (
+        <div className="flex flex-1 overflow-hidden">
           <aside className="flex w-72 flex-col border-r border-[#8B4531]/20 bg-white">
             <div className="flex gap-2 border-b border-[#8B4531]/10 p-3">
               <input
@@ -531,6 +567,8 @@ function AppShellInner({
               />
             )}
           </main>
+        </div>
+          )}
         </div>
       )}
 

@@ -22,6 +22,7 @@ import {
 } from "@/lib/constants";
 import { resaTotalMontant } from "@/lib/resa";
 import ReservationCard from "@/components/ReservationCard";
+import ItineraryView from "@/components/ItineraryView";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
@@ -437,6 +438,7 @@ export function ActivitesStep({
   canSeeMargins: boolean;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [view, setView] = useState<"liste" | "itineraire">("liste");
 
   return (
     <div className="mx-auto max-w-2xl space-y-3">
@@ -444,36 +446,66 @@ export function ActivitesStep({
         <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">
           Activités réservées
         </h2>
+        {view === "liste" && (
+          <button
+            onClick={onAddReservation}
+            className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            + Ajouter une activité
+          </button>
+        )}
+      </div>
+
+      <div className="flex gap-2">
         <button
-          onClick={onAddReservation}
-          className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          onClick={() => setView("liste")}
+          className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            view === "liste"
+              ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+              : "border-neutral-300 text-neutral-600"
+          }`}
         >
-          + Ajouter une activité
+          Liste
+        </button>
+        <button
+          onClick={() => setView("itineraire")}
+          className={`rounded-full border px-3 py-1 text-xs font-medium ${
+            view === "itineraire"
+              ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+              : "border-neutral-300 text-neutral-600"
+          }`}
+        >
+          Itinéraire jour par jour
         </button>
       </div>
 
-      {reservations.length === 0 && (
-        <div className="text-sm text-neutral-400">Aucune activité.</div>
+      {view === "liste" ? (
+        <>
+          {reservations.length === 0 && (
+            <div className="text-sm text-neutral-400">Aucune activité.</div>
+          )}
+          {reservations.map((r) => (
+            <ReservationCard
+              key={r.id}
+              r={r}
+              client={client}
+              options={resaOptions[r.id] || []}
+              expanded={!!expanded[r.id]}
+              onToggleExpanded={(v) => setExpanded((prev) => ({ ...prev, [r.id]: v }))}
+              onUpdate={(patch) => onUpdateReservation(r.id, patch)}
+              onDelete={() => onDeleteReservation(r.id)}
+              onAddOption={() => onAddOption(r.id)}
+              onUpdateOption={(optId, patch) => onUpdateOption(r.id, optId, patch)}
+              onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
+              onToggleSoldePaye={() => onChange({ solde_paye: !client.solde_paye })}
+              catalogue={catalogue}
+              canSeeMargins={canSeeMargins}
+            />
+          ))}
+        </>
+      ) : (
+        <ItineraryView client={client} reservations={reservations} resaOptions={resaOptions} />
       )}
-
-      {reservations.map((r) => (
-        <ReservationCard
-          key={r.id}
-          r={r}
-          client={client}
-          options={resaOptions[r.id] || []}
-          expanded={!!expanded[r.id]}
-          onToggleExpanded={(v) => setExpanded((prev) => ({ ...prev, [r.id]: v }))}
-          onUpdate={(patch) => onUpdateReservation(r.id, patch)}
-          onDelete={() => onDeleteReservation(r.id)}
-          onAddOption={() => onAddOption(r.id)}
-          onUpdateOption={(optId, patch) => onUpdateOption(r.id, optId, patch)}
-          onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
-          onToggleSoldePaye={() => onChange({ solde_paye: !client.solde_paye })}
-          catalogue={catalogue}
-          canSeeMargins={canSeeMargins}
-        />
-      ))}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "@/lib/types";
 import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
+import ChangePasswordButton from "@/components/ChangePasswordButton";
 import CatalogueView from "@/components/CatalogueView";
 import PlanningView from "@/components/PlanningView";
 import SuivisView from "@/components/SuivisView";
@@ -235,6 +236,7 @@ export default function AppShell({ userEmail }: { userEmail: string }) {
         </nav>
         <div className="flex items-center gap-3 text-sm text-neutral-500">
           <span>{userEmail}</span>
+          <ChangePasswordButton />
           <button
             onClick={handleSignOut}
             className="rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-[#5C2A1D] hover:bg-[#F2E6D2]"

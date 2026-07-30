@@ -13,7 +13,6 @@ import {
   Verification,
 } from "@/lib/types";
 import {
-  BILLET_STATUTS,
   CANAUX,
   INFOS_MANQUANTES_OPTIONS,
   MODES_PAIEMENT,
@@ -305,101 +304,6 @@ export function SejourStep({ client, onChange }: StepProps) {
           {copied ? "Copié ✓" : "Copier"}
         </button>
       </div>
-    </div>
-  );
-}
-
-export function BilletAvionStep({
-  client,
-  onChange,
-  reservations,
-}: StepProps & { reservations: Reservation[] }) {
-  return (
-    <div className="space-y-6">
-      <label className="flex items-center gap-2 text-sm text-neutral-700">
-        <input
-          type="checkbox"
-          checked={client.billet_requis}
-          onChange={(e) => onChange({ billet_requis: e.target.checked })}
-        />
-        Ce client a un billet à gérer
-      </label>
-
-      {client.billet_requis && (
-        <>
-          <Field label="Statut">
-            <select
-              value={client.billet_statut}
-              onChange={(e) => onChange({ billet_statut: e.target.value })}
-              className="input"
-            >
-              {BILLET_STATUTS.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Date du billet">
-            <input
-              type="date"
-              value={client.billet_date ?? ""}
-              onChange={(e) => onChange({ billet_date: e.target.value || null })}
-              className="input"
-            />
-          </Field>
-          <Field label="Activité liée">
-            <select
-              value={client.billet_activite_id ?? ""}
-              onChange={(e) => onChange({ billet_activite_id: e.target.value || null })}
-              className="input"
-            >
-              <option value="">Non liée</option>
-              {reservations.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.nom_activite || "Activité sans nom"}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Acompte billet payé">
-              <select
-                value={client.billet_acompte_paye ? "Oui" : "Non"}
-                onChange={(e) =>
-                  onChange({ billet_acompte_paye: e.target.value === "Oui" })
-                }
-                className="input"
-              >
-                <option>Non</option>
-                <option>Oui</option>
-              </select>
-            </Field>
-            <Field label="Billet envoyé au client">
-              <select
-                value={client.billet_envoye ? "Oui" : "Non"}
-                onChange={(e) => onChange({ billet_envoye: e.target.value === "Oui" })}
-                className="input"
-              >
-                <option>Non</option>
-                <option>Oui</option>
-              </select>
-            </Field>
-          </div>
-          <Field label="Lien billet (Drive)">
-            <input
-              value={client.billet_lien}
-              onChange={(e) => onChange({ billet_lien: e.target.value })}
-              className="input"
-            />
-          </Field>
-          <Field label="Notes pour Hossam">
-            <input
-              value={client.billet_notes}
-              onChange={(e) => onChange({ billet_notes: e.target.value })}
-              className="input"
-            />
-          </Field>
-        </>
-      )}
     </div>
   );
 }

@@ -79,7 +79,7 @@ export default function SuivisView({
     (b.date_probleme || "").localeCompare(a.date_probleme || "")
   );
 
-  const billetsRows = clients.filter((c) => c.billet_requis);
+  const billetsRows = reservations.filter((r) => r.billet_requis);
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
@@ -279,57 +279,56 @@ export default function SuivisView({
           </h3>
           {billetsRows.length === 0 && (
             <div className="text-sm text-neutral-400">
-              Aucun client avec billet à gérer pour l&apos;instant.
+              Aucune activité avec billet à gérer pour l&apos;instant.
             </div>
           )}
           <div className="space-y-2">
-            {billetsRows.map((c) => {
-              const activite = reservations.find((r) => r.id === c.billet_activite_id);
-              const key = "billet-" + c.id;
+            {billetsRows.map((r) => {
+              const client = clients.find((c) => c.id === r.client_id);
+              if (!client) return null;
+              const key = "billet-" + r.id;
               const isOpen = expanded[key];
               return (
-                <div key={c.id} className="rounded-md border border-neutral-200 bg-white">
+                <div key={r.id} className="rounded-md border border-neutral-200 bg-white">
                   <div
                     onClick={() => toggleExpand(key)}
                     className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
                   >
                     <span className="font-amounts text-neutral-500">
-                      {c.billet_date ? fmtDate(c.billet_date) : "Date ?"}
+                      {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
                     </span>
                     <span>
-                      <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
+                      <strong>{client.nom || "Sans nom"}</strong> —{" "}
+                      {r.nom_activite || "Activité"}
                     </span>
-                    {activite && (
-                      <span className="text-neutral-500">Lié à : {activite.nom_activite}</span>
-                    )}
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
-                        c.billet_acompte_paye
+                        r.billet_acompte_paye
                           ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
                           : "bg-[#C9973E]/20 text-[#8B4531]"
                       }`}
                     >
-                      Acompte {c.billet_acompte_paye ? "payé" : "en attente"}
+                      Acompte {r.billet_acompte_paye ? "payé" : "en attente"}
                     </span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
-                        c.billet_envoye
+                        r.billet_envoye
                           ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
                           : "bg-[#C9973E]/20 text-[#8B4531]"
                       }`}
                     >
-                      {c.billet_envoye ? "Envoyé" : "Pas envoyé"}
+                      {r.billet_envoye ? "Envoyé" : "Pas envoyé"}
                     </span>
                     <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-                      {c.billet_statut}
+                      {r.billet_statut}
                     </span>
                   </div>
                   {isOpen && (
                     <div className="space-y-1 border-t border-neutral-100 p-3 text-sm text-neutral-600">
-                      {c.billet_lien && (
+                      {r.billet_lien && (
                         <div>
                           <a
-                            href={c.billet_lien}
+                            href={r.billet_lien}
                             target="_blank"
                             rel="noreferrer"
                             className="text-[#5C2A1D] underline"
@@ -338,8 +337,8 @@ export default function SuivisView({
                           </a>
                         </div>
                       )}
-                      <div>Notes : {c.billet_notes || "—"}</div>
-                      <JumpBtn onClick={() => onOpenClient(c.id)} />
+                      <div>Notes : {r.billet_notes || "—"}</div>
+                      <JumpBtn onClick={() => onOpenClient(client.id)} />
                     </div>
                   )}
                 </div>

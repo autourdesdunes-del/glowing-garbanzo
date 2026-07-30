@@ -1,7 +1,7 @@
 "use client";
 
 import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
-import { MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
+import { BILLET_STATUTS, MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
 import { Field } from "@/components/client-steps";
 import PhotoUpload from "@/components/PhotoUpload";
@@ -85,7 +85,7 @@ export default function ReservationCard({
             {fmtDate(r.date_debut)}
             {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
           </p>
-          {(soldeIci || hasOptions || hasInfo) && (
+          {(soldeIci || hasOptions || hasInfo || r.billet_requis) && (
             <div className="mt-2 flex flex-wrap gap-2">
               {soldeIci && (
                 <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
@@ -95,6 +95,11 @@ export default function ReservationCard({
               {hasOptions && (
                 <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
                   ⚙ {options.map((o) => o.nom).join(", ")}
+                </span>
+              )}
+              {r.billet_requis && (
+                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+                  ✈ Billet — {r.billet_statut}
                 </span>
               )}
             </div>
@@ -145,6 +150,11 @@ export default function ReservationCard({
         {hasOptions && (
           <span className="mt-1 block text-xs text-neutral-500">
             ⚙ {options.length} option(s) ajoutée(s)
+          </span>
+        )}
+        {r.billet_requis && (
+          <span className="mt-1 block text-xs text-neutral-500">
+            ✈ Billet — {r.billet_statut}
           </span>
         )}
       </div>
@@ -482,6 +492,75 @@ export default function ReservationCard({
             className="input"
           />
         </Field>
+      </div>
+
+      <div className="mt-4 rounded-md border border-[#8B4531]/15 p-3">
+        <label className="flex items-center gap-2 text-sm text-neutral-700">
+          <input
+            type="checkbox"
+            checked={r.billet_requis}
+            onChange={(e) => onUpdate({ billet_requis: e.target.checked })}
+          />
+          Cette activité inclut un billet d&apos;avion à gérer
+        </label>
+
+        {r.billet_requis && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Field label="Statut">
+              <select
+                value={r.billet_statut}
+                onChange={(e) => onUpdate({ billet_statut: e.target.value })}
+                className="input"
+              >
+                {BILLET_STATUTS.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Date du billet">
+              <input
+                type="date"
+                value={r.billet_date ?? ""}
+                onChange={(e) => onUpdate({ billet_date: e.target.value || null })}
+                className="input"
+              />
+            </Field>
+            <Field label="Acompte billet payé">
+              <select
+                value={r.billet_acompte_paye ? "Oui" : "Non"}
+                onChange={(e) => onUpdate({ billet_acompte_paye: e.target.value === "Oui" })}
+                className="input"
+              >
+                <option>Non</option>
+                <option>Oui</option>
+              </select>
+            </Field>
+            <Field label="Billet envoyé au client">
+              <select
+                value={r.billet_envoye ? "Oui" : "Non"}
+                onChange={(e) => onUpdate({ billet_envoye: e.target.value === "Oui" })}
+                className="input"
+              >
+                <option>Non</option>
+                <option>Oui</option>
+              </select>
+            </Field>
+            <Field label="Lien billet (Drive)">
+              <input
+                value={r.billet_lien}
+                onChange={(e) => onUpdate({ billet_lien: e.target.value })}
+                className="input"
+              />
+            </Field>
+            <Field label="Notes pour Hossam">
+              <input
+                value={r.billet_notes}
+                onChange={(e) => onUpdate({ billet_notes: e.target.value })}
+                className="input"
+              />
+            </Field>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-[#8B4531]/10 pt-3 text-sm">

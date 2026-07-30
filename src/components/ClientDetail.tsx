@@ -8,21 +8,13 @@ import { useToast } from "@/components/ToastProvider";
 import { STATUT_COLORS } from "@/lib/constants";
 import {
   ActivitesStep,
-  BilletAvionStep,
   ContactStep,
   PaiementsStep,
   SejourStep,
   SuiviStep,
 } from "@/components/client-steps";
 
-const SECTIONS = [
-  "Contact",
-  "Séjour",
-  "Billet d'avion",
-  "Activités",
-  "Paiements",
-  "Suivi",
-] as const;
+const SECTIONS = ["Contact", "Séjour", "Activités", "Paiements", "Suivi"] as const;
 
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -78,7 +70,6 @@ export default function ClientDetail({
   const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>({
     Contact: true,
     Séjour: true,
-    "Billet d'avion": false,
     Activités: false,
     Paiements: false,
     Suivi: false,
@@ -197,7 +188,6 @@ export default function ClientDetail({
     setOpen({
       Contact: true,
       Séjour: true,
-      "Billet d'avion": true,
       Activités: true,
       Paiements: true,
       Suivi: true,
@@ -206,7 +196,6 @@ export default function ClientDetail({
     setOpen({
       Contact: false,
       Séjour: false,
-      "Billet d'avion": false,
       Activités: false,
       Paiements: false,
       Suivi: false,
@@ -272,14 +261,6 @@ export default function ClientDetail({
 
       <Section title="Séjour" open={open.Séjour} onToggle={() => toggle("Séjour")}>
         <SejourStep client={client} onChange={onChange} />
-      </Section>
-
-      <Section
-        title="Billet d'avion"
-        open={open["Billet d'avion"]}
-        onToggle={() => toggle("Billet d'avion")}
-      >
-        <BilletAvionStep client={client} onChange={onChange} reservations={reservations} />
       </Section>
 
       <Section title="Activités réservées" open={open.Activités} onToggle={() => toggle("Activités")}>

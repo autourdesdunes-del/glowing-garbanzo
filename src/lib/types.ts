@@ -60,6 +60,13 @@ export type Reservation = {
   cout_reel: number;
   photo_path: string;
   statut_resa: "Brouillon" | "Confirmée";
+  billet_requis: boolean;
+  billet_statut: string;
+  billet_date: string | null;
+  billet_acompte_paye: boolean;
+  billet_envoye: boolean;
+  billet_lien: string;
+  billet_notes: string;
   created_at: string;
   updated_at: string;
 };
@@ -127,14 +134,6 @@ export type Client = {
   solde_rdv_heure: string;
   solde_rdv_lieu: string;
   solde_assigne_a: string;
-  billet_requis: boolean;
-  billet_acompte_paye: boolean;
-  billet_envoye: boolean;
-  billet_lien: string;
-  billet_statut: string;
-  billet_notes: string;
-  billet_date: string | null;
-  billet_activite_id: string | null;
   au_revoir_envoye: boolean;
   avis_envoye: boolean;
   created_at: string;
@@ -171,14 +170,6 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   solde_rdv_heure: "",
   solde_rdv_lieu: "",
   solde_assigne_a: "",
-  billet_requis: false,
-  billet_acompte_paye: false,
-  billet_envoye: false,
-  billet_lien: "",
-  billet_statut: "En attente",
-  billet_notes: "",
-  billet_date: null,
-  billet_activite_id: null,
   au_revoir_envoye: false,
   avis_envoye: false,
 };

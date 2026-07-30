@@ -1,10 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
+}
+
+function downloadCsv(filename: string, rows: (string | number)[][]) {
+  const csv = rows
+    .map((row) =>
+      row
+        .map((cell) => {
+          const s = String(cell);
+          return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        })
+        .join(";")
+    )
+    .join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function DirectionView({
@@ -20,18 +41,40 @@ export default function DirectionView({
   catalogue: CatalogueItem[];
   onUpdateCatalogueItem: (id: string, patch: Partial<CatalogueItem>) => void;
 }) {
-  const rows = reservations.map((r) => {
-    const client = clients.find((c) => c.id === r.client_id);
-    const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || []);
-    const cout = Number(r.cout_reel) || 0;
-    return {
-      nom: r.nom_activite || "Sans nom",
-      date: r.date_debut,
-      total,
-      marge: total - cout,
-      clientNom: client?.nom || "Sans nom",
-    };
-  });
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const inRange = (date: string | null) => {
+    if (!date) return !dateFrom && !dateTo;
+    if (dateFrom && date < dateFrom) return false;
+    if (dateTo && date > dateTo) return false;
+    return true;
+  };
+
+  const rows = reservations
+    .filter((r) => inRange(r.date_debut))
+    .map((r) => {
+      const client = clients.find((c) => c.id === r.client_id);
+      const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || []);
+      const cout = Number(r.cout_reel) || 0;
+      return {
+        nom: r.nom_activite || "Sans nom",
+        date: r.date_debut,
+        total,
+        marge: total - cout,
+        clientNom: client?.nom || "Sans nom",
+      };
+    });
+
+  const exportCsv = () => {
+    downloadCsv(
+      `direction-${dateFrom || "debut"}_${dateTo || "fin"}.csv`,
+      [
+        ["Activité", "Date", "Client", "Total (€)", "Marge (€)"],
+        ...rows.map((r) => [r.nom, r.date || "", r.clientNom, r.total, r.marge]),
+      ]
+    );
+  };
 
   const byMonth: Record<string, number> = {};
   const byYear: Record<string, number> = {};
@@ -65,7 +108,46 @@ export default function DirectionView({
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-6">
-      <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Vue direction</h2>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Vue direction</h2>
+        <div className="flex items-end gap-2">
+          <label className="text-xs text-neutral-500">
+            Du
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="input mt-1 block"
+            />
+          </label>
+          <label className="text-xs text-neutral-500">
+            Au
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="input mt-1 block"
+            />
+          </label>
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+              }}
+              className="mb-0.5 text-xs text-neutral-400 hover:text-neutral-600"
+            >
+              Réinitialiser
+            </button>
+          )}
+          <button
+            onClick={exportCsv}
+            className="rounded-md bg-[#0F5C56] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            Exporter en CSV
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-3 gap-4">
         <StatTile label="CA total" value={`${euros(caTotal)} €`} accent="#0F5C56" />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  ActivityLogEntry,
   CatalogueItem,
   Client,
   Paiement,
@@ -742,6 +743,31 @@ function fmtDate(dateStr: string | null) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
+function fmtDateTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function actionLabel(action: string) {
+  return { insert: "a créé", update: "a modifié", delete: "a supprimé" }[action] || action;
+}
+
+function tableLabel(table: string) {
+  return (
+    {
+      clients: "la fiche client",
+      reservations: "une activité",
+      paiements: "un acompte",
+      remboursements: "un remboursement",
+    }[table] || table
+  );
+}
+
 export function SuiviStep({
   client,
   onChange,
@@ -753,10 +779,11 @@ export function SuiviStep({
   const [remboursements, setRemboursements] = useState<Remboursement[]>([]);
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [verifNom, setVerifNom] = useState("");
+  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [{ data: rembs }, { data: verifs }] = await Promise.all([
+      const [{ data: rembs }, { data: verifs }, { data: log }] = await Promise.all([
         supabase
           .from("remboursements")
           .select("*")
@@ -767,9 +794,16 @@ export function SuiviStep({
           .select("*")
           .eq("client_id", client.id)
           .order("created_at", { ascending: true }),
+        supabase
+          .from("activity_log")
+          .select("*")
+          .eq("client_id", client.id)
+          .order("created_at", { ascending: false })
+          .limit(30),
       ]);
       setRemboursements((rembs as Remboursement[]) || []);
       setVerifications((verifs as Verification[]) || []);
+      setActivityLog((log as ActivityLogEntry[]) || []);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
@@ -979,6 +1013,22 @@ export function SuiviStep({
             </div>
           ))}
         </div>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Historique des modifications</h3>
+        {activityLog.length === 0 ? (
+          <div className="text-sm text-neutral-400">Aucune activité enregistrée.</div>
+        ) : (
+          <div className="space-y-1">
+            {activityLog.map((entry) => (
+              <div key={entry.id} className="text-xs text-neutral-500">
+                {fmtDateTime(entry.created_at)} — {entry.actor_email || "quelqu'un"}{" "}
+                {actionLabel(entry.action)} {tableLabel(entry.table_name)}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <Field label="Commentaires internes">

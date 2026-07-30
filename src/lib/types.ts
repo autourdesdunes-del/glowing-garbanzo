@@ -1,3 +1,13 @@
+export type ActivityLogEntry = {
+  id: string;
+  client_id: string | null;
+  table_name: string;
+  record_id: string;
+  action: "insert" | "update" | "delete";
+  actor_email: string | null;
+  created_at: string;
+};
+
 export type CatalogueItem = {
   id: string;
   nom: string;

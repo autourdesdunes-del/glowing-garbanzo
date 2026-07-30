@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmProvider";
+import { useToast } from "@/components/ToastProvider";
 import {
   ActivitesStep,
   BilletAvionStep,
@@ -28,6 +29,7 @@ export default function ClientDetail({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const confirm = useConfirm();
+  const toast = useToast();
   const [step, setStep] = useState(0);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
@@ -69,12 +71,17 @@ export default function ClientDetail({
       .insert({ client_id: client.id })
       .select()
       .single();
-    if (!error && data) setReservations((prev) => [...prev, data as Reservation]);
+    if (!error && data) {
+      setReservations((prev) => [...prev, data as Reservation]);
+    } else {
+      toast("Impossible d'ajouter l'activité.");
+    }
   };
 
   const updateReservation = async (id: string, patch: Partial<Reservation>) => {
     setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-    await supabase.from("reservations").update(patch).eq("id", id);
+    const { error } = await supabase.from("reservations").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
   };
 
   const deleteReservation = async (id: string) => {
@@ -91,7 +98,8 @@ export default function ClientDetail({
       delete next[id];
       return next;
     });
-    await supabase.from("reservations").delete().eq("id", id);
+    const { error } = await supabase.from("reservations").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
   };
 
   const addOption = async (resaId: string) => {
@@ -105,6 +113,8 @@ export default function ClientDetail({
         ...prev,
         [resaId]: [...(prev[resaId] || []), data as ReservationOption],
       }));
+    } else {
+      toast("Impossible d'ajouter l'option.");
     }
   };
 
@@ -117,7 +127,8 @@ export default function ClientDetail({
       ...prev,
       [resaId]: (prev[resaId] || []).map((o) => (o.id === optId ? { ...o, ...patch } : o)),
     }));
-    await supabase.from("reservation_options").update(patch).eq("id", optId);
+    const { error } = await supabase.from("reservation_options").update(patch).eq("id", optId);
+    if (error) toast("Échec de l'enregistrement.");
   };
 
   const deleteOption = async (resaId: string, optId: string) => {
@@ -125,7 +136,8 @@ export default function ClientDetail({
       ...prev,
       [resaId]: (prev[resaId] || []).filter((o) => o.id !== optId),
     }));
-    await supabase.from("reservation_options").delete().eq("id", optId);
+    const { error } = await supabase.from("reservation_options").delete().eq("id", optId);
+    if (error) toast("Échec de la suppression.");
   };
 
   return (

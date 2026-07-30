@@ -23,6 +23,7 @@ import {
 import { resaTotalMontant } from "@/lib/resa";
 import ReservationCard from "@/components/ReservationCard";
 import { useConfirm } from "@/components/ConfirmProvider";
+import { useToast } from "@/components/ToastProvider";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -482,6 +483,7 @@ export function PaiementsStep({
 }: StepProps & { reservations: Reservation[]; resaOptions: Record<string, ReservationOption[]> }) {
   const supabase = createClient();
   const confirm = useConfirm();
+  const toast = useToast();
   const [paiements, setPaiements] = useState<Paiement[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -505,12 +507,17 @@ export function PaiementsStep({
       .insert({ client_id: client.id, montant: 0, mode: "PayPal", date: null })
       .select()
       .single();
-    if (!error && data) setPaiements((prev) => [...prev, data as Paiement]);
+    if (!error && data) {
+      setPaiements((prev) => [...prev, data as Paiement]);
+    } else {
+      toast("Impossible d'ajouter l'acompte.");
+    }
   };
 
   const updatePaiement = async (id: string, patch: Partial<Paiement>) => {
     setPaiements((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-    await supabase.from("paiements").update(patch).eq("id", id);
+    const { error } = await supabase.from("paiements").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
   };
 
   const deletePaiement = async (id: string) => {
@@ -521,7 +528,8 @@ export function PaiementsStep({
     });
     if (!ok) return;
     setPaiements((prev) => prev.filter((p) => p.id !== id));
-    await supabase.from("paiements").delete().eq("id", id);
+    const { error } = await supabase.from("paiements").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
   };
 
   const totalSejour = reservations.reduce(
@@ -706,6 +714,7 @@ export function SuiviStep({
 }: StepProps & { reservations: Reservation[] }) {
   const supabase = createClient();
   const confirm = useConfirm();
+  const toast = useToast();
   const [remboursements, setRemboursements] = useState<Remboursement[]>([]);
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [verifNom, setVerifNom] = useState("");
@@ -736,12 +745,17 @@ export function SuiviStep({
       .insert({ client_id: client.id })
       .select()
       .single();
-    if (!error && data) setRemboursements((prev) => [...prev, data as Remboursement]);
+    if (!error && data) {
+      setRemboursements((prev) => [...prev, data as Remboursement]);
+    } else {
+      toast("Impossible d'ajouter le remboursement.");
+    }
   };
 
   const updateRemboursement = async (id: string, patch: Partial<Remboursement>) => {
     setRemboursements((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-    await supabase.from("remboursements").update(patch).eq("id", id);
+    const { error } = await supabase.from("remboursements").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
   };
 
   const deleteRemboursement = async (id: string) => {
@@ -752,7 +766,8 @@ export function SuiviStep({
     });
     if (!ok) return;
     setRemboursements((prev) => prev.filter((r) => r.id !== id));
-    await supabase.from("remboursements").delete().eq("id", id);
+    const { error } = await supabase.from("remboursements").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
   };
 
   const addVerification = async () => {
@@ -763,7 +778,11 @@ export function SuiviStep({
       .insert({ client_id: client.id, nom: verifNom.trim(), date: today })
       .select()
       .single();
-    if (!error && data) setVerifications((prev) => [...prev, data as Verification]);
+    if (!error && data) {
+      setVerifications((prev) => [...prev, data as Verification]);
+    } else {
+      toast("Impossible d'enregistrer la vérification.");
+    }
   };
 
   return (

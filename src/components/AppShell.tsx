@@ -20,6 +20,7 @@ import SuivisView from "@/components/SuivisView";
 import ClientPreviewView from "@/components/ClientPreviewView";
 import DirectionView from "@/components/DirectionView";
 import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
+import ToastProvider, { useToast } from "@/components/ToastProvider";
 
 const DIRECTOR_PIN = "2026";
 
@@ -42,14 +43,17 @@ function fmtDate(dateStr: string | null) {
 
 export default function AppShell({ userEmail }: { userEmail: string }) {
   return (
-    <ConfirmProvider>
-      <AppShellInner userEmail={userEmail} />
-    </ConfirmProvider>
+    <ToastProvider>
+      <ConfirmProvider>
+        <AppShellInner userEmail={userEmail} />
+      </ConfirmProvider>
+    </ToastProvider>
   );
 }
 
 function AppShellInner({ userEmail }: { userEmail: string }) {
   const confirm = useConfirm();
+  const toast = useToast();
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
 
@@ -139,9 +143,13 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
       setSaveState("saving");
       const { error } = await supabase.from("clients").update(patch).eq("id", id);
       setSaveState(error ? "error" : "saved");
-      if (!error) setTimeout(() => setSaveState("idle"), 1000);
+      if (error) {
+        toast("Échec de l'enregistrement — vérifie ta connexion et réessaie.");
+      } else {
+        setTimeout(() => setSaveState("idle"), 1000);
+      }
     },
-    [supabase]
+    [supabase, toast]
   );
 
   const updateSelected = (patch: Partial<Client>) => {
@@ -163,6 +171,8 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
     if (!error && data) {
       setClients((prev) => [data as Client, ...prev]);
       setSelectedId(data.id);
+    } else {
+      toast("Impossible de créer le client.");
     }
   };
 
@@ -178,12 +188,14 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
     const next = clients.filter((c) => c.id !== id);
     setClients(next);
     if (selectedId === id) setSelectedId(next[0] ? next[0].id : null);
-    await supabase.from("clients").delete().eq("id", id);
+    const { error } = await supabase.from("clients").delete().eq("id", id);
+    if (error) toast("Échec de la suppression du client.");
   };
 
   const updateClientById = async (id: string, patch: Partial<Client>) => {
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    await supabase.from("clients").update(patch).eq("id", id);
+    const { error } = await supabase.from("clients").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
   };
 
   const addCatalogueItem = async () => {
@@ -192,12 +204,17 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
       .insert({})
       .select()
       .single();
-    if (!error && data) setCatalogue((prev) => [data as CatalogueItem, ...prev]);
+    if (!error && data) {
+      setCatalogue((prev) => [data as CatalogueItem, ...prev]);
+    } else {
+      toast("Impossible de créer l'activité.");
+    }
   };
 
   const updateCatalogueItem = async (id: string, patch: Partial<CatalogueItem>) => {
     setCatalogue((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
-    await supabase.from("catalogue_activites").update(patch).eq("id", id);
+    const { error } = await supabase.from("catalogue_activites").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
   };
 
   const deleteCatalogueItem = async (id: string) => {
@@ -209,7 +226,8 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
     });
     if (!ok) return;
     setCatalogue((prev) => prev.filter((a) => a.id !== id));
-    await supabase.from("catalogue_activites").delete().eq("id", id);
+    const { error } = await supabase.from("catalogue_activites").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
   };
 
   const handleSignOut = async () => {

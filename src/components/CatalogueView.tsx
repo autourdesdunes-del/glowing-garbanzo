@@ -2,6 +2,7 @@
 
 import { CatalogueItem } from "@/lib/types";
 import { Field } from "@/components/client-steps";
+import PhotoUpload from "@/components/PhotoUpload";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -167,6 +168,12 @@ export default function CatalogueView({
                     className="input"
                   />
                 </Field>
+              </div>
+              <div className="mt-3">
+                <PhotoUpload
+                  path={a.photo_path}
+                  onPathChange={(photo_path) => onUpdate(a.id, { photo_path })}
+                />
               </div>
             </div>
           )

@@ -4,6 +4,7 @@ import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/typ
 import { MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
 import { Field } from "@/components/client-steps";
+import PhotoUpload from "@/components/PhotoUpload";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -414,6 +415,10 @@ export default function ReservationCard({
             </Field>
           </div>
         )}
+      </div>
+
+      <div className="mt-3">
+        <PhotoUpload path={r.photo_path} onPathChange={(photo_path) => onUpdate({ photo_path })} />
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3">

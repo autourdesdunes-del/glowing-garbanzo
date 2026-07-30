@@ -87,6 +87,22 @@ function NavPanel({
   );
 }
 
+function ActivityPhoto({ path, alt }: { path: string; alt: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.storage
+      .from("activity-photos")
+      .createSignedUrl(path, 3600)
+      .then(({ data }) => setUrl(data?.signedUrl ?? null));
+  }, [path]);
+
+  if (!url) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt={alt} className="mb-2 h-32 w-full rounded-md object-cover" />;
+}
+
 function FaqItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
@@ -316,6 +332,7 @@ export default function ClientPreviewView({
         )}
         {sortedResas.map((r) => (
           <div key={r.id} className="mb-3 rounded-md border border-neutral-100 p-3 last:mb-0">
+            {r.photo_path && <ActivityPhoto path={r.photo_path} alt={r.nom_activite} />}
             <div className="flex items-center justify-between text-sm">
               <span className="font-amounts text-neutral-500">
                 {fmtDate(r.date_debut)}

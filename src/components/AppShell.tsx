@@ -21,6 +21,7 @@ import ClientPreviewView from "@/components/ClientPreviewView";
 import DirectionView from "@/components/DirectionView";
 import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
+import Spinner from "@/components/Spinner";
 
 const DIRECTOR_PIN = "2026";
 
@@ -293,8 +294,8 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
 
   if (!loaded) {
     return (
-      <div className="flex flex-1 items-center justify-center text-[#5C2A1D]">
-        Chargement…
+      <div className="flex min-h-screen items-center justify-center bg-[#F2E6D2]">
+        <Spinner />
       </div>
     );
   }
@@ -450,7 +451,7 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
       {mode === "planning" && (
         <div className="flex-1 overflow-y-auto">
           {!planningLoaded ? (
-            <div className="p-6 text-neutral-400">Chargement…</div>
+            <Spinner />
           ) : (
             <PlanningView
               clients={clients}
@@ -468,7 +469,7 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
       {mode === "suivis" && (
         <div className="flex-1 overflow-y-auto">
           {!suivisLoaded ? (
-            <div className="p-6 text-neutral-400">Chargement…</div>
+            <Spinner />
           ) : (
             <SuivisView
               clients={clients}
@@ -543,7 +544,7 @@ function AppShellInner({ userEmail }: { userEmail: string }) {
               </div>
             </div>
           ) : !planningLoaded ? (
-            <div className="p-6 text-neutral-400">Chargement…</div>
+            <Spinner />
           ) : (
             <DirectionView
               clients={clients}

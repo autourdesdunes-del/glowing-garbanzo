@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
+import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -198,23 +199,11 @@ export default function DirectionView({
 
       <section>
         <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">CA par mois</h3>
-        {Object.keys(byMonth).length === 0 && (
-          <div className="text-sm text-neutral-400">Pas encore de données datées.</div>
-        )}
-        <div className="space-y-1">
-          {Object.entries(byMonth)
+        <MonthlyBarChart
+          data={Object.entries(byMonth)
             .sort()
-            .reverse()
-            .map(([m, v]) => (
-              <div
-                key={m}
-                className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
-              >
-                <span className="font-amounts text-neutral-500">{m}</span>
-                <span>{euros(v)} €</span>
-              </div>
-            ))}
-        </div>
+            .map(([m, v]) => ({ label: m.slice(2), value: v }))}
+        />
       </section>
 
       <section>

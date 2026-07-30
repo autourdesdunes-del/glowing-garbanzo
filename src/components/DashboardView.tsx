@@ -2,6 +2,8 @@
 
 import { Client, Reservation, ReservationOption } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
+import { STATUTS, STATUT_COLORS } from "@/lib/constants";
+import StatusBarChart from "@/components/charts/StatusBarChart";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -231,6 +233,17 @@ export default function DashboardView({
             ))}
           </div>
         )}
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Répartition par statut</h3>
+        <StatusBarChart
+          data={STATUTS.map((s) => ({
+            label: s,
+            value: byStatut[s] || 0,
+            color: STATUT_COLORS[s],
+          }))}
+        />
       </section>
     </div>
   );

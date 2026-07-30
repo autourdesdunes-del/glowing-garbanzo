@@ -41,13 +41,12 @@ export default function LoginPage() {
       return;
     }
 
-    // Invite/recovery link: instantiating the client triggers Supabase's
-    // automatic detection of the access_token in the URL hash. React once
-    // that session is established — and stop waiting after a few seconds if
-    // the link turns out to be expired or already used, instead of hanging
-    // on "Connexion…" forever.
     const supabase = createClient();
     let settled = false;
+
+    // Instantiating the client above already triggers Supabase's automatic
+    // detection of an access_token sitting in the URL hash (older-style
+    // implicit invite/recovery links). React once that session is established.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -56,6 +55,30 @@ export default function LoginPage() {
       setMode("set-password");
     });
 
+    // Newer-style links carry a token_hash + type instead, which needs an
+    // explicit verifyOtp() call — detectSessionInUrl does not handle this
+    // format automatically.
+    const tokenHash = searchParams.get("token_hash") || hashParams.get("token_hash");
+    if (tokenHash && linkType) {
+      supabase.auth
+        .verifyOtp({ token_hash: tokenHash, type: linkType as "invite" | "recovery" })
+        .then(({ data, error }) => {
+          if (settled) return;
+          if (error || !data.session) {
+            settled = true;
+            setError(
+              "Ce lien d'invitation a expiré ou a déjà été utilisé. Demande un nouvel envoi depuis Supabase, puis clique dessus tout de suite après réception."
+            );
+            setMode("login");
+            return;
+          }
+          settled = true;
+          setMode("set-password");
+        });
+    }
+
+    // Stop waiting after a few seconds if nothing above ever resolves,
+    // instead of hanging on "Connexion…" forever.
     const timeout = setTimeout(() => {
       if (!settled) {
         setError(

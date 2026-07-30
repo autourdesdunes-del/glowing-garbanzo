@@ -16,36 +16,59 @@ export default function LoginPage() {
   const [newPassword2, setNewPassword2] = useState("");
 
   useEffect(() => {
-    const supabase = createClient();
-    const isInviteOrRecovery =
-      window.location.hash.includes("type=invite") ||
-      window.location.hash.includes("type=recovery");
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const searchParams = new URLSearchParams(window.location.search);
+    const linkType = hashParams.get("type") || searchParams.get("type");
+    const isInviteOrRecovery = linkType === "invite" || linkType === "recovery";
+    const linkError = hashParams.get("error_description") || searchParams.get("error_description");
 
-    // Instantiating the client above already triggers Supabase's automatic
-    // detection of access_token/refresh_token in the URL hash (invite/recovery
-    // links land here with #access_token=...). We just need to react once
-    // that session is established.
+    if (linkError) {
+      setError(decodeURIComponent(linkError).replace(/\+/g, " "));
+      setMode("login");
+      return;
+    }
+
+    if (!isInviteOrRecovery) {
+      const supabase = createClient();
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          router.replace("/");
+          router.refresh();
+        } else {
+          setMode("login");
+        }
+      });
+      return;
+    }
+
+    // Invite/recovery link: instantiating the client triggers Supabase's
+    // automatic detection of the access_token in the URL hash. React once
+    // that session is established — and stop waiting after a few seconds if
+    // the link turns out to be expired or already used, instead of hanging
+    // on "Connexion…" forever.
+    const supabase = createClient();
+    let settled = false;
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) return;
-      if (isInviteOrRecovery) {
-        setMode("set-password");
-      } else {
-        router.replace("/");
-        router.refresh();
-      }
+      settled = true;
+      setMode("set-password");
     });
 
-    // If there was no invite/recovery token in the URL, just show the normal
-    // login form right away instead of waiting on an auth event that won't fire.
-    if (!isInviteOrRecovery) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (!data.session) setMode("login");
-      });
-    }
+    const timeout = setTimeout(() => {
+      if (!settled) {
+        setError(
+          "Ce lien d'invitation a expiré ou a déjà été utilisé. Demande un nouvel envoi depuis Supabase, puis clique dessus tout de suite après réception."
+        );
+        setMode("login");
+      }
+    }, 6000);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

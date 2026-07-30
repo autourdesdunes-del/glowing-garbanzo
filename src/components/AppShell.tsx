@@ -14,6 +14,7 @@ import {
 import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import ChangePasswordButton from "@/components/ChangePasswordButton";
+import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
 import PlanningView from "@/components/PlanningView";
 import SuivisView from "@/components/SuivisView";
@@ -227,10 +228,10 @@ function AppShellInner({
     saveTimer.current = setTimeout(() => flushSave(selected.id), 600);
   };
 
-  const addClient = async () => {
+  const addClient = async (quick?: { nom: string; telephone: string; canal: string }) => {
     const { data, error } = await supabase
       .from("clients")
-      .insert(EMPTY_CLIENT)
+      .insert({ ...EMPTY_CLIENT, ...quick })
       .select()
       .single();
     if (!error && data) {
@@ -389,12 +390,7 @@ function AppShellInner({
                 placeholder="Rechercher un client…"
                 className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#5C2A1D] focus:outline-none"
               />
-              <button
-                onClick={addClient}
-                className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-              >
-                + Nouveau
-              </button>
+              <QuickAddClient onCreate={addClient} />
             </div>
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 && (

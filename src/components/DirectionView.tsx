@@ -57,8 +57,14 @@ export default function DirectionView({
       const client = clients.find((c) => c.id === r.client_id);
       const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || []);
       const cout = Number(r.cout_reel) || 0;
+      // Groupe par modèle catalogue quand la réservation en vient (le nom
+      // catalogue à jour prime), sinon par nom d'activité saisi à la main.
+      const catalogueMatch = r.catalogue_item_id
+        ? catalogue.find((a) => a.id === r.catalogue_item_id)
+        : null;
       return {
-        nom: r.nom_activite || "Sans nom",
+        groupKey: r.catalogue_item_id || `manuel:${r.nom_activite || "Sans nom"}`,
+        nom: catalogueMatch?.nom || r.nom_activite || "Sans nom",
         date: r.date_debut,
         total,
         marge: total - cout,
@@ -84,12 +90,15 @@ export default function DirectionView({
     byYear[r.date.slice(0, 4)] = (byYear[r.date.slice(0, 4)] || 0) + r.total;
   });
 
-  const byActivite: Record<string, { count: number; total: number; marge: number }> = {};
+  const byActivite: Record<string, { nom: string; count: number; total: number; marge: number }> =
+    {};
   rows.forEach((r) => {
-    if (!byActivite[r.nom]) byActivite[r.nom] = { count: 0, total: 0, marge: 0 };
-    byActivite[r.nom].count += 1;
-    byActivite[r.nom].total += r.total;
-    byActivite[r.nom].marge += r.marge;
+    if (!byActivite[r.groupKey]) {
+      byActivite[r.groupKey] = { nom: r.nom, count: 0, total: 0, marge: 0 };
+    }
+    byActivite[r.groupKey].count += 1;
+    byActivite[r.groupKey].total += r.total;
+    byActivite[r.groupKey].marge += r.marge;
   });
   const topVendues = Object.entries(byActivite).sort((a, b) => b[1].total - a[1].total).slice(0, 8);
   const topRentables = Object.entries(byActivite)
@@ -232,13 +241,13 @@ export default function DirectionView({
           <div className="text-sm text-neutral-400">Pas encore d&apos;activités vendues.</div>
         )}
         <div className="space-y-1">
-          {topVendues.map(([nom, d]) => (
+          {topVendues.map(([key, d]) => (
             <div
-              key={nom}
+              key={key}
               className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
             >
               <span>
-                <strong>{nom}</strong> — {d.count} vente(s)
+                <strong>{d.nom}</strong> — {d.count} vente(s)
               </span>
               <span>{euros(d.total)} €</span>
             </div>
@@ -252,13 +261,13 @@ export default function DirectionView({
           <div className="text-sm text-neutral-400">Pas encore de données de coût.</div>
         )}
         <div className="space-y-1">
-          {topRentables.map(([nom, d]) => (
+          {topRentables.map(([key, d]) => (
             <div
-              key={nom}
+              key={key}
               className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
             >
               <span>
-                <strong>{nom}</strong>
+                <strong>{d.nom}</strong>
               </span>
               <span>{euros(d.marge)} € de marge</span>
             </div>

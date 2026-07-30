@@ -50,6 +50,7 @@ export default function ReservationCard({
     if (!item) return;
     onUpdate({
       nom_activite: item.nom,
+      catalogue_item_id: item.id,
       pu_adulte: item.pu_adulte,
       pu_enfant: item.pu_enfant,
       horaire_approx: item.horaire_approx,

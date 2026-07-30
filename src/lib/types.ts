@@ -39,6 +39,7 @@ export type Reservation = {
   id: string;
   client_id: string;
   nom_activite: string;
+  catalogue_item_id: string | null;
   date_debut: string | null;
   date_fin: string | null;
   moment: string;

@@ -253,6 +253,27 @@ function AppShellInner({
     }
   };
 
+  const duplicateAsNewStay = async (source: Client) => {
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        ...EMPTY_CLIENT,
+        nom: source.nom,
+        telephone: source.telephone,
+        email: source.email,
+        relation_grace_a: source.relation_grace_a,
+        lien_passeport: source.lien_passeport,
+      })
+      .select()
+      .single();
+    if (!error && data) {
+      setClients((prev) => [data as Client, ...prev]);
+      setSelectedId(data.id);
+    } else {
+      toast("Impossible de créer le nouveau séjour.");
+    }
+  };
+
   const deleteClient = async (id: string) => {
     const client = clients.find((c) => c.id === id);
     const ok = await confirm({
@@ -463,8 +484,11 @@ function AppShellInner({
             ) : (
               <ClientDetail
                 client={selected}
+                allClients={clients}
                 onChange={updateSelected}
                 onDelete={() => deleteClient(selected.id)}
+                onJumpToClient={setSelectedId}
+                onDuplicateAsNewStay={duplicateAsNewStay}
                 canDelete={isDirection}
                 canSeeMargins={isDirection}
                 catalogue={catalogue}

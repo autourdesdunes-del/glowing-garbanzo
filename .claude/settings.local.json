@@ -19,7 +19,8 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/login)",
       "Read(//private/tmp/**)",
       "Bash(grep -n \"ActivitesStep$\\\\|<ActivitesStep\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ClientDetail.tsx\")",
-      "Bash(grep -n \"Coût réel\\\\|catalogue,\\\\n}: {\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ReservationCard.tsx\")"
+      "Bash(grep -n \"Coût réel\\\\|catalogue,\\\\n}: {\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ReservationCard.tsx\")",
+      "Bash(grep -n \"const toggle = \\\\|return \\(\\\\s*$\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ClientDetail.tsx\")"
     ]
   }
 }

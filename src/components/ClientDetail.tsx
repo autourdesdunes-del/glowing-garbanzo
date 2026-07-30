@@ -51,15 +51,21 @@ function Section({
 
 export default function ClientDetail({
   client,
+  allClients,
   onChange,
   onDelete,
+  onJumpToClient,
+  onDuplicateAsNewStay,
   canDelete,
   canSeeMargins,
   catalogue,
 }: {
   client: Client;
+  allClients: Client[];
   onChange: (patch: Partial<Client>) => void;
   onDelete: () => void;
+  onJumpToClient: (id: string) => void;
+  onDuplicateAsNewStay: (source: Client) => void;
   canDelete: boolean;
   canSeeMargins: boolean;
   catalogue: CatalogueItem[];
@@ -182,6 +188,10 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
+  const autresSejours = allClients.filter(
+    (c) => c.id !== client.id && client.telephone && c.telephone === client.telephone
+  );
+
   const toggle = (s: (typeof SECTIONS)[number]) =>
     setOpen((prev) => ({ ...prev, [s]: !prev[s] }));
   const expandAll = () =>
@@ -246,13 +256,40 @@ export default function ClientDetail({
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 text-xs">
-        <button onClick={expandAll} className="text-[#5C2A1D] hover:underline">
-          Tout déplier
+      {autresSejours.length > 0 && (
+        <div className="rounded-lg border border-[#C9973E]/40 bg-[#C9973E]/10 p-4">
+          <p className="text-sm text-[#8B4531]">
+            🔁 Ce client est déjà venu — {autresSejours.length} autre(s) séjour(s) enregistré(s) :
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {autresSejours.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => onJumpToClient(c.id)}
+                className="rounded-full bg-white px-3 py-1 text-xs text-[#5C2A1D] hover:bg-neutral-50"
+              >
+                {c.nom || "Sans nom"} — {fmtDate(c.date_debut)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 text-xs">
+        <button
+          onClick={() => onDuplicateAsNewStay(client)}
+          className="text-[#5C2A1D] hover:underline"
+        >
+          + Nouveau séjour pour ce même client
         </button>
-        <button onClick={collapseAll} className="text-neutral-400 hover:underline">
-          Tout replier
-        </button>
+        <div className="flex gap-3">
+          <button onClick={expandAll} className="text-[#5C2A1D] hover:underline">
+            Tout déplier
+          </button>
+          <button onClick={collapseAll} className="text-neutral-400 hover:underline">
+            Tout replier
+          </button>
+        </div>
       </div>
 
       <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
+import { STATUT_COLORS } from "@/lib/constants";
 import {
   ActivitesStep,
   BilletAvionStep,
@@ -14,7 +15,47 @@ import {
   SuiviStep,
 } from "@/components/client-steps";
 
-const STEPS = ["Contact", "Séjour", "Billet d'avion", "Activités", "Paiements", "Suivi"];
+const SECTIONS = [
+  "Contact",
+  "Séjour",
+  "Billet d'avion",
+  "Activités",
+  "Paiements",
+  "Suivi",
+] as const;
+
+function fmtDate(dateStr: string | null) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+function Section({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-[#8B4531]/15 bg-white shadow-sm">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center justify-between px-5 py-3.5 text-left"
+      >
+        <span className="font-heading text-sm font-semibold text-[#5C2A1D]">{title}</span>
+        <span className={`text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}>
+          ⌄
+        </span>
+      </button>
+      {open && <div className="border-t border-[#8B4531]/10 px-5 py-5">{children}</div>}
+    </div>
+  );
+}
 
 export default function ClientDetail({
   client,
@@ -34,12 +75,18 @@ export default function ClientDetail({
   const supabase = useMemo(() => createClient(), []);
   const confirm = useConfirm();
   const toast = useToast();
-  const [step, setStep] = useState(0);
+  const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>({
+    Contact: true,
+    Séjour: true,
+    "Billet d'avion": false,
+    Activités: false,
+    Paiements: false,
+    Suivi: false,
+  });
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
 
   useEffect(() => {
-    setStep(0);
     (async () => {
       const { data: resas } = await supabase
         .from("reservations")
@@ -144,47 +191,98 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
+  const toggle = (s: (typeof SECTIONS)[number]) =>
+    setOpen((prev) => ({ ...prev, [s]: !prev[s] }));
+  const expandAll = () =>
+    setOpen({
+      Contact: true,
+      Séjour: true,
+      "Billet d'avion": true,
+      Activités: true,
+      Paiements: true,
+      Suivi: true,
+    });
+  const collapseAll = () =>
+    setOpen({
+      Contact: false,
+      Séjour: false,
+      "Billet d'avion": false,
+      Activités: false,
+      Paiements: false,
+      Suivi: false,
+    });
+
   return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
-        <input
-          value={client.nom}
-          onChange={(e) => onChange({ nom: e.target.value })}
-          placeholder="Nom du client"
-          className="font-heading w-full max-w-md rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#5C2A1D] hover:border-neutral-200 focus:border-[#5C2A1D] focus:outline-none"
-        />
-        {canDelete && (
-          <button
-            onClick={onDelete}
-            className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+    <div className="mx-auto max-w-3xl space-y-4">
+      <div className="rounded-lg border border-[#8B4531]/15 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <input
+            value={client.nom}
+            onChange={(e) => onChange({ nom: e.target.value })}
+            placeholder="Nom du client"
+            className="font-heading min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#5C2A1D] hover:border-neutral-200 focus:border-[#5C2A1D] focus:outline-none"
+          />
+          {canDelete && (
+            <button
+              onClick={onDelete}
+              className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+            >
+              Supprimer ce client
+            </button>
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span
+            className="rounded-full px-2.5 py-1 font-medium text-white"
+            style={{ backgroundColor: STATUT_COLORS[client.statut] }}
           >
-            Supprimer ce client
-          </button>
-        )}
+            {client.statut}
+          </span>
+          {client.telephone && (
+            <span className="rounded-full bg-[#F2E6D2] px-2.5 py-1 text-[#5C2A1D]">
+              ☎ {client.telephone}
+            </span>
+          )}
+          {client.hotel && (
+            <span className="rounded-full bg-[#F2E6D2] px-2.5 py-1 text-[#5C2A1D]">
+              ⌂ {client.hotel}
+            </span>
+          )}
+          {(client.date_debut || client.date_fin) && (
+            <span className="font-amounts rounded-full bg-[#F2E6D2] px-2.5 py-1 text-[#5C2A1D]">
+              {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {STEPS.map((label, i) => (
-          <button
-            key={label}
-            onClick={() => setStep(i)}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
-              i === step
-                ? "bg-[#5C2A1D] text-white"
-                : "bg-white text-[#5C2A1D] hover:bg-[#F2E6D2]"
-            }`}
-          >
-            {i + 1}. {label}
-          </button>
-        ))}
+      <div className="flex justify-end gap-3 text-xs">
+        <button onClick={expandAll} className="text-[#5C2A1D] hover:underline">
+          Tout déplier
+        </button>
+        <button onClick={collapseAll} className="text-neutral-400 hover:underline">
+          Tout replier
+        </button>
       </div>
 
-      {step === 0 && <ContactStep client={client} onChange={onChange} />}
-      {step === 1 && <SejourStep client={client} onChange={onChange} />}
-      {step === 2 && (
+      <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
+        <ContactStep client={client} onChange={onChange} />
+      </Section>
+
+      <Section title="Séjour" open={open.Séjour} onToggle={() => toggle("Séjour")}>
+        <SejourStep client={client} onChange={onChange} />
+      </Section>
+
+      <Section
+        title="Billet d'avion"
+        open={open["Billet d'avion"]}
+        onToggle={() => toggle("Billet d'avion")}
+      >
         <BilletAvionStep client={client} onChange={onChange} reservations={reservations} />
-      )}
-      {step === 3 && (
+      </Section>
+
+      <Section title="Activités réservées" open={open.Activités} onToggle={() => toggle("Activités")}>
         <ActivitesStep
           client={client}
           onChange={onChange}
@@ -199,38 +297,20 @@ export default function ClientDetail({
           catalogue={catalogue}
           canSeeMargins={canSeeMargins}
         />
-      )}
-      {step === 4 && (
+      </Section>
+
+      <Section title="Paiements" open={open.Paiements} onToggle={() => toggle("Paiements")}>
         <PaiementsStep
           client={client}
           onChange={onChange}
           reservations={reservations}
           resaOptions={resaOptions}
         />
-      )}
-      {step === 5 && (
-        <SuiviStep client={client} onChange={onChange} reservations={reservations} />
-      )}
+      </Section>
 
-      <div className="mt-8 flex items-center justify-between border-t border-[#8B4531]/10 pt-4">
-        <button
-          disabled={step === 0}
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          className="rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-sm text-[#5C2A1D] disabled:opacity-30"
-        >
-          ← Précédent
-        </button>
-        <span className="text-xs text-neutral-500">
-          Étape {step + 1} / {STEPS.length}
-        </span>
-        <button
-          disabled={step === STEPS.length - 1}
-          onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
-          className="rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-sm text-[#5C2A1D] disabled:opacity-30"
-        >
-          Suivant →
-        </button>
-      </div>
+      <Section title="Suivi" open={open.Suivi} onToggle={() => toggle("Suivi")}>
+        <SuiviStep client={client} onChange={onChange} reservations={reservations} />
+      </Section>
     </div>
   );
 }

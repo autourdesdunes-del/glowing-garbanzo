@@ -56,9 +56,7 @@ export function ContactStep({ client, onChange }: StepProps) {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Contact</h2>
-
+    <div className="space-y-6">
       <Field label="Nom du client">
         <input
           value={client.nom}
@@ -209,9 +207,7 @@ export function SejourStep({ client, onChange }: StepProps) {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Séjour</h2>
-
+    <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <Field label="Date début séjour">
           <input
@@ -319,20 +315,15 @@ export function BilletAvionStep({
   reservations,
 }: StepProps & { reservations: Reservation[] }) {
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">
-          Billet d&apos;avion
-        </h2>
-        <label className="flex items-center gap-2 text-sm text-neutral-700">
-          <input
-            type="checkbox"
-            checked={client.billet_requis}
-            onChange={(e) => onChange({ billet_requis: e.target.checked })}
-          />
-          Ce client a un billet à gérer
-        </label>
-      </div>
+    <div className="space-y-6">
+      <label className="flex items-center gap-2 text-sm text-neutral-700">
+        <input
+          type="checkbox"
+          checked={client.billet_requis}
+          onChange={(e) => onChange({ billet_requis: e.target.checked })}
+        />
+        Ce client a un billet à gérer
+      </label>
 
       {client.billet_requis && (
         <>
@@ -442,20 +433,17 @@ export function ActivitesStep({
   const [view, setView] = useState<"liste" | "itineraire">("liste");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">
-          Activités réservées
-        </h2>
-        {view === "liste" && (
+    <div className="space-y-3">
+      {view === "liste" && (
+        <div className="flex justify-end">
           <button
             onClick={onAddReservation}
             className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             + Ajouter une activité
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <button
@@ -578,8 +566,7 @@ export function PaiementsStep({
   const reste = totalSejour - totalPaye;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Paiements</h2>
+    <div className="space-y-6">
 
       <div className="rounded-md bg-white p-3 text-sm text-neutral-600">
         Total séjour (calculé automatiquement) : <strong>{euros(totalSejour)} €</strong>
@@ -855,8 +842,7 @@ export function SuiviStep({
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Suivi</h2>
+    <div className="space-y-6">
 
       <div>
         <div className="mb-2 flex items-center justify-between">

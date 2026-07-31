@@ -462,11 +462,13 @@ function AppShellInner({
             <Spinner />
           ) : (
             <DashboardView
+              userEmail={userEmail}
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}
               isDirection={isDirection}
               onOpenClient={openClient}
+              onCreateClient={addClient}
             />
           )}
         </div>

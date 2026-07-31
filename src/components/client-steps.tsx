@@ -921,6 +921,28 @@ export function SuiviStep({
         )}
       </div>
 
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Prochain appel</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Date">
+            <input
+              type="date"
+              value={client.prochain_appel_date ?? ""}
+              onChange={(e) => onChange({ prochain_appel_date: e.target.value || null })}
+              className="input"
+            />
+          </Field>
+          <Field label="Heure">
+            <input
+              type="time"
+              value={client.prochain_appel_heure}
+              onChange={(e) => onChange({ prochain_appel_heure: e.target.value })}
+              className="input"
+            />
+          </Field>
+        </div>
+      </div>
+
       <Field label="Commentaires internes">
         <textarea
           value={client.commentaires}

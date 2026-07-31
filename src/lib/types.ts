@@ -139,6 +139,8 @@ export type Client = {
   au_revoir_envoye: boolean;
   avis_envoye: boolean;
   tags: string[];
+  prochain_appel_date: string | null;
+  prochain_appel_heure: string;
   created_at: string;
   updated_at: string;
 };
@@ -176,4 +178,13 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   au_revoir_envoye: false,
   avis_envoye: false,
   tags: [],
+  prochain_appel_date: null,
+  prochain_appel_heure: "",
+};
+
+export type UserShift = {
+  user_id: string;
+  shift_debut: string;
+  shift_fin: string;
+  updated_at: string;
 };

@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
+import { CatalogueItem, Client, Paiement, Reservation, ReservationOption } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 import { STATUT_COLORS } from "@/lib/constants";
+import { generateClientDocument } from "@/lib/generateClientDocument";
 import {
   ActivitesStep,
   ContactStep,
@@ -82,6 +83,7 @@ export default function ClientDetail({
   });
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
+  const [generatingDoc, setGeneratingDoc] = useState<"devis" | "facture" | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -192,6 +194,30 @@ export default function ClientDetail({
     (c) => c.id !== client.id && client.telephone && c.telephone === client.telephone
   );
 
+  const handleDownload = async (docType: "devis" | "facture") => {
+    setGeneratingDoc(docType);
+    try {
+      const { data, error } = await supabase
+        .from("paiements")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: true });
+      if (error) {
+        toast("Impossible de générer le document.");
+        return;
+      }
+      generateClientDocument(
+        docType,
+        client,
+        reservations,
+        resaOptions,
+        (data as Paiement[]) || []
+      );
+    } finally {
+      setGeneratingDoc(null);
+    }
+  };
+
   const toggle = (s: (typeof SECTIONS)[number]) =>
     setOpen((prev) => ({ ...prev, [s]: !prev[s] }));
   const expandAll = () =>
@@ -221,14 +247,30 @@ export default function ClientDetail({
             placeholder="Nom du client"
             className="font-heading min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#5C2A1D] hover:border-neutral-200 focus:border-[#5C2A1D] focus:outline-none"
           />
-          {canDelete && (
+          <div className="flex flex-shrink-0 gap-2">
             <button
-              onClick={onDelete}
-              className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+              onClick={() => handleDownload("devis")}
+              disabled={generatingDoc !== null}
+              className="whitespace-nowrap rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-sm text-[#5C2A1D] hover:bg-[#F2E6D2] disabled:opacity-50"
             >
-              Supprimer ce client
+              {generatingDoc === "devis" ? "Génération…" : "Devis (PDF)"}
             </button>
-          )}
+            <button
+              onClick={() => handleDownload("facture")}
+              disabled={generatingDoc !== null}
+              className="whitespace-nowrap rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-sm text-[#5C2A1D] hover:bg-[#F2E6D2] disabled:opacity-50"
+            >
+              {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
+            </button>
+            {canDelete && (
+              <button
+                onClick={onDelete}
+                className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+              >
+                Supprimer ce client
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">

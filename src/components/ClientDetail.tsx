@@ -255,7 +255,7 @@ export default function ClientDetail({
           )}
         </div>
 
-        <TagEditor tags={client.tags} onChange={(tags) => onChange({ tags })} />
+        <TagEditor tags={client.tags || []} onChange={(tags) => onChange({ tags })} />
       </div>
 
       {autresSejours.length > 0 && (

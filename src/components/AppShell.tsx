@@ -208,10 +208,10 @@ function AppShellInner({
     })();
   }, [mode, supabase, isDirection]);
 
-  const allTags = Array.from(new Set(clients.flatMap((c) => c.tags))).sort();
+  const allTags = Array.from(new Set(clients.flatMap((c) => c.tags || []))).sort();
   const filtered = clients
     .filter((c) => (c.nom || "").toLowerCase().includes(query.toLowerCase()))
-    .filter((c) => !tagFilter || c.tags.includes(tagFilter));
+    .filter((c) => !tagFilter || (c.tags || []).includes(tagFilter));
   const selected = clients.find((c) => c.id === selectedId) || null;
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -534,7 +534,7 @@ function AppShellInner({
                         {fmtDate(c.date_debut)}
                       </span>
                     )}
-                    {c.tags.map((tag) => (
+                    {(c.tags || []).map((tag) => (
                       <span
                         key={tag}
                         className="rounded-full bg-[#F2E6D2] px-2 py-0.5 text-[#5C2A1D]"

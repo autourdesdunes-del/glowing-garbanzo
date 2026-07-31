@@ -72,9 +72,9 @@ export default function PipelineView({
                       {fmtDate(c.date_debut)}
                     </div>
                   )}
-                  {c.tags.length > 0 && (
+                  {(c.tags || []).length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {c.tags.map((tag) => (
+                      {(c.tags || []).map((tag) => (
                         <span
                           key={tag}
                           className="rounded-full bg-[#F2E6D2] px-1.5 py-0.5 text-[10px] text-[#5C2A1D]"

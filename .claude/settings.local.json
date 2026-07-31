@@ -21,7 +21,9 @@
       "Bash(grep -n \"ActivitesStep$\\\\|<ActivitesStep\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ClientDetail.tsx\")",
       "Bash(grep -n \"Coût réel\\\\|catalogue,\\\\n}: {\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ReservationCard.tsx\")",
       "Bash(grep -n \"const toggle = \\\\|return \\(\\\\s*$\" \"/Users/melaniemartin/Desktop/autour des dunes CRM/files/src/components/ClientDetail.tsx\")",
-      "Bash(node \"/private/tmp/claude-501/bundled-skills/2.1.219/67149ca8fa461163a367d1cb21c6a828/dataviz/scripts/validate_palette.js\" \"#8B4531,#C9973E,#5C2A1D,#9CA3AF\" --mode light)"
+      "Bash(node \"/private/tmp/claude-501/bundled-skills/2.1.219/67149ca8fa461163a367d1cb21c6a828/dataviz/scripts/validate_palette.js\" \"#8B4531,#C9973E,#5C2A1D,#9CA3AF\" --mode light)",
+      "Bash(lsof -ti:3000)",
+      "Bash(xargs -r kill)"
     ]
   }
 }

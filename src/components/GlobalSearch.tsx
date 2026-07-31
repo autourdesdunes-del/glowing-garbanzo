@@ -43,7 +43,7 @@ export default function GlobalSearch({
   };
 
   return (
-    <div className="relative w-72">
+    <div className="relative w-full max-w-72">
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}

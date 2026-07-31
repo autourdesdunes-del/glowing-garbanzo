@@ -400,24 +400,26 @@ function AppShellInner({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-[#8B4531]/15 bg-white px-6 py-3">
-          <h1 className="font-heading text-base font-semibold text-[#5C2A1D]">
+        <header className="flex items-center gap-3 border-b border-[#8B4531]/15 bg-white px-6 py-3">
+          <h1 className="flex-shrink-0 whitespace-nowrap font-heading text-base font-semibold text-[#5C2A1D]">
             {currentTab?.label}
           </h1>
-          <GlobalSearch
-            clients={clients}
-            reservations={allReservations}
-            onOpenClient={(id) => {
-              setSelectedId(id);
-              setMode("team");
-            }}
-          />
-          <div className="flex items-center gap-3 text-sm text-neutral-500">
-            <span className="max-w-[220px] truncate">{userEmail}</span>
+          <div className="flex min-w-0 flex-1 justify-center">
+            <GlobalSearch
+              clients={clients}
+              reservations={allReservations}
+              onOpenClient={(id) => {
+                setSelectedId(id);
+                setMode("team");
+              }}
+            />
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-3 text-sm text-neutral-500">
+            <span className="hidden max-w-[180px] truncate sm:inline">{userEmail}</span>
             <ChangePasswordButton />
             <button
               onClick={handleSignOut}
-              className="rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-[#5C2A1D] hover:bg-[#F2E6D2]"
+              className="whitespace-nowrap rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-[#5C2A1D] hover:bg-[#F2E6D2]"
             >
               Déconnexion
             </button>

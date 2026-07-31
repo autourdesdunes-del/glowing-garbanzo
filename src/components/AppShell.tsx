@@ -27,7 +27,18 @@ import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
 
-type Mode = "dashboard" | "team" | "catalogue" | "suivis" | "planning" | "preview" | "direction";
+type Mode =
+  | "dashboard"
+  | "team"
+  | "prospects"
+  | "catalogue"
+  | "suivis"
+  | "planning"
+  | "preview"
+  | "direction";
+
+const CLIENT_STATUTS = ["Client confirmé", "Perdu"];
+const PROSPECT_STATUTS = ["Prospect", "En négociation"];
 
 function IconHome() {
   return (
@@ -44,6 +55,15 @@ function IconUsers() {
       <path d="M2.5 16c0-2.5 2.2-4.2 5-4.2s5 1.7 5 4.2" strokeLinecap="round" />
       <circle cx="14" cy="6.5" r="2" />
       <path d="M13 11.9c1.9.3 4.5 1.6 4.5 4.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+function IconTarget() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+      <circle cx="10" cy="10" r="7" />
+      <circle cx="10" cy="10" r="3.5" />
+      <circle cx="10" cy="10" r="0.8" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -94,7 +114,8 @@ function IconShield() {
 
 const TABS: { key: Mode; label: string; icon: () => React.ReactElement }[] = [
   { key: "dashboard", label: "Tableau de bord", icon: IconHome },
-  { key: "team", label: "Vue équipe", icon: IconUsers },
+  { key: "team", label: "Clients", icon: IconUsers },
+  { key: "prospects", label: "Prospects", icon: IconTarget },
   { key: "catalogue", label: "Catalogue", icon: IconBook },
   { key: "suivis", label: "Suivis", icon: IconChecklist },
   { key: "planning", label: "Réservations", icon: IconCalendar },
@@ -208,11 +229,19 @@ function AppShellInner({
     })();
   }, [mode, supabase, isDirection]);
 
-  const allTags = Array.from(new Set(clients.flatMap((c) => c.tags || []))).sort();
-  const filtered = clients
+  const activeStatuts = mode === "prospects" ? PROSPECT_STATUTS : CLIENT_STATUTS;
+  const scoped = clients.filter((c) => activeStatuts.includes(c.statut));
+  const allTags = Array.from(new Set(scoped.flatMap((c) => c.tags || []))).sort();
+  const filtered = scoped
     .filter((c) => (c.nom || "").toLowerCase().includes(query.toLowerCase()))
     .filter((c) => !tagFilter || (c.tags || []).includes(tagFilter));
   const selected = clients.find((c) => c.id === selectedId) || null;
+
+  const openClient = (id: string) => {
+    const c = clients.find((cl) => cl.id === id);
+    setMode(c && PROSPECT_STATUTS.includes(c.statut) ? "prospects" : "team");
+    setSelectedId(id);
+  };
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPatch = useRef<Partial<Client>>({});
@@ -253,6 +282,8 @@ function AppShellInner({
     if (!error && data) {
       setClients((prev) => [data as Client, ...prev]);
       setSelectedId(data.id);
+      // New clients always start as "Prospect" — land where they'll show up.
+      setMode("prospects");
     } else {
       toast("Impossible de créer le client.");
     }
@@ -274,6 +305,7 @@ function AppShellInner({
     if (!error && data) {
       setClients((prev) => [data as Client, ...prev]);
       setSelectedId(data.id);
+      setMode("prospects");
     } else {
       toast("Impossible de créer le nouveau séjour.");
     }
@@ -408,10 +440,7 @@ function AppShellInner({
             <GlobalSearch
               clients={clients}
               reservations={allReservations}
-              onOpenClient={(id) => {
-                setSelectedId(id);
-                setMode("team");
-              }}
+              onOpenClient={openClient}
             />
           </div>
           <div className="flex flex-shrink-0 items-center gap-3 text-sm text-neutral-500">
@@ -437,16 +466,13 @@ function AppShellInner({
               reservations={allReservations}
               resaOptions={allResaOptions}
               isDirection={isDirection}
-              onOpenClient={(id) => {
-                setSelectedId(id);
-                setMode("team");
-              }}
+              onOpenClient={openClient}
             />
           )}
         </div>
       )}
 
-      {mode === "team" && (
+      {(mode === "team" || mode === "prospects") && (
         <div className="flex flex-1 flex-col">
           <div className="flex justify-end gap-1 border-b border-[#8B4531]/10 bg-white px-3 py-1.5">
             <button
@@ -473,7 +499,8 @@ function AppShellInner({
 
           {teamView === "pipeline" ? (
             <PipelineView
-              clients={clients}
+              clients={scoped}
+              statuts={activeStatuts}
               onUpdateStatut={(id, statut) => updateClientById(id, { statut })}
               onOpenClient={(id) => {
                 setSelectedId(id);
@@ -487,7 +514,7 @@ function AppShellInner({
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher un client…"
+                placeholder={mode === "prospects" ? "Rechercher un prospect…" : "Rechercher un client…"}
                 className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#5C2A1D] focus:outline-none"
               />
               <QuickAddClient onCreate={addClient} />
@@ -511,7 +538,9 @@ function AppShellInner({
             )}
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 && (
-                <div className="p-4 text-sm text-neutral-400">Aucun client.</div>
+                <div className="p-4 text-sm text-neutral-400">
+                  {mode === "prospects" ? "Aucun prospect." : "Aucun client."}
+                </div>
               )}
               {filtered.map((c) => (
                 <button
@@ -551,9 +580,11 @@ function AppShellInner({
           </aside>
 
           <main className="flex-1 overflow-y-auto p-6">
-            {!selected ? (
+            {!selected || !activeStatuts.includes(selected.statut) ? (
               <div className="text-neutral-400">
-                Sélectionne ou crée un client pour commencer.
+                {mode === "prospects"
+                  ? "Sélectionne ou crée un prospect pour commencer."
+                  : "Sélectionne ou crée un client pour commencer."}
               </div>
             ) : (
               <ClientDetail
@@ -561,7 +592,7 @@ function AppShellInner({
                 allClients={clients}
                 onChange={updateSelected}
                 onDelete={() => deleteClient(selected.id)}
-                onJumpToClient={setSelectedId}
+                onJumpToClient={openClient}
                 onDuplicateAsNewStay={duplicateAsNewStay}
                 canDelete={isDirection}
                 canSeeMargins={isDirection}
@@ -595,10 +626,7 @@ function AppShellInner({
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}
-              onOpenClient={(id) => {
-                setSelectedId(id);
-                setMode("team");
-              }}
+              onOpenClient={openClient}
             />
           )}
         </div>
@@ -614,10 +642,7 @@ function AppShellInner({
               reservations={allReservations}
               remboursements={allRemboursements}
               onUpdateClient={updateClientById}
-              onOpenClient={(id) => {
-                setSelectedId(id);
-                setMode("team");
-              }}
+              onOpenClient={openClient}
             />
           )}
         </div>
@@ -677,6 +702,7 @@ function AppShellInner({
 
       {mode !== "dashboard" &&
         mode !== "team" &&
+        mode !== "prospects" &&
         mode !== "catalogue" &&
         mode !== "planning" &&
         mode !== "suivis" &&

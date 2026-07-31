@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Client } from "@/lib/types";
-import { STATUTS, STATUT_COLORS } from "@/lib/constants";
+import { STATUT_COLORS } from "@/lib/constants";
 
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -12,10 +12,12 @@ function fmtDate(dateStr: string | null) {
 
 export default function PipelineView({
   clients,
+  statuts,
   onUpdateStatut,
   onOpenClient,
 }: {
   clients: Client[];
+  statuts: readonly string[];
   onUpdateStatut: (id: string, statut: string) => void;
   onOpenClient: (id: string) => void;
 }) {
@@ -24,7 +26,7 @@ export default function PipelineView({
 
   return (
     <div className="flex h-full gap-4 overflow-x-auto p-6">
-      {STATUTS.map((statut) => {
+      {statuts.map((statut) => {
         const items = clients.filter((c) => c.statut === statut);
         return (
           <div

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Client, Reservation, ReservationOption } from "@/lib/types";
+import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
 
 function euros(n: number) {
@@ -38,11 +38,13 @@ export default function PlanningView({
   clients,
   reservations,
   resaOptions,
+  resaTarifs,
   onOpenClient,
 }: {
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
   onOpenClient: (clientId: string) => void;
 }) {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("aujourdhui");
@@ -124,7 +126,7 @@ export default function PlanningView({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {grouped.byDate[date].map(({ client, r }) => {
               const options = resaOptions[r.id] || [];
-              const total = resaTotalMontant(r, client, options);
+              const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
               const { nbAd, nbEnf } = participantsFor(r, client);
               const soldeIci = client.solde_activite_id === r.id;
               const statutPaiement = soldeIci ? (client.solde_paye ? "Payé" : "À régler") : null;

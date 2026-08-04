@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
+import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 
@@ -33,12 +33,14 @@ export default function DirectionView({
   clients,
   reservations,
   resaOptions,
+  resaTarifs,
   catalogue,
   onUpdateCatalogueItem,
 }: {
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
   catalogue: CatalogueItem[];
   onUpdateCatalogueItem: (id: string, patch: Partial<CatalogueItem>) => void;
 }) {
@@ -56,7 +58,7 @@ export default function DirectionView({
     .filter((r) => inRange(r.date_debut))
     .map((r) => {
       const client = clients.find((c) => c.id === r.client_id);
-      const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || []);
+      const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
       const cout = Number(r.cout_reel) || 0;
       // Groupe par modèle catalogue quand la réservation en vient (le nom
       // catalogue à jour prime), sinon par nom d'activité saisi à la main.

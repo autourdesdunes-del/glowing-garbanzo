@@ -1,7 +1,21 @@
 "use client";
 
-import { Client, Reservation, ReservationOption } from "@/lib/types";
-import { participantsFor, resaTotalMontant } from "@/lib/resa";
+import {
+  CatalogueItem,
+  CatalogueTarif,
+  Client,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
+import {
+  acompteWaitingWarning,
+  activitePaiementWarning,
+  paiementBadge,
+  participantsFor,
+  resaTotalMontant,
+} from "@/lib/resa";
+import ReservationCard from "@/components/ReservationCard";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -24,28 +38,191 @@ function enumerateDays(start: string, end: string) {
   return days;
 }
 
+function paxLine(r: Reservation, client: Client) {
+  if (r.pax_override) return r.pax_override;
+  const { nbAd, nbEnf } = participantsFor(r, client);
+  const showAges = r.participants_mode === "tous";
+  const parts: string[] = [];
+  let adLabel = `${nbAd} adulte${nbAd > 1 ? "s" : ""}`;
+  if (showAges && client.ados_presents && client.ages_ados) {
+    adLabel += ` (dont ados ${client.ages_ados})`;
+  }
+  parts.push(adLabel);
+  if (nbEnf > 0) {
+    let s = `${nbEnf} enfant${nbEnf > 1 ? "s" : ""}`;
+    if (showAges && client.ages_enfants) s += ` (${client.ages_enfants})`;
+    parts.push(s);
+  }
+  if (showAges && client.bebes > 0) {
+    let s = `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}`;
+    if (client.ages_bebes) s += ` (${client.ages_bebes})`;
+    parts.push(s);
+  }
+  return parts.join(", ");
+}
+
 export default function ItineraryView({
   client,
   reservations,
   resaOptions,
+  resaTarifs,
+  expandedId,
+  onToggleExpand,
+  onSetPickup,
+  onUpdateReservation,
+  onDeleteReservation,
+  onAddOption,
+  onUpdateOption,
+  onDeleteOption,
+  onAddTarif,
+  onUpdateTarif,
+  onDeleteTarif,
+  onUpdateClient,
+  catalogue,
+  catalogueTarifs,
+  canSeeMargins,
+  hotelHorsHurghada,
 }: {
   client: Client;
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
+  expandedId: string | null;
+  onToggleExpand: (id: string | null) => void;
+  onSetPickup: (id: string, pickup: string) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onDeleteReservation: (id: string) => void;
+  onAddOption: (resaId: string) => void;
+  onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
+  onDeleteOption: (resaId: string, optId: string) => void;
+  onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
+  onUpdateTarif: (resaId: string, tarifId: string, patch: Partial<ReservationTarif>) => void;
+  onDeleteTarif: (resaId: string, tarifId: string) => void;
+  onUpdateClient: (patch: Partial<Client>) => void;
+  catalogue: CatalogueItem[];
+  catalogueTarifs: Record<string, CatalogueTarif[]>;
+  canSeeMargins: boolean;
+  hotelHorsHurghada?: boolean;
 }) {
-  if (!client.date_debut || !client.date_fin) {
+  const askPickup = (r: Reservation) => {
+    if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
+    const val = window.prompt("Pick-up réel (heure / lieu) :", "");
+    if (val && val.trim()) onSetPickup(r.id, val.trim());
+  };
+
+  const renderCard = (r: Reservation, day?: string) => {
+    if (expandedId === r.id) {
+      return (
+        <ReservationCard
+          key={r.id}
+          r={r}
+          client={client}
+          options={resaOptions[r.id] || []}
+          tarifs={resaTarifs[r.id] || []}
+          expanded
+          onToggleExpanded={(v) => onToggleExpand(v ? r.id : null)}
+          onUpdate={(patch) => onUpdateReservation(r.id, patch)}
+          onDelete={() => onDeleteReservation(r.id)}
+          onAddOption={() => onAddOption(r.id)}
+          onUpdateOption={(optId, patch) => onUpdateOption(r.id, optId, patch)}
+          onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
+          onAddTarif={(seed) => onAddTarif(r.id, seed)}
+          onUpdateTarif={(tarifId, patch) => onUpdateTarif(r.id, tarifId, patch)}
+          onDeleteTarif={(tarifId) => onDeleteTarif(r.id, tarifId)}
+          onUpdateClient={onUpdateClient}
+          catalogue={catalogue}
+          catalogueTarifs={r.catalogue_item_id ? catalogueTarifs[r.catalogue_item_id] || [] : []}
+          canSeeMargins={canSeeMargins}
+          hotelHorsHurghada={hotelHorsHurghada}
+        />
+      );
+    }
+
+    const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+    const badge = paiementBadge(client, r);
+    const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs);
+    const acompteWarning = acompteWaitingWarning(client, r, reservations);
     return (
-      <div className="text-sm text-neutral-400">
-        Renseigne les dates du séjour (étape Séjour) pour voir l&apos;itinéraire jour par jour.
+      <div
+        key={r.id}
+        onClick={() => onToggleExpand(r.id)}
+        className="cursor-pointer rounded-md bg-[#F2E6D2]/50 px-3 py-2.5 text-sm hover:bg-[#F2E6D2]"
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-medium text-[#5C2A1D]">{r.nom_activite || "Activité sans nom"}</span>
+          {acompteWarning && (
+            <span className="text-xs font-medium text-yellow-700">
+              ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
+            </span>
+          )}
+          {paiementWarning && (
+            <span className="text-xs font-medium text-red-600">
+              ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
+          <span>{day ? fmtDate(day) : "Date à définir"}</span>
+          <span>· {r.moment}</span>
+          {r.pickup_reel ? (
+            <span>· Pick-up {r.pickup_reel}</span>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                askPickup(r);
+              }}
+              title="Pick-up manquant"
+              className="text-red-500 hover:text-red-600"
+            >
+              ⏰
+            </button>
+          )}
+        </div>
+        <div className="mt-1 text-xs text-neutral-500">{paxLine(r, client)}</div>
+        <div className="mt-1.5 flex items-center justify-between">
+          <span className="font-amounts text-xs font-medium text-[#5C2A1D]">{euros(total)} €</span>
+          {badge && (
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
+              {badge.label}
+            </span>
+          )}
+        </div>
       </div>
     );
-  }
+  };
 
-  const days = enumerateDays(client.date_debut, client.date_fin);
+  const dateless = reservations.filter((r) => !r.date_debut);
+  const days =
+    client.date_debut && client.date_fin
+      ? enumerateDays(client.date_debut, client.date_fin).filter((day) =>
+          reservations.some((r) => {
+            if (!r.date_debut) return false;
+            const end = r.date_fin || r.date_debut;
+            return day >= r.date_debut && day <= end;
+          })
+        )
+      : [];
+
+  if (dateless.length === 0 && days.length === 0) {
+    return <div className="text-sm text-neutral-400">Aucune activité planifiée pour l&apos;instant.</div>;
+  }
 
   return (
     <div className="space-y-4">
-      {days.map((day, i) => {
+      {dateless.length > 0 && (
+        <div className="rounded-md border border-[#8B4531]/15 bg-white p-4">
+          <div className="mb-2">
+            <span className="font-heading text-sm font-semibold text-[#5C2A1D]">
+              Activités sans date
+            </span>
+          </div>
+          <div className="space-y-2">{dateless.map((r) => renderCard(r))}</div>
+        </div>
+      )}
+
+      {days.map((day) => {
         const dayResas = reservations.filter((r) => {
           if (!r.date_debut) return false;
           const end = r.date_fin || r.date_debut;
@@ -54,47 +231,12 @@ export default function ItineraryView({
 
         return (
           <div key={day} className="rounded-md border border-[#8B4531]/15 bg-white p-4">
-            <div className="mb-2 flex items-baseline gap-2">
-              <span className="rounded-full bg-[#F2E6D2] px-2 py-0.5 text-xs font-medium text-[#5C2A1D]">
-                Jour {i + 1}
-              </span>
+            <div className="mb-2">
               <span className="font-heading text-sm font-semibold capitalize text-[#5C2A1D]">
                 {fmtDate(day)}
               </span>
             </div>
-
-            {dayResas.length === 0 ? (
-              <p className="text-sm text-neutral-400">Journée libre.</p>
-            ) : (
-              <div className="space-y-2">
-                {dayResas.map((r) => {
-                  const { nbAd, nbEnf } = participantsFor(r, client);
-                  const total = resaTotalMontant(r, client, resaOptions[r.id] || []);
-                  return (
-                    <div
-                      key={r.id}
-                      className="flex items-center justify-between rounded-md bg-[#F2E6D2]/50 px-3 py-2 text-sm"
-                    >
-                      <div>
-                        <span className="font-medium text-[#5C2A1D]">
-                          {r.nom_activite || "Activité sans nom"}
-                        </span>
-                        <span className="ml-2 text-xs text-neutral-500">
-                          {r.moment}
-                          {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
-                        </span>
-                        <div className="text-xs text-neutral-500">
-                          {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
-                        </div>
-                      </div>
-                      <span className="font-amounts text-xs text-neutral-600">
-                        {euros(total)} €
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <div className="space-y-2">{dayResas.map((r) => renderCard(r, day))}</div>
           </div>
         );
       })}

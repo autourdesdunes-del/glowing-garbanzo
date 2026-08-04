@@ -5,29 +5,63 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ActivityLogEntry,
   CatalogueItem,
+  CatalogueTarif,
   Client,
-  Paiement,
+  ClientHotel,
+  HotelReference,
   Remboursement,
   Reservation,
   ReservationOption,
+  ReservationTarif,
+  TransfertTaxe,
   Verification,
 } from "@/lib/types";
 import {
+  ASSIGNE_A_OPTIONS,
   CANAUX,
-  INFOS_MANQUANTES_OPTIONS,
   MODES_PAIEMENT,
   RAISONS_REMBOURSEMENT,
   RELATIONS,
   STATUTS,
 } from "@/lib/constants";
 import { resaTotalMontant } from "@/lib/resa";
+import { matchHotel } from "@/lib/hotelHelp";
+import { getEurToEgpRate } from "@/lib/exchangeRate";
 import ReservationCard from "@/components/ReservationCard";
 import ItineraryView from "@/components/ItineraryView";
+import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
+function extractAges(text: string | null | undefined): string[] {
+  return (text || "").match(/\d+/g) || [];
+}
+function joinAnd(nums: string[]) {
+  if (nums.length === 0) return "";
+  if (nums.length === 1) return nums[0];
+  return `${nums.slice(0, -1).join(", ")} and ${nums[nums.length - 1]}`;
+}
+function buildPaxEnglish(client: Client) {
+  const parts = [`${client.adultes || 0} adults`];
+  if (client.enfants > 0) {
+    const ages = extractAges(client.ages_enfants);
+    parts.push(`${client.enfants} child's${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
+  }
+  if (client.bebes > 0) {
+    const ages = extractAges(client.ages_bebes);
+    parts.push(`${client.bebes} baby${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
+  }
+  return parts.join(" + ");
+}
+
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
+}
+
+function fmtDateDMY(dateStr: string | null) {
+  if (!dateStr) return "—";
+  const [y, m, d] = dateStr.split("-");
+  return `${d}-${m}-${y}`;
 }
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -45,6 +79,31 @@ type StepProps = {
 };
 
 export function ContactStep({ client, onChange }: StepProps) {
+  const supabase = createClient();
+  const toast = useToast();
+  const [infoOptions, setInfoOptions] = useState<string[]>([]);
+  const [newInfoLabel, setNewInfoLabel] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from("infos_manquantes_options")
+        .select("label")
+        .order("created_at", { ascending: true });
+      if (error) {
+        console.error("infos_manquantes_options", error);
+        toast("Impossible de charger la liste — vérifie que la migration 0011 est bien passée.");
+      }
+      const fetched = ((data as { label: string }[]) || []).map((d) => d.label);
+      setInfoOptions(
+        fetched.length
+          ? fetched
+          : ["Complet", "Room number", "Date de RDV", "Numéro WhatsApp", "Billets d'avion", "Passeport", "Acompte PayPal", "Localisation", "Ticket de train"]
+      );
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const toggleInfoManquante = (opt: string) => {
     const has = client.infos_manquantes.includes(opt);
     onChange({
@@ -52,6 +111,31 @@ export function ContactStep({ client, onChange }: StepProps) {
         ? client.infos_manquantes.filter((o) => o !== opt)
         : [...client.infos_manquantes, opt],
     });
+  };
+
+  const addCustomInfo = async () => {
+    const clean = newInfoLabel.trim();
+    if (!clean) return;
+    if (!infoOptions.includes(clean)) {
+      const { error } = await supabase.from("infos_manquantes_options").insert({ label: clean });
+      if (error) {
+        toast("Impossible d'ajouter cette option.");
+        return;
+      }
+      setInfoOptions((prev) => [...prev, clean]);
+    }
+    if (!client.infos_manquantes.includes(clean)) {
+      onChange({ infos_manquantes: [...client.infos_manquantes, clean] });
+    }
+    setNewInfoLabel("");
+  };
+
+  const handleStatutChange = (next: string) => {
+    if (next === "Client confirmé" && !client.email.trim()) {
+      toast("Ajoute l'email du client avant de le passer en Client confirmé.");
+      return;
+    }
+    onChange({ statut: next });
   };
 
   return (
@@ -68,7 +152,7 @@ export function ContactStep({ client, onChange }: StepProps) {
         <Field label="Statut">
           <select
             value={client.statut}
-            onChange={(e) => onChange({ statut: e.target.value })}
+            onChange={(e) => handleStatutChange(e.target.value)}
             className="input"
           >
             {STATUTS.map((s) => (
@@ -138,60 +222,167 @@ export function ContactStep({ client, onChange }: StepProps) {
         />
       </Field>
 
-      <Field label="Infos manquantes">
-        <div className="flex flex-wrap gap-2">
-          {INFOS_MANQUANTES_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => toggleInfoManquante(opt)}
-              className={`rounded-full border px-3 py-1 text-xs ${
-                client.infos_manquantes.includes(opt)
-                  ? "border-[#C9973E] bg-[#C9973E] text-white"
-                  : "border-neutral-300 text-neutral-600"
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-        {client.infos_manquantes.includes("Autre") && (
-          <input
-            value={client.info_manquante_autre}
-            onChange={(e) => onChange({ info_manquante_autre: e.target.value })}
-            placeholder="Préciser"
-            className="input mt-2 max-w-xs"
-          />
+      <Field label="Email *">
+        <input
+          type="email"
+          value={client.email}
+          onChange={(e) => onChange({ email: e.target.value })}
+          className={`input ${!client.email.trim() ? "border-red-300 focus:border-red-400" : ""}`}
+        />
+        {!client.email.trim() && (
+          <p className="mt-1 text-xs text-red-500">
+            Obligatoire pour passer le dossier en &quot;Client confirmé&quot;.
+          </p>
         )}
       </Field>
 
-      <details className="rounded-md border border-neutral-200 p-3">
-        <summary className="cursor-pointer text-sm font-medium text-[#5C2A1D]">
-          Plus de champs
-        </summary>
-        <div className="mt-3 space-y-4">
-          <Field label="Email">
+      <PassportPhotosUpload
+        paths={client.passeport_photos || []}
+        onChange={(passeport_photos) => onChange({ passeport_photos })}
+      />
+
+      <div>
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Infos manquantes</span>
+        <div className="rounded-md border border-neutral-300 bg-white p-2">
+          <div className="max-h-48 space-y-0.5 overflow-y-auto">
+            {infoOptions.map((opt) => (
+              <label
+                key={opt}
+                className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-[#F2E6D2]"
+              >
+                <input
+                  type="checkbox"
+                  checked={client.infos_manquantes.includes(opt)}
+                  onChange={() => toggleInfoManquante(opt)}
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-1 border-t border-neutral-100 pt-2">
             <input
-              value={client.email}
-              onChange={(e) => onChange({ email: e.target.value })}
-              className="input"
+              value={newInfoLabel}
+              onChange={(e) => setNewInfoLabel(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addCustomInfo();
+                }
+              }}
+              placeholder="+ Nouvelle option"
+              className="input flex-1 text-sm"
             />
-          </Field>
-          <Field label="Lien passeport (Drive)">
-            <input
-              value={client.lien_passeport}
-              onChange={(e) => onChange({ lien_passeport: e.target.value })}
-              className="input"
-            />
-          </Field>
+            <button
+              type="button"
+              onClick={addCustomInfo}
+              className="rounded-md bg-[#C9973E] px-2 text-sm text-white"
+            >
+              +
+            </button>
+          </div>
         </div>
-      </details>
+        {client.infos_manquantes.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {client.infos_manquantes.map((s) => (
+              <span
+                key={s}
+                className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#8B4531]"
+              >
+                {s}
+                <button
+                  type="button"
+                  onClick={() => toggleInfoManquante(s)}
+                  className="text-[#8B4531]/60 hover:text-[#8B4531]"
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-export function SejourStep({ client, onChange }: StepProps) {
-  const copyBlock = `Name : ${client.nom || "—"}\n${client.adultes || 0} adults\nHotel : ${
+export function SejourStep({
+  client,
+  onChange,
+  hotelsRef,
+  taxesRef,
+  onOpenHelp,
+}: StepProps & {
+  hotelsRef: HotelReference[];
+  taxesRef: TransfertTaxe[];
+  onOpenHelp: () => void;
+}) {
+  const supabase = createClient();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
+  const [showCircuit, setShowCircuit] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("client_hotels")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("ordre", { ascending: true });
+      setClientHotels((data as ClientHotel[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  const addHotelStep = async () => {
+    const { data, error } = await supabase
+      .from("client_hotels")
+      .insert({ client_id: client.id, ordre: clientHotels.length })
+      .select()
+      .single();
+    if (!error && data) {
+      setClientHotels((prev) => [...prev, data as ClientHotel]);
+      setShowCircuit(true);
+    } else {
+      toast("Impossible d'ajouter cet hôtel.");
+    }
+  };
+
+  const updateHotelStep = async (id: string, patch: Partial<ClientHotel>) => {
+    setClientHotels((prev) => prev.map((h) => (h.id === id ? { ...h, ...patch } : h)));
+    const { error } = await supabase.from("client_hotels").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteHotelStep = async (id: string) => {
+    const ok = await confirm({
+      message: "Retirer cet hôtel du circuit ?",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
+    setClientHotels((prev) => prev.filter((h) => h.id !== id));
+    const { error } = await supabase.from("client_hotels").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const moveHotelStep = (id: string, dir: -1 | 1) => {
+    const idx = clientHotels.findIndex((h) => h.id === id);
+    const swapIdx = idx + dir;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= clientHotels.length) return;
+    const next = [...clientHotels];
+    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+    const reordered = next.map((h, i) => ({ ...h, ordre: i }));
+    setClientHotels(reordered);
+    reordered.forEach((h) => supabase.from("client_hotels").update({ ordre: h.ordre }).eq("id", h.id));
+  };
+
+  const hotelMatch = matchHotel(client.hotel, hotelsRef);
+  const taxeMatch = hotelMatch
+    ? taxesRef.find((t) => t.ville.trim().toLowerCase() === hotelMatch.ville.trim().toLowerCase())
+    : null;
+
+  const copyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
     client.hotel || "—"
   }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
   const [copied, setCopied] = useState(false);
@@ -226,13 +417,136 @@ export function SejourStep({ client, onChange }: StepProps) {
         </Field>
       </div>
 
-      <Field label="Hôtel">
-        <input
-          value={client.hotel}
-          onChange={(e) => onChange({ hotel: e.target.value })}
-          className="input"
-        />
-      </Field>
+      <div className="grid grid-cols-[1fr_160px] gap-4">
+        <Field label="Hôtel">
+          <input
+            value={client.hotel}
+            onChange={(e) => onChange({ hotel: e.target.value })}
+            className="input"
+          />
+        </Field>
+        <Field label="N° de chambre">
+          <input
+            value={client.chambre}
+            onChange={(e) => onChange({ chambre: e.target.value })}
+            className="input"
+          />
+        </Field>
+      </div>
+
+      {client.hotel.trim() &&
+        (hotelMatch ? (
+          hotelMatch.sur_hurghada ? (
+            <div className="rounded-md bg-[#5C2A1D]/10 px-3 py-2 text-xs text-[#5C2A1D]">
+              ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
+            </div>
+          ) : (
+            <div className="rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
+              ⚠ Attention, cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut
+              comporter une taxe de transfert
+              {taxeMatch ? ` (${euros(taxeMatch.montant)} €)` : ""}.{" "}
+              <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+                Vérifier le montant de la taxe pour cette destination
+              </button>
+            </div>
+          )
+        ) : (
+          <div className="rounded-md bg-neutral-100 px-3 py-2 text-xs text-neutral-500">
+            Hôtel non répertorié dans HELP.{" "}
+            <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+              L&apos;ajouter
+            </button>
+          </div>
+        ))}
+
+      {clientHotels.length === 0 && !showCircuit ? (
+        <button
+          type="button"
+          onClick={addHotelStep}
+          className="text-sm text-[#5C2A1D] hover:underline"
+        >
+          + Ajouter d&apos;autres hôtels (circuit)
+        </button>
+      ) : (
+        <div className="rounded-md border border-neutral-200 bg-white p-3">
+          <p className="mb-2 text-sm font-medium text-neutral-700">
+            Autres hôtels du circuit (Caire, Louxor, Assouan, Marsa Alam, Siwa…)
+          </p>
+          {clientHotels.map((h, i) => (
+            <div key={h.id} className="mb-3 flex items-end gap-2 border-b border-neutral-100 pb-3">
+              <div className="flex flex-col gap-0.5">
+                <button
+                  type="button"
+                  disabled={i === 0}
+                  onClick={() => moveHotelStep(h.id, -1)}
+                  className="text-xs text-neutral-500 disabled:opacity-20"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  disabled={i === clientHotels.length - 1}
+                  onClick={() => moveHotelStep(h.id, 1)}
+                  className="text-xs text-neutral-500 disabled:opacity-20"
+                >
+                  ▼
+                </button>
+              </div>
+              <Field label="Hôtel">
+                <input
+                  value={h.nom}
+                  onChange={(e) => updateHotelStep(h.id, { nom: e.target.value })}
+                  className="input"
+                />
+              </Field>
+              <Field label="Ville">
+                <input
+                  value={h.ville}
+                  onChange={(e) => updateHotelStep(h.id, { ville: e.target.value })}
+                  className="input"
+                />
+              </Field>
+              <Field label="Chambre">
+                <input
+                  value={h.chambre}
+                  onChange={(e) => updateHotelStep(h.id, { chambre: e.target.value })}
+                  className="input w-24"
+                />
+              </Field>
+              <Field label="Arrivée">
+                <input
+                  type="date"
+                  value={h.date_arrivee ?? ""}
+                  onChange={(e) => updateHotelStep(h.id, { date_arrivee: e.target.value || null })}
+                  className="input"
+                />
+              </Field>
+              <Field label="Départ">
+                <input
+                  type="date"
+                  value={h.date_depart ?? ""}
+                  onChange={(e) => updateHotelStep(h.id, { date_depart: e.target.value || null })}
+                  className="input"
+                />
+              </Field>
+              <button
+                type="button"
+                onClick={() => deleteHotelStep(h.id)}
+                className="pb-1.5 text-red-600"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={addHotelStep}
+            className="text-xs text-[#5C2A1D] hover:underline"
+          >
+            + Ajouter un hôtel
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <Field label="Adultes">
@@ -254,37 +568,59 @@ export function SejourStep({ client, onChange }: StepProps) {
           />
         </Field>
       </div>
+      {client.enfants > 0 && (
+        <Field label="Âge des enfants (4 à 10 ans)">
+          <input
+            value={client.ages_enfants}
+            onChange={(e) => onChange({ ages_enfants: e.target.value })}
+            placeholder="ex. 7 et 4 ans"
+            className="input"
+          />
+        </Field>
+      )}
 
-      <details className="rounded-md border border-neutral-200 p-3">
-        <summary className="cursor-pointer text-sm font-medium text-[#5C2A1D]">
-          Plus de champs
-        </summary>
-        <div className="mt-3 space-y-4">
-          <Field label="N° de chambre">
-            <input
-              value={client.chambre}
-              onChange={(e) => onChange({ chambre: e.target.value })}
-              className="input"
-            />
-          </Field>
-          <Field label="Âges des enfants">
-            <input
-              value={client.ages_enfants}
-              onChange={(e) => onChange({ ages_enfants: e.target.value })}
-              placeholder="ex. 7 et 4 ans"
-              className="input"
-            />
-          </Field>
-          <Field label="Noms des participants">
-            <input
-              value={client.participant_noms}
-              onChange={(e) => onChange({ participant_noms: e.target.value })}
-              placeholder="Saisie manuelle"
-              className="input"
-            />
-          </Field>
-        </div>
-      </details>
+      <Field label="Bébés (0 à 3 ans)">
+        <input
+          type="number"
+          min={0}
+          value={client.bebes}
+          onChange={(e) => onChange({ bebes: Number(e.target.value) })}
+          className="input max-w-[140px]"
+        />
+      </Field>
+      {client.bebes > 0 && (
+        <Field label="Âge des bébés">
+          <input
+            value={client.ages_bebes}
+            onChange={(e) => onChange({ ages_bebes: e.target.value })}
+            placeholder="ex. 1 an"
+            className="input"
+          />
+        </Field>
+      )}
+
+      <div>
+        <label className="flex items-center gap-2 text-sm text-neutral-700">
+          <input
+            type="checkbox"
+            checked={client.ados_presents}
+            onChange={(e) => onChange({ ados_presents: e.target.checked })}
+          />
+          Ados de moins de 16 ans présents parmi les adultes
+        </label>
+        {client.ados_presents && (
+          <div className="mt-2 max-w-xs">
+            <Field label="Âge des ados">
+              <input
+                value={client.ages_ados}
+                onChange={(e) => onChange({ ages_ados: e.target.value })}
+                placeholder="ex. 13 et 14 ans"
+                className="input"
+              />
+            </Field>
+          </div>
+        )}
+      </div>
 
       <div className="rounded-md border border-[#8B4531]/20 bg-white p-4">
         <h3 className="font-heading text-sm font-semibold text-[#5C2A1D]">
@@ -313,91 +649,567 @@ export function ActivitesStep({
   onChange,
   reservations,
   resaOptions,
+  resaTarifs,
   onAddReservation,
   onUpdateReservation,
   onDeleteReservation,
   onAddOption,
   onUpdateOption,
   onDeleteOption,
+  onAddTarif,
+  onUpdateTarif,
+  onDeleteTarif,
   catalogue,
+  catalogueTarifs,
   canSeeMargins,
+  hotelHorsHurghada,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
-  onAddReservation: () => void;
+  resaTarifs: Record<string, ReservationTarif[]>;
+  onAddReservation: () => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
   onAddOption: (resaId: string) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
+  onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
+  onUpdateTarif: (resaId: string, tarifId: string, patch: Partial<ReservationTarif>) => void;
+  onDeleteTarif: (resaId: string, tarifId: string) => void;
   catalogue: CatalogueItem[];
+  catalogueTarifs: Record<string, CatalogueTarif[]>;
   canSeeMargins: boolean;
+  hotelHorsHurghada?: boolean;
 }) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [view, setView] = useState<"liste" | "itineraire">("liste");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="space-y-3">
-      {view === "liste" && (
-        <div className="flex justify-end">
-          <button
-            onClick={onAddReservation}
-            className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-          >
-            + Ajouter une activité
-          </button>
-        </div>
-      )}
-
-      <div className="flex gap-2">
+      <div className="flex justify-end">
         <button
-          onClick={() => setView("liste")}
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${
-            view === "liste"
-              ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
-              : "border-neutral-300 text-neutral-600"
-          }`}
+          onClick={async () => {
+            const id = await onAddReservation();
+            if (id) setExpandedId(id);
+          }}
+          className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
-          Liste
-        </button>
-        <button
-          onClick={() => setView("itineraire")}
-          className={`rounded-full border px-3 py-1 text-xs font-medium ${
-            view === "itineraire"
-              ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
-              : "border-neutral-300 text-neutral-600"
-          }`}
-        >
-          Itinéraire jour par jour
+          + Ajouter une activité
         </button>
       </div>
 
-      {view === "liste" ? (
-        <>
-          {reservations.length === 0 && (
-            <div className="text-sm text-neutral-400">Aucune activité.</div>
+      <ItineraryView
+        client={client}
+        reservations={reservations}
+        resaOptions={resaOptions}
+        resaTarifs={resaTarifs}
+        expandedId={expandedId}
+        onToggleExpand={setExpandedId}
+        onSetPickup={(id, pickup_reel) => onUpdateReservation(id, { pickup_reel })}
+        onUpdateReservation={onUpdateReservation}
+        onDeleteReservation={(id) => {
+          onDeleteReservation(id);
+          setExpandedId((cur) => (cur === id ? null : cur));
+        }}
+        onAddOption={onAddOption}
+        onUpdateOption={onUpdateOption}
+        onDeleteOption={onDeleteOption}
+        onAddTarif={onAddTarif}
+        onUpdateTarif={onUpdateTarif}
+        onDeleteTarif={onDeleteTarif}
+        onUpdateClient={onChange}
+        catalogue={catalogue}
+        catalogueTarifs={catalogueTarifs}
+        canSeeMargins={canSeeMargins}
+        hotelHorsHurghada={hotelHorsHurghada}
+      />
+    </div>
+  );
+}
+
+function EncaisseButton({
+  paye,
+  onMarquer,
+  onAnnuler,
+  marquerLabel = "Marquer encaissé",
+}: {
+  paye: boolean;
+  onMarquer: () => void;
+  onAnnuler: () => void;
+  marquerLabel?: string;
+}) {
+  if (paye) {
+    return (
+      <button
+        onClick={onAnnuler}
+        className="whitespace-nowrap rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+      >
+        Encaissé ✅
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <span className="text-[10px] font-semibold text-yellow-700">En attente</span>
+      <button
+        onClick={onMarquer}
+        className="whitespace-nowrap rounded-md bg-[#5C2A1D] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+      >
+        {marquerLabel}
+      </button>
+    </div>
+  );
+}
+
+const INTEGRAL_MODES = [
+  { key: "rdv", label: "Rendez-vous paiement planifié", className: "border-blue-300 bg-blue-50 text-blue-700" },
+  { key: "activite_eur", label: "Paiement à la première activité en €", className: "border-orange-300 bg-orange-50 text-orange-700" },
+  { key: "activite_egp", label: "Paiement à la première activité en EGP", className: "border-orange-300 bg-orange-50 text-orange-700" },
+  { key: "paypal", label: "Paiement via PayPal", className: "border-orange-300 bg-orange-50 text-orange-700" },
+  { key: "virement", label: "Paiement par virement bancaire", className: "border-orange-300 bg-orange-50 text-orange-700" },
+  { key: "cb", label: "Paiement par CB", className: "border-orange-300 bg-orange-50 text-orange-700" },
+] as const;
+
+const RDV_MODES = ["Carte bleue", "Espèces EUR", "Espèces EGP"] as const;
+
+const INTEGRAL_MODE_SOLDE_MODE: Record<string, string> = {
+  activite_eur: "Espèces EUR",
+  activite_egp: "Espèces EGP",
+  paypal: "PayPal",
+  virement: "Virement bancaire",
+  cb: "Carte bleue",
+};
+
+// Le flux de règlement (RDV planifié / à la première activité en €-EGP /
+// PayPal / virement / CB) est identique qu'on règle le séjour en intégral
+// ou seulement le reste après un acompte — seul le montant à couvrir change.
+function PaiementResteFlow({
+  client,
+  onChange,
+  reservations,
+  montantACouvrir,
+  confirm,
+  toast,
+}: {
+  client: Client;
+  onChange: (patch: Partial<Client>) => void;
+  reservations: Reservation[];
+  montantACouvrir: number;
+  confirm: ReturnType<typeof useConfirm>;
+  toast: ReturnType<typeof useToast>;
+}) {
+  const [showActivityPicker, setShowActivityPicker] = useState(false);
+  const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
+
+  const assigneSelectValue = (ASSIGNE_A_OPTIONS as readonly string[]).includes(client.solde_assigne_a)
+    ? client.solde_assigne_a
+    : client.solde_assigne_a
+      ? "Autre"
+      : "";
+
+  const validerRdv = () => {
+    if (!client.solde_date || !client.solde_rdv_heure || !client.solde_assigne_a) {
+      toast("Renseigne la date, l'heure et la personne assignée avant de valider.");
+      return;
+    }
+    const mode = RDV_MODES.includes(client.solde_mode as (typeof RDV_MODES)[number])
+      ? client.solde_mode
+      : RDV_MODES[0];
+    onChange({ solde_rdv_valide: true, solde_mode: mode });
+  };
+
+  const finaliserRdv = async () => {
+    const ok = await confirm({
+      title: "Rendez-vous finalisé ?",
+      message:
+        'Souhaitez-vous passer toutes les activités en "Payé - rendez-vous paiement finalisé" ?',
+      confirmLabel: "Oui",
+      cancelLabel: "Non, je m'en occupe manuellement",
+    });
+    if (ok) {
+      onChange({ solde_paye: true, solde_rdv_finalise: true });
+    }
+  };
+
+  const validerDatePaiement = () => {
+    if (!client.solde_date) {
+      toast("Renseigne la date de paiement avant de valider.");
+      return;
+    }
+    onChange({ solde_rdv_valide: true, solde_mode: INTEGRAL_MODE_SOLDE_MODE[client.paiement_integral_mode] });
+  };
+
+  const marquerEncaisse = (mode: string) => {
+    onChange({ solde_paye: true, solde_mode: mode, solde_rdv_finalise: false });
+  };
+
+  const supprimerCartePaiement = () => {
+    onChange({
+      solde_rdv_valide: false,
+      solde_paye: false,
+      solde_rdv_finalise: false,
+      solde_rdv_heure: "",
+      solde_activite_id: null,
+      solde_mode: "Espèces EUR",
+    });
+  };
+
+  const sortedByDate = [...reservations]
+    .filter((r) => r.date_debut)
+    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
+
+  const confirmActivite = async (r: Reservation, key: string) => {
+    const ok = await confirm({
+      message: `Souhaitez-vous confirmer le paiement à "${r.nom_activite || "Activité sans nom"}" le ${fmtDateDMY(r.date_debut)} ?`,
+      confirmLabel: "Oui, je confirme",
+      cancelLabel: "Non, je sélectionne une activité",
+    });
+    if (!ok) {
+      setShowActivityPicker(true);
+      return;
+    }
+    setShowActivityPicker(false);
+    if (key === "activite_egp") {
+      const rate = (await getEurToEgpRate()) || client.egp_taux || 0;
+      setEgpModal({ r, rate });
+    } else {
+      onChange({ solde_activite_id: r.id, solde_mode: "Espèces EUR", solde_rdv_valide: true });
+    }
+  };
+
+  const selectActiviteMode = (key: string) => {
+    onChange({ paiement_integral_mode: key });
+    if (sortedByDate.length === 0) {
+      toast("Aucune activité datée pour l'instant.");
+      return;
+    }
+    confirmActivite(sortedByDate[0], key);
+  };
+
+  return (
+    <div className="mt-3 space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {INTEGRAL_MODES.filter(
+          (m) => !client.paiement_integral_mode || client.paiement_integral_mode === m.key
+        ).map((m) => (
+          <button
+            key={m.key}
+            type="button"
+            onClick={() => {
+              if (client.paiement_integral_mode === m.key) {
+                onChange({ paiement_integral_mode: "" });
+                setShowActivityPicker(false);
+                return;
+              }
+              if (m.key === "activite_eur" || m.key === "activite_egp") {
+                selectActiviteMode(m.key);
+              } else {
+                onChange({ paiement_integral_mode: m.key });
+              }
+            }}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+              client.paiement_integral_mode === m.key
+                ? m.className
+                : "border-neutral-300 text-neutral-500"
+            }`}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {client.paiement_integral_mode === "rdv" && (
+        <div className="rounded-md border border-blue-200 bg-blue-50/40 p-3">
+          {!client.solde_rdv_valide ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Date du RDV paiement">
+                  <input
+                    type="date"
+                    value={client.solde_date ?? ""}
+                    onChange={(e) => onChange({ solde_date: e.target.value || null })}
+                    className="input"
+                  />
+                </Field>
+                <Field label="Heure">
+                  <input
+                    type="time"
+                    value={client.solde_rdv_heure}
+                    onChange={(e) => onChange({ solde_rdv_heure: e.target.value })}
+                    className="input"
+                  />
+                </Field>
+                <Field label="Mode de paiement">
+                  <select
+                    value={RDV_MODES.includes(client.solde_mode as (typeof RDV_MODES)[number]) ? client.solde_mode : RDV_MODES[0]}
+                    onChange={(e) => onChange({ solde_mode: e.target.value })}
+                    className="input"
+                  >
+                    {RDV_MODES.map((m) => (
+                      <option key={m}>{m}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Assigné à">
+                  <select
+                    value={assigneSelectValue}
+                    onChange={(e) =>
+                      onChange({
+                        solde_assigne_a: e.target.value === "Autre" ? "" : e.target.value,
+                      })
+                    }
+                    className="input"
+                  >
+                    <option value="">Choisir…</option>
+                    {ASSIGNE_A_OPTIONS.map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
+                </Field>
+                {assigneSelectValue === "Autre" && (
+                  <Field label="Préciser le nom">
+                    <input
+                      value={client.solde_assigne_a}
+                      onChange={(e) => onChange({ solde_assigne_a: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                )}
+              </div>
+              <button
+                onClick={validerRdv}
+                className="mt-3 rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Valider
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm text-neutral-700">
+                <p className="font-medium text-[#5C2A1D]">
+                  RDV paiement — {fmtDateDMY(client.solde_date)} à {client.solde_rdv_heure}
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <span className="rounded-full bg-[#F2E6D2] px-2 py-0.5 text-xs text-[#5C2A1D]">
+                    ⌂ {client.hotel || "—"}
+                  </span>
+                  <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs text-[#8B4531]">
+                    👤 {client.solde_assigne_a}
+                  </span>
+                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
+                    {client.solde_mode}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-2">
+                <EncaisseButton
+                  paye={client.solde_paye}
+                  onMarquer={finaliserRdv}
+                  onAnnuler={() => onChange({ solde_paye: false, solde_rdv_finalise: false })}
+                  marquerLabel="Rendez-vous finalisé"
+                />
+                <button
+                  onClick={supprimerCartePaiement}
+                  title="Supprimer"
+                  className="p-1 text-red-500 hover:text-red-600"
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
           )}
-          {reservations.map((r) => (
-            <ReservationCard
-              key={r.id}
-              r={r}
-              client={client}
-              options={resaOptions[r.id] || []}
-              expanded={!!expanded[r.id]}
-              onToggleExpanded={(v) => setExpanded((prev) => ({ ...prev, [r.id]: v }))}
-              onUpdate={(patch) => onUpdateReservation(r.id, patch)}
-              onDelete={() => onDeleteReservation(r.id)}
-              onAddOption={() => onAddOption(r.id)}
-              onUpdateOption={(optId, patch) => onUpdateOption(r.id, optId, patch)}
-              onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
-              onToggleSoldePaye={() => onChange({ solde_paye: !client.solde_paye })}
-              catalogue={catalogue}
-              canSeeMargins={canSeeMargins}
-            />
-          ))}
-        </>
-      ) : (
-        <ItineraryView client={client} reservations={reservations} resaOptions={resaOptions} />
+        </div>
+      )}
+
+      {client.paiement_integral_mode &&
+        client.paiement_integral_mode !== "rdv" &&
+        client.paiement_integral_mode !== "activite_eur" &&
+        client.paiement_integral_mode !== "activite_egp" &&
+        (() => {
+          const modeInfo = INTEGRAL_MODES.find((m) => m.key === client.paiement_integral_mode)!;
+          const soldeMode = INTEGRAL_MODE_SOLDE_MODE[client.paiement_integral_mode];
+          return (
+            <div className="rounded-md border border-orange-200 bg-orange-50/40 p-3">
+              {!client.solde_rdv_valide ? (
+                <>
+                  <Field label="Date de paiement">
+                    <input
+                      type="date"
+                      value={client.solde_date ?? ""}
+                      onChange={(e) => onChange({ solde_date: e.target.value || null })}
+                      className="input max-w-[200px]"
+                    />
+                  </Field>
+                  <button
+                    onClick={validerDatePaiement}
+                    className="mt-3 rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    Valider
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-neutral-700">
+                    <p className="font-medium text-[#5C2A1D]">
+                      {modeInfo.label} — {fmtDateDMY(client.solde_date)}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                        {soldeMode}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <EncaisseButton
+                      paye={client.solde_paye}
+                      onMarquer={() => marquerEncaisse(soldeMode)}
+                      onAnnuler={() => onChange({ solde_paye: false })}
+                    />
+                    <button
+                      onClick={supprimerCartePaiement}
+                      title="Supprimer"
+                      className="p-1 text-red-500 hover:text-red-600"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+      {(client.paiement_integral_mode === "activite_eur" ||
+        client.paiement_integral_mode === "activite_egp") &&
+        (() => {
+          const modeInfo = INTEGRAL_MODES.find((m) => m.key === client.paiement_integral_mode)!;
+          const soldeMode = client.paiement_integral_mode === "activite_egp" ? "Espèces EGP" : "Espèces EUR";
+          const chosenResa = reservations.find((r) => r.id === client.solde_activite_id) || null;
+
+          if (showActivityPicker || (!client.solde_rdv_valide && !chosenResa)) {
+            return (
+              <div className="rounded-md border border-orange-200 bg-orange-50/40 p-3">
+                <p className="mb-2 text-sm font-medium text-neutral-700">
+                  Choisir l&apos;activité pour ce paiement
+                </p>
+                {sortedByDate.length === 0 && (
+                  <p className="text-sm text-neutral-400">Aucune activité datée pour l&apos;instant.</p>
+                )}
+                <div className="space-y-1.5">
+                  {sortedByDate.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => confirmActivite(r, client.paiement_integral_mode)}
+                      className="flex w-full items-center justify-between rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#5C2A1D]"
+                    >
+                      <span className="text-[#5C2A1D]">{r.nom_activite || "Activité sans nom"}</span>
+                      <span className="font-amounts text-xs text-neutral-500">
+                        {fmtDateDMY(r.date_debut)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          if (!chosenResa) return null;
+
+          return (
+            <div className="rounded-md border border-orange-200 bg-orange-50/40 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm text-neutral-700">
+                  <p className="font-medium text-[#5C2A1D]">
+                    {modeInfo.label} — {chosenResa.nom_activite || "Activité sans nom"} (
+                    {fmtDateDMY(chosenResa.date_debut)})
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                      {soldeMode}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <EncaisseButton
+                    paye={client.solde_paye}
+                    onMarquer={() => marquerEncaisse(soldeMode)}
+                    onAnnuler={() => onChange({ solde_paye: false })}
+                  />
+                  <button
+                    onClick={supprimerCartePaiement}
+                    title="Supprimer"
+                    className="p-1 text-red-500 hover:text-red-600"
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {egpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">
+              Confirmer le montant en EGP
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Le taux aujourd&apos;hui est à 1€ = {egpModal.rate.toFixed(2)} EGP, soit pour le
+              client un total de{" "}
+              <strong>{Math.round(montantACouvrir * egpModal.rate).toLocaleString("fr-FR")} EGP</strong>.
+              Souhaitez-vous confirmer ?
+            </p>
+            <div className="mb-4 grid grid-cols-2 gap-3">
+              <Field label="Taux (1€ =)">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={egpModal.rate}
+                  onChange={(e) => setEgpModal({ ...egpModal, rate: Number(e.target.value) })}
+                  className="input"
+                />
+              </Field>
+              <Field label="Montant total (EGP)">
+                <input
+                  type="number"
+                  value={Math.round(montantACouvrir * egpModal.rate)}
+                  onChange={(e) => {
+                    const montant = Number(e.target.value);
+                    setEgpModal({
+                      ...egpModal,
+                      rate: montantACouvrir > 0 ? montant / montantACouvrir : egpModal.rate,
+                    });
+                  }}
+                  className="input"
+                />
+              </Field>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  onChange({
+                    solde_activite_id: egpModal.r.id,
+                    solde_mode: "Espèces EGP",
+                    solde_rdv_valide: true,
+                    egp_taux: egpModal.rate,
+                    egp_montant: Math.round(montantACouvrir * egpModal.rate),
+                  });
+                  setEgpModal(null);
+                }}
+                className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Oui, je valide
+              </button>
+              <button
+                onClick={() => setEgpModal(null)}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -408,222 +1220,238 @@ export function PaiementsStep({
   onChange,
   reservations,
   resaOptions,
-}: StepProps & { reservations: Reservation[]; resaOptions: Record<string, ReservationOption[]> }) {
-  const supabase = createClient();
+  resaTarifs,
+}: StepProps & {
+  reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
+}) {
   const confirm = useConfirm();
   const toast = useToast();
-  const [paiements, setPaiements] = useState<Paiement[]>([]);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setLoaded(false);
-    (async () => {
-      const { data, error } = await supabase
-        .from("paiements")
-        .select("*")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: true });
-      if (!error && data) setPaiements(data as Paiement[]);
-      setLoaded(true);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client.id]);
-
-  const addPaiement = async () => {
-    const { data, error } = await supabase
-      .from("paiements")
-      .insert({ client_id: client.id, montant: 0, mode: "PayPal", date: null })
-      .select()
-      .single();
-    if (!error && data) {
-      setPaiements((prev) => [...prev, data as Paiement]);
-    } else {
-      toast("Impossible d'ajouter l'acompte.");
-    }
-  };
-
-  const updatePaiement = async (id: string, patch: Partial<Paiement>) => {
-    setPaiements((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-    const { error } = await supabase.from("paiements").update(patch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement.");
-  };
-
-  const deletePaiement = async (id: string) => {
-    const ok = await confirm({
-      message: "Retirer cet acompte ? Cette action est irréversible.",
-      confirmLabel: "Retirer",
-      danger: true,
-    });
-    if (!ok) return;
-    setPaiements((prev) => prev.filter((p) => p.id !== id));
-    const { error } = await supabase.from("paiements").delete().eq("id", id);
-    if (error) toast("Échec de la suppression.");
-  };
+  const [acompteDateModal, setAcompteDateModal] = useState<{ step: "choix" | "date"; date: string } | null>(
+    null
+  );
 
   const totalSejour = reservations.reduce(
-    (sum, r) => sum + resaTotalMontant(r, client, resaOptions[r.id] || []),
+    (sum, r) => sum + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
-  const totalPaye =
-    paiements.reduce((sum, p) => sum + (Number(p.montant) || 0), 0) +
-    (client.solde_paye ? Number(client.solde_montant) || 0 : 0);
+  const acomptePaye = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  // Le solde n'est plus un montant saisi à la main : c'est toujours le reste
+  // du séjour une fois l'acompte déduit.
+  const soldeRestant = Math.max(totalSejour - acomptePaye, 0);
+  const totalPaye = acomptePaye + (client.solde_paye ? soldeRestant : 0);
   const reste = totalSejour - totalPaye;
+
+  const validerAcompte = () => {
+    if (!client.acompte_montant) {
+      toast("Renseigne le montant de l'acompte avant de valider.");
+      return;
+    }
+    onChange({ acompte_valide: true });
+  };
+
+  const supprimerAcompte = () => {
+    onChange({ acompte_valide: false, acompte_paye: false, acompte_date_encaissement: null });
+  };
+
+  const clickMarquerAcompteEncaisse = () => {
+    if (client.acompte_paye) {
+      onChange({ acompte_paye: false, acompte_date_encaissement: null });
+      return;
+    }
+    setAcompteDateModal({ step: "choix", date: new Date().toISOString().slice(0, 10) });
+  };
+
+  const resteApresAcompte = Math.max(
+    totalSejour - (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0),
+    0
+  );
 
   return (
     <div className="space-y-6">
 
       <div className="rounded-md bg-white p-3 text-sm text-neutral-600">
-        Total séjour (calculé automatiquement) : <strong>{euros(totalSejour)} €</strong>
+        Total séjour : <strong>{euros(totalSejour)} €</strong>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <span className="rounded-full bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700">
+          Payé : {euros(totalPaye)} €
+        </span>
+        <span className="rounded-full bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700">
+          Reste à payer : {euros(reste)} €
+        </span>
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">
-          Acompte(s) à la réservation
-        </h3>
-        {loaded && paiements.length === 0 && (
-          <div className="text-sm text-neutral-400">Aucun acompte.</div>
-        )}
-        <div className="space-y-3">
-          {paiements.map((p) => (
-            <div key={p.id} className="rounded-md border border-neutral-200 bg-white p-3">
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Montant (€)">
-                  <input
-                    type="number"
-                    value={p.montant}
-                    onChange={(e) =>
-                      updatePaiement(p.id, { montant: Number(e.target.value) })
-                    }
-                    className="input"
-                  />
-                </Field>
-                <Field label="Mode">
-                  <select
-                    value={p.mode}
-                    onChange={(e) => updatePaiement(p.id, { mode: e.target.value })}
-                    className="input"
-                  >
-                    {MODES_PAIEMENT.map((m) => (
-                      <option key={m}>{m}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Date">
-                  <input
-                    type="date"
-                    value={p.date ?? ""}
-                    onChange={(e) => updatePaiement(p.id, { date: e.target.value || null })}
-                    className="input"
-                  />
-                </Field>
-              </div>
-              <button
-                onClick={() => deletePaiement(p.id)}
-                className="mt-2 text-xs text-red-600 hover:underline"
-              >
-                Retirer
-              </button>
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={addPaiement}
-          className="mt-3 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Type de paiement</h3>
+        <select
+          value={client.paiement_type}
+          onChange={(e) => onChange({ paiement_type: e.target.value })}
+          className="input"
         >
-          + Ajouter un acompte
-        </button>
-      </div>
+          <option value="">Choisir…</option>
+          <option value="integral">Paiement intégral en une seule fois</option>
+          <option value="acompte">Paiement acompte + règlement à l&apos;arrivée</option>
+        </select>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">
-          Solde (un seul, pour tout le séjour)
-        </h3>
-        <div className="rounded-md border border-neutral-200 bg-white p-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Montant du solde (€)">
-              <input
-                type="number"
-                value={client.solde_montant}
-                onChange={(e) => onChange({ solde_montant: Number(e.target.value) })}
-                className="input"
-              />
-            </Field>
-            <Field label="Mode">
-              <select
-                value={client.solde_mode}
-                onChange={(e) => onChange({ solde_mode: e.target.value })}
-                className="input"
-              >
-                {MODES_PAIEMENT.map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Date">
-              <input
-                type="date"
-                value={client.solde_date ?? ""}
-                onChange={(e) => onChange({ solde_date: e.target.value || null })}
-                className="input"
-              />
-            </Field>
-            <Field label="Où est-il réglé ?">
-              <select
-                value={client.solde_activite_id ?? ""}
-                onChange={(e) => onChange({ solde_activite_id: e.target.value || null })}
-                className="input"
-              >
-                <option value="">RDV dédié à l&apos;hôtel</option>
-                {reservations.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    À l&apos;activité — {r.nom_activite || "Activité sans nom"}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </div>
+        {client.paiement_type === "integral" && (
+          <PaiementResteFlow
+            client={client}
+            onChange={onChange}
+            reservations={reservations}
+            montantACouvrir={totalSejour}
+            confirm={confirm}
+            toast={toast}
+          />
+        )}
 
-          {!client.solde_activite_id && (
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              <Field label="RDV — heure">
-                <input
-                  value={client.solde_rdv_heure}
-                  onChange={(e) => onChange({ solde_rdv_heure: e.target.value })}
-                  className="input"
-                />
-              </Field>
-              <Field label="RDV — lieu">
-                <input
-                  value={client.solde_rdv_lieu}
-                  onChange={(e) => onChange({ solde_rdv_lieu: e.target.value })}
-                  className="input"
-                />
-              </Field>
-              <Field label="Assigné à">
-                <input
-                  value={client.solde_assigne_a}
-                  onChange={(e) => onChange({ solde_assigne_a: e.target.value })}
-                  className="input"
-                />
-              </Field>
+        {client.paiement_type === "acompte" && (
+          <div className="mt-3 space-y-3">
+            <div className="rounded-md border border-neutral-200 bg-white p-3">
+              {!client.acompte_valide ? (
+                <>
+                  <p className="mb-2 text-sm font-medium text-neutral-700">Acompte</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Montant de l'acompte (€)">
+                      <input
+                        type="number"
+                        value={client.acompte_montant}
+                        onChange={(e) => onChange({ acompte_montant: Number(e.target.value) })}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Mode de paiement">
+                      <select
+                        value={client.acompte_mode}
+                        onChange={(e) => onChange({ acompte_mode: e.target.value })}
+                        className="input"
+                      >
+                        {MODES_PAIEMENT.map((m) => (
+                          <option key={m}>{m}</option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                  <button
+                    onClick={validerAcompte}
+                    className="mt-3 rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    Valider
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm text-neutral-700">
+                    <p className="font-medium text-[#5C2A1D]">
+                      Acompte — {euros(client.acompte_montant)} € ({client.acompte_mode})
+                      {client.acompte_paye && client.acompte_date_encaissement
+                        ? ` — encaissé le ${fmtDateDMY(client.acompte_date_encaissement)}`
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <EncaisseButton
+                      paye={client.acompte_paye}
+                      onMarquer={clickMarquerAcompteEncaisse}
+                      onAnnuler={clickMarquerAcompteEncaisse}
+                    />
+                    <button
+                      onClick={supprimerAcompte}
+                      title="Supprimer"
+                      className="p-1 text-red-500 hover:text-red-600"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
 
-          <label className="mt-3 flex items-center gap-2 text-sm text-neutral-700">
-            <input
-              type="checkbox"
-              checked={client.solde_paye}
-              onChange={(e) => onChange({ solde_paye: e.target.checked })}
-            />
-            Solde encaissé
-          </label>
+            <div>
+              <h4 className="mb-1 text-xs font-medium text-neutral-500">
+                Reste à l&apos;arrivée : <strong>{euros(resteApresAcompte)} €</strong>
+              </h4>
+              <PaiementResteFlow
+                client={client}
+                onChange={onChange}
+                reservations={reservations}
+                montantACouvrir={resteApresAcompte}
+                confirm={confirm}
+                toast={toast}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {acompteDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">
+              Marquer l&apos;acompte encaissé
+            </h2>
+            {acompteDateModal.step === "choix" ? (
+              <>
+                <p className="mb-4 text-sm text-neutral-600">
+                  Marquer l&apos;acompte encaissé à la date d&apos;aujourd&apos;hui ?
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      onChange({
+                        acompte_paye: true,
+                        acompte_date_encaissement: new Date().toISOString().slice(0, 10),
+                      });
+                      setAcompteDateModal(null);
+                    }}
+                    className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    Oui, encaissé aujourd&apos;hui
+                  </button>
+                  <button
+                    onClick={() => setAcompteDateModal({ ...acompteDateModal, step: "date" })}
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Non, une autre date
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <Field label="Date d'encaissement">
+                    <input
+                      type="date"
+                      value={acompteDateModal.date}
+                      onChange={(e) => setAcompteDateModal({ ...acompteDateModal, date: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      onChange({ acompte_paye: true, acompte_date_encaissement: acompteDateModal.date });
+                      setAcompteDateModal(null);
+                    }}
+                    className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    Valider
+                  </button>
+                  <button
+                    onClick={() => setAcompteDateModal(null)}
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-
-      <div className="rounded-md bg-white p-3 text-sm text-neutral-600">
-        Payé : <strong>{euros(totalPaye)} €</strong> — Reste à payer :{" "}
-        <strong>{euros(reste)} €</strong>
-      </div>
+      )}
     </div>
   );
 }
@@ -658,6 +1486,17 @@ function tableLabel(table: string) {
     }[table] || table
   );
 }
+
+const ACTION_STYLES: Record<string, string> = {
+  insert: "bg-green-100 text-green-700",
+  update: "bg-blue-100 text-blue-700",
+  delete: "bg-red-100 text-red-700",
+};
+const ACTION_ICONS: Record<string, string> = {
+  insert: "+",
+  update: "✎",
+  delete: "✕",
+};
 
 export function SuiviStep({
   client,
@@ -905,51 +1744,65 @@ export function SuiviStep({
         </div>
       </div>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Historique des modifications</h3>
-        {activityLog.length === 0 ? (
-          <div className="text-sm text-neutral-400">Aucune activité enregistrée.</div>
-        ) : (
-          <div className="space-y-1">
-            {activityLog.map((entry) => (
-              <div key={entry.id} className="text-xs text-neutral-500">
-                {fmtDateTime(entry.created_at)} — {entry.actor_email || "quelqu'un"}{" "}
-                {actionLabel(entry.action)} {tableLabel(entry.table_name)}
-              </div>
-            ))}
+      <div className="flex justify-end">
+        <details className="group w-fit max-w-full text-right">
+          <summary className="cursor-pointer list-none text-xs text-neutral-400 hover:text-neutral-600">
+            <span className="inline-flex items-center gap-1">
+              Historique des modifications
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="h-3 w-3 transition-transform group-open:rotate-180"
+              >
+                <path d="M5 7.5 10 12.5 15 7.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </summary>
+          <div className="mt-2 max-h-64 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-left shadow-sm">
+            {activityLog.length === 0 ? (
+              <div className="p-3 text-sm text-neutral-400">Aucune activité enregistrée.</div>
+            ) : (
+              activityLog.map((entry, i) => (
+                <div
+                  key={entry.id}
+                  className={`flex items-start gap-2 px-3 py-2 text-xs ${
+                    i > 0 ? "border-t border-neutral-100" : ""
+                  }`}
+                >
+                  <span
+                    className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] ${ACTION_STYLES[entry.action]}`}
+                  >
+                    {ACTION_ICONS[entry.action]}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-neutral-700">
+                      <span className="font-medium text-[#5C2A1D]">
+                        {entry.actor_email ? entry.actor_email.split("@")[0] : "quelqu'un"}
+                      </span>{" "}
+                      {actionLabel(entry.action)} {tableLabel(entry.table_name)}
+                    </p>
+                    <p className="text-[10px] text-neutral-400">{fmtDateTime(entry.created_at)}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
+        </details>
+      </div>
+
+      <div className="rounded-md bg-[#F2E6D2]/50 p-3 text-sm text-neutral-600">
+        {client.prochain_appel_date ? (
+          <>
+            📞 Prochain appel — {fmtDate(client.prochain_appel_date)}
+            {client.prochain_appel_heure ? ` à ${client.prochain_appel_heure}` : ""}
+          </>
+        ) : (
+          "Aucun appel programmé."
         )}
+        <span className="ml-1 text-xs text-neutral-400">(géré depuis Suivis → Appels)</span>
       </div>
-
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Prochain appel</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Date">
-            <input
-              type="date"
-              value={client.prochain_appel_date ?? ""}
-              onChange={(e) => onChange({ prochain_appel_date: e.target.value || null })}
-              className="input"
-            />
-          </Field>
-          <Field label="Heure">
-            <input
-              type="time"
-              value={client.prochain_appel_heure}
-              onChange={(e) => onChange({ prochain_appel_heure: e.target.value })}
-              className="input"
-            />
-          </Field>
-        </div>
-      </div>
-
-      <Field label="Commentaires internes">
-        <textarea
-          value={client.commentaires}
-          onChange={(e) => onChange({ commentaires: e.target.value })}
-          className="input h-24"
-        />
-      </Field>
     </div>
   );
 }

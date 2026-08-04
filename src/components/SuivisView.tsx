@@ -19,6 +19,7 @@ function addDays(dateStr: string, n: number) {
 
 const SUBS = [
   { key: "rdv", label: "RDV paiements" },
+  { key: "appels", label: "Appels" },
   { key: "aurevoir", label: "Au revoir" },
   { key: "avis", label: "Avis clients" },
   { key: "remb", label: "Remboursements" },
@@ -54,6 +55,7 @@ export default function SuivisView({
 }) {
   const [sub, setSub] = useState<(typeof SUBS)[number]["key"]>("rdv");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [newAppelClientId, setNewAppelClientId] = useState("");
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -80,6 +82,10 @@ export default function SuivisView({
   );
 
   const billetsRows = reservations.filter((r) => r.billet_requis);
+
+  const appelsRows = clients
+    .filter((c) => c.prochain_appel_date)
+    .sort((a, b) => (a.prochain_appel_date || "").localeCompare(b.prochain_appel_date || ""));
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
@@ -120,9 +126,81 @@ export default function SuivisView({
                   <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
                 </span>
                 <span className="text-neutral-500">{c.solde_rdv_lieu}</span>
-                <span className="font-amounts">{euros(c.solde_montant)} €</span>
                 <span className="text-neutral-500">{c.solde_assigne_a || "Non assigné"}</span>
                 <span className="flex-1" />
+                <JumpBtn onClick={() => onOpenClient(c.id)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sub === "appels" && (
+        <div>
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+            Appels programmés
+          </h3>
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-neutral-300 bg-white p-3">
+            <select
+              value={newAppelClientId}
+              onChange={(e) => setNewAppelClientId(e.target.value)}
+              className="input flex-1"
+            >
+              <option value="">Choisir un client…</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nom || "Sans nom"}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              onChange={(e) => {
+                if (newAppelClientId && e.target.value) {
+                  onUpdateClient(newAppelClientId, { prochain_appel_date: e.target.value });
+                  setNewAppelClientId("");
+                }
+              }}
+              className="input w-40"
+            />
+          </div>
+          {appelsRows.length === 0 && (
+            <div className="text-sm text-neutral-400">Aucun appel programmé.</div>
+          )}
+          <div className="space-y-2">
+            {appelsRows.map((c) => (
+              <div
+                key={c.id}
+                className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
+                  c.prochain_appel_date === todayStr
+                    ? "border-[#C9973E] bg-[#C9973E]/10"
+                    : "border-neutral-200 bg-white"
+                }`}
+              >
+                <input
+                  type="date"
+                  value={c.prochain_appel_date ?? ""}
+                  onChange={(e) =>
+                    onUpdateClient(c.id, { prochain_appel_date: e.target.value || null })
+                  }
+                  className="input w-36 text-xs"
+                />
+                <input
+                  type="time"
+                  value={c.prochain_appel_heure}
+                  onChange={(e) => onUpdateClient(c.id, { prochain_appel_heure: e.target.value })}
+                  className="input w-28 text-xs"
+                />
+                <span>
+                  <strong>{c.nom || "Sans nom"}</strong>
+                </span>
+                <span className="flex-1" />
+                <button
+                  onClick={() => onUpdateClient(c.id, { prochain_appel_date: null, prochain_appel_heure: "" })}
+                  className="text-xs text-red-600 hover:underline"
+                >
+                  Retirer
+                </button>
                 <JumpBtn onClick={() => onOpenClient(c.id)} />
               </div>
             ))}

@@ -4,13 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
+  CatalogueFaq,
   CatalogueItem,
+  CatalogueTarif,
   Client,
   EMPTY_CLIENT,
   Remboursement,
   Reservation,
   ReservationOption,
+  ReservationTarif,
 } from "@/lib/types";
+import { resaTotalMontant } from "@/lib/resa";
 import { STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import DashboardView from "@/components/DashboardView";
@@ -23,6 +27,9 @@ import PlanningView from "@/components/PlanningView";
 import SuivisView from "@/components/SuivisView";
 import ClientPreviewView from "@/components/ClientPreviewView";
 import DirectionView from "@/components/DirectionView";
+import HelpView from "@/components/HelpView";
+import PlanningRHView from "@/components/PlanningRHView";
+import GeneratorView from "@/components/GeneratorView";
 import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
@@ -35,7 +42,10 @@ type Mode =
   | "suivis"
   | "planning"
   | "preview"
-  | "direction";
+  | "help"
+  | "direction"
+  | "rh"
+  | "generateur";
 
 const CLIENT_STATUTS = ["Client confirmé", "Perdu"];
 const PROSPECT_STATUTS = ["Prospect", "En négociation"];
@@ -111,6 +121,32 @@ function IconShield() {
     </svg>
   );
 }
+function IconClipboard() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+      <rect x="4.5" y="4" width="11" height="13" rx="1.5" />
+      <path d="M7.5 3.5h5a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-5A.5.5 0 0 1 7 5V4a.5.5 0 0 1 .5-.5Z" />
+      <path d="M7.3 10.5h5.4M7.3 13.5h5.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+function IconSparkles() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+      <path d="M10 3.5 11.3 7.5 15.3 8.8 11.3 10.1 10 14.1 8.7 10.1 4.7 8.8 8.7 7.5 10 3.5Z" strokeLinejoin="round" />
+      <path d="M15.5 13.5 16.1 15.1 17.7 15.7 16.1 16.3 15.5 17.9 14.9 16.3 13.3 15.7 14.9 15.1 15.5 13.5Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconHelp() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M7.8 7.8c.3-1 1.1-1.6 2.2-1.6 1.2 0 2.2.8 2.2 1.9 0 1.6-2.2 1.5-2.2 3.2" strokeLinecap="round" />
+      <circle cx="10" cy="13.8" r="0.15" fill="currentColor" stroke="currentColor" strokeWidth="1" />
+    </svg>
+  );
+}
 
 const TABS: { key: Mode; label: string; icon: () => React.ReactElement }[] = [
   { key: "dashboard", label: "Tableau de bord", icon: IconHome },
@@ -119,7 +155,10 @@ const TABS: { key: Mode; label: string; icon: () => React.ReactElement }[] = [
   { key: "catalogue", label: "Catalogue", icon: IconBook },
   { key: "suivis", label: "Suivis", icon: IconChecklist },
   { key: "planning", label: "Réservations", icon: IconCalendar },
+  { key: "rh", label: "Planning équipe", icon: IconClipboard },
+  { key: "generateur", label: "Générateur de programme", icon: IconSparkles },
   { key: "preview", label: "Aperçu client", icon: IconEye },
+  { key: "help", label: "HELP", icon: IconHelp },
   { key: "direction", label: "Direction", icon: IconShield },
 ];
 
@@ -153,6 +192,13 @@ function AppShellInner({
   role: "direction" | "equipe";
 }) {
   const isDirection = role === "direction";
+  const [viewAsTeam, setViewAsTeam] = useState(false);
+  // La Direction voit tout ce que voit l'équipe, plus quelques options en
+  // plus (marge, onglet Direction…) — ce toggle masque ces options en plus
+  // pour prévisualiser/former sans changer de compte. Ça ne restreint
+  // jamais un vrai accès équipe : isDirection reste utilisé tel quel pour
+  // les fetch de données sensibles.
+  const effectiveIsDirection = isDirection && !viewAsTeam;
   const confirm = useConfirm();
   const toast = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -173,28 +219,50 @@ function AppShellInner({
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
+  const [catalogueFaq, setCatalogueFaq] = useState<Record<string, CatalogueFaq[]>>({});
+  const [allResaTarifs, setAllResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
 
   useEffect(() => {
     (async () => {
-      const [{ data, error }, { data: cat, error: catError }] = await Promise.all([
-        supabase.from("clients").select("*").order("created_at", { ascending: false }),
-        supabase
-          .from("catalogue_activites")
-          .select("*")
-          .order("created_at", { ascending: false }),
-      ]);
+      const [{ data, error }, { data: cat, error: catError }, { data: catTarifs }, { data: catFaq }] =
+        await Promise.all([
+          supabase.from("clients").select("*").order("created_at", { ascending: false }),
+          supabase
+            .from("catalogue_activites")
+            .select("*")
+            .order("created_at", { ascending: false }),
+          supabase.from("catalogue_tarifs").select("*"),
+          supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
+        ]);
       if (!error && data) {
         setClients(data as Client[]);
         if (data.length && !selectedId) setSelectedId(data[0].id);
       }
       if (!catError && cat) setCatalogue(cat as CatalogueItem[]);
+      const groupedCatTarifs: Record<string, CatalogueTarif[]> = {};
+      ((catTarifs as CatalogueTarif[]) || []).forEach((t) => {
+        groupedCatTarifs[t.catalogue_item_id] = [...(groupedCatTarifs[t.catalogue_item_id] || []), t];
+      });
+      setCatalogueTarifs(groupedCatTarifs);
+      const groupedFaq: Record<string, CatalogueFaq[]> = {};
+      ((catFaq as CatalogueFaq[]) || []).forEach((f) => {
+        groupedFaq[f.catalogue_item_id] = [...(groupedFaq[f.catalogue_item_id] || []), f];
+      });
+      setCatalogueFaq(groupedFaq);
       setLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (mode !== "planning" && mode !== "suivis" && mode !== "direction" && mode !== "dashboard")
+    if (
+      mode !== "planning" &&
+      mode !== "suivis" &&
+      mode !== "direction" &&
+      mode !== "dashboard" &&
+      mode !== "catalogue"
+    )
       return;
     // Direction shows revenue/margin data — don't even fetch it into the
     // browser for team members who don't have the Direction role.
@@ -204,20 +272,35 @@ function AppShellInner({
       const list = (resas as Reservation[]) || [];
       setAllReservations(list);
       if (list.length) {
-        const { data: opts } = await supabase
-          .from("reservation_options")
-          .select("*")
-          .in(
-            "reservation_id",
-            list.map((r) => r.id)
-          );
+        const [{ data: opts }, { data: tarifs }] = await Promise.all([
+          supabase
+            .from("reservation_options")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            ),
+          supabase
+            .from("reservation_tarifs")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            ),
+        ]);
         const grouped: Record<string, ReservationOption[]> = {};
         ((opts as ReservationOption[]) || []).forEach((o) => {
           grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
         });
         setAllResaOptions(grouped);
+        const groupedTarifs: Record<string, ReservationTarif[]> = {};
+        ((tarifs as ReservationTarif[]) || []).forEach((t) => {
+          groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
+        });
+        setAllResaTarifs(groupedTarifs);
       } else {
         setAllResaOptions({});
+        setAllResaTarifs({});
       }
       setPlanningLoaded(true);
 
@@ -228,6 +311,10 @@ function AppShellInner({
       }
     })();
   }, [mode, supabase, isDirection]);
+
+  useEffect(() => {
+    if (viewAsTeam && mode === "direction") setMode("dashboard");
+  }, [viewAsTeam, mode]);
 
   const activeStatuts = mode === "prospects" ? PROSPECT_STATUTS : CLIENT_STATUTS;
   const scoped = clients.filter((c) => activeStatuts.includes(c.statut));
@@ -245,20 +332,41 @@ function AppShellInner({
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPatch = useRef<Partial<Client>>({});
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorToastShown = useRef(false);
 
   const flushSave = useCallback(
-    async (id: string) => {
+    async (id: string, attempt = 0) => {
       const patch = pendingPatch.current;
-      pendingPatch.current = {};
       if (Object.keys(patch).length === 0) return;
       setSaveState("saving");
       const { error } = await supabase.from("clients").update(patch).eq("id", id);
-      setSaveState(error ? "error" : "saved");
-      if (error) {
-        toast("Échec de l'enregistrement — vérifie ta connexion et réessaie.");
-      } else {
+
+      if (!error) {
+        // Only clear the fields we actually just sent — the user may have
+        // kept typing (and queuing more changes) while this request was in flight.
+        Object.keys(patch).forEach((k) => delete (pendingPatch.current as Record<string, unknown>)[k]);
+        setSaveState("saved");
+        errorToastShown.current = false;
         setTimeout(() => setSaveState("idle"), 1000);
+        return;
       }
+
+      // Keep the patch queued (never drop unsaved changes) and retry.
+      // A silently-expired auth session is the most common real-world cause
+      // here — the UI still looks "connecté" but requests 401 until the
+      // token is refreshed — so force a refresh before retrying.
+      setSaveState("error");
+      if (!errorToastShown.current) {
+        toast("Échec de l'enregistrement — nouvelle tentative en cours…");
+        errorToastShown.current = true;
+      }
+      if (attempt === 0) {
+        await supabase.auth.refreshSession();
+      }
+      const delay = Math.min(2000 * 2 ** attempt, 15000);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(() => flushSave(id, attempt + 1), delay);
     },
     [supabase, toast]
   );
@@ -270,6 +378,7 @@ function AppShellInner({
     );
     pendingPatch.current = { ...pendingPatch.current, ...patch };
     if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (retryTimer.current) clearTimeout(retryTimer.current);
     saveTimer.current = setTimeout(() => flushSave(selected.id), 600);
   };
 
@@ -285,6 +394,7 @@ function AppShellInner({
       // New clients always start as "Prospect" — land where they'll show up.
       setMode("prospects");
     } else {
+      console.error("ADDCLIENT_ERR", JSON.stringify(error));
       toast("Impossible de créer le client.");
     }
   };
@@ -298,7 +408,7 @@ function AppShellInner({
         telephone: source.telephone,
         email: source.email,
         relation_grace_a: source.relation_grace_a,
-        lien_passeport: source.lien_passeport,
+        passeport_photos: source.passeport_photos,
       })
       .select()
       .single();
@@ -365,6 +475,121 @@ function AppShellInner({
     if (error) toast("Échec de la suppression.");
   };
 
+  const addCatalogueTarif = async (catalogueItemId: string) => {
+    const { data, error } = await supabase
+      .from("catalogue_tarifs")
+      .insert({ catalogue_item_id: catalogueItemId, label: "", pu: 0 })
+      .select()
+      .single();
+    if (!error && data) {
+      const t = data as CatalogueTarif;
+      setCatalogueTarifs((prev) => ({
+        ...prev,
+        [catalogueItemId]: [...(prev[catalogueItemId] || []), t],
+      }));
+    } else {
+      toast("Impossible d'ajouter ce tarif.");
+    }
+  };
+
+  const updateCatalogueTarif = async (
+    catalogueItemId: string,
+    tarifId: string,
+    patch: Partial<CatalogueTarif>
+  ) => {
+    setCatalogueTarifs((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).map((t) =>
+        t.id === tarifId ? { ...t, ...patch } : t
+      ),
+    }));
+    const { error } = await supabase.from("catalogue_tarifs").update(patch).eq("id", tarifId);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteCatalogueTarif = async (catalogueItemId: string, tarifId: string) => {
+    setCatalogueTarifs((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).filter((t) => t.id !== tarifId),
+    }));
+    const { error } = await supabase.from("catalogue_tarifs").delete().eq("id", tarifId);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const addCatalogueFaq = async (catalogueItemId: string) => {
+    const { data, error } = await supabase
+      .from("catalogue_faq")
+      .insert({ catalogue_item_id: catalogueItemId, question: "", reponse: "" })
+      .select()
+      .single();
+    if (!error && data) {
+      const f = data as CatalogueFaq;
+      setCatalogueFaq((prev) => ({
+        ...prev,
+        [catalogueItemId]: [...(prev[catalogueItemId] || []), f],
+      }));
+    } else {
+      toast("Impossible d'ajouter cette question.");
+    }
+  };
+
+  const updateCatalogueFaq = async (
+    catalogueItemId: string,
+    faqId: string,
+    patch: Partial<CatalogueFaq>
+  ) => {
+    setCatalogueFaq((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).map((f) =>
+        f.id === faqId ? { ...f, ...patch } : f
+      ),
+    }));
+    const { error } = await supabase.from("catalogue_faq").update(patch).eq("id", faqId);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteCatalogueFaq = async (catalogueItemId: string, faqId: string) => {
+    setCatalogueFaq((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).filter((f) => f.id !== faqId),
+    }));
+    const { error } = await supabase.from("catalogue_faq").delete().eq("id", faqId);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const { topVenteIds, topRentabiliteIds } = useMemo(() => {
+    const byItem: Record<string, { total: number; marge: number }> = {};
+    allReservations.forEach((r) => {
+      if (!r.catalogue_item_id) return;
+      const client = clients.find((c) => c.id === r.client_id);
+      if (!client) return;
+      const total = resaTotalMontant(
+        r,
+        client,
+        allResaOptions[r.id] || [],
+        allResaTarifs[r.id] || []
+      );
+      const cout = Number(r.cout_reel) || 0;
+      if (!byItem[r.catalogue_item_id]) byItem[r.catalogue_item_id] = { total: 0, marge: 0 };
+      byItem[r.catalogue_item_id].total += total;
+      byItem[r.catalogue_item_id].marge += total - cout;
+    });
+    const entries = Object.entries(byItem);
+    const ventes = new Set(
+      entries
+        .sort((a, b) => b[1].total - a[1].total)
+        .slice(0, 3)
+        .map(([id]) => id)
+    );
+    const rentabilite = new Set(
+      entries
+        .sort((a, b) => b[1].marge - a[1].marge)
+        .slice(0, 3)
+        .map(([id]) => id)
+    );
+    return { topVenteIds: ventes, topRentabiliteIds: rentabilite };
+  }, [allReservations, clients, allResaOptions, allResaTarifs]);
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -397,7 +622,7 @@ function AppShellInner({
         </div>
 
         <nav className="flex-1 space-y-0.5 px-2.5">
-          {TABS.filter((t) => t.key !== "direction" || isDirection).map((t) => {
+          {TABS.filter((t) => t.key !== "direction" || effectiveIsDirection).map((t) => {
             const Icon = t.icon;
             const active = mode === t.key;
             return (
@@ -420,13 +645,43 @@ function AppShellInner({
           })}
         </nav>
 
+        {isDirection && (
+          <div className="border-t border-white/10 px-2.5 py-3">
+            <button
+              onClick={() => setViewAsTeam((v) => !v)}
+              className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-xs font-medium transition ${
+                viewAsTeam
+                  ? "bg-[#C9973E] text-white"
+                  : "bg-white/10 text-white/70 hover:bg-white/15"
+              }`}
+            >
+              <span>{viewAsTeam ? "Vue équipe (aperçu)" : "Voir comme l'équipe"}</span>
+              <span
+                className={`flex h-4 w-7 flex-shrink-0 items-center rounded-full px-0.5 transition ${
+                  viewAsTeam ? "justify-end bg-white/40" : "justify-start bg-white/25"
+                }`}
+              >
+                <span className="h-3 w-3 rounded-full bg-white" />
+              </span>
+            </button>
+          </div>
+        )}
+
         <div className="border-t border-white/10 px-2.5 py-3">
           <div
             className={`px-2.5 pb-2 text-[11px] transition-opacity ${
-              saveState === "saving" ? "text-[#C9973E] opacity-100" : "text-white/40 opacity-100"
+              saveState === "error"
+                ? "text-red-300 opacity-100"
+                : saveState === "saving"
+                  ? "text-[#C9973E] opacity-100"
+                  : "text-white/40 opacity-100"
             }`}
           >
-            {saveState === "saving" ? "Enregistrement…" : "Données synchronisées"}
+            {saveState === "error"
+              ? "⚠ Non enregistré — nouvelle tentative…"
+              : saveState === "saving"
+                ? "Enregistrement…"
+                : "Données synchronisées"}
           </div>
         </div>
       </aside>
@@ -466,7 +721,8 @@ function AppShellInner({
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}
-              isDirection={isDirection}
+              resaTarifs={allResaTarifs}
+              isDirection={effectiveIsDirection}
               onOpenClient={openClient}
               onCreateClient={addClient}
             />
@@ -596,9 +852,11 @@ function AppShellInner({
                 onDelete={() => deleteClient(selected.id)}
                 onJumpToClient={openClient}
                 onDuplicateAsNewStay={duplicateAsNewStay}
-                canDelete={isDirection}
-                canSeeMargins={isDirection}
+                canDelete={effectiveIsDirection}
+                canSeeMargins={effectiveIsDirection}
                 catalogue={catalogue}
+                catalogueTarifs={catalogueTarifs}
+                onOpenHelp={() => setMode("help")}
               />
             )}
           </main>
@@ -614,7 +872,17 @@ function AppShellInner({
             onAdd={addCatalogueItem}
             onUpdate={updateCatalogueItem}
             onDelete={deleteCatalogueItem}
-            canSeeMargins={isDirection}
+            tarifs={catalogueTarifs}
+            onAddTarif={addCatalogueTarif}
+            onUpdateTarif={updateCatalogueTarif}
+            onDeleteTarif={deleteCatalogueTarif}
+            faq={catalogueFaq}
+            onAddFaq={addCatalogueFaq}
+            onUpdateFaq={updateCatalogueFaq}
+            onDeleteFaq={deleteCatalogueFaq}
+            topVenteIds={topVenteIds}
+            topRentabiliteIds={topRentabiliteIds}
+            canSeeMargins={effectiveIsDirection}
           />
         </div>
       )}
@@ -628,6 +896,7 @@ function AppShellInner({
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}
+              resaTarifs={allResaTarifs}
               onOpenClient={openClient}
             />
           )}
@@ -647,6 +916,18 @@ function AppShellInner({
               onOpenClient={openClient}
             />
           )}
+        </div>
+      )}
+
+      {mode === "rh" && (
+        <div className="flex-1 overflow-y-auto">
+          <PlanningRHView isDirection={effectiveIsDirection} />
+        </div>
+      )}
+
+      {mode === "generateur" && (
+        <div className="flex-1 overflow-y-auto">
+          <GeneratorView catalogue={catalogue} clients={clients} />
         </div>
       )}
 
@@ -678,9 +959,15 @@ function AppShellInner({
         </div>
       )}
 
+      {mode === "help" && (
+        <div className="flex-1 overflow-y-auto">
+          <HelpView />
+        </div>
+      )}
+
       {mode === "direction" && (
         <div className="flex-1 overflow-y-auto">
-          {!isDirection ? (
+          {!effectiveIsDirection ? (
             <div className="flex flex-1 items-center justify-center p-10">
               <div className="w-full max-w-sm rounded-md bg-white p-6 text-center">
                 <p className="text-sm text-neutral-500">
@@ -695,6 +982,7 @@ function AppShellInner({
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}
+              resaTarifs={allResaTarifs}
               catalogue={catalogue}
               onUpdateCatalogueItem={updateCatalogueItem}
             />
@@ -708,7 +996,10 @@ function AppShellInner({
         mode !== "catalogue" &&
         mode !== "planning" &&
         mode !== "suivis" &&
+        mode !== "rh" &&
+        mode !== "generateur" &&
         mode !== "preview" &&
+        mode !== "help" &&
         mode !== "direction" && (
           <div className="flex flex-1 items-center justify-center text-neutral-400">
             Bientôt disponible.

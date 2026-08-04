@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client, Paiement, Reservation, ReservationOption } from "@/lib/types";
+import {
+  CatalogueItem,
+  Client,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
 
 function euros(n: number) {
@@ -129,35 +135,46 @@ export default function ClientPreviewView({
   const supabase = useMemo(() => createClient(), []);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
-  const [paiements, setPaiements] = useState<Paiement[]>([]);
+  const [resaTarifs, setResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
   const [openPanel, setOpenPanel] = useState("sejour");
   const [search, setSearch] = useState("");
   const [interests, setInterests] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     (async () => {
-      const [{ data: resas }, { data: pays }] = await Promise.all([
-        supabase.from("reservations").select("*").eq("client_id", client.id),
-        supabase.from("paiements").select("*").eq("client_id", client.id),
-      ]);
+      const { data: resas } = await supabase.from("reservations").select("*").eq("client_id", client.id);
       const list = (resas as Reservation[]) || [];
       setReservations(list);
-      setPaiements((pays as Paiement[]) || []);
       if (list.length) {
-        const { data: opts } = await supabase
-          .from("reservation_options")
-          .select("*")
-          .in(
-            "reservation_id",
-            list.map((r) => r.id)
-          );
+        const [{ data: opts }, { data: tarifs }] = await Promise.all([
+          supabase
+            .from("reservation_options")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            ),
+          supabase
+            .from("reservation_tarifs")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            ),
+        ]);
         const grouped: Record<string, ReservationOption[]> = {};
         ((opts as ReservationOption[]) || []).forEach((o) => {
           grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
         });
         setResaOptions(grouped);
+        const groupedTarifs: Record<string, ReservationTarif[]> = {};
+        ((tarifs as ReservationTarif[]) || []).forEach((t) => {
+          groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
+        });
+        setResaTarifs(groupedTarifs);
       } else {
         setResaOptions({});
+        setResaTarifs({});
       }
     })();
   }, [client.id, supabase]);
@@ -180,15 +197,16 @@ export default function ClientPreviewView({
     countdownNum = "Séjour terminé";
   }
 
-  const totalAcomptes = paiements.reduce((s, p) => s + (Number(p.montant) || 0), 0);
-  const totalPaye = totalAcomptes + (client.solde_paye ? Number(client.solde_montant) || 0 : 0);
   const sortedResas = [...reservations].sort((a, b) =>
     (a.date_debut || "").localeCompare(b.date_debut || "")
   );
   const total = sortedResas.reduce(
-    (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || []),
+    (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
+  const totalPaye =
+    (client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0) +
+    (client.solde_paye ? Math.max(total - (client.acompte_paye ? Number(client.acompte_montant) || 0 : 0), 0) : 0);
   const reste = total - totalPaye;
   const pct = total > 0 ? Math.min(100, Math.round((totalPaye / total) * 100)) : 0;
   const trackerStep = computeTrackerStep(client, totalPaye);

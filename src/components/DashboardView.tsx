@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Client, Reservation, ReservationOption, UserShift } from "@/lib/types";
+import { Client, PlanningShift, Reservation, ReservationOption, ReservationTarif, UserShift } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
 import { STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
@@ -240,6 +240,7 @@ export default function DashboardView({
   clients,
   reservations,
   resaOptions,
+  resaTarifs,
   isDirection,
   onOpenClient,
   onCreateClient,
@@ -248,12 +249,14 @@ export default function DashboardView({
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
   isDirection: boolean;
   onOpenClient: (id: string) => void;
   onCreateClient: (fields: { nom: string; telephone: string; canal: string }) => Promise<void>;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
+  const [plannedShift, setPlannedShift] = useState<PlanningShift | null>(null);
   const [editingShift, setEditingShift] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
   const [shiftFin, setShiftFin] = useState("");
@@ -264,11 +267,18 @@ export default function DashboardView({
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
-        .from("user_shifts")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const [{ data: planned }, { data }] = await Promise.all([
+        supabase
+          .from("planning_shifts")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("date", todayStr)
+          .maybeSingle(),
+        supabase.from("user_shifts").select("*").eq("user_id", user.id).maybeSingle(),
+      ]);
+      if (planned) setPlannedShift(planned as PlanningShift);
       if (data) {
         setShift(data as UserShift);
         setShiftDebut((data as UserShift).shift_debut);
@@ -368,7 +378,13 @@ export default function DashboardView({
   const caTotal = isDirection
     ? reservations.reduce(
         (s, r) =>
-          s + resaTotalMontant(r, clientById(r.client_id) as Client, resaOptions[r.id] || []),
+          s +
+          resaTotalMontant(
+            r,
+            clientById(r.client_id) as Client,
+            resaOptions[r.id] || [],
+            resaTarifs[r.id] || []
+          ),
         0
       )
     : 0;
@@ -389,7 +405,17 @@ export default function DashboardView({
               month: "long",
             })}
             <span className="mx-2 text-neutral-300">·</span>
-            {editingShift ? (
+            {plannedShift ? (
+              <span className="text-[#8B4531]">
+                {plannedShift.statut === "conge"
+                  ? "Congé aujourd'hui"
+                  : plannedShift.statut === "repos"
+                    ? "OFF aujourd'hui"
+                    : plannedShift.statut === "superviseur"
+                      ? "Superviseur aujourd'hui"
+                      : `Shift aujourd'hui : ${plannedShift.shift_debut} – ${plannedShift.shift_fin}`}
+              </span>
+            ) : editingShift ? (
               <span className="inline-flex items-center gap-1.5">
                 <input
                   type="time"

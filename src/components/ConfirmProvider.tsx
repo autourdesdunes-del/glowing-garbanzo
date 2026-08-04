@@ -6,6 +6,7 @@ type ConfirmOptions = {
   title?: string;
   message: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   danger?: boolean;
 };
 
@@ -50,18 +51,18 @@ export default function ConfirmProvider({ children }: { children: React.ReactNod
             <p className="mb-5 text-sm text-neutral-600">{options.message}</p>
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => respond(false)}
-                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
-              >
-                Annuler
-              </button>
-              <button
                 onClick={() => respond(true)}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 ${
                   options.danger ? "bg-red-600" : "bg-[#5C2A1D]"
                 }`}
               >
                 {options.confirmLabel || "Confirmer"}
+              </button>
+              <button
+                onClick={() => respond(false)}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                {options.cancelLabel || "Annuler"}
               </button>
             </div>
           </div>

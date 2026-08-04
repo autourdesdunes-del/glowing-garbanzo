@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import { Client, Paiement, Reservation, ReservationOption } from "@/lib/types";
+import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
 
 function euros(n: number) {
@@ -19,7 +19,7 @@ export function generateClientDocument(
   client: Client,
   reservations: Reservation[],
   resaOptions: Record<string, ReservationOption[]>,
-  paiements: Paiement[]
+  resaTarifs: Record<string, ReservationTarif[]> = {}
 ) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = MARGIN;
@@ -112,7 +112,7 @@ export function generateClientDocument(
   } else {
     relevantResas.forEach((r) => {
       ensureSpace(10);
-      const total = resaTotalMontant(r, client, resaOptions[r.id] || []);
+      const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
       sejourTotal += total;
       const { nbAd, nbEnf } = participantsFor(r, client);
       doc.setFont("helvetica", "normal");
@@ -159,19 +159,25 @@ export function generateClientDocument(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(60, 60, 60);
-  if (paiements.length === 0) {
+  const totalAcomptes = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  if (client.paiement_type !== "acompte" || !client.acompte_montant) {
     doc.setTextColor(140, 140, 140);
     doc.text("Aucun acompte enregistré.", MARGIN, y);
     y += 5;
   } else {
-    paiements.forEach((p) => {
-      ensureSpace(6);
-      doc.setTextColor(60, 60, 60);
-      doc.text(`Acompte — ${fmtDate(p.date)} (${p.mode})`, MARGIN, y);
-      doc.text(euros(p.montant), colX.total, y, { align: "right" });
-      y += 5;
-    });
+    doc.setTextColor(60, 60, 60);
+    doc.text(
+      `Acompte — ${client.acompte_paye ? `encaissé le ${fmtDate(client.acompte_date_encaissement)}` : "à régler"} (${client.acompte_mode})`,
+      MARGIN,
+      y
+    );
+    doc.text(euros(client.acompte_montant), colX.total, y, { align: "right" });
+    y += 5;
   }
+
+  // Le solde n'est plus un montant saisi à la main : c'est toujours le reste
+  // du séjour une fois l'acompte déduit.
+  const soldeRestant = Math.max(sejourTotal - totalAcomptes, 0);
 
   ensureSpace(6);
   doc.text(
@@ -179,12 +185,10 @@ export function generateClientDocument(
     MARGIN,
     y
   );
-  doc.text(euros(client.solde_montant), colX.total, y, { align: "right" });
+  doc.text(euros(soldeRestant), colX.total, y, { align: "right" });
   y += 8;
 
-  const totalPaye =
-    paiements.reduce((s, p) => s + (Number(p.montant) || 0), 0) +
-    (client.solde_paye ? Number(client.solde_montant) || 0 : 0);
+  const totalPaye = totalAcomptes + (client.solde_paye ? soldeRestant : 0);
   const reste = sejourTotal - totalPaye;
 
   ensureSpace(14);

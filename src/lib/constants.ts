@@ -16,17 +16,9 @@ export const RELATIONS = [
   "GetYourGuide",
   "Autre",
 ] as const;
-export const INFOS_MANQUANTES_OPTIONS = [
-  "Room number",
-  "Date de RDV",
-  "Numéro WhatsApp",
-  "Billets d'avion",
-  "Passeport",
-  "Acompte PayPal",
-  "Localisation",
-  "Ticket de train",
-  "Autre",
-] as const;
+// La liste des "infos manquantes" est maintenant partagée en base
+// (table infos_manquantes_options) pour que le "+" d'une personne
+// enrichisse le menu déroulant de toute l'équipe. Voir ContactStep.
 
 export const MODES_PAIEMENT = [
   "PayPal",
@@ -38,6 +30,8 @@ export const MODES_PAIEMENT = [
 
 export const BILLET_STATUTS = ["En attente", "Validé", "Refusé"] as const;
 
+export const ASSIGNE_A_OPTIONS = ["Bode", "Sylvie", "Autre"] as const;
+
 export const MOMENTS = ["Matin", "Après-midi", "Journée", "Plusieurs jours"] as const;
 export const OPTIONS_PRESETS = ["Guide francophone", "Privatif", "Autre"] as const;
 export const RAISONS_REMBOURSEMENT = [
@@ -45,6 +39,70 @@ export const RAISONS_REMBOURSEMENT = [
   "Problème activité",
   "Dédommagement",
   "Autre",
+] as const;
+
+export const JOURS_SEMAINE = [
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+  "Dimanche",
+] as const;
+
+export const GUIDE_OPTIONS = [
+  "Aucun",
+  "Guide francophone",
+  "Guide anglophone",
+  "Guide germanophone",
+  "Guide russophone",
+  "Autre",
+] as const;
+
+export const INCLUS_PRESETS = [
+  "Transfert hôtel",
+  "Repas du midi",
+  "Boissons",
+  "Eau",
+  "Matériel snorkeling",
+  "Équipement de plongée",
+  "Entrées / droits d'accès",
+  "Assurance",
+  "Pourboires guide",
+] as const;
+
+export const DUREE_OPTIONS = ["Demi-journée", "Journée", "Plusieurs jours"] as const;
+
+export const NON_INCLUS_PRESETS = [
+  "Boissons alcoolisées",
+  "Pourboires",
+  "Dépenses personnelles",
+  "Assurance annulation",
+  "Transfert hôtel",
+  "Location de matériel",
+  "Photos / vidéos",
+  "Déjeuner",
+] as const;
+
+export const A_PREVOIR_PRESETS = [
+  "Maillot de bain",
+  "Serviette",
+  "Crème solaire",
+  "Chaussures fermées",
+  "Copie du passeport",
+  "Espèces sur place",
+  "Vêtements légers",
+  "Casquette / chapeau",
+] as const;
+
+export const CATALOGUE_TAGS_PRESETS = [
+  "Activités en mer",
+  "Activités désert",
+  "Activités Le Caire",
+  "Culture",
+  "Aventure",
+  "Détente",
 ] as const;
 
 export const CATALOGUE_CATEGORIES = [

@@ -1,10 +1,17 @@
 "use client";
 
-import { CatalogueItem, Client, Reservation, ReservationOption } from "@/lib/types";
+import { useState } from "react";
+import {
+  CatalogueItem,
+  CatalogueTarif,
+  Client,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
 import { BILLET_STATUTS, MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
-import { participantsFor, resaTotalMontant } from "@/lib/resa";
+import { paiementStatutKey, participantsFor, resaTotalMontant, STATUT_PAIEMENT_OPTIONS } from "@/lib/resa";
 import { Field } from "@/components/client-steps";
-import PhotoUpload from "@/components/PhotoUpload";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -20,6 +27,7 @@ export default function ReservationCard({
   r,
   client,
   options,
+  tarifs,
   expanded,
   onToggleExpanded,
   onUpdate,
@@ -27,13 +35,19 @@ export default function ReservationCard({
   onAddOption,
   onUpdateOption,
   onDeleteOption,
-  onToggleSoldePaye,
+  onAddTarif,
+  onUpdateTarif,
+  onDeleteTarif,
+  onUpdateClient,
   catalogue,
+  catalogueTarifs,
   canSeeMargins,
+  hotelHorsHurghada,
 }: {
   r: Reservation;
   client: Client;
   options: ReservationOption[];
+  tarifs: ReservationTarif[];
   expanded: boolean;
   onToggleExpanded: (v: boolean) => void;
   onUpdate: (patch: Partial<Reservation>) => void;
@@ -41,10 +55,16 @@ export default function ReservationCard({
   onAddOption: () => void;
   onUpdateOption: (optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (optId: string) => void;
-  onToggleSoldePaye: () => void;
+  onAddTarif: (seed?: { label: string; pu: number }) => void;
+  onUpdateTarif: (tarifId: string, patch: Partial<ReservationTarif>) => void;
+  onDeleteTarif: (tarifId: string) => void;
+  onUpdateClient: (patch: Partial<Client>) => void;
   catalogue: CatalogueItem[];
+  catalogueTarifs: CatalogueTarif[];
   canSeeMargins: boolean;
+  hotelHorsHurghada?: boolean;
 }) {
+  const [showPaxOverride, setShowPaxOverride] = useState(!!r.pax_override);
   const pickFromCatalogue = (id: string) => {
     const item = catalogue.find((a) => a.id === id);
     if (!item) return;
@@ -54,16 +74,19 @@ export default function ReservationCard({
       pu_adulte: item.pu_adulte,
       pu_enfant: item.pu_enfant,
       horaire_approx: item.horaire_approx,
-      inclus: item.inclus,
+      inclus: (item.inclus_liste || []).join(", ") || item.inclus,
       non_inclus: item.non_inclus,
       a_prevoir: item.a_prevoir,
       point_rdv: item.point_rdv,
+      photo_path: item.photo_path,
     });
   };
   const { nbAd, nbEnf } = participantsFor(r, client);
-  const total = resaTotalMontant(r, client, options);
+  const total = resaTotalMontant(r, client, options, tarifs);
   const soldeIci = client.solde_activite_id === r.id;
   const soldeLabel = soldeIci ? (client.solde_paye ? "Payé" : "À régler") : null;
+  const statutKey = paiementStatutKey(client, r);
+  const badge = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === statutKey)!;
   const hasOptions = options.length > 0;
   const hasInfo = !!r.info_importante;
 
@@ -164,28 +187,6 @@ export default function ReservationCard({
 
   return (
     <div className="rounded-md border border-[#8B4531]/20 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
-        {r.statut_resa === "Confirmée" ? (
-          <span className="rounded-full bg-[#5C2A1D] px-3 py-1 text-xs text-white">
-            ✓ Confirmée
-          </span>
-        ) : (
-          <span className="rounded-full bg-[#C9973E]/20 px-3 py-1 text-xs text-[#8B4531]">
-            ✎ Brouillon — encore en cours de remplissage
-          </span>
-        )}
-        <button
-          onClick={() =>
-            onUpdate({
-              statut_resa: r.statut_resa === "Confirmée" ? "Brouillon" : "Confirmée",
-            })
-          }
-          className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm text-white hover:opacity-90"
-        >
-          {r.statut_resa === "Confirmée" ? "Repasser en brouillon" : "✓ Marquer comme confirmée"}
-        </button>
-      </div>
-
       {catalogue.length > 0 && (
         <select
           defaultValue=""
@@ -216,9 +217,9 @@ export default function ReservationCard({
         </button>
         <button
           onClick={() => onToggleExpanded(false)}
-          className="text-xs text-[#5C2A1D] hover:underline"
+          className="text-xs font-medium text-[#5C2A1D] hover:underline"
         >
-          Réduire
+          Valider
         </button>
       </div>
 
@@ -237,14 +238,26 @@ export default function ReservationCard({
             className="input"
           />
         </Field>
-        <Field label="Date fin (si plusieurs jours)">
-          <input
-            type="date"
-            value={r.date_fin ?? ""}
-            onChange={(e) => onUpdate({ date_fin: e.target.value || null })}
-            className="input"
-          />
-        </Field>
+        <div>
+          <label className="mb-1 flex items-center gap-2 text-sm font-medium text-neutral-700">
+            <input
+              type="checkbox"
+              checked={!!r.date_fin}
+              onChange={(e) =>
+                onUpdate({ date_fin: e.target.checked ? r.date_debut || "" : null })
+              }
+            />
+            Plusieurs jours
+          </label>
+          {r.date_fin && (
+            <input
+              type="date"
+              value={r.date_fin}
+              onChange={(e) => onUpdate({ date_fin: e.target.value || null })}
+              className="input"
+            />
+          )}
+        </div>
         <Field label="Moment">
           <select
             value={r.moment}
@@ -282,6 +295,63 @@ export default function ReservationCard({
             />
           </Field>
         )}
+      </div>
+
+      <div className="mt-2">
+        <p className="mb-1 text-xs font-medium text-neutral-500">
+          PU supplémentaire (accompagnateur, passager, bébé…)
+        </p>
+        {tarifs.map((t) => (
+          <div key={t.id} className="mb-2 flex flex-wrap items-center gap-2">
+            <input
+              placeholder="Ex. Accompagnateur"
+              value={t.label}
+              onChange={(e) => onUpdateTarif(t.id, { label: e.target.value })}
+              className="input min-w-[160px] flex-1"
+            />
+            <input
+              type="number"
+              placeholder="PU €"
+              value={t.pu}
+              onChange={(e) => onUpdateTarif(t.id, { pu: Number(e.target.value) })}
+              className="input w-24"
+            />
+            <span className="text-xs text-neutral-400">×</span>
+            <input
+              type="number"
+              min={0}
+              placeholder="Qté"
+              value={t.quantite}
+              onChange={(e) => onUpdateTarif(t.id, { quantite: Number(e.target.value) })}
+              className="input w-16"
+            />
+            <span className="font-amounts w-20 text-right text-xs text-neutral-500">
+              {euros((Number(t.quantite) || 0) * (Number(t.pu) || 0))} €
+            </span>
+            <button onClick={() => onDeleteTarif(t.id)} className="text-red-600">
+              ✕
+            </button>
+          </div>
+        ))}
+        {catalogueTarifs
+          .filter((ct) => !tarifs.some((t) => t.label === ct.label))
+          .map((ct) => (
+            <button
+              key={ct.id}
+              type="button"
+              onClick={() => onAddTarif({ label: ct.label, pu: ct.pu })}
+              className="mb-2 mr-2 rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-500 hover:border-[#5C2A1D] hover:text-[#5C2A1D]"
+            >
+              + {ct.label} ({euros(ct.pu)} €)
+            </button>
+          ))}
+        <button
+          type="button"
+          onClick={() => onAddTarif()}
+          className="text-xs text-[#5C2A1D] hover:underline"
+        >
+          + Ajouter un PU supplémentaire
+        </button>
       </div>
 
       <div className="mt-3">
@@ -338,14 +408,30 @@ export default function ReservationCard({
           </div>
         )}
         <div className="mt-2">
-          <Field label="PAX affiché (optionnel — ex. « 2 participants, 1 accompagnateur »)">
+          <label className="flex items-center gap-2 text-sm font-medium text-neutral-700">
             <input
-              placeholder="Laisser vide pour un calcul automatique"
+              type="checkbox"
+              checked={showPaxOverride}
+              onChange={(e) => {
+                setShowPaxOverride(e.target.checked);
+                if (!e.target.checked) onUpdate({ pax_override: "" });
+              }}
+            />
+            Écrire moi-même le texte affiché au lieu du calcul automatique
+          </label>
+          <p className="mb-1 text-xs text-neutral-400">
+            Par défaut le nombre de participants ci-dessus est calculé automatiquement. Coche
+            cette case seulement si tu veux le remplacer par un texte libre (ex. « 2
+            participants, 1 accompagnateur »).
+          </p>
+          {showPaxOverride && (
+            <input
+              placeholder="Texte à afficher"
               value={r.pax_override}
               onChange={(e) => onUpdate({ pax_override: e.target.value })}
               className="input"
             />
-          </Field>
+          )}
         </div>
       </div>
 
@@ -418,6 +504,20 @@ export default function ReservationCard({
             Taxe de transfert
           </button>
         </div>
+        {hotelHorsHurghada && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-700">
+            <span>⚠ N&apos;oubliez pas que cet hôtel n&apos;est pas sur Hurghada, il y a peut-être une taxe de transfert.</span>
+            {r.transfert_inclus && (
+              <button
+                type="button"
+                onClick={() => onUpdate({ transfert_inclus: false })}
+                className="whitespace-nowrap rounded-md bg-orange-600 px-2 py-1 text-white hover:opacity-90"
+              >
+                Corriger
+              </button>
+            )}
+          </div>
+        )}
         {!r.transfert_inclus && (
           <div className="mt-2 max-w-[200px]">
             <Field label="Montant total (€)">
@@ -433,52 +533,11 @@ export default function ReservationCard({
       </div>
 
       <div className="mt-3">
-        <PhotoUpload path={r.photo_path} onPathChange={(photo_path) => onUpdate({ photo_path })} />
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        <Field label="Horaire approximatif (interne — jamais montré au client)">
-          <input
-            value={r.horaire_approx}
-            onChange={(e) => onUpdate({ horaire_approx: e.target.value })}
-            className="input"
-          />
-        </Field>
         <Field label="Pick-up réel (confirmé la veille, visible client)">
           <input
             placeholder="Rempli par l'employée"
             value={r.pickup_reel}
             onChange={(e) => onUpdate({ pickup_reel: e.target.value })}
-            className="input"
-          />
-        </Field>
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-3">
-        <Field label="Point de RDV">
-          <input
-            value={r.point_rdv}
-            onChange={(e) => onUpdate({ point_rdv: e.target.value })}
-            className="input"
-          />
-        </Field>
-        <Field label="Inclus">
-          <input
-            value={r.inclus}
-            onChange={(e) => onUpdate({ inclus: e.target.value })}
-            className="input"
-          />
-        </Field>
-        <Field label="Non inclus">
-          <input
-            value={r.non_inclus}
-            onChange={(e) => onUpdate({ non_inclus: e.target.value })}
-            className="input"
-          />
-        </Field>
-        <Field label="À prévoir">
-          <input
-            value={r.a_prevoir}
-            onChange={(e) => onUpdate({ a_prevoir: e.target.value })}
             className="input"
           />
         </Field>
@@ -564,27 +623,26 @@ export default function ReservationCard({
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-[#8B4531]/10 pt-3 text-sm">
-        <span>
-          Total activité : <strong>{euros(total)} €</strong> ({nbAd} ad. + {nbEnf} enf.)
-        </span>
-        {soldeIci ? (
-          <div className="flex items-center gap-2">
-            <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
-              💰 Solde ici — {euros(client.solde_montant)} € — {soldeLabel}
-            </span>
-            <button
-              onClick={onToggleSoldePaye}
-              className="rounded-md bg-[#5C2A1D] px-3 py-1 text-xs text-white hover:opacity-90"
-            >
-              {client.solde_paye ? "Annuler" : "Marquer le solde encaissé"}
-            </button>
-          </div>
-        ) : (
-          <span className="text-xs text-neutral-400">
-            Le solde du séjour n&apos;est pas rattaché à cette activité (voir étape Paiements).
+      <div className="mt-4 border-t border-[#8B4531]/10 pt-3 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span>
+            Total activité : <strong>{euros(total)} €</strong>
           </span>
-        )}
+          <select
+            value={statutKey}
+            onChange={(e) => {
+              const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
+              if (opt) onUpdateClient(opt.patch(r));
+            }}
+            className={`rounded-full border-0 px-2 py-1 text-xs font-medium ${badge.className}`}
+          >
+            {STATUT_PAIEMENT_OPTIONS.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
     </div>
   );

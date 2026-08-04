@@ -12,15 +12,30 @@ export type CatalogueItem = {
   id: string;
   nom: string;
   categorie: string;
+  tags: string[];
+  description: string;
   disponibilites: string;
+  jours_disponibles: string[];
   pu_adulte: number;
   pu_enfant: number;
   pu_bebe: number;
+  pu_adulte_age: string;
+  pu_enfant_age: string;
+  pu_bebe_age: string;
   marge_pct: number;
   horaire_approx: string;
+  duree: string;
+  prochaine_disponibilite: string;
+  prochaines_dispo_dates: string[];
+  guide: string;
+  guide_francophone_sur_demande: boolean;
+  programme: string;
   inclus: string;
+  inclus_liste: string[];
   non_inclus: string;
+  non_inclus_liste: string[];
   a_prevoir: string;
+  a_prevoir_liste: string[];
   point_rdv: string;
   photo_path: string;
   valide: boolean;
@@ -28,11 +43,36 @@ export type CatalogueItem = {
   updated_at: string;
 };
 
+export type CatalogueFaq = {
+  id: string;
+  catalogue_item_id: string;
+  question: string;
+  reponse: string;
+  created_at: string;
+};
+
 export type ReservationOption = {
   id: string;
   reservation_id: string;
   nom: string;
   prix: number;
+};
+
+export type CatalogueTarif = {
+  id: string;
+  catalogue_item_id: string;
+  label: string;
+  pu: number;
+  created_at: string;
+};
+
+export type ReservationTarif = {
+  id: string;
+  reservation_id: string;
+  label: string;
+  pu: number;
+  quantite: number;
+  created_at: string;
 };
 
 export type Reservation = {
@@ -123,8 +163,11 @@ export type Client = {
   adultes: number;
   enfants: number;
   ages_enfants: string;
-  participant_noms: string;
-  lien_passeport: string;
+  bebes: number;
+  ages_bebes: string;
+  ados_presents: boolean;
+  ages_ados: string;
+  passeport_photos: string[];
   infos_manquantes: string[];
   info_manquante_autre: string;
   commentaires: string;
@@ -136,6 +179,17 @@ export type Client = {
   solde_rdv_heure: string;
   solde_rdv_lieu: string;
   solde_assigne_a: string;
+  paiement_type: string;
+  paiement_integral_mode: string;
+  solde_rdv_valide: boolean;
+  solde_rdv_finalise: boolean;
+  egp_taux: number;
+  egp_montant: number;
+  acompte_montant: number;
+  acompte_mode: string;
+  acompte_valide: boolean;
+  acompte_paye: boolean;
+  acompte_date_encaissement: string | null;
   au_revoir_envoye: boolean;
   avis_envoye: boolean;
   tags: string[];
@@ -162,8 +216,11 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   adultes: 2,
   enfants: 0,
   ages_enfants: "",
-  participant_noms: "",
-  lien_passeport: "",
+  bebes: 0,
+  ages_bebes: "",
+  ados_presents: false,
+  ages_ados: "",
+  passeport_photos: [],
   infos_manquantes: [],
   info_manquante_autre: "",
   commentaires: "",
@@ -175,6 +232,17 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   solde_rdv_heure: "",
   solde_rdv_lieu: "",
   solde_assigne_a: "",
+  paiement_type: "",
+  paiement_integral_mode: "",
+  solde_rdv_valide: false,
+  solde_rdv_finalise: false,
+  egp_taux: 0,
+  egp_montant: 0,
+  acompte_montant: 0,
+  acompte_mode: "PayPal",
+  acompte_valide: false,
+  acompte_paye: false,
+  acompte_date_encaissement: null,
   au_revoir_envoye: false,
   avis_envoye: false,
   tags: [],
@@ -187,4 +255,79 @@ export type UserShift = {
   shift_debut: string;
   shift_fin: string;
   updated_at: string;
+};
+
+export type Profile = {
+  id: string;
+  role: "direction" | "equipe";
+  email: string;
+  prenom: string;
+};
+
+export type PlanningShift = {
+  id: string;
+  user_id: string;
+  date: string;
+  shift_debut: string;
+  shift_fin: string;
+  statut: "travail" | "conge" | "repos" | "superviseur";
+  created_at: string;
+  updated_at: string;
+};
+
+export type SemaineTypeShift = {
+  id: string;
+  semaine: "A" | "B";
+  user_id: string;
+  jour: string;
+  statut: "travail" | "conge" | "repos" | "superviseur";
+  shift_debut: string;
+  shift_fin: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Conge = {
+  id: string;
+  user_id: string;
+  date_debut: string;
+  date_fin: string;
+  motif: string;
+  statut: "En attente" | "Validé" | "Refusé";
+  created_at: string;
+};
+
+export type ClientHotel = {
+  id: string;
+  client_id: string;
+  ordre: number;
+  nom: string;
+  ville: string;
+  chambre: string;
+  date_arrivee: string | null;
+  date_depart: string | null;
+  created_at: string;
+};
+
+export type HotelReference = {
+  id: string;
+  nom: string;
+  ville: string;
+  sur_hurghada: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TransfertTaxe = {
+  id: string;
+  ville: string;
+  montant: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InfoManquanteOption = {
+  id: string;
+  label: string;
+  created_at: string;
 };

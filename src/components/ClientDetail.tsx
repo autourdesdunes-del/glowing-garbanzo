@@ -2,11 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client, Paiement, Reservation, ReservationOption } from "@/lib/types";
+import {
+  CatalogueItem,
+  CatalogueTarif,
+  Client,
+  HotelReference,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+  TransfertTaxe,
+} from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
+import { matchHotel } from "@/lib/hotelHelp";
+import { resaTotalMontant } from "@/lib/resa";
 import {
   ActivitesStep,
   ContactStep,
@@ -23,13 +34,19 @@ function fmtDate(dateStr: string | null) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
+function euros(n: number) {
+  return (Number(n) || 0).toLocaleString("fr-FR");
+}
+
 function Section({
   title,
+  titleExtra,
   open,
   onToggle,
   children,
 }: {
   title: string;
+  titleExtra?: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -40,7 +57,10 @@ function Section({
         onClick={onToggle}
         className="flex w-full items-center justify-between px-5 py-3.5 text-left"
       >
-        <span className="font-heading text-sm font-semibold text-[#5C2A1D]">{title}</span>
+        <span className="flex items-center gap-2">
+          <span className="font-heading text-sm font-semibold text-[#5C2A1D]">{title}</span>
+          {titleExtra}
+        </span>
         <span className={`text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}>
           ⌄
         </span>
@@ -60,6 +80,8 @@ export default function ClientDetail({
   canDelete,
   canSeeMargins,
   catalogue,
+  catalogueTarifs,
+  onOpenHelp,
 }: {
   client: Client;
   allClients: Client[];
@@ -70,20 +92,46 @@ export default function ClientDetail({
   canDelete: boolean;
   canSeeMargins: boolean;
   catalogue: CatalogueItem[];
+  catalogueTarifs: Record<string, CatalogueTarif[]>;
+  onOpenHelp: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const confirm = useConfirm();
   const toast = useToast();
-  const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>({
-    Contact: true,
-    Séjour: true,
+  const CLOSED_SECTIONS: Record<(typeof SECTIONS)[number], boolean> = {
+    Contact: false,
+    Séjour: false,
     Activités: false,
     Paiements: false,
     Suivi: false,
-  });
+  };
+  const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>(CLOSED_SECTIONS);
+
+  useEffect(() => {
+    setOpen(CLOSED_SECTIONS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
+  const [resaTarifs, setResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
   const [generatingDoc, setGeneratingDoc] = useState<"devis" | "facture" | null>(null);
+  const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
+  const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: h }, { data: t }] = await Promise.all([
+        supabase.from("hotels_reference").select("*"),
+        supabase.from("transfert_taxes").select("*"),
+      ]);
+      setHotelsRef((h as HotelReference[]) || []);
+      setTaxesRef((t as TransfertTaxe[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const hotelMatch = matchHotel(client.hotel, hotelsRef);
+  const hotelHorsHurghada = !!hotelMatch && !hotelMatch.sur_hurghada;
 
   useEffect(() => {
     (async () => {
@@ -96,36 +144,52 @@ export default function ClientDetail({
       setReservations(list);
 
       if (list.length) {
-        const { data: opts } = await supabase
-          .from("reservation_options")
-          .select("*")
-          .in(
-            "reservation_id",
-            list.map((r) => r.id)
-          );
+        const [{ data: opts }, { data: tarifs }] = await Promise.all([
+          supabase
+            .from("reservation_options")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            ),
+          supabase
+            .from("reservation_tarifs")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            ),
+        ]);
         const grouped: Record<string, ReservationOption[]> = {};
         ((opts as ReservationOption[]) || []).forEach((o) => {
           grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
         });
         setResaOptions(grouped);
+        const groupedTarifs: Record<string, ReservationTarif[]> = {};
+        ((tarifs as ReservationTarif[]) || []).forEach((t) => {
+          groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
+        });
+        setResaTarifs(groupedTarifs);
       } else {
         setResaOptions({});
+        setResaTarifs({});
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
 
-  const addReservation = async () => {
+  const addReservation = async (): Promise<string | null> => {
     const { data, error } = await supabase
       .from("reservations")
-      .insert({ client_id: client.id })
+      .insert({ client_id: client.id, transfert_inclus: !hotelHorsHurghada })
       .select()
       .single();
     if (!error && data) {
       setReservations((prev) => [...prev, data as Reservation]);
-    } else {
-      toast("Impossible d'ajouter l'activité.");
+      return (data as Reservation).id;
     }
+    toast("Impossible d'ajouter l'activité.");
+    return null;
   };
 
   const updateReservation = async (id: string, patch: Partial<Reservation>) => {
@@ -144,6 +208,11 @@ export default function ClientDetail({
     if (!ok) return;
     setReservations((prev) => prev.filter((r) => r.id !== id));
     setResaOptions((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setResaTarifs((prev) => {
       const next = { ...prev };
       delete next[id];
       return next;
@@ -190,36 +259,67 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
+  const addTarif = async (resaId: string, seed?: { label: string; pu: number }) => {
+    const { data, error } = await supabase
+      .from("reservation_tarifs")
+      .insert({ reservation_id: resaId, label: seed?.label || "", pu: seed?.pu || 0, quantite: 0 })
+      .select()
+      .single();
+    if (!error && data) {
+      setResaTarifs((prev) => ({
+        ...prev,
+        [resaId]: [...(prev[resaId] || []), data as ReservationTarif],
+      }));
+    } else {
+      toast("Impossible d'ajouter ce tarif.");
+    }
+  };
+
+  const updateTarif = async (resaId: string, tarifId: string, patch: Partial<ReservationTarif>) => {
+    setResaTarifs((prev) => ({
+      ...prev,
+      [resaId]: (prev[resaId] || []).map((t) => (t.id === tarifId ? { ...t, ...patch } : t)),
+    }));
+    const { error } = await supabase.from("reservation_tarifs").update(patch).eq("id", tarifId);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteTarif = async (resaId: string, tarifId: string) => {
+    setResaTarifs((prev) => ({
+      ...prev,
+      [resaId]: (prev[resaId] || []).filter((t) => t.id !== tarifId),
+    }));
+    const { error } = await supabase.from("reservation_tarifs").delete().eq("id", tarifId);
+    if (error) toast("Échec de la suppression.");
+  };
+
   const autresSejours = allClients.filter(
     (c) => c.id !== client.id && client.telephone && c.telephone === client.telephone
   );
 
+  const totalSejourHeader = reservations.reduce(
+    (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
+    0
+  );
+  const totalPersonnes = (Number(client.adultes) || 0) + (Number(client.enfants) || 0) + (Number(client.bebes) || 0);
+
+  const acomptePayeMontant =
+    client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  const soldeRestantHeader = Math.max(totalSejourHeader - acomptePayeMontant, 0);
+  const totalPayeHeader = acomptePayeMontant + (client.solde_paye ? soldeRestantHeader : 0);
+  const paiementFullyPaid = totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader;
+
   const handleDownload = async (docType: "devis" | "facture") => {
     setGeneratingDoc(docType);
     try {
-      const { data, error } = await supabase
-        .from("paiements")
-        .select("*")
-        .eq("client_id", client.id)
-        .order("created_at", { ascending: true });
-      if (error) {
-        toast("Impossible de générer le document.");
-        return;
-      }
-      generateClientDocument(
-        docType,
-        client,
-        reservations,
-        resaOptions,
-        (data as Paiement[]) || []
-      );
+      generateClientDocument(docType, client, reservations, resaOptions, resaTarifs);
     } finally {
       setGeneratingDoc(null);
     }
   };
 
   const toggle = (s: (typeof SECTIONS)[number]) =>
-    setOpen((prev) => ({ ...prev, [s]: !prev[s] }));
+    setOpen((prev) => ({ ...CLOSED_SECTIONS, [s]: !prev[s] }));
   const expandAll = () =>
     setOpen({
       Contact: true,
@@ -273,29 +373,35 @@ export default function ClientDetail({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
           <span
-            className="rounded-full px-2.5 py-1 font-medium text-white"
+            className="rounded-full px-3 py-1 font-medium text-white"
             style={{ backgroundColor: STATUT_COLORS[client.statut] }}
           >
             {client.statut}
           </span>
-          {client.telephone && (
-            <span className="rounded-full bg-[#F2E6D2] px-2.5 py-1 text-[#5C2A1D]">
-              ☎ {client.telephone}
-            </span>
-          )}
           {client.hotel && (
-            <span className="rounded-full bg-[#F2E6D2] px-2.5 py-1 text-[#5C2A1D]">
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">
               ⌂ {client.hotel}
             </span>
           )}
           {(client.date_debut || client.date_fin) && (
-            <span className="font-amounts rounded-full bg-[#F2E6D2] px-2.5 py-1 text-[#5C2A1D]">
+            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-3 py-1 text-[#8B4531]">
               {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
             </span>
           )}
         </div>
+        {totalPersonnes > 0 && (
+          <div className="mt-1.5 text-xs text-neutral-500">
+            {[
+              client.adultes ? `${client.adultes} adulte${client.adultes > 1 ? "s" : ""}` : "",
+              client.enfants ? `${client.enfants} enfant${client.enfants > 1 ? "s" : ""}` : "",
+              client.bebes ? `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </div>
+        )}
 
         <TagEditor tags={client.tags || []} onChange={(tags) => onChange({ tags })} />
       </div>
@@ -341,7 +447,13 @@ export default function ClientDetail({
       </Section>
 
       <Section title="Séjour" open={open.Séjour} onToggle={() => toggle("Séjour")}>
-        <SejourStep client={client} onChange={onChange} />
+        <SejourStep
+          client={client}
+          onChange={onChange}
+          hotelsRef={hotelsRef}
+          taxesRef={taxesRef}
+          onOpenHelp={onOpenHelp}
+        />
       </Section>
 
       <Section title="Activités réservées" open={open.Activités} onToggle={() => toggle("Activités")}>
@@ -350,23 +462,48 @@ export default function ClientDetail({
           onChange={onChange}
           reservations={reservations}
           resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
           onAddReservation={addReservation}
           onUpdateReservation={updateReservation}
           onDeleteReservation={deleteReservation}
           onAddOption={addOption}
           onUpdateOption={updateOption}
           onDeleteOption={deleteOption}
+          onAddTarif={addTarif}
+          onUpdateTarif={updateTarif}
+          onDeleteTarif={deleteTarif}
           catalogue={catalogue}
+          catalogueTarifs={catalogueTarifs}
           canSeeMargins={canSeeMargins}
+          hotelHorsHurghada={hotelHorsHurghada}
         />
       </Section>
 
-      <Section title="Paiements" open={open.Paiements} onToggle={() => toggle("Paiements")}>
+      <Section
+        title="Paiements"
+        titleExtra={
+          <span className="flex items-center gap-1.5">
+            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-semibold text-[#8B4531]">
+              {euros(totalSejourHeader)} €
+            </span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                paiementFullyPaid ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+              }`}
+            >
+              {paiementFullyPaid ? "Payé" : "En attente"}
+            </span>
+          </span>
+        }
+        open={open.Paiements}
+        onToggle={() => toggle("Paiements")}
+      >
         <PaiementsStep
           client={client}
           onChange={onChange}
           reservations={reservations}
           resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
         />
       </Section>
 

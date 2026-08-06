@@ -1,9 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
+import { todayStr } from "@/lib/dates";
+import { generateMonthlyReport } from "@/lib/generateMonthlyReport";
+
+const MOIS_FR = [
+  "janvier",
+  "février",
+  "mars",
+  "avril",
+  "mai",
+  "juin",
+  "juillet",
+  "août",
+  "septembre",
+  "octobre",
+  "novembre",
+  "décembre",
+];
+function monthLabel(ym: string) {
+  const [y, m] = ym.split("-");
+  return `${MOIS_FR[Number(m) - 1]} ${y}`;
+}
+function lastDayOfMonth(ym: string) {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -46,8 +71,26 @@ export default function DirectionView({
   onUpdateCatalogueItem: (id: string, patch: Partial<CatalogueItem>) => void;
   coutsMap: Record<string, number>;
 }) {
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const currentMonth = todayStr().slice(0, 7);
+  const monthOptions = useMemo(() => {
+    const set = new Set<string>([currentMonth]);
+    reservations.forEach((r) => {
+      if (r.date_debut) set.add(r.date_debut.slice(0, 7));
+    });
+    return Array.from(set).sort().reverse();
+  }, [reservations, currentMonth]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(currentMonth);
+  const [customRange, setCustomRange] = useState(false);
+  const [dateFrom, setDateFrom] = useState(`${currentMonth}-01`);
+  const [dateTo, setDateTo] = useState(`${currentMonth}-${String(lastDayOfMonth(currentMonth)).padStart(2, "0")}`);
+
+  const pickMonth = (ym: string) => {
+    setSelectedMonth(ym);
+    setCustomRange(false);
+    setDateFrom(`${ym}-01`);
+    setDateTo(`${ym}-${String(lastDayOfMonth(ym)).padStart(2, "0")}`);
+  };
 
   const inRange = (date: string | null) => {
     if (!date) return !dateFrom && !dateTo;
@@ -120,40 +163,71 @@ export default function DirectionView({
   const margeTotal = rows.reduce((s, r) => s + r.marge, 0);
   const margePct = caTotal > 0 ? Math.round((margeTotal / caTotal) * 100) : 0;
 
+  const exportPdf = () => {
+    generateMonthlyReport({
+      periodeLabel: customRange
+        ? `${dateFrom || "début"} → ${dateTo || "fin"}`
+        : monthLabel(selectedMonth),
+      caTotal,
+      margeTotal,
+      margePct,
+      topVentes: topVendues.map(([, d]) => ({ nom: d.nom, count: d.count, total: d.total })),
+      topRentables: topRentables.map(([, d]) => ({ nom: d.nom, marge: d.marge })),
+      topClients: topClients.map(([nom, total]) => ({ nom, total })),
+    });
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Vue direction</h2>
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs text-neutral-500">
-            Du
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="input mt-1 block"
-            />
-          </label>
-          <label className="text-xs text-neutral-500">
-            Au
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="input mt-1 block"
-            />
-          </label>
-          {(dateFrom || dateTo) && (
-            <button
-              onClick={() => {
-                setDateFrom("");
-                setDateTo("");
+            Mois
+            <select
+              value={customRange ? "custom" : selectedMonth}
+              onChange={(e) => {
+                if (e.target.value === "custom") setCustomRange(true);
+                else pickMonth(e.target.value);
               }}
-              className="mb-0.5 text-xs text-neutral-400 hover:text-neutral-600"
+              className="input mt-1 block"
             >
-              Réinitialiser
-            </button>
+              {monthOptions.map((ym) => (
+                <option key={ym} value={ym}>
+                  {monthLabel(ym)}
+                </option>
+              ))}
+              <option value="custom">Personnalisé…</option>
+            </select>
+          </label>
+          {customRange && (
+            <>
+              <label className="text-xs text-neutral-500">
+                Du
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="input mt-1 block"
+                />
+              </label>
+              <label className="text-xs text-neutral-500">
+                Au
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="input mt-1 block"
+                />
+              </label>
+            </>
           )}
+          <button
+            onClick={exportPdf}
+            className="rounded-md bg-[#8B4531] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            Rapport PDF
+          </button>
           <button
             onClick={exportCsv}
             className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
@@ -162,6 +236,10 @@ export default function DirectionView({
           </button>
         </div>
       </div>
+      <p className="-mt-5 text-xs text-neutral-400">
+        Rapport figé au moment de l&apos;export — les chiffres à l&apos;écran, eux, se
+        recalculent en direct.
+      </p>
 
       <div className="grid grid-cols-3 gap-4">
         <StatTile label="CA total" value={`${euros(caTotal)} €`} accent="#5C2A1D" />

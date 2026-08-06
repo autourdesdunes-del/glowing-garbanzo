@@ -950,6 +950,8 @@ function AppShellInner({
             <SuivisView
               clients={clients}
               reservations={allReservations}
+              resaOptions={allResaOptions}
+              resaTarifs={allResaTarifs}
               remboursements={allRemboursements}
               onUpdateClient={updateClientById}
               onUpdateReservation={updateReservationById}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Client, Remboursement, Reservation } from "@/lib/types";
+import { Client, Remboursement, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { addDays, localDateStr } from "@/lib/dates";
+import { resaTotalMontant } from "@/lib/resa";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -40,6 +41,8 @@ function JumpBtn({ onClick }: { onClick: () => void }) {
 export default function SuivisView({
   clients,
   reservations,
+  resaOptions,
+  resaTarifs,
   remboursements,
   onUpdateClient,
   onUpdateReservation,
@@ -47,6 +50,8 @@ export default function SuivisView({
 }: {
   clients: Client[];
   reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
   remboursements: Remboursement[];
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
@@ -57,7 +62,25 @@ export default function SuivisView({
   const [newAppelClientId, setNewAppelClientId] = useState("");
   const [pickupDrafts, setPickupDrafts] = useState<Record<string, string>>({});
   const [chambreDrafts, setChambreDrafts] = useState<Record<string, string>>({});
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
+  const copyText = async (key: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+    } catch {
+      // clipboard indisponible, ignorer
+    }
+  };
+  const soldeRestantFor = (c: Client) => {
+    const acomptePaye =
+      c.paiement_type === "acompte" && c.acompte_paye ? Number(c.acompte_montant) || 0 : 0;
+    const totalSejour = reservations
+      .filter((r) => r.client_id === c.id)
+      .reduce((sum, r) => sum + resaTotalMontant(r, c, resaOptions[r.id] || [], resaTarifs[r.id] || []), 0);
+    return Math.max(totalSejour - acomptePaye, 0);
+  };
   const now = new Date();
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -68,6 +91,11 @@ export default function SuivisView({
   const rdvRows = clients
     .filter((c) => !c.solde_activite_id && (c.solde_rdv_heure || c.solde_rdv_lieu))
     .sort((a, b) => (a.solde_date || "").localeCompare(b.solde_date || ""));
+
+  // RDV paiement à l'hôtel prévu aujourd'hui : à envoyer le matin même —
+  // rappel horaire au client, et hôtel + heure + montant à la personne
+  // assignée (Bodé ou Sylvie) qui récupère le règlement.
+  const rdvTodayRows = rdvRows.filter((c) => c.solde_date === todayStr);
 
   const auRevoirRows = clients
     .filter((c) => c.date_fin)
@@ -269,31 +297,85 @@ export default function SuivisView({
       )}
 
       {sub === "rdv" && (
-        <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
-            Rendez-vous de paiement à venir
-          </h3>
-          {rdvRows.length === 0 && (
-            <div className="text-sm text-neutral-400">Aucun RDV paiement enregistré.</div>
-          )}
-          <div className="space-y-2">
-            {rdvRows.map((c) => (
-              <div
-                key={c.id}
-                className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
-              >
-                <span className="font-amounts text-neutral-500">
-                  {fmtDate(c.solde_date)} {c.solde_rdv_heure}
-                </span>
-                <span>
-                  <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
-                </span>
-                <span className="text-neutral-500">{c.solde_rdv_lieu}</span>
-                <span className="text-neutral-500">{c.solde_assigne_a || "Non assigné"}</span>
-                <span className="flex-1" />
-                <JumpBtn onClick={() => onOpenClient(c.id)} />
+        <div className="space-y-6">
+          {rdvTodayRows.length > 0 && (
+            <div>
+              <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+                RDV paiement aujourd&apos;hui — à envoyer ce matin
+              </h3>
+              <div className="space-y-3">
+                {rdvTodayRows.map((c) => {
+                  const montant = soldeRestantFor(c);
+                  const clientMsg = `Bonjour ${c.nom || ""}, petit rappel pour aujourd'hui : rendez-vous à ${c.solde_rdv_heure || "l'heure convenue"} devant l'hôtel ${c.hotel || "—"} (à l'extérieur) pour le règlement du solde de ${euros(montant)} €. À tout à l'heure !`;
+                  const teamMsg = `RDV paiement aujourd'hui — ${c.nom || "Sans nom"} — Hôtel ${c.hotel || "—"} — ${c.solde_rdv_heure || "heure ?"} — Montant à récupérer : ${euros(montant)} €`;
+                  return (
+                    <div
+                      key={c.id}
+                      className="rounded-md border border-[#C9973E] bg-[#C9973E]/10 p-3 text-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="font-amounts text-neutral-600">{c.solde_rdv_heure}</span>
+                        <span>
+                          <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
+                        </span>
+                        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#5C2A1D]">
+                          👤 {c.solde_assigne_a || "Non assigné"}
+                        </span>
+                        <span className="font-amounts font-medium text-[#5C2A1D]">
+                          {euros(montant)} €
+                        </span>
+                        <span className="flex-1" />
+                        <JumpBtn onClick={() => onOpenClient(c.id)} />
+                      </div>
+                      <div className="mt-2.5 flex flex-wrap gap-2">
+                        <button
+                          onClick={() => copyText("client-" + c.id, clientMsg)}
+                          className="rounded-full bg-[#5C2A1D] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          {copiedKey === "client-" + c.id ? "Copié ✓" : "Copier message client"}
+                        </button>
+                        <button
+                          onClick={() => copyText("team-" + c.id, teamMsg)}
+                          className="rounded-full bg-[#8B4531] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          {copiedKey === "team-" + c.id
+                            ? "Copié ✓"
+                            : `Copier message ${c.solde_assigne_a || "équipe"}`}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            </div>
+          )}
+
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+              Rendez-vous de paiement à venir
+            </h3>
+            {rdvRows.length === 0 && (
+              <div className="text-sm text-neutral-400">Aucun RDV paiement enregistré.</div>
+            )}
+            <div className="space-y-2">
+              {rdvRows.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
+                >
+                  <span className="font-amounts text-neutral-500">
+                    {fmtDate(c.solde_date)} {c.solde_rdv_heure}
+                  </span>
+                  <span>
+                    <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
+                  </span>
+                  <span className="text-neutral-500">{c.solde_rdv_lieu}</span>
+                  <span className="text-neutral-500">{c.solde_assigne_a || "Non assigné"}</span>
+                  <span className="flex-1" />
+                  <JumpBtn onClick={() => onOpenClient(c.id)} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

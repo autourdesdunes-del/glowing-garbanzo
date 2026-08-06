@@ -761,6 +761,7 @@ function AppShellInner({
               isDirection={effectiveIsDirection}
               onOpenClient={openClient}
               onCreateClient={addClient}
+              onUpdateClient={updateClientById}
             />
           )}
         </div>

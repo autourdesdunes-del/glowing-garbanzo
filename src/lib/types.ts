@@ -194,6 +194,8 @@ export type Client = {
   tags: string[];
   prochain_appel_date: string | null;
   prochain_appel_heure: string;
+  dernier_contact_date: string | null;
+  nb_relances: number;
   created_at: string;
   updated_at: string;
 };
@@ -247,6 +249,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   tags: [],
   prochain_appel_date: null,
   prochain_appel_heure: "",
+  dernier_contact_date: null,
+  nb_relances: 0,
 };
 
 export type UserShift = {

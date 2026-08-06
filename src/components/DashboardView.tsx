@@ -240,6 +240,7 @@ export default function DashboardView({
   isDirection,
   onOpenClient,
   onCreateClient,
+  onUpdateClient,
 }: {
   userEmail: string;
   clients: Client[];
@@ -254,6 +255,7 @@ export default function DashboardView({
     canal: string;
     statut: "Prospect" | "Client confirmé";
   }) => Promise<void>;
+  onUpdateClient: (id: string, patch: Partial<Client>) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
@@ -334,14 +336,24 @@ export default function DashboardView({
     (c) => c.date_fin && addDays(c.date_fin, 7) === todayStr && !c.avis_envoye
   );
 
+  // "À relancer" se base sur le dernier contact réel (dernier_contact_date),
+  // pas sur l'ancienneté de la fiche — sinon un prospect qu'on vient de
+  // relancer reste marqué "à relancer" jusqu'à ce qu'il réponde.
   const staleProspects = clients.filter(
     (c) =>
       (c.statut === "Prospect" || c.statut === "En négociation") &&
       c.date_debut &&
       c.date_debut >= todayStr &&
       c.date_debut <= in14Days &&
-      daysSince(c.created_at) >= 2
+      daysSince(c.dernier_contact_date || c.created_at) >= 2
   );
+
+  const marquerRelance = (c: Client) => {
+    onUpdateClient(c.id, {
+      dernier_contact_date: todayStr,
+      nb_relances: (c.nb_relances || 0) + 1,
+    });
+  };
 
   const incompleteUpcoming = clients.filter(
     (c) =>
@@ -544,14 +556,29 @@ export default function DashboardView({
                               className="whitespace-nowrap rounded-full bg-[#F2E6D2] px-2 py-0.5 text-[11px] text-[#5C2A1D]"
                             >
                               {m}
+                              {m === "À relancer" && client.nb_relances > 0
+                                ? ` (${client.nb_relances})`
+                                : ""}
                             </span>
                           ))}
                         </div>
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#F2E6D2] text-[#5C2A1D]">
-                          ›
-                        </span>
+                        {motifs.includes("À relancer") ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              marquerRelance(client);
+                            }}
+                            className="whitespace-nowrap rounded-full bg-[#5C2A1D] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                          >
+                            Relancé aujourd&apos;hui
+                          </button>
+                        ) : (
+                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#F2E6D2] text-[#5C2A1D]">
+                            ›
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

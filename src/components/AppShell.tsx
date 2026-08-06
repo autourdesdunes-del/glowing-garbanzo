@@ -382,19 +382,24 @@ function AppShellInner({
     saveTimer.current = setTimeout(() => flushSave(selected.id), 600);
   };
 
-  const addClient = async (quick?: { nom: string; telephone: string; canal: string }) => {
+  const addClient = async (quick?: {
+    nom: string;
+    telephone: string;
+    canal: string;
+    statut?: "Prospect" | "Client confirmé";
+  }) => {
     const { data, error } = await supabase
       .from("clients")
-      .insert({ ...EMPTY_CLIENT, ...quick })
+      .insert({ ...EMPTY_CLIENT, ...quick, statut: quick?.statut || "Prospect" })
       .select()
       .single();
     if (!error && data) {
       setClients((prev) => [data as Client, ...prev]);
       setSelectedId(data.id);
-      // New clients always start as "Prospect" — land where they'll show up.
-      setMode("prospects");
+      // Un "nouveau client" atterrit direct dans Clients, un "nouveau
+      // prospect" dans Prospects — chacun là où il doit apparaître.
+      setMode(quick?.statut === "Client confirmé" ? "team" : "prospects");
     } else {
-      console.error("ADDCLIENT_ERR", JSON.stringify(error));
       toast("Impossible de créer le client.");
     }
   };
@@ -775,7 +780,10 @@ function AppShellInner({
                 placeholder={mode === "prospects" ? "Rechercher un prospect…" : "Rechercher un client…"}
                 className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#5C2A1D] focus:outline-none"
               />
-              <QuickAddClient onCreate={addClient} />
+              <QuickAddClient
+                onCreate={addClient}
+                defaultStatut={mode === "prospects" ? "Prospect" : "Client confirmé"}
+              />
             </div>
             {allTags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 border-b border-[#8B4531]/10 p-2">

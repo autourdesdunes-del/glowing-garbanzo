@@ -15,14 +15,15 @@ export default function DonutChart({
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
 
-  let offset = 0;
-  const segments = data.map((d) => {
+  const segments = data.reduce<
+    { label: string; value: number; color: string; dash: number; offset: number; fraction: number }[]
+  >((acc, d) => {
     const fraction = total > 0 ? d.value / total : 0;
     const dash = fraction * circumference;
-    const seg = { ...d, dash, offset, fraction };
-    offset += dash;
-    return seg;
-  });
+    const offset = acc.length > 0 ? acc[acc.length - 1].offset + acc[acc.length - 1].dash : 0;
+    acc.push({ ...d, dash, offset, fraction });
+    return acc;
+  }, []);
 
   return (
     <div className="flex items-center gap-6 rounded-2xl bg-white p-6 shadow-sm">

@@ -5,13 +5,21 @@ import { CANAUX } from "@/lib/constants";
 
 export default function QuickAddClient({
   onCreate,
+  defaultStatut = "Prospect",
 }: {
-  onCreate: (fields: { nom: string; telephone: string; canal: string }) => Promise<void>;
+  onCreate: (fields: {
+    nom: string;
+    telephone: string;
+    canal: string;
+    statut: "Prospect" | "Client confirmé";
+  }) => Promise<void>;
+  defaultStatut?: "Prospect" | "Client confirmé";
 }) {
   const [open, setOpen] = useState(false);
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [canal, setCanal] = useState<(typeof CANAUX)[number]>("WhatsApp");
+  const [statut, setStatut] = useState<"Prospect" | "Client confirmé">(defaultStatut);
   const [saving, setSaving] = useState(false);
 
   const close = () => {
@@ -19,13 +27,14 @@ export default function QuickAddClient({
     setNom("");
     setTelephone("");
     setCanal("WhatsApp");
+    setStatut(defaultStatut);
   };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nom.trim()) return;
     setSaving(true);
-    await onCreate({ nom: nom.trim(), telephone: telephone.trim(), canal });
+    await onCreate({ nom: nom.trim(), telephone: telephone.trim(), canal, statut });
     setSaving(false);
     close();
   }
@@ -33,7 +42,10 @@ export default function QuickAddClient({
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setStatut(defaultStatut);
+          setOpen(true);
+        }}
         className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
       >
         + Nouveau
@@ -47,7 +59,7 @@ export default function QuickAddClient({
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-heading text-lg font-semibold text-[#5C2A1D]">
-                Nouveau client
+                {statut === "Prospect" ? "Nouveau prospect" : "Nouveau client"}
               </h2>
               <button
                 type="button"
@@ -55,6 +67,32 @@ export default function QuickAddClient({
                 className="text-neutral-400 hover:text-neutral-600"
               >
                 ✕
+              </button>
+            </div>
+
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Statut</label>
+            <div className="mb-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setStatut("Prospect")}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
+                  statut === "Prospect"
+                    ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                    : "border-neutral-300 text-neutral-600"
+                }`}
+              >
+                Prospect
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatut("Client confirmé")}
+                className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
+                  statut === "Client confirmé"
+                    ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                    : "border-neutral-300 text-neutral-600"
+                }`}
+              >
+                Client confirmé
               </button>
             </div>
 
@@ -96,7 +134,7 @@ export default function QuickAddClient({
               disabled={saving || !nom.trim()}
               className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
-              {saving ? "Création…" : "Créer le client"}
+              {saving ? "Création…" : statut === "Prospect" ? "Créer le prospect" : "Créer le client"}
             </button>
             <p className="mt-2 text-center text-xs text-neutral-400">
               Le reste du dossier se complète ensuite, à ton rythme.

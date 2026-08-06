@@ -136,14 +136,6 @@ function IconGuide() {
     </svg>
   );
 }
-function IconClock() {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
-      <circle cx="10" cy="10" r="7.2" />
-      <path d="M10 6v4.3l3 2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 function InfoRow({
   icon,

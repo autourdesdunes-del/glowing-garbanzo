@@ -252,7 +252,12 @@ export default function DashboardView({
   resaTarifs: Record<string, ReservationTarif[]>;
   isDirection: boolean;
   onOpenClient: (id: string) => void;
-  onCreateClient: (fields: { nom: string; telephone: string; canal: string }) => Promise<void>;
+  onCreateClient: (fields: {
+    nom: string;
+    telephone: string;
+    canal: string;
+    statut: "Prospect" | "Client confirmé";
+  }) => Promise<void>;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);

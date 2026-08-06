@@ -27,7 +27,6 @@ import {
 import { resaTotalMontant } from "@/lib/resa";
 import { matchHotel } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
-import ReservationCard from "@/components/ReservationCard";
 import ItineraryView from "@/components/ItineraryView";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -1500,7 +1499,6 @@ const ACTION_ICONS: Record<string, string> = {
 
 export function SuiviStep({
   client,
-  onChange,
   reservations,
 }: StepProps & { reservations: Reservation[] }) {
   const supabase = createClient();

@@ -13,6 +13,17 @@ function fmtDate(dateStr: string | null) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
+function firstNameOf(nom: string) {
+  return nom.trim().split(/\s+/)[0] || "";
+}
+function auRevoirMessage(nom: string) {
+  const prenom = firstNameOf(nom) || "—";
+  return `Bonjour ${prenom} \n\nNous espérons que votre retour s'est bien passé.\n\nNous vous remercions d'avoir fait confiance à Autour des Dunes pour l'organisation de vos activités.\n\nCe sera avec grand plaisir que nous vous accueillerons à nouveau prochainement.\n\nL'équipe Autour des Dunes ☀️`;
+}
+function avisMessage(nom: string) {
+  const prenom = firstNameOf(nom) || "—";
+  return `Bonjour ${prenom} \n\nJ'espère que vous allez bien ☺️\n\nJe me permets de vous envoyer un message pour savoir si vous seriez d'accord pour nous laisser un avis et partager avec nos voyageurs votre expérience à nos côtés \n\nCela prend quelques petites secondes mais cela nous aide beaucoup pour nous faire connaître comme nous sommes une jeune agence \n\nJe vous laisse le lien juste ici : \n\n➡️ Google : https://g.co/kgs/jUu71x\n\n➡️ Trip Advisor : https://www.tripadvisor.fr/Attraction_Review-g297549-d26856860-Reviews-Autour_des_Dunes-Hurghada_Red_Sea_and_Sinai.html\n\nEn vous remerciant par avance 🙏`;
+}
 
 const SUBS = [
   { key: "j1", label: "Pick-ups & chambres (J-1)" },
@@ -465,29 +476,37 @@ export default function SuivisView({
             {auRevoirRows.map(({ c, dateCible }) => (
               <div
                 key={c.id}
-                className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
+                className={`rounded-md border p-3 text-sm ${
                   dateCible === todayStr
                     ? "border-[#C9973E] bg-[#C9973E]/10"
                     : "border-neutral-200 bg-white"
                 }`}
               >
-                <span className="font-amounts text-neutral-500">
-                  {fmtDate(dateCible)}
-                  {dateCible === todayStr ? " — aujourd'hui" : ""}
-                </span>
-                <span>
-                  <strong>{c.nom || "Sans nom"}</strong>
-                </span>
-                <label className="flex items-center gap-1 text-xs text-neutral-600">
-                  <input
-                    type="checkbox"
-                    checked={c.au_revoir_envoye}
-                    onChange={(e) => onUpdateClient(c.id, { au_revoir_envoye: e.target.checked })}
-                  />
-                  Envoyé
-                </label>
-                <span className="flex-1" />
-                <JumpBtn onClick={() => onOpenClient(c.id)} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="font-amounts text-neutral-500">
+                    {fmtDate(dateCible)}
+                    {dateCible === todayStr ? " — aujourd'hui" : ""}
+                  </span>
+                  <span>
+                    <strong>{c.nom || "Sans nom"}</strong>
+                  </span>
+                  <label className="flex items-center gap-1 text-xs text-neutral-600">
+                    <input
+                      type="checkbox"
+                      checked={c.au_revoir_envoye}
+                      onChange={(e) => onUpdateClient(c.id, { au_revoir_envoye: e.target.checked })}
+                    />
+                    Envoyé
+                  </label>
+                  <span className="flex-1" />
+                  <button
+                    onClick={() => copyText("aurevoir-" + c.id, auRevoirMessage(c.nom))}
+                    className="rounded-full bg-[#5C2A1D] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                  >
+                    {copiedKey === "aurevoir-" + c.id ? "Copié ✓" : "Copier le message"}
+                  </button>
+                  <JumpBtn onClick={() => onOpenClient(c.id)} />
+                </div>
               </div>
             ))}
           </div>
@@ -506,29 +525,37 @@ export default function SuivisView({
             {avisRows.map(({ c, dateCible }) => (
               <div
                 key={c.id}
-                className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
+                className={`rounded-md border p-3 text-sm ${
                   dateCible === todayStr
                     ? "border-[#C9973E] bg-[#C9973E]/10"
                     : "border-neutral-200 bg-white"
                 }`}
               >
-                <span className="font-amounts text-neutral-500">
-                  {fmtDate(dateCible)}
-                  {dateCible === todayStr ? " — aujourd'hui" : ""}
-                </span>
-                <span>
-                  <strong>{c.nom || "Sans nom"}</strong>
-                </span>
-                <label className="flex items-center gap-1 text-xs text-neutral-600">
-                  <input
-                    type="checkbox"
-                    checked={c.avis_envoye}
-                    onChange={(e) => onUpdateClient(c.id, { avis_envoye: e.target.checked })}
-                  />
-                  Envoyé
-                </label>
-                <span className="flex-1" />
-                <JumpBtn onClick={() => onOpenClient(c.id)} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="font-amounts text-neutral-500">
+                    {fmtDate(dateCible)}
+                    {dateCible === todayStr ? " — aujourd'hui" : ""}
+                  </span>
+                  <span>
+                    <strong>{c.nom || "Sans nom"}</strong>
+                  </span>
+                  <label className="flex items-center gap-1 text-xs text-neutral-600">
+                    <input
+                      type="checkbox"
+                      checked={c.avis_envoye}
+                      onChange={(e) => onUpdateClient(c.id, { avis_envoye: e.target.checked })}
+                    />
+                    Envoyé
+                  </label>
+                  <span className="flex-1" />
+                  <button
+                    onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
+                    className="rounded-full bg-[#5C2A1D] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                  >
+                    {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier le message"}
+                  </button>
+                  <JumpBtn onClick={() => onOpenClient(c.id)} />
+                </div>
               </div>
             ))}
           </div>

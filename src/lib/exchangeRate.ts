@@ -1,9 +1,11 @@
 // Taux de change EUR -> EGP, rafraîchi une fois par jour (mis en cache en
 // mémoire pour ne pas refaire l'appel à chaque rendu).
+import { todayStr } from "@/lib/dates";
+
 let cached: { date: string; rate: number } | null = null;
 
 export async function getEurToEgpRate(): Promise<number | null> {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayStr();
   if (cached && cached.date === today) return cached.rate;
   try {
     const res = await fetch("https://open.er-api.com/v6/latest/EUR");

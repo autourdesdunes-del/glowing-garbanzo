@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
+import { todayStr } from "@/lib/dates";
 
 function euros(n: number) {
   return `${(Number(n) || 0).toLocaleString("fr-FR")} €`;
@@ -50,7 +51,7 @@ export function generateClientDocument(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(90, 90, 90);
-  doc.text(`Émis le ${fmtDate(new Date().toISOString().slice(0, 10))}`, 210 - MARGIN, y, {
+  doc.text(`Émis le ${fmtDate(todayStr())}`, 210 - MARGIN, y, {
     align: "right",
   });
   y += 8;

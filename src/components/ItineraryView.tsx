@@ -16,6 +16,7 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import ReservationCard from "@/components/ReservationCard";
+import { localDateStr } from "@/lib/dates";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -25,7 +26,7 @@ function fmtDate(dateStr: string) {
   return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 }
 function toStr(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d);
 }
 function enumerateDays(start: string, end: string) {
   const days: string[] = [];

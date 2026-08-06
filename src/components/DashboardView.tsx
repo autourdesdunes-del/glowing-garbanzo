@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Client, PlanningShift, Reservation, ReservationOption, ReservationTarif, UserShift } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
+import { addDays, localDateStr } from "@/lib/dates";
 import { STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
 import QuickAddClient from "@/components/QuickAddClient";
@@ -15,11 +16,6 @@ function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
-function addDays(dateStr: string, n: number) {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
 }
 function daysSince(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -306,7 +302,7 @@ export default function DashboardView({
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDateStr(today);
   const tomorrowStr = addDays(todayStr, 1);
   const in14Days = addDays(todayStr, 14);
 

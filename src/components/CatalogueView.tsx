@@ -15,6 +15,7 @@ import {
 } from "@/lib/constants";
 import { Field } from "@/components/client-steps";
 import PhotoUpload from "@/components/PhotoUpload";
+import { localDateStr } from "@/lib/dates";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -185,7 +186,7 @@ const WEEKDAY_JS_TO_FR = [
 ];
 
 function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d);
 }
 
 function AvailabilityCalendar({

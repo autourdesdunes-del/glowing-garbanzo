@@ -468,6 +468,12 @@ function AppShellInner({
     if (error) toast("Échec de l'enregistrement.");
   };
 
+  const updateReservationById = async (id: string, patch: Partial<Reservation>) => {
+    setAllReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    const { error } = await supabase.from("reservations").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
   const addCatalogueItem = async () => {
     const { data, error } = await supabase
       .from("catalogue_activites")
@@ -946,6 +952,7 @@ function AppShellInner({
               reservations={allReservations}
               remboursements={allRemboursements}
               onUpdateClient={updateClientById}
+              onUpdateReservation={updateReservationById}
               onOpenClient={openClient}
             />
           )}

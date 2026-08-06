@@ -27,6 +27,7 @@ import {
 import { resaTotalMontant } from "@/lib/resa";
 import { matchHotel } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
+import { todayStr } from "@/lib/dates";
 import ItineraryView from "@/components/ItineraryView";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -1265,7 +1266,7 @@ export function PaiementsStep({
       onChange({ acompte_paye: false, acompte_date_encaissement: null });
       return;
     }
-    setAcompteDateModal({ step: "choix", date: new Date().toISOString().slice(0, 10) });
+    setAcompteDateModal({ step: "choix", date: todayStr() });
   };
 
   const resteApresAcompte = Math.max(
@@ -1407,7 +1408,7 @@ export function PaiementsStep({
                     onClick={() => {
                       onChange({
                         acompte_paye: true,
-                        acompte_date_encaissement: new Date().toISOString().slice(0, 10),
+                        acompte_date_encaissement: todayStr(),
                       });
                       setAcompteDateModal(null);
                     }}
@@ -1575,7 +1576,7 @@ export function SuiviStep({
 
   const addVerification = async () => {
     if (!verifNom.trim()) return;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayStr();
     const { data, error } = await supabase
       .from("verifications")
       .insert({ client_id: client.id, nom: verifNom.trim(), date: today })

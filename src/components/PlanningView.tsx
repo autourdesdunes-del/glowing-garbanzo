@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
+import { localDateStr } from "@/lib/dates";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -12,7 +13,7 @@ function fmtDate(dateStr: string) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 function toStr(d: Date) {
-  return d.toISOString().slice(0, 10);
+  return localDateStr(d);
 }
 function resaActiveOn(r: Reservation, dateStr: string) {
   if (!r.date_debut) return false;

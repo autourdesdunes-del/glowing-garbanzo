@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Client, Remboursement, Reservation } from "@/lib/types";
+import { addDays, localDateStr } from "@/lib/dates";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -11,13 +12,9 @@ function fmtDate(dateStr: string | null) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
-function addDays(dateStr: string, n: number) {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 
 const SUBS = [
+  { key: "j1", label: "Pick-ups & chambres (J-1)" },
   { key: "rdv", label: "RDV paiements" },
   { key: "appels", label: "Appels" },
   { key: "aurevoir", label: "Au revoir" },
@@ -45,21 +42,28 @@ export default function SuivisView({
   reservations,
   remboursements,
   onUpdateClient,
+  onUpdateReservation,
   onOpenClient,
 }: {
   clients: Client[];
   reservations: Reservation[];
   remboursements: Remboursement[];
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onOpenClient: (id: string) => void;
 }) {
-  const [sub, setSub] = useState<(typeof SUBS)[number]["key"]>("rdv");
+  const [sub, setSub] = useState<(typeof SUBS)[number]["key"]>("j1");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [newAppelClientId, setNewAppelClientId] = useState("");
+  const [pickupDrafts, setPickupDrafts] = useState<Record<string, string>>({});
+  const [chambreDrafts, setChambreDrafts] = useState<Record<string, string>>({});
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
-  const today = new Date();
+  const now = new Date();
+  const today = new Date(now);
   today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = localDateStr(today);
+  const tomorrowStr = addDays(todayStr, 1);
+  const pastDeadline = now.getHours() >= 18;
 
   const rdvRows = clients
     .filter((c) => !c.solde_activite_id && (c.solde_rdv_heure || c.solde_rdv_lieu))
@@ -87,6 +91,17 @@ export default function SuivisView({
     .filter((c) => c.prochain_appel_date)
     .sort((a, b) => (a.prochain_appel_date || "").localeCompare(b.prochain_appel_date || ""));
 
+  // Règle métier : le pick-up réel n'est jamais communiqué au client avant
+  // J-1, et doit toujours être confirmé avant 18h la veille — jamais plus
+  // tôt, jamais plus tard. Idem pour demander le numéro de chambre.
+  const pickupsJ1 = reservations
+    .filter((r) => r.date_debut === tomorrowStr)
+    .map((r) => ({ r, client: clients.find((c) => c.id === r.client_id) }))
+    .filter((x): x is { r: Reservation; client: Client } => !!x.client)
+    .sort((a, b) => (a.r.moment || "").localeCompare(b.r.moment || ""));
+
+  const roomsJ1 = clients.filter((c) => c.date_debut === tomorrowStr);
+
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
       <div className="flex flex-wrap gap-2">
@@ -104,6 +119,154 @@ export default function SuivisView({
           </button>
         ))}
       </div>
+
+      {sub === "j1" && (
+        <div className="space-y-6">
+          <div className="rounded-md border border-[#C9973E]/30 bg-[#C9973E]/10 p-3 text-xs text-[#8B4531]">
+            Règle : le pick-up réel n&apos;est communiqué au client qu&apos;à J-1, avant 18h
+            maximum — jamais avant. Le numéro de chambre se demande aussi à J-1.
+          </div>
+
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+              Pick-ups à confirmer pour demain ({fmtDate(tomorrowStr)})
+            </h3>
+            {pickupsJ1.length === 0 && (
+              <div className="text-sm text-neutral-400">Aucune activité prévue demain.</div>
+            )}
+            <div className="space-y-2">
+              {pickupsJ1.map(({ r, client }) => {
+                const missing = !r.pickup_reel;
+                const urgent = missing && pastDeadline;
+                return (
+                  <div
+                    key={r.id}
+                    className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
+                      urgent
+                        ? "border-red-400 bg-red-50"
+                        : missing
+                          ? "border-[#C9973E] bg-[#C9973E]/10"
+                          : "border-neutral-200 bg-white"
+                    }`}
+                  >
+                    <span>
+                      <strong>{client.nom || "Sans nom"}</strong> —{" "}
+                      {r.nom_activite || "Activité sans nom"}
+                    </span>
+                    <span className="text-neutral-500">{r.moment}</span>
+                    {r.horaire_approx && (
+                      <span className="text-neutral-400">
+                        horaire approx. (interne) : {r.horaire_approx}
+                      </span>
+                    )}
+                    {missing ? (
+                      <>
+                        {urgent && (
+                          <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-medium text-white">
+                            En retard — 18h dépassé
+                          </span>
+                        )}
+                        <input
+                          type="text"
+                          placeholder="Pick-up réel (heure / lieu)"
+                          value={pickupDrafts[r.id] ?? ""}
+                          onChange={(e) =>
+                            setPickupDrafts((d) => ({ ...d, [r.id]: e.target.value }))
+                          }
+                          className="input w-52 text-xs"
+                        />
+                        <button
+                          onClick={() => {
+                            const val = (pickupDrafts[r.id] || "").trim();
+                            if (!val) return;
+                            onUpdateReservation(r.id, { pickup_reel: val });
+                            setPickupDrafts((d) => ({ ...d, [r.id]: "" }));
+                          }}
+                          className="rounded-md bg-[#5C2A1D] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          Confirmer
+                        </button>
+                      </>
+                    ) : (
+                      <span className="rounded-full bg-[#5C2A1D]/10 px-2 py-0.5 text-[11px] text-[#5C2A1D]">
+                        Pick-up {r.pickup_reel}
+                      </span>
+                    )}
+                    <span className="flex-1" />
+                    <JumpBtn onClick={() => onOpenClient(client.id)} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+              Numéros de chambre à demander pour demain
+            </h3>
+            {roomsJ1.length === 0 && (
+              <div className="text-sm text-neutral-400">Aucune arrivée prévue demain.</div>
+            )}
+            <div className="space-y-2">
+              {roomsJ1.map((c) => {
+                const missing = !c.chambre;
+                const urgent = missing && pastDeadline;
+                return (
+                  <div
+                    key={c.id}
+                    className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
+                      urgent
+                        ? "border-red-400 bg-red-50"
+                        : missing
+                          ? "border-[#C9973E] bg-[#C9973E]/10"
+                          : "border-neutral-200 bg-white"
+                    }`}
+                  >
+                    <span>
+                      <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
+                    </span>
+                    {missing ? (
+                      <>
+                        {urgent && (
+                          <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-medium text-white">
+                            En retard — 18h dépassé
+                          </span>
+                        )}
+                        <input
+                          type="text"
+                          placeholder="N° de chambre"
+                          value={chambreDrafts[c.id] ?? ""}
+                          onChange={(e) =>
+                            setChambreDrafts((d) => ({ ...d, [c.id]: e.target.value }))
+                          }
+                          className="input w-32 text-xs"
+                        />
+                        <button
+                          onClick={() => {
+                            const val = (chambreDrafts[c.id] || "").trim();
+                            if (!val) return;
+                            onUpdateClient(c.id, { chambre: val });
+                            setChambreDrafts((d) => ({ ...d, [c.id]: "" }));
+                          }}
+                          className="rounded-md bg-[#5C2A1D] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          Confirmer
+                        </button>
+                      </>
+                    ) : (
+                      <span className="rounded-full bg-[#5C2A1D]/10 px-2 py-0.5 text-[11px] text-[#5C2A1D]">
+                        Chambre {c.chambre}
+                      </span>
+                    )}
+                    <span className="flex-1" />
+                    <JumpBtn onClick={() => onOpenClient(c.id)} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {sub === "rdv" && (
         <div>

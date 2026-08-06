@@ -82,6 +82,8 @@ export default function ItineraryView({
   catalogueTarifs,
   canSeeMargins,
   hotelHorsHurghada,
+  coutsMap,
+  onUpdateCoutReel,
 }: {
   client: Client;
   reservations: Reservation[];
@@ -103,6 +105,8 @@ export default function ItineraryView({
   catalogueTarifs: Record<string, CatalogueTarif[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
+  coutsMap: Record<string, number>;
+  onUpdateCoutReel: (id: string, value: number) => void;
 }) {
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
@@ -134,6 +138,8 @@ export default function ItineraryView({
           catalogueTarifs={r.catalogue_item_id ? catalogueTarifs[r.catalogue_item_id] || [] : []}
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}
+          coutReel={coutsMap[r.id] || 0}
+          onUpdateCoutReel={(v) => onUpdateCoutReel(r.id, v)}
         />
       );
     }

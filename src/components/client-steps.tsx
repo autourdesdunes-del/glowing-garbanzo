@@ -662,6 +662,8 @@ export function ActivitesStep({
   catalogueTarifs,
   canSeeMargins,
   hotelHorsHurghada,
+  coutsMap,
+  onUpdateCoutReel,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -679,6 +681,8 @@ export function ActivitesStep({
   catalogueTarifs: Record<string, CatalogueTarif[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
+  coutsMap: Record<string, number>;
+  onUpdateCoutReel: (id: string, value: number) => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -705,6 +709,8 @@ export function ActivitesStep({
         onToggleExpand={setExpandedId}
         onSetPickup={(id, pickup_reel) => onUpdateReservation(id, { pickup_reel })}
         onUpdateReservation={onUpdateReservation}
+        coutsMap={coutsMap}
+        onUpdateCoutReel={onUpdateCoutReel}
         onDeleteReservation={(id) => {
           onDeleteReservation(id);
           setExpandedId((cur) => (cur === id ? null : cur));

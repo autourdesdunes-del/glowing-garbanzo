@@ -36,6 +36,7 @@ export default function DirectionView({
   resaTarifs,
   catalogue,
   onUpdateCatalogueItem,
+  coutsMap,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -43,6 +44,7 @@ export default function DirectionView({
   resaTarifs: Record<string, ReservationTarif[]>;
   catalogue: CatalogueItem[];
   onUpdateCatalogueItem: (id: string, patch: Partial<CatalogueItem>) => void;
+  coutsMap: Record<string, number>;
 }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -59,7 +61,7 @@ export default function DirectionView({
     .map((r) => {
       const client = clients.find((c) => c.id === r.client_id);
       const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
-      const cout = Number(r.cout_reel) || 0;
+      const cout = Number(coutsMap[r.id]) || 0;
       // Groupe par modèle catalogue quand la réservation en vient (le nom
       // catalogue à jour prime), sinon par nom d'activité saisi à la main.
       const catalogueMatch = r.catalogue_item_id

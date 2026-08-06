@@ -43,6 +43,8 @@ export default function ReservationCard({
   catalogueTarifs,
   canSeeMargins,
   hotelHorsHurghada,
+  coutReel,
+  onUpdateCoutReel,
 }: {
   r: Reservation;
   client: Client;
@@ -63,6 +65,8 @@ export default function ReservationCard({
   catalogueTarifs: CatalogueTarif[];
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
+  coutReel: number;
+  onUpdateCoutReel: (value: number) => void;
 }) {
   const [showPaxOverride, setShowPaxOverride] = useState(!!r.pax_override);
   const pickFromCatalogue = (id: string) => {
@@ -289,8 +293,8 @@ export default function ReservationCard({
           <Field label="Coût réel (interne)">
             <input
               type="number"
-              value={r.cout_reel}
-              onChange={(e) => onUpdate({ cout_reel: Number(e.target.value) })}
+              value={coutReel}
+              onChange={(e) => onUpdateCoutReel(Number(e.target.value))}
               className="input"
             />
           </Field>

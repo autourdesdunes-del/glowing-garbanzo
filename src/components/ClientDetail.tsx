@@ -114,6 +114,7 @@ export default function ClientDetail({
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [resaTarifs, setResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
+  const [coutsMap, setCoutsMap] = useState<Record<string, number>>({});
   const [generatingDoc, setGeneratingDoc] = useState<"devis" | "facture" | null>(null);
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
@@ -174,9 +175,36 @@ export default function ClientDetail({
         setResaOptions({});
         setResaTarifs({});
       }
+
+      // Coûts réels réservés à la Direction en base (table à part + RLS) —
+      // on ne fetch même pas pour un compte équipe.
+      if (canSeeMargins && list.length) {
+        const { data: couts } = await supabase
+          .from("reservation_couts")
+          .select("*")
+          .in(
+            "reservation_id",
+            list.map((r) => r.id)
+          );
+        const map: Record<string, number> = {};
+        ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
+          map[c.reservation_id] = c.cout_reel;
+        });
+        setCoutsMap(map);
+      } else {
+        setCoutsMap({});
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client.id]);
+  }, [client.id, canSeeMargins]);
+
+  const updateCoutReel = async (reservationId: string, value: number) => {
+    setCoutsMap((prev) => ({ ...prev, [reservationId]: value }));
+    const { error } = await supabase
+      .from("reservation_couts")
+      .upsert({ reservation_id: reservationId, cout_reel: value });
+    if (error) toast("Échec de l'enregistrement du coût.");
+  };
 
   const addReservation = async (): Promise<string | null> => {
     const { data, error } = await supabase
@@ -476,6 +504,8 @@ export default function ClientDetail({
           catalogueTarifs={catalogueTarifs}
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}
+          coutsMap={coutsMap}
+          onUpdateCoutReel={updateCoutReel}
         />
       </Section>
 

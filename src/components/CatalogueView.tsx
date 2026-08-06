@@ -544,7 +544,7 @@ export default function CatalogueView({
                             🏆 Top des ventes
                           </span>
                         )}
-                        {topRentabiliteIds.has(a.id) && (
+                        {canSeeMargins && topRentabiliteIds.has(a.id) && (
                           <span className="rounded-full bg-[#0F5C56]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#0F5C56]">
                             💰 Top rentabilité
                           </span>

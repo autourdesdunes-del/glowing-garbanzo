@@ -99,7 +99,6 @@ export type Reservation = {
   non_inclus: string;
   a_prevoir: string;
   info_importante: string;
-  cout_reel: number;
   photo_path: string;
   statut_resa: "Brouillon" | "Confirmée";
   billet_requis: boolean;

@@ -214,6 +214,7 @@ function AppShellInner({
   const [teamView, setTeamView] = useState<"liste" | "pipeline">("liste");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [allReservations, setAllReservations] = useState<Reservation[]>([]);
+  const [allCoutsMap, setAllCoutsMap] = useState<Record<string, number>>({});
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
@@ -301,6 +302,25 @@ function AppShellInner({
       } else {
         setAllResaOptions({});
         setAllResaTarifs({});
+      }
+
+      // Coûts réels : réservés à la Direction en base (table à part + RLS),
+      // jamais fetchés dans le navigateur d'un compte équipe.
+      if (isDirection && list.length) {
+        const { data: couts } = await supabase
+          .from("reservation_couts")
+          .select("*")
+          .in(
+            "reservation_id",
+            list.map((r) => r.id)
+          );
+        const map: Record<string, number> = {};
+        ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
+          map[c.reservation_id] = c.cout_reel;
+        });
+        setAllCoutsMap(map);
+      } else {
+        setAllCoutsMap({});
       }
       setPlanningLoaded(true);
 
@@ -574,7 +594,7 @@ function AppShellInner({
         allResaOptions[r.id] || [],
         allResaTarifs[r.id] || []
       );
-      const cout = Number(r.cout_reel) || 0;
+      const cout = Number(allCoutsMap[r.id]) || 0;
       if (!byItem[r.catalogue_item_id]) byItem[r.catalogue_item_id] = { total: 0, marge: 0 };
       byItem[r.catalogue_item_id].total += total;
       byItem[r.catalogue_item_id].marge += total - cout;
@@ -586,14 +606,19 @@ function AppShellInner({
         .slice(0, 3)
         .map(([id]) => id)
     );
-    const rentabilite = new Set(
-      entries
-        .sort((a, b) => b[1].marge - a[1].marge)
-        .slice(0, 3)
-        .map(([id]) => id)
-    );
+    // Le classement rentabilité dépend du coût réel, donné uniquement à la
+    // Direction — pour un compte équipe allCoutsMap est vide, donc on ne
+    // calcule/n'affiche pas ce classement (voir canSeeMargins côté Catalogue).
+    const rentabilite = isDirection
+      ? new Set(
+          entries
+            .sort((a, b) => b[1].marge - a[1].marge)
+            .slice(0, 3)
+            .map(([id]) => id)
+        )
+      : new Set<string>();
     return { topVenteIds: ventes, topRentabiliteIds: rentabilite };
-  }, [allReservations, clients, allResaOptions, allResaTarifs]);
+  }, [allReservations, clients, allResaOptions, allResaTarifs, allCoutsMap, isDirection]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -993,6 +1018,7 @@ function AppShellInner({
               resaTarifs={allResaTarifs}
               catalogue={catalogue}
               onUpdateCatalogueItem={updateCatalogueItem}
+              coutsMap={allCoutsMap}
             />
           )}
         </div>

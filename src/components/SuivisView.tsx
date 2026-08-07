@@ -42,7 +42,7 @@ function JumpBtn({ onClick }: { onClick: () => void }) {
         e.stopPropagation();
         onClick();
       }}
-      className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-[#5C2A1D] hover:bg-neutral-200"
+      className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-[#171717] hover:bg-neutral-200"
     >
       → Fiche client
     </button>
@@ -150,7 +150,7 @@ export default function SuivisView({
             onClick={() => setSub(s.key)}
             className={`rounded-full border px-3 py-1.5 text-sm ${
               sub === s.key
-                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-300 bg-white text-neutral-600"
             }`}
           >
@@ -161,13 +161,13 @@ export default function SuivisView({
 
       {sub === "j1" && (
         <div className="space-y-6">
-          <div className="rounded-md border border-[#C9973E]/30 bg-[#C9973E]/10 p-3 text-xs text-[#8B4531]">
+          <div className="rounded-md border border-[#C9973E]/30 bg-[#C9973E]/10 p-3 text-xs text-[#666666]">
             Règle : le pick-up réel n&apos;est communiqué au client qu&apos;à J-1, avant 18h
             maximum — jamais avant. Le numéro de chambre se demande aussi à J-1.
           </div>
 
           <div>
-            <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
               Pick-ups à confirmer pour demain ({fmtDate(tomorrowStr)})
             </h3>
             {pickupsJ1.length === 0 && (
@@ -221,13 +221,13 @@ export default function SuivisView({
                             onUpdateReservation(r.id, { pickup_reel: val });
                             setPickupDrafts((d) => ({ ...d, [r.id]: "" }));
                           }}
-                          className="rounded-md bg-[#5C2A1D] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                          className="rounded-md bg-[#171717] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
                         >
                           Confirmer
                         </button>
                       </>
                     ) : (
-                      <span className="rounded-full bg-[#5C2A1D]/10 px-2 py-0.5 text-[11px] text-[#5C2A1D]">
+                      <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
                         Pick-up {r.pickup_reel}
                       </span>
                     )}
@@ -240,7 +240,7 @@ export default function SuivisView({
           </div>
 
           <div>
-            <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
               Numéros de chambre à demander pour demain
             </h3>
             {roomsJ1.length === 0 && (
@@ -287,13 +287,13 @@ export default function SuivisView({
                             onUpdateClient(c.id, { chambre: val });
                             setChambreDrafts((d) => ({ ...d, [c.id]: "" }));
                           }}
-                          className="rounded-md bg-[#5C2A1D] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                          className="rounded-md bg-[#171717] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
                         >
                           Confirmer
                         </button>
                       </>
                     ) : (
-                      <span className="rounded-full bg-[#5C2A1D]/10 px-2 py-0.5 text-[11px] text-[#5C2A1D]">
+                      <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
                         Chambre {c.chambre}
                       </span>
                     )}
@@ -311,7 +311,7 @@ export default function SuivisView({
         <div className="space-y-6">
           {rdvTodayRows.length > 0 && (
             <div>
-              <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+              <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
                 RDV paiement aujourd&apos;hui — à envoyer ce matin
               </h3>
               <div className="space-y-3">
@@ -329,10 +329,10 @@ export default function SuivisView({
                         <span>
                           <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
                         </span>
-                        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#5C2A1D]">
+                        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#171717]">
                           👤 {c.solde_assigne_a || "Non assigné"}
                         </span>
-                        <span className="font-amounts font-medium text-[#5C2A1D]">
+                        <span className="font-amounts font-medium text-[#171717]">
                           {euros(montant)} €
                         </span>
                         <span className="flex-1" />
@@ -341,13 +341,13 @@ export default function SuivisView({
                       <div className="mt-2.5 flex flex-wrap gap-2">
                         <button
                           onClick={() => copyText("client-" + c.id, clientMsg)}
-                          className="rounded-full bg-[#5C2A1D] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                          className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                         >
                           {copiedKey === "client-" + c.id ? "Copié ✓" : "Copier message client"}
                         </button>
                         <button
                           onClick={() => copyText("team-" + c.id, teamMsg)}
-                          className="rounded-full bg-[#8B4531] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                          className="rounded-full bg-[#666666] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                         >
                           {copiedKey === "team-" + c.id
                             ? "Copié ✓"
@@ -362,7 +362,7 @@ export default function SuivisView({
           )}
 
           <div>
-            <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
               Rendez-vous de paiement à venir
             </h3>
             {rdvRows.length === 0 && (
@@ -393,7 +393,7 @@ export default function SuivisView({
 
       {sub === "appels" && (
         <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
             Appels programmés
           </h3>
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-neutral-300 bg-white p-3">
@@ -466,7 +466,7 @@ export default function SuivisView({
 
       {sub === "aurevoir" && (
         <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
             Messages de bon retour à envoyer (J+1)
           </h3>
           {auRevoirRows.length === 0 && (
@@ -501,7 +501,7 @@ export default function SuivisView({
                   <span className="flex-1" />
                   <button
                     onClick={() => copyText("aurevoir-" + c.id, auRevoirMessage(c.nom))}
-                    className="rounded-full bg-[#5C2A1D] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                    className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                   >
                     {copiedKey === "aurevoir-" + c.id ? "Copié ✓" : "Copier le message"}
                   </button>
@@ -515,7 +515,7 @@ export default function SuivisView({
 
       {sub === "avis" && (
         <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
             Demandes d&apos;avis à envoyer (J+7)
           </h3>
           {avisRows.length === 0 && (
@@ -550,7 +550,7 @@ export default function SuivisView({
                   <span className="flex-1" />
                   <button
                     onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
-                    className="rounded-full bg-[#5C2A1D] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                    className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                   >
                     {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier le message"}
                   </button>
@@ -564,7 +564,7 @@ export default function SuivisView({
 
       {sub === "remb" && (
         <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
             Remboursements
           </h3>
           {remboursementRows.length === 0 && (
@@ -597,8 +597,8 @@ export default function SuivisView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.statut === "Effectué"
-                          ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
-                          : "bg-[#C9973E]/20 text-[#8B4531]"
+                          ? "bg-[#171717]/10 text-[#171717]"
+                          : "bg-[#C9973E]/20 text-[#666666]"
                       }`}
                     >
                       {r.statut}
@@ -624,7 +624,7 @@ export default function SuivisView({
 
       {sub === "billets" && (
         <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
             Billets d&apos;avion — pour Hossam
           </h3>
           {billetsRows.length === 0 && (
@@ -654,8 +654,8 @@ export default function SuivisView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.billet_acompte_paye
-                          ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
-                          : "bg-[#C9973E]/20 text-[#8B4531]"
+                          ? "bg-[#171717]/10 text-[#171717]"
+                          : "bg-[#C9973E]/20 text-[#666666]"
                       }`}
                     >
                       Acompte {r.billet_acompte_paye ? "payé" : "en attente"}
@@ -663,8 +663,8 @@ export default function SuivisView({
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.billet_envoye
-                          ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
-                          : "bg-[#C9973E]/20 text-[#8B4531]"
+                          ? "bg-[#171717]/10 text-[#171717]"
+                          : "bg-[#C9973E]/20 text-[#666666]"
                       }`}
                     >
                       {r.billet_envoye ? "Envoyé" : "Pas envoyé"}
@@ -681,7 +681,7 @@ export default function SuivisView({
                             href={r.billet_lien}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-[#5C2A1D] underline"
+                            className="text-[#171717] underline"
                           >
                             Voir le billet
                           </a>

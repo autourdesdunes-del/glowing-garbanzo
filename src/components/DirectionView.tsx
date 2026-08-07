@@ -180,7 +180,7 @@ export default function DirectionView({
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">Vue direction</h2>
+        <h2 className="font-heading text-xl font-semibold text-[#171717]">Vue direction</h2>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs text-neutral-500">
             Mois
@@ -224,13 +224,13 @@ export default function DirectionView({
           )}
           <button
             onClick={exportPdf}
-            className="rounded-md bg-[#8B4531] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="rounded-md bg-[#666666] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             Rapport PDF
           </button>
           <button
             onClick={exportCsv}
-            className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             Exporter en CSV
           </button>
@@ -242,13 +242,13 @@ export default function DirectionView({
       </p>
 
       <div className="grid grid-cols-3 gap-4">
-        <StatTile label="CA total" value={`${euros(caTotal)} €`} accent="#5C2A1D" />
+        <StatTile label="CA total" value={`${euros(caTotal)} €`} accent="#171717" />
         <StatTile label="Marge totale" value={`${euros(margeTotal)} €`} accent="#C9973E" />
-        <StatTile label="Marge" value={`${margePct}%`} accent="#8B4531" />
+        <StatTile label="Marge" value={`${margePct}%`} accent="#666666" />
       </div>
 
       <section>
-        <h3 className="mb-1 text-sm font-semibold text-[#5C2A1D]">
+        <h3 className="mb-1 text-sm font-semibold text-[#171717]">
           Marge de référence par activité (catalogue)
         </h3>
         <p className="mb-2 text-xs text-neutral-500">
@@ -264,7 +264,7 @@ export default function DirectionView({
               key={a.id}
               className="flex items-center gap-3 rounded-md border border-neutral-200 bg-white p-2 text-sm"
             >
-              <span className="flex-1 font-medium text-[#5C2A1D]">{a.nom || "Sans nom"}</span>
+              <span className="flex-1 font-medium text-[#171717]">{a.nom || "Sans nom"}</span>
               <input
                 type="number"
                 value={a.marge_pct}
@@ -280,7 +280,7 @@ export default function DirectionView({
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">CA par mois</h3>
+        <h3 className="mb-2 text-sm font-semibold text-[#171717]">CA par mois</h3>
         <MonthlyBarChart
           data={Object.entries(byMonth)
             .sort()
@@ -289,7 +289,7 @@ export default function DirectionView({
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">CA par année</h3>
+        <h3 className="mb-2 text-sm font-semibold text-[#171717]">CA par année</h3>
         <div className="space-y-1">
           {Object.entries(byYear)
             .sort()
@@ -307,7 +307,7 @@ export default function DirectionView({
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Activités les plus vendues</h3>
+        <h3 className="mb-2 text-sm font-semibold text-[#171717]">Activités les plus vendues</h3>
         {topVendues.length === 0 && (
           <div className="text-sm text-neutral-400">Pas encore d&apos;activités vendues.</div>
         )}
@@ -327,7 +327,7 @@ export default function DirectionView({
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Activités les plus rentables</h3>
+        <h3 className="mb-2 text-sm font-semibold text-[#171717]">Activités les plus rentables</h3>
         {topRentables.length === 0 && (
           <div className="text-sm text-neutral-400">Pas encore de données de coût.</div>
         )}
@@ -347,7 +347,7 @@ export default function DirectionView({
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Plus gros clients</h3>
+        <h3 className="mb-2 text-sm font-semibold text-[#171717]">Plus gros clients</h3>
         {topClients.length === 0 && (
           <div className="text-sm text-neutral-400">
             Pas encore de clients avec activités.
@@ -373,10 +373,10 @@ export default function DirectionView({
 
 function StatTile({ label, value, accent }: { label: string; value: string; accent: string }) {
   return (
-    <div className="relative overflow-hidden rounded-lg bg-white p-4 shadow-sm">
+    <div className="relative overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white p-4">
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
       <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">{label}</p>
-      <p className="font-amounts mt-1 text-2xl font-semibold text-[#5C2A1D]">{value}</p>
+      <p className="font-amounts mt-1 text-2xl font-semibold text-[#171717]">{value}</p>
     </div>
   );
 }

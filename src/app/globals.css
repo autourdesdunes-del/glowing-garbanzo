@@ -1,21 +1,17 @@
 @import "tailwindcss";
+@import "./design-tokens.css";
 
-/* Tokens Geist (vercel.com/geist) — appliqués tels quels, pas réinterprétés.
-   --accent (#0070f3) est réservé aux liens/info, jamais aux boutons
-   d'action ni dupliqué ailleurs. L'encre (--ink) porte l'identité du
-   produit, pas une couleur de marque décorative. */
 :root {
-  --ink: #171717;
-  --bg: #ffffff;
-  --bg-subtle: #fafafa;
-  --border: #eaeaea;
-  --text-secondary: #666666;
-  --accent: #0070f3;
-  --error: #ee0000;
-  --warning: #f5a623;
-
   --background: var(--bg);
   --foreground: var(--ink);
+}
+
+/* Sans appearance:none, Safari/macOS impose son propre radius natif
+   arrondi sur <button> par-dessus tout border-radius déclaré en CSS. */
+button {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
 }
 
 /* Deux registres : Geist Sans pour tout le texte courant/titres, Geist
@@ -47,7 +43,7 @@ h1, h2, h3, h4 {
 .input {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 0.4rem 0.6rem;
   font-size: 0.875rem;
   background: var(--bg);

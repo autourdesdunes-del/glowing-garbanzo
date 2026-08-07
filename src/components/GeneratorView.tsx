@@ -161,7 +161,7 @@ export default function GeneratorView({
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
       <div>
-        <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">
+        <h2 className="font-heading text-xl font-semibold text-[#171717]">
           Générateur de programme
         </h2>
         <p className="mt-1 text-sm text-neutral-500">
@@ -233,7 +233,7 @@ export default function GeneratorView({
         </div>
         <button
           onClick={generate}
-          className="mt-3 rounded-md bg-[#5C2A1D] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="mt-3 rounded-md bg-[#171717] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
         >
           Générer les propositions
         </button>
@@ -267,7 +267,7 @@ export default function GeneratorView({
                   key={c.item.id}
                   className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 ${
                     selected.has(c.item.id)
-                      ? "border-[#5C2A1D] bg-[#F2E6D2]/40"
+                      ? "border-[#171717] bg-[#fafafa]/40"
                       : "border-neutral-200 bg-white"
                   }`}
                 >
@@ -279,7 +279,7 @@ export default function GeneratorView({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-[#5C2A1D]">{c.item.nom}</p>
+                      <p className="font-medium text-[#171717]">{c.item.nom}</p>
                       <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] text-neutral-500">
                         {c.item.categorie}
                       </span>
@@ -295,7 +295,7 @@ export default function GeneratorView({
                         : "Tous les jours"}
                     </p>
                   </div>
-                  <span className="font-amounts whitespace-nowrap text-sm text-[#5C2A1D]">
+                  <span className="font-amounts whitespace-nowrap text-sm text-[#171717]">
                     {euros(c.prix)}€
                   </span>
                 </label>

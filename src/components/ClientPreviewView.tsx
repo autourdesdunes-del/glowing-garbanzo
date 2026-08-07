@@ -81,15 +81,15 @@ function NavPanel({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 overflow-hidden rounded-md border border-[#8B4531]/20 bg-white">
+    <div className="mb-3 overflow-hidden rounded-md border border-[#666666]/20 bg-white">
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between px-4 py-3 text-left"
       >
-        <span className="font-heading font-semibold text-[#5C2A1D]">{title}</span>
+        <span className="font-heading font-semibold text-[#171717]">{title}</span>
         <span className={`transition-transform ${open ? "rotate-180" : ""}`}>⌄</span>
       </button>
-      {open && <div className="border-t border-[#8B4531]/10 px-4 py-3">{children}</div>}
+      {open && <div className="border-t border-[#666666]/10 px-4 py-3">{children}</div>}
     </div>
   );
 }
@@ -116,7 +116,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
     <div className="border-b border-neutral-100 py-2 last:border-0">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between text-left text-sm font-medium text-[#5C2A1D]"
+        className="flex w-full items-center justify-between text-left text-sm font-medium text-[#171717]"
       >
         <span>{q}</span>
         <span>{open ? "−" : "+"}</span>
@@ -247,8 +247,8 @@ export default function ClientPreviewView({
 
   return (
     <div className="mx-auto max-w-xl space-y-4 p-6">
-      <div className="rounded-xl border border-[#8B4531]/20 bg-white p-5">
-        <p className="font-heading text-lg font-semibold text-[#5C2A1D]">
+      <div className="rounded-[6px] border border-[#666666]/20 bg-white p-5">
+        <p className="font-heading text-lg font-semibold text-[#171717]">
           Bonjour {client.nom ? client.nom.split(" ")[0] : "voyageur"}
         </p>
         <p className="text-sm text-neutral-500">
@@ -257,25 +257,25 @@ export default function ClientPreviewView({
         <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
           <div>
             <p className="text-xs text-neutral-400">Dates</p>
-            <p className="font-medium text-[#5C2A1D]">
+            <p className="font-medium text-[#171717]">
               {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
             </p>
           </div>
           <div>
             <p className="text-xs text-neutral-400">Voyageurs</p>
-            <p className="font-medium text-[#5C2A1D]">
+            <p className="font-medium text-[#171717]">
               {client.adultes} ad. + {client.enfants} enf.
               {client.ages_enfants ? ` (${client.ages_enfants})` : ""}
             </p>
           </div>
           <div>
             <p className="text-xs text-neutral-400">Hôtel</p>
-            <p className="font-medium text-[#5C2A1D]">{client.hotel || "—"}</p>
+            <p className="font-medium text-[#171717]">{client.hotel || "—"}</p>
           </div>
         </div>
         {countdownNum && (
-          <div className="mt-3 rounded-md bg-[#F2E6D2] px-3 py-2 text-center">
-            <span className="font-heading block text-lg font-semibold text-[#5C2A1D]">
+          <div className="mt-3 rounded-md bg-[#fafafa] px-3 py-2 text-center">
+            <span className="font-heading block text-lg font-semibold text-[#171717]">
               {countdownNum}
             </span>
             {countdownLabel && (
@@ -291,7 +291,7 @@ export default function ClientPreviewView({
             <div
               className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs ${
                 i < trackerStep
-                  ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                  ? "border-[#171717] bg-[#171717] text-white"
                   : i === trackerStep
                     ? "border-[#C9973E] bg-[#C9973E] text-white"
                     : "border-neutral-300 bg-white text-neutral-400"
@@ -301,7 +301,7 @@ export default function ClientPreviewView({
             </div>
             <span
               className={`mt-1 text-[10px] ${
-                i === trackerStep ? "font-semibold text-[#5C2A1D]" : "text-neutral-400"
+                i === trackerStep ? "font-semibold text-[#171717]" : "text-neutral-400"
               }`}
             >
               {label}
@@ -316,13 +316,13 @@ export default function ClientPreviewView({
         onToggle={() => setOpenPanel(openPanel === "sejour" ? "" : "sejour")}
       >
         <div className="mb-2 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-[#F2E6D2] px-2 py-1">
+          <span className="rounded-full bg-[#fafafa] px-2 py-1">
             {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
           </span>
-          <span className="rounded-full bg-[#F2E6D2] px-2 py-1">
+          <span className="rounded-full bg-[#fafafa] px-2 py-1">
             {client.adultes} adultes{client.enfants ? ` + ${client.enfants} enfants` : ""}
           </span>
-          <span className="rounded-full bg-[#F2E6D2] px-2 py-1">{client.hotel || "Hôtel ?"}</span>
+          <span className="rounded-full bg-[#fafafa] px-2 py-1">{client.hotel || "Hôtel ?"}</span>
         </div>
         {sortedResas.map((r) => (
           <div key={r.id} className="flex justify-between py-1 text-sm">
@@ -343,13 +343,13 @@ export default function ClientPreviewView({
         onToggle={() => setOpenPanel(openPanel === "paiements" ? "" : "paiements")}
       >
         <div className="flex items-baseline justify-between">
-          <span className="font-amounts text-lg font-semibold text-[#5C2A1D]">
+          <span className="font-amounts text-lg font-semibold text-[#171717]">
             {euros(total)} €
           </span>
           <span className="text-xs text-neutral-500">montant total du séjour</span>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-100">
-          <div className="h-full bg-[#5C2A1D]" style={{ width: pct + "%" }} />
+          <div className="h-full bg-[#171717]" style={{ width: pct + "%" }} />
         </div>
         <div className="mt-1 flex justify-between text-xs text-neutral-500">
           <span>{euros(totalPaye)} € déjà payés</span>
@@ -375,7 +375,7 @@ export default function ClientPreviewView({
                 {fmtDate(r.date_debut)}
                 {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
               </span>
-              <span className="font-medium text-[#5C2A1D]">{r.nom_activite || "Activité"}</span>
+              <span className="font-medium text-[#171717]">{r.nom_activite || "Activité"}</span>
               <span className="text-xs text-neutral-500">{r.moment}</span>
             </div>
             <div className="mt-2 space-y-1 text-xs text-neutral-600">
@@ -430,11 +430,11 @@ export default function ClientPreviewView({
 
       {suggestions.length > 0 && (
         <div>
-          <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">
+          <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
             Envie de plus ?
           </h2>
           {suggestionsWithPhoto.length >= 3 && (
-            <div className="mb-3 h-28 overflow-hidden rounded-md bg-[#F2E6D2]">
+            <div className="mb-3 h-28 overflow-hidden rounded-md bg-[#fafafa]">
               <MarqueeAlongSvgPath
                 path="M0 80 C 100 20, 200 140, 300 80 C 400 20, 500 140, 600 80"
                 viewBox="0 0 600 160"
@@ -447,7 +447,7 @@ export default function ClientPreviewView({
                 {suggestionsWithPhoto
                   .filter((a) => suggestionPhotos[a.id])
                   .map((a) => (
-                    <div key={a.id} className="h-16 w-16 overflow-hidden rounded-full border-2 border-white shadow-sm">
+                    <div key={a.id} className="h-16 w-16 overflow-hidden rounded-full border-2 border-white">
                       <img
                         src={suggestionPhotos[a.id]}
                         alt={a.nom}
@@ -462,7 +462,7 @@ export default function ClientPreviewView({
           <div className="grid grid-cols-2 gap-3">
             {suggestions.map((a) => (
               <div key={a.id} className="rounded-md border border-neutral-200 bg-white p-3">
-                <p className="text-sm font-medium text-[#5C2A1D]">{a.nom}</p>
+                <p className="text-sm font-medium text-[#171717]">{a.nom}</p>
                 <p className="text-xs text-neutral-400">
                   {a.disponibilites || "Disponibilités sur demande"}
                 </p>
@@ -470,7 +470,7 @@ export default function ClientPreviewView({
                 <button
                   disabled={!!interests[a.id]}
                   onClick={() => setInterests({ ...interests, [a.id]: true })}
-                  className="mt-2 w-full rounded-md bg-[#5C2A1D] px-2 py-1 text-xs text-white disabled:opacity-50"
+                  className="mt-2 w-full rounded-md bg-[#171717] px-2 py-1 text-xs text-white disabled:opacity-50"
                 >
                   {interests[a.id] ? "Intérêt enregistré ✓" : "Je suis intéressé(e)"}
                 </button>
@@ -481,7 +481,7 @@ export default function ClientPreviewView({
       )}
 
       <div>
-        <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">
+        <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
           Besoin d&apos;aide ?
         </h2>
         <div className="rounded-md bg-white p-4">
@@ -503,7 +503,7 @@ export default function ClientPreviewView({
               href="https://wa.me/201556221115"
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-[#5C2A1D]"
+              className="font-medium text-[#171717]"
             >
               Contacter ma conseillère →
             </a>
@@ -512,7 +512,7 @@ export default function ClientPreviewView({
       </div>
 
       <div>
-        <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">Un souci ?</h2>
+        <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">Un souci ?</h2>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
             <span>Je veux annuler une activité</span>
@@ -520,21 +520,21 @@ export default function ClientPreviewView({
               href="https://wa.me/201556221115"
               target="_blank"
               rel="noreferrer"
-              className="mt-1 block font-medium text-[#5C2A1D]"
+              className="mt-1 block font-medium text-[#171717]"
             >
               Voir les conditions →
             </a>
           </div>
           <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
             <span>Je ne trouve pas mon transfert</span>
-            <a href="tel:+201556221115" className="mt-1 block font-medium text-[#5C2A1D]">
+            <a href="tel:+201556221115" className="mt-1 block font-medium text-[#171717]">
               Numéro spécial transfert →
             </a>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-md bg-[#5C2A1D] p-4 text-white">
+      <div className="flex items-center justify-between rounded-md bg-[#171717] p-4 text-white">
         <div>
           <h3 className="font-heading font-semibold">Une autre question ?</h3>
           <p className="text-xs text-white/80">

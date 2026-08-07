@@ -137,7 +137,7 @@ function MiniMonth({
 
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3">
-      <p className="mb-2 text-center text-sm font-semibold capitalize text-[#5C2A1D]">
+      <p className="mb-2 text-center text-sm font-semibold capitalize text-[#171717]">
         {MONTH_NAMES_FULL[month]} {year}
       </p>
       <div className="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] text-neutral-400">
@@ -203,9 +203,9 @@ function DetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-5 shadow-lg">
+      <div className="max-h-[80vh] w-full max-w-md overflow-y-auto rounded-[6px] border border-[#eaeaea] bg-white p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-heading text-base font-semibold capitalize text-[#5C2A1D]">
+          <h3 className="font-heading text-base font-semibold capitalize text-[#171717]">
             {base.toLocaleDateString("fr-FR", {
               weekday: view === "jour" ? "long" : undefined,
               day: "numeric",
@@ -224,7 +224,7 @@ function DetailModal({
               onClick={() => setView(v)}
               className={`rounded-full border px-3 py-1 text-xs font-medium capitalize ${
                 view === v
-                  ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                  ? "border-[#171717] bg-[#171717] text-white"
                   : "border-neutral-300 text-neutral-600"
               }`}
             >
@@ -599,7 +599,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
         <button
           onClick={() => setTab("planning")}
           className={`rounded-full border px-3 py-1.5 text-sm ${
-            tab === "planning" ? "border-[#5C2A1D] bg-[#5C2A1D] text-white" : "border-neutral-300 bg-white text-neutral-600"
+            tab === "planning" ? "border-[#171717] bg-[#171717] text-white" : "border-neutral-300 bg-white text-neutral-600"
           }`}
         >
           Planning
@@ -607,7 +607,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
         <button
           onClick={() => setTab("conges")}
           className={`rounded-full border px-3 py-1.5 text-sm ${
-            tab === "conges" ? "border-[#5C2A1D] bg-[#5C2A1D] text-white" : "border-neutral-300 bg-white text-neutral-600"
+            tab === "conges" ? "border-[#171717] bg-[#171717] text-white" : "border-neutral-300 bg-white text-neutral-600"
           }`}
         >
           Congés
@@ -619,10 +619,10 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
           {isDirection && (
             <div className="mb-4 rounded-md border border-dashed border-neutral-300 bg-white p-3">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold text-[#5C2A1D]">Modification du planning</p>
+                <p className="text-sm font-semibold text-[#171717]">Modification du planning</p>
                 <button
                   onClick={() => setAdminCollapsed((v) => !v)}
-                  className="text-xs font-medium text-[#8B4531] hover:underline"
+                  className="text-xs font-medium text-[#666666] hover:underline"
                 >
                   {adminCollapsed ? "Déplier ▾" : "Replier ▴"}
                 </button>
@@ -638,7 +638,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                     onClick={() => setActiveSemaine("A")}
                     className={`rounded-full border px-3 py-1 text-xs font-medium ${
                       activeSemaine === "A"
-                        ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                        ? "border-[#171717] bg-[#171717] text-white"
                         : "border-neutral-300 text-neutral-600"
                     }`}
                   >
@@ -648,7 +648,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                     onClick={() => setActiveSemaine("B")}
                     className={`rounded-full border px-3 py-1 text-xs font-medium ${
                       activeSemaine === "B"
-                        ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                        ? "border-[#171717] bg-[#171717] text-white"
                         : "border-neutral-300 text-neutral-600"
                     }`}
                   >
@@ -759,7 +759,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                 <span className="text-xs text-neutral-500">semaines</span>
                 <button
                   onClick={generatePlanning}
-                  className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                 >
                   Générer / Dupliquer
                 </button>
@@ -850,11 +850,11 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                 <div
                   key={iso}
                   className={`w-56 flex-shrink-0 rounded-lg p-3 ${
-                    isToday ? "bg-[#F2E6D2]/70" : "bg-neutral-50"
+                    isToday ? "bg-[#fafafa]/70" : "bg-neutral-50"
                   }`}
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold capitalize text-[#5C2A1D]">
+                    <p className="text-sm font-semibold capitalize text-[#171717]">
                       {d.toLocaleDateString("fr-FR", {
                         weekday: "short",
                         day: "numeric",
@@ -963,7 +963,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
           {!isDirection && (
             <div className="rounded-md border border-dashed border-neutral-300 bg-white p-3">
               <p className="mb-1 text-sm font-medium text-neutral-700">Demander un congé</p>
-              <p className="mb-2 text-xs text-[#8B4531]">
+              <p className="mb-2 text-xs text-[#666666]">
                 ⚠️ Pas de congé possible en avril, août et octobre — mois de forte affluence pour
                 l&apos;agence.
               </p>
@@ -997,7 +997,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
           )}
 
           {!isDirection && userId && (
-            <div className="rounded-md bg-[#F2E6D2]/50 p-3 text-sm text-[#5C2A1D]">
+            <div className="rounded-md bg-[#fafafa]/50 p-3 text-sm text-[#171717]">
               <p>
                 Congés pris en {thisYear} : <strong>{congesTotalFor(userId)} jour(s)</strong>
               </p>
@@ -1012,7 +1012,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                   .sort((a, b) => a.date_debut.localeCompare(b.date_debut));
                 if (mine.length === 0) return null;
                 return (
-                  <ul className="mt-2 space-y-0.5 text-xs text-[#5C2A1D]/80">
+                  <ul className="mt-2 space-y-0.5 text-xs text-[#171717]/80">
                     {mine.map((c) => (
                       <li key={c.id}>
                         {fmtDate(c.date_debut)}
@@ -1038,8 +1038,8 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                   return (
                     <div key={p.id} className="rounded-md border border-neutral-200 bg-white p-3">
                       <div className="mb-2 flex items-center justify-between">
-                        <p className="text-sm font-semibold text-[#5C2A1D]">{nameFor(p.id)}</p>
-                        <span className="rounded-full bg-[#F2E6D2] px-2 py-0.5 text-xs font-medium text-[#5C2A1D]">
+                        <p className="text-sm font-semibold text-[#171717]">{nameFor(p.id)}</p>
+                        <span className="rounded-full bg-[#fafafa] px-2 py-0.5 text-xs font-medium text-[#171717]">
                           {congesTotalFor(p.id)} jour(s)
                         </span>
                       </div>
@@ -1122,8 +1122,8 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
 
       {missingPrenomProfile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-lg">
-            <h3 className="mb-1 font-heading text-base font-semibold text-[#5C2A1D]">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-5">
+            <h3 className="mb-1 font-heading text-base font-semibold text-[#171717]">
               Nouveau membre de l&apos;équipe
             </h3>
             <p className="mb-3 text-sm text-neutral-500">
@@ -1157,7 +1157,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                   savePrenom(missingPrenomProfile.id, prenomModalInput);
                   setPrenomModalInput("");
                 }}
-                className="rounded-md bg-[#5C2A1D] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                className="rounded-md bg-[#171717] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
               >
                 Enregistrer
               </button>

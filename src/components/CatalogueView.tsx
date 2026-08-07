@@ -48,18 +48,18 @@ function CardPhoto({ path, alt }: { path: string; alt: string }) {
 
   if (!url) {
     return (
-      <div className="flex h-64 w-full items-center justify-center rounded-xl bg-[#F2E6D2] text-sm text-[#8B4531]/50">
+      <div className="flex h-64 w-full items-center justify-center rounded-[6px] bg-[#fafafa] text-sm text-[#666666]/50">
         Pas de photo
       </div>
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt={alt} className="h-64 w-full rounded-xl object-cover" />;
+  return <img src={url} alt={alt} className="h-64 w-full rounded-[6px] object-cover" />;
 }
 
 function RowIcon({ children }: { children: React.ReactNode }) {
   return (
-    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#F2E6D2] text-[#8B4531]">
+    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#fafafa] text-[#666666]">
       {children}
     </span>
   );
@@ -154,7 +154,7 @@ function InfoRow({
     <div className="flex items-start gap-3 border-b border-neutral-100 py-3 last:border-0">
       <RowIcon>{icon}</RowIcon>
       <div className="min-w-0 flex-1 pt-1">
-        <p className="text-xs font-medium uppercase tracking-wide text-[#8B4531]/60">{label}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-[#666666]/60">{label}</p>
         {children ? children : <p className="text-sm text-neutral-700">{value}</p>}
       </div>
     </div>
@@ -227,7 +227,7 @@ function AvailabilityCalendar({
         >
           ‹
         </button>
-        <p className="text-sm font-medium capitalize text-[#5C2A1D]">
+        <p className="text-sm font-medium capitalize text-[#171717]">
           {MONTH_NAMES[month]} {year}
         </p>
         <button
@@ -448,7 +448,7 @@ export default function CatalogueView({
     <div className="mx-auto max-w-5xl space-y-3 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-heading text-xl font-semibold text-[#5C2A1D]">
+          <h2 className="font-heading text-xl font-semibold text-[#171717]">
             Catalogue d&apos;activités
           </h2>
           <p className="mt-1 text-sm text-neutral-500">
@@ -471,7 +471,7 @@ export default function CatalogueView({
             onClick={() => setCategoryFilter(cat)}
             className={`rounded-full border px-3 py-1 text-xs font-medium ${
               categoryFilter === cat
-                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
@@ -520,14 +520,14 @@ export default function CatalogueView({
           a.valide ? (
             <div
               key={a.id}
-              className="overflow-hidden rounded-2xl border border-[#5C2A1D]/10 bg-white shadow-sm"
+              className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white"
             >
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px]">
                 {/* LEFT: photo + description + details */}
                 <div className="p-5">
                   <div className="mb-3 flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="font-heading text-lg font-semibold text-[#5C2A1D]">
+                      <h3 className="font-heading text-lg font-semibold text-[#171717]">
                         {a.nom || "Sans nom"}
                       </h3>
                       <p className="text-xs text-neutral-400">{a.categorie}</p>
@@ -535,13 +535,13 @@ export default function CatalogueView({
                         {(a.tags || []).map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full bg-[#5C2A1D]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#5C2A1D]"
+                            className="rounded-full bg-[#171717]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#171717]"
                           >
                             {tag}
                           </span>
                         ))}
                         {topVenteIds.has(a.id) && (
-                          <span className="rounded-full bg-[#C9973E]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#8B4531]">
+                          <span className="rounded-full bg-[#C9973E]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#666666]">
                             🏆 Top des ventes
                           </span>
                         )}
@@ -560,7 +560,7 @@ export default function CatalogueView({
                       )}
                       <button
                         onClick={() => onUpdate(a.id, { valide: false })}
-                        className="rounded-md border border-[#5C2A1D]/20 px-2.5 py-1 text-xs font-medium text-[#5C2A1D] hover:bg-[#F2E6D2]/60"
+                        className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
                       >
                         ✎ Modifier
                       </button>
@@ -571,24 +571,24 @@ export default function CatalogueView({
                     <CardPhoto path={a.photo_path} alt={a.nom} />
                     <div className="absolute left-3 top-3 flex flex-wrap gap-2">
                       {a.duree && (
-                        <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-[#5C2A1D] shadow-sm backdrop-blur">
+                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
                           ⏱ {a.duree}
                         </span>
                       )}
                       {a.horaire_approx && (
-                        <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-[#5C2A1D] shadow-sm backdrop-blur">
+                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
                           🕐 {a.horaire_approx}
                         </span>
                       )}
                       {a.point_rdv && (
-                        <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-[#5C2A1D] shadow-sm backdrop-blur">
+                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
                           📍 {a.point_rdv}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <h4 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Description</h4>
+                  <h4 className="mb-2 text-sm font-semibold text-[#171717]">Description</h4>
                   <p className="mb-3 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
                     {a.description || (
                       <span className="italic text-neutral-400">
@@ -622,7 +622,7 @@ export default function CatalogueView({
 
                   {a.programme && (
                     <>
-                      <h4 className="mb-2 text-sm font-semibold text-[#5C2A1D]">
+                      <h4 className="mb-2 text-sm font-semibold text-[#171717]">
                         Programme complet
                       </h4>
                       <p className="mb-5 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
@@ -631,7 +631,7 @@ export default function CatalogueView({
                     </>
                   )}
 
-                  <h4 className="mb-1 text-sm font-semibold text-[#5C2A1D]">
+                  <h4 className="mb-1 text-sm font-semibold text-[#171717]">
                     Ce qu&apos;il faut savoir
                   </h4>
                   <div className="mb-5">
@@ -683,7 +683,7 @@ export default function CatalogueView({
 
                   {(faq[a.id] || []).length > 0 && (
                     <>
-                      <h4 className="mb-1 text-sm font-semibold text-[#5C2A1D]">FAQ</h4>
+                      <h4 className="mb-1 text-sm font-semibold text-[#171717]">FAQ</h4>
                       <div className="divide-y divide-neutral-100">
                         {(faq[a.id] || []).map((f) => (
                           <details key={f.id} className="group py-2">
@@ -708,8 +708,8 @@ export default function CatalogueView({
                 </div>
 
                 {/* RIGHT: tarifs sidebar */}
-                <div className="border-t border-neutral-100 bg-[#F2E6D2]/30 p-5 lg:border-l lg:border-t-0">
-                  <h4 className="mb-3 text-sm font-semibold text-[#5C2A1D]">Tarifs</h4>
+                <div className="border-t border-neutral-100 bg-[#fafafa]/30 p-5 lg:border-l lg:border-t-0">
+                  <h4 className="mb-3 text-sm font-semibold text-[#171717]">Tarifs</h4>
                   <div className="mb-5 space-y-2">
                     <div className="flex items-center gap-3">
                       <RowIcon>
@@ -719,7 +719,7 @@ export default function CatalogueView({
                         <p className="text-sm text-neutral-700">Adulte</p>
                         <p className="text-[11px] text-neutral-400">{a.pu_adulte_age}</p>
                       </div>
-                      <span className="font-amounts text-sm text-[#5C2A1D]">
+                      <span className="font-amounts text-sm text-[#171717]">
                         {euros(a.pu_adulte)}€
                       </span>
                     </div>
@@ -731,7 +731,7 @@ export default function CatalogueView({
                         <p className="text-sm text-neutral-700">Enfant</p>
                         <p className="text-[11px] text-neutral-400">{a.pu_enfant_age}</p>
                       </div>
-                      <span className="font-amounts text-sm text-[#5C2A1D]">
+                      <span className="font-amounts text-sm text-[#171717]">
                         {euros(a.pu_enfant)}€
                       </span>
                     </div>
@@ -743,7 +743,7 @@ export default function CatalogueView({
                         <p className="text-sm text-neutral-700">Bébé</p>
                         <p className="text-[11px] text-neutral-400">{a.pu_bebe_age}</p>
                       </div>
-                      <span className="font-amounts text-sm text-[#5C2A1D]">
+                      <span className="font-amounts text-sm text-[#171717]">
                         {euros(a.pu_bebe)}€
                       </span>
                     </div>
@@ -754,7 +754,7 @@ export default function CatalogueView({
                     if (filledTarifs.length === 0) return null;
                     return (
                       <>
-                        <h4 className="mb-3 text-sm font-semibold text-[#5C2A1D]">
+                        <h4 className="mb-3 text-sm font-semibold text-[#171717]">
                           Tarifs supplémentaires
                         </h4>
                         <div className="mb-3 space-y-2">
@@ -766,7 +766,7 @@ export default function CatalogueView({
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm text-neutral-700">{t.label}</p>
                               </div>
-                              <span className="font-amounts text-sm text-[#5C2A1D]">
+                              <span className="font-amounts text-sm text-[#171717]">
                                 {euros(t.pu)}€
                               </span>
                             </div>
@@ -780,12 +780,12 @@ export default function CatalogueView({
                       onUpdate(a.id, { valide: false });
                       onAddTarif(a.id);
                     }}
-                    className="w-full rounded-full bg-[#5C2A1D] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                    className="w-full rounded-full bg-[#171717] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
                   >
                     + Ajouter un tarif
                   </button>
 
-                  <h4 className="mb-3 mt-6 text-sm font-semibold text-[#5C2A1D]">
+                  <h4 className="mb-3 mt-6 text-sm font-semibold text-[#171717]">
                     Disponibilités
                   </h4>
                   <AvailabilityCalendar
@@ -797,14 +797,14 @@ export default function CatalogueView({
               </div>
             </div>
           ) : (
-            <div key={a.id} className="rounded-2xl border border-[#C9973E]/40 bg-white p-4">
+            <div key={a.id} className="rounded-[6px] border border-[#C9973E]/40 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
-                <span className="rounded-full bg-[#C9973E]/20 px-3 py-1 text-xs text-[#8B4531]">
+                <span className="rounded-full bg-[#C9973E]/20 px-3 py-1 text-xs text-[#666666]">
                   ✎ Brouillon
                 </span>
                 <button
                   onClick={() => onUpdate(a.id, { valide: true })}
-                  className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm text-white hover:opacity-90"
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm text-white hover:opacity-90"
                 >
                   ✓ Valider cette activité
                 </button>
@@ -861,7 +861,7 @@ export default function CatalogueView({
                         onClick={() => toggleJour(a, j)}
                         className={`rounded-full border px-3 py-1 text-xs font-medium ${
                           active
-                            ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                            ? "border-[#171717] bg-[#171717] text-white"
                             : "border-neutral-300 text-neutral-600"
                         }`}
                       >

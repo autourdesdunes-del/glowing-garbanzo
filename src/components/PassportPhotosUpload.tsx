@@ -84,7 +84,7 @@ export default function PassportPhotosUpload({
             </button>
           </div>
         ))}
-        <label className="flex h-20 w-28 cursor-pointer items-center justify-center rounded-md border border-dashed border-neutral-300 text-center text-xs text-neutral-500 hover:border-[#5C2A1D]">
+        <label className="flex h-20 w-28 cursor-pointer items-center justify-center rounded-md border border-dashed border-neutral-300 text-center text-xs text-neutral-500 hover:border-[#171717]">
           {uploading ? "Envoi…" : "+ Ajouter"}
           <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
         </label>

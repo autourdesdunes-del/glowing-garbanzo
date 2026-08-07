@@ -53,7 +53,7 @@ export default function GlobalSearch({
         className="input"
       />
       {focused && q.length >= 2 && (
-        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-80 overflow-y-auto rounded-md border border-neutral-200 bg-white shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-80 overflow-y-auto rounded-md border border-[#eaeaea] bg-white">
           {!hasResults && (
             <div className="p-3 text-sm text-neutral-400">Aucun résultat.</div>
           )}
@@ -66,9 +66,9 @@ export default function GlobalSearch({
                 <button
                   key={c.id}
                   onMouseDown={() => select(c.id)}
-                  className="block w-full px-3 py-2 text-left text-sm hover:bg-[#F2E6D2]"
+                  className="block w-full px-3 py-2 text-left text-sm hover:bg-[#fafafa]"
                 >
-                  <span className="font-medium text-[#5C2A1D]">{c.nom || "Sans nom"}</span>
+                  <span className="font-medium text-[#171717]">{c.nom || "Sans nom"}</span>
                   {c.telephone && (
                     <span className="ml-2 text-xs text-neutral-400">{c.telephone}</span>
                   )}
@@ -87,9 +87,9 @@ export default function GlobalSearch({
                   <button
                     key={r.id}
                     onMouseDown={() => select(r.client_id)}
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-[#F2E6D2]"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-[#fafafa]"
                   >
-                    <span className="font-medium text-[#5C2A1D]">
+                    <span className="font-medium text-[#171717]">
                       {r.nom_activite || "Activité sans nom"}
                     </span>
                     <span className="ml-2 text-xs text-neutral-400">

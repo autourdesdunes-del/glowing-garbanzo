@@ -143,33 +143,27 @@ function Icon({ name, className }: { name: keyof typeof ICONS; className?: strin
   return <IconSvg path={ICONS[name]} className={className} />;
 }
 
-function StatTile({
-  icon,
+// Traitement typographique, pas de carte : pas de bordure, pas de fond,
+// pas d'icône par métrique — seule la couleur d'état signale la sévérité.
+function Metric({
   label,
   value,
   sub,
   tone,
+  first,
 }: {
-  icon: keyof typeof ICONS;
   label: string;
   value: string;
   sub?: string;
   tone: "default" | "error";
+  first?: boolean;
 }) {
-  // Une seule surface (bg-subtle + bordure fine, pas d'ombre). Le seul
-  // signal de sévérité disponible est la couleur d'état sur la valeur
-  // elle-même — jamais une couleur de marque décorative.
   const valueClass = tone === "error" ? "text-[#EE0000]" : "text-[#171717]";
   return (
-    <div className="rounded-[6px] border border-[#eaeaea] bg-[#fafafa] p-5">
-      <div className="flex items-start justify-between">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-[#666666]">{label}</p>
-        <span className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[#eaeaea] bg-white text-[#666666]">
-          <Icon name={icon} className="h-4 w-4" />
-        </span>
-      </div>
-      <p className={`font-amounts mt-3 text-3xl font-semibold ${valueClass}`}>{value}</p>
-      {sub && <p className="mt-1 text-xs text-[#666666]">{sub}</p>}
+    <div className={`flex-1 px-5 ${first ? "pl-0" : "border-l border-[#eaeaea]"}`}>
+      <p className="text-[11px] font-medium text-[#666666]">{label}</p>
+      <p className={`font-amounts mt-1.5 text-[28px] font-bold leading-none ${valueClass}`}>{value}</p>
+      {sub && <p className="mt-1.5 text-xs text-[#666666]">{sub}</p>}
     </div>
   );
 }
@@ -442,31 +436,27 @@ export default function DashboardView({
         <QuickAddClient onCreate={onCreateClient} />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        <StatTile icon="users" label="Clients en Égypte" value={String(clientsInEgypt.length)} tone="default" />
-        <StatTile
-          icon="alert"
+      <div className="flex">
+        <Metric first label="Clients en Égypte" value={String(clientsInEgypt.length)} tone="default" />
+        <Metric
           label="Cas urgents"
           value={String(urgentCount)}
           sub={urgentCount > 0 ? "aujourd'hui" : "rien pour l'instant"}
           tone={urgentCount > 0 ? "error" : "default"}
         />
-        <StatTile
-          icon="target"
+        <Metric
           label="Prospects à relancer"
           value={String(staleProspects.length)}
           sub="arrivée < 14 j"
           tone="default"
         />
-        <StatTile
-          icon="clipboard"
+        <Metric
           label="Dossiers incomplets"
           value={String(incompleteUpcoming.length)}
           sub="arrivée < 14 j"
           tone="default"
         />
-        <StatTile
-          icon="car"
+        <Metric
           label="Pick-ups manquants"
           value={String(pickupsMissingTomorrow.length)}
           sub="demain"
@@ -666,7 +656,12 @@ export default function DashboardView({
           </div>
 
           {isDirection && (
-            <StatTile icon="wallet" label="CA (activités)" value={`${euros(caTotal)} €`} tone="default" />
+            <div>
+              <p className="text-[11px] font-medium text-[#666666]">CA (activités)</p>
+              <p className="font-amounts mt-1.5 text-[28px] font-bold leading-none text-[#171717]">
+                {euros(caTotal)} €
+              </p>
+            </div>
           )}
         </div>
       </div>

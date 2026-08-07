@@ -47,16 +47,16 @@ export default function ChangePasswordButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-[#5C2A1D] hover:bg-[#F2E6D2]"
+        className="rounded-md border border-[#666666]/30 px-3 py-1.5 text-[#171717] hover:bg-[#fafafa]"
       >
         Mot de passe
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-heading text-lg font-semibold text-[#5C2A1D]">
+              <h2 className="font-heading text-lg font-semibold text-[#171717]">
                 Changer mon mot de passe
               </h2>
               <button onClick={close} className="text-neutral-400 hover:text-neutral-600">
@@ -66,12 +66,12 @@ export default function ChangePasswordButton() {
 
             {success ? (
               <div>
-                <p className="mb-4 text-sm text-[#5C2A1D]">
+                <p className="mb-4 text-sm text-[#171717]">
                   Mot de passe mis à jour ✓
                 </p>
                 <button
                   onClick={close}
-                  className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+                  className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
                 >
                   Fermer
                 </button>
@@ -104,7 +104,7 @@ export default function ChangePasswordButton() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                 >
                   {loading ? "Enregistrement…" : "Enregistrer"}
                 </button>

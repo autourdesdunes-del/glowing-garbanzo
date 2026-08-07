@@ -44,7 +44,7 @@ export default function MonthlyBarChart({
                 width={barWidth}
                 height={barHeight}
                 rx={3}
-                fill="#5C2A1D"
+                fill="#171717"
                 opacity={0.85}
               />
               <text

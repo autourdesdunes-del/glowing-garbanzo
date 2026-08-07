@@ -52,20 +52,20 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[#8B4531]/15 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between px-5 py-3.5 text-left"
       >
         <span className="flex items-center gap-2">
-          <span className="font-heading text-sm font-semibold text-[#5C2A1D]">{title}</span>
+          <span className="font-heading text-sm font-semibold text-[#171717]">{title}</span>
           {titleExtra}
         </span>
         <span className={`text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}>
           ⌄
         </span>
       </button>
-      {open && <div className="border-t border-[#8B4531]/10 px-5 py-5">{children}</div>}
+      {open && <div className="border-t border-[#666666]/10 px-5 py-5">{children}</div>}
     </div>
   );
 }
@@ -367,26 +367,26 @@ export default function ClientDetail({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <div className="rounded-lg border border-[#8B4531]/15 bg-white p-5 shadow-sm">
+      <div className="rounded-[6px] border border-[#eaeaea] bg-white p-5">
         <div className="flex items-start justify-between gap-3">
           <input
             value={client.nom}
             onChange={(e) => onChange({ nom: e.target.value })}
             placeholder="Nom du client"
-            className="font-heading min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#5C2A1D] hover:border-neutral-200 focus:border-[#5C2A1D] focus:outline-none"
+            className="font-heading min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
           />
           <div className="flex flex-shrink-0 gap-2">
             <button
               onClick={() => handleDownload("devis")}
               disabled={generatingDoc !== null}
-              className="whitespace-nowrap rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-sm text-[#5C2A1D] hover:bg-[#F2E6D2] disabled:opacity-50"
+              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-3 py-1.5 text-sm text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
             >
               {generatingDoc === "devis" ? "Génération…" : "Devis (PDF)"}
             </button>
             <button
               onClick={() => handleDownload("facture")}
               disabled={generatingDoc !== null}
-              className="whitespace-nowrap rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-sm text-[#5C2A1D] hover:bg-[#F2E6D2] disabled:opacity-50"
+              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-3 py-1.5 text-sm text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
             >
               {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
             </button>
@@ -414,7 +414,7 @@ export default function ClientDetail({
             </span>
           )}
           {(client.date_debut || client.date_fin) && (
-            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-3 py-1 text-[#8B4531]">
+            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-3 py-1 text-[#666666]">
               {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
             </span>
           )}
@@ -436,7 +436,7 @@ export default function ClientDetail({
 
       {autresSejours.length > 0 && (
         <div className="rounded-lg border border-[#C9973E]/40 bg-[#C9973E]/10 p-4">
-          <p className="text-sm text-[#8B4531]">
+          <p className="text-sm text-[#666666]">
             🔁 Ce client est déjà venu — {autresSejours.length} autre(s) séjour(s) enregistré(s) :
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -444,7 +444,7 @@ export default function ClientDetail({
               <button
                 key={c.id}
                 onClick={() => onJumpToClient(c.id)}
-                className="rounded-full bg-white px-3 py-1 text-xs text-[#5C2A1D] hover:bg-neutral-50"
+                className="rounded-full bg-white px-3 py-1 text-xs text-[#171717] hover:bg-neutral-50"
               >
                 {c.nom || "Sans nom"} — {fmtDate(c.date_debut)}
               </button>
@@ -456,12 +456,12 @@ export default function ClientDetail({
       <div className="flex items-center justify-between gap-3 text-xs">
         <button
           onClick={() => onDuplicateAsNewStay(client)}
-          className="text-[#5C2A1D] hover:underline"
+          className="text-[#171717] hover:underline"
         >
           + Nouveau séjour pour ce même client
         </button>
         <div className="flex gap-3">
-          <button onClick={expandAll} className="text-[#5C2A1D] hover:underline">
+          <button onClick={expandAll} className="text-[#171717] hover:underline">
             Tout déplier
           </button>
           <button onClick={collapseAll} className="text-neutral-400 hover:underline">
@@ -513,7 +513,7 @@ export default function ClientDetail({
         title="Paiements"
         titleExtra={
           <span className="flex items-center gap-1.5">
-            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-semibold text-[#8B4531]">
+            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-semibold text-[#666666]">
               {euros(totalSejourHeader)} €
             </span>
             <span
@@ -570,7 +570,7 @@ function TagEditor({
       {tags.map((tag) => (
         <span
           key={tag}
-          className="flex items-center gap-1 rounded-full bg-[#5C2A1D] px-2.5 py-1 text-xs text-white"
+          className="flex items-center gap-1 rounded-full bg-[#171717] px-2.5 py-1 text-xs text-white"
         >
           {tag}
           <button onClick={() => removeTag(tag)} className="text-white/70 hover:text-white">
@@ -582,7 +582,7 @@ function TagEditor({
         <button
           key={s}
           onClick={() => addTag(s)}
-          className="rounded-full border border-dashed border-neutral-300 px-2.5 py-1 text-xs text-neutral-400 hover:border-[#5C2A1D] hover:text-[#5C2A1D]"
+          className="rounded-full border border-dashed border-neutral-300 px-2.5 py-1 text-xs text-neutral-400 hover:border-[#171717] hover:text-[#171717]"
         >
           + {s}
         </button>

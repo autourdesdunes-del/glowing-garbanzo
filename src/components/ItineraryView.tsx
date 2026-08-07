@@ -153,10 +153,10 @@ export default function ItineraryView({
       <div
         key={r.id}
         onClick={() => onToggleExpand(r.id)}
-        className="cursor-pointer rounded-md bg-[#F2E6D2]/50 px-3 py-2.5 text-sm hover:bg-[#F2E6D2]"
+        className="cursor-pointer rounded-md bg-[#fafafa]/50 px-3 py-2.5 text-sm hover:bg-[#fafafa]"
       >
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-medium text-[#5C2A1D]">{r.nom_activite || "Activité sans nom"}</span>
+          <span className="font-medium text-[#171717]">{r.nom_activite || "Activité sans nom"}</span>
           {acompteWarning && (
             <span className="text-xs font-medium text-yellow-700">
               ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
@@ -189,7 +189,7 @@ export default function ItineraryView({
         </div>
         <div className="mt-1 text-xs text-neutral-500">{paxLine(r, client)}</div>
         <div className="mt-1.5 flex items-center justify-between">
-          <span className="font-amounts text-xs font-medium text-[#5C2A1D]">{euros(total)} €</span>
+          <span className="font-amounts text-xs font-medium text-[#171717]">{euros(total)} €</span>
           {badge && (
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
               {badge.label}
@@ -219,9 +219,9 @@ export default function ItineraryView({
   return (
     <div className="space-y-4">
       {dateless.length > 0 && (
-        <div className="rounded-md border border-[#8B4531]/15 bg-white p-4">
+        <div className="rounded-md border border-[#666666]/15 bg-white p-4">
           <div className="mb-2">
-            <span className="font-heading text-sm font-semibold text-[#5C2A1D]">
+            <span className="font-heading text-sm font-semibold text-[#171717]">
               Activités sans date
             </span>
           </div>
@@ -237,9 +237,9 @@ export default function ItineraryView({
         });
 
         return (
-          <div key={day} className="rounded-md border border-[#8B4531]/15 bg-white p-4">
+          <div key={day} className="rounded-md border border-[#666666]/15 bg-white p-4">
             <div className="mb-2">
-              <span className="font-heading text-sm font-semibold capitalize text-[#5C2A1D]">
+              <span className="font-heading text-sm font-semibold capitalize text-[#171717]">
                 {fmtDate(day)}
               </span>
             </div>

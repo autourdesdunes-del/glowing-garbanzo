@@ -99,11 +99,11 @@ export default function ReservationCard({
       return (
         <div
           onClick={() => onToggleExpanded(true)}
-          className="cursor-pointer rounded-md border border-[#5C2A1D]/30 bg-white p-3"
+          className="cursor-pointer rounded-md border border-[#171717]/30 bg-white p-3"
         >
           <div className="flex items-center gap-2">
-            <span className="text-[#5C2A1D]">✓</span>
-            <span className="font-medium text-[#5C2A1D]">
+            <span className="text-[#171717]">✓</span>
+            <span className="font-medium text-[#171717]">
               {r.nom_activite || "Activité sans nom"}
             </span>
             <span className="flex-1" />
@@ -145,7 +145,7 @@ export default function ReservationCard({
         onClick={() => onToggleExpanded(true)}
         className="cursor-pointer rounded-md border border-[#C9973E]/40 bg-white p-3"
       >
-        <p className="font-medium text-[#5C2A1D]">
+        <p className="font-medium text-[#171717]">
           {r.nom_activite || "Activité sans nom"}
           {soldeIci && !client.solde_paye && (
             <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
@@ -190,7 +190,7 @@ export default function ReservationCard({
   }
 
   return (
-    <div className="rounded-md border border-[#8B4531]/20 bg-white p-4">
+    <div className="rounded-md border border-[#666666]/20 bg-white p-4">
       {catalogue.length > 0 && (
         <select
           defaultValue=""
@@ -221,14 +221,14 @@ export default function ReservationCard({
         </button>
         <button
           onClick={() => onToggleExpanded(false)}
-          className="text-xs font-medium text-[#5C2A1D] hover:underline"
+          className="text-xs font-medium text-[#171717] hover:underline"
         >
           Valider
         </button>
       </div>
 
       {options.length > 0 && (
-        <div className="mb-3 rounded-md bg-[#C9973E]/10 px-3 py-2 text-xs text-[#8B4531]">
+        <div className="mb-3 rounded-md bg-[#C9973E]/10 px-3 py-2 text-xs text-[#666666]">
           ⚠ Option(s) ajoutée(s) : {options.map((o) => o.nom).join(", ")}
         </div>
       )}
@@ -344,7 +344,7 @@ export default function ReservationCard({
               key={ct.id}
               type="button"
               onClick={() => onAddTarif({ label: ct.label, pu: ct.pu })}
-              className="mb-2 mr-2 rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-500 hover:border-[#5C2A1D] hover:text-[#5C2A1D]"
+              className="mb-2 mr-2 rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-500 hover:border-[#171717] hover:text-[#171717]"
             >
               + {ct.label} ({euros(ct.pu)} €)
             </button>
@@ -352,7 +352,7 @@ export default function ReservationCard({
         <button
           type="button"
           onClick={() => onAddTarif()}
-          className="text-xs text-[#5C2A1D] hover:underline"
+          className="text-xs text-[#171717] hover:underline"
         >
           + Ajouter un PU supplémentaire
         </button>
@@ -366,7 +366,7 @@ export default function ReservationCard({
             onClick={() => onUpdate({ participants_mode: "tous" })}
             className={`rounded-full border px-3 py-1 text-xs ${
               r.participants_mode === "tous"
-                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
@@ -490,7 +490,7 @@ export default function ReservationCard({
             onClick={() => onUpdate({ transfert_inclus: true })}
             className={`rounded-full border px-3 py-1 text-xs ${
               r.transfert_inclus
-                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
@@ -558,7 +558,7 @@ export default function ReservationCard({
         </Field>
       </div>
 
-      <div className="mt-4 rounded-md border border-[#8B4531]/15 p-3">
+      <div className="mt-4 rounded-md border border-[#666666]/15 p-3">
         <label className="flex items-center gap-2 text-sm text-neutral-700">
           <input
             type="checkbox"
@@ -627,7 +627,7 @@ export default function ReservationCard({
         )}
       </div>
 
-      <div className="mt-4 border-t border-[#8B4531]/10 pt-3 text-sm">
+      <div className="mt-4 border-t border-[#666666]/10 pt-3 text-sm">
         <div className="flex items-center justify-between gap-3">
           <span>
             Total activité : <strong>{euros(total)} €</strong>

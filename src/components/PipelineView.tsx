@@ -43,8 +43,8 @@ export default function PipelineView({
             }}
             className={`flex w-64 flex-shrink-0 flex-col rounded-lg border p-2 ${
               overStatut === statut
-                ? "border-[#5C2A1D] bg-[#F2E6D2]/60"
-                : "border-[#8B4531]/15 bg-[#F2E6D2]/30"
+                ? "border-[#171717] bg-[#fafafa]/60"
+                : "border-[#666666]/15 bg-[#fafafa]/30"
             }`}
           >
             <div className="mb-2 flex items-center gap-2 px-1">
@@ -52,7 +52,7 @@ export default function PipelineView({
                 className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: STATUT_COLORS[statut] }}
               />
-              <span className="text-xs font-semibold text-[#5C2A1D]">{statut}</span>
+              <span className="text-xs font-semibold text-[#171717]">{statut}</span>
               <span className="ml-auto text-xs text-neutral-400">{items.length}</span>
             </div>
 
@@ -64,11 +64,11 @@ export default function PipelineView({
                   onDragStart={() => setDragId(c.id)}
                   onDragEnd={() => setDragId(null)}
                   onClick={() => onOpenClient(c.id)}
-                  className={`cursor-grab rounded-md border border-neutral-200 bg-white p-3 text-sm shadow-sm active:cursor-grabbing ${
+                  className={`cursor-grab rounded-md border border-[#eaeaea] bg-white p-3 text-sm active:cursor-grabbing ${
                     dragId === c.id ? "opacity-40" : ""
                   }`}
                 >
-                  <div className="font-medium text-[#5C2A1D]">{c.nom || "Sans nom"}</div>
+                  <div className="font-medium text-[#171717]">{c.nom || "Sans nom"}</div>
                   {c.date_debut && (
                     <div className="font-amounts mt-1 text-xs text-neutral-400">
                       {fmtDate(c.date_debut)}
@@ -79,7 +79,7 @@ export default function PipelineView({
                       {(c.tags || []).map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full bg-[#F2E6D2] px-1.5 py-0.5 text-[10px] text-[#5C2A1D]"
+                          className="rounded-full bg-[#fafafa] px-1.5 py-0.5 text-[10px] text-[#171717]"
                         >
                           {tag}
                         </span>

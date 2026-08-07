@@ -634,7 +634,7 @@ function AppShellInner({
 
   if (!loaded) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F2E6D2]">
+      <div className="flex min-h-screen items-center justify-center bg-[#fafafa]">
         <Spinner />
       </div>
     );
@@ -643,8 +643,8 @@ function AppShellInner({
   const currentTab = TABS.find((t) => t.key === mode);
 
   return (
-    <div className="flex min-h-screen bg-[#F2E6D2]">
-      <aside className="flex w-56 flex-shrink-0 flex-col bg-[#5C2A1D]">
+    <div className="flex min-h-screen bg-[#fafafa]">
+      <aside className="flex w-56 flex-shrink-0 flex-col bg-[#171717]">
         <div className="flex items-center gap-2.5 px-4 py-5">
           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">
             AD
@@ -723,8 +723,8 @@ function AppShellInner({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-[#8B4531]/15 bg-white px-6 py-3">
-          <h1 className="flex-shrink-0 whitespace-nowrap font-heading text-base font-semibold text-[#5C2A1D]">
+        <header className="flex items-center gap-3 border-b border-[#666666]/15 bg-white px-6 py-3">
+          <h1 className="flex-shrink-0 whitespace-nowrap font-heading text-base font-semibold text-[#171717]">
             {currentTab?.label}
           </h1>
           <div className="flex min-w-0 flex-1 justify-center">
@@ -739,7 +739,7 @@ function AppShellInner({
             <ChangePasswordButton />
             <button
               onClick={handleSignOut}
-              className="whitespace-nowrap rounded-md border border-[#8B4531]/30 px-3 py-1.5 text-[#5C2A1D] hover:bg-[#F2E6D2]"
+              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-3 py-1.5 text-[#171717] hover:bg-[#fafafa]"
             >
               Déconnexion
             </button>
@@ -769,13 +769,13 @@ function AppShellInner({
 
       {(mode === "team" || mode === "prospects") && (
         <div className="flex flex-1 flex-col">
-          <div className="flex justify-end gap-1 border-b border-[#8B4531]/10 bg-white px-3 py-1.5">
+          <div className="flex justify-end gap-1 border-b border-[#666666]/10 bg-white px-3 py-1.5">
             <button
               onClick={() => setTeamView("liste")}
               className={`rounded-md px-2.5 py-1 text-xs font-medium ${
                 teamView === "liste"
-                  ? "bg-[#5C2A1D] text-white"
-                  : "text-[#5C2A1D] hover:bg-[#F2E6D2]"
+                  ? "bg-[#171717] text-white"
+                  : "text-[#171717] hover:bg-[#fafafa]"
               }`}
             >
               Liste
@@ -784,8 +784,8 @@ function AppShellInner({
               onClick={() => setTeamView("pipeline")}
               className={`rounded-md px-2.5 py-1 text-xs font-medium ${
                 teamView === "pipeline"
-                  ? "bg-[#5C2A1D] text-white"
-                  : "text-[#5C2A1D] hover:bg-[#F2E6D2]"
+                  ? "bg-[#171717] text-white"
+                  : "text-[#171717] hover:bg-[#fafafa]"
               }`}
             >
               Pipeline
@@ -804,13 +804,13 @@ function AppShellInner({
             />
           ) : (
         <div className="flex flex-1 overflow-hidden">
-          <aside className="flex w-72 flex-col border-r border-[#8B4531]/20 bg-white">
-            <div className="flex gap-2 border-b border-[#8B4531]/10 p-3">
+          <aside className="flex w-72 flex-col border-r border-[#666666]/20 bg-white">
+            <div className="flex gap-2 border-b border-[#666666]/10 p-3">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={mode === "prospects" ? "Rechercher un prospect…" : "Rechercher un client…"}
-                className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#5C2A1D] focus:outline-none"
+                className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#171717] focus:outline-none"
               />
               <QuickAddClient
                 onCreate={addClient}
@@ -818,14 +818,14 @@ function AppShellInner({
               />
             </div>
             {allTags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 border-b border-[#8B4531]/10 p-2">
+              <div className="flex flex-wrap gap-1.5 border-b border-[#666666]/10 p-2">
                 {allTags.map((tag) => (
                   <button
                     key={tag}
                     onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
                     className={`rounded-full border px-2 py-0.5 text-xs ${
                       tagFilter === tag
-                        ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                        ? "border-[#171717] bg-[#171717] text-white"
                         : "border-neutral-200 text-neutral-500"
                     }`}
                   >
@@ -844,11 +844,11 @@ function AppShellInner({
                 <button
                   key={c.id}
                   onClick={() => setSelectedId(c.id)}
-                  className={`block w-full border-b border-[#8B4531]/10 px-4 py-3 text-left ${
-                    c.id === selectedId ? "bg-[#F2E6D2]" : "hover:bg-[#F2E6D2]/50"
+                  className={`block w-full border-b border-[#666666]/10 px-4 py-3 text-left ${
+                    c.id === selectedId ? "bg-[#fafafa]" : "hover:bg-[#fafafa]/50"
                   }`}
                 >
-                  <div className="font-medium text-[#5C2A1D]">
+                  <div className="font-medium text-[#171717]">
                     {c.nom || "Sans nom"}
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-xs">
@@ -866,7 +866,7 @@ function AppShellInner({
                     {(c.tags || []).map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full bg-[#F2E6D2] px-2 py-0.5 text-[#5C2A1D]"
+                        className="rounded-full bg-[#fafafa] px-2 py-0.5 text-[#171717]"
                       >
                         {tag}
                       </span>

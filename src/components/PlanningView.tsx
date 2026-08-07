@@ -105,7 +105,7 @@ export default function PlanningView({
             onClick={() => setFilter(f.key)}
             className={`rounded-full border px-3 py-1.5 text-sm ${
               filter === f.key
-                ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+                ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-300 bg-white text-neutral-600"
             }`}
           >
@@ -120,7 +120,7 @@ export default function PlanningView({
 
       {dateKeys.map((date) => (
         <div key={date}>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#5C2A1D]">
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
             {fmtDate(date)}
             {date === grouped.todayStr ? " — aujourd'hui" : ""}
           </h3>
@@ -140,9 +140,9 @@ export default function PlanningView({
                 <div
                   key={r.id}
                   onClick={() => onOpenClient(client.id)}
-                  className="cursor-pointer rounded-md border border-[#8B4531]/20 bg-white p-3"
+                  className="cursor-pointer rounded-md border border-[#666666]/20 bg-white p-3"
                 >
-                  <p className="font-medium text-[#5C2A1D]">
+                  <p className="font-medium text-[#171717]">
                     {r.nom_activite || "Activité"}
                     {soldeIci && !client.solde_paye && (
                       <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
@@ -154,7 +154,7 @@ export default function PlanningView({
                     {r.moment}
                     {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
                   </p>
-                  <p className="text-sm font-medium text-[#5C2A1D]">{client.nom || "Sans nom"}</p>
+                  <p className="text-sm font-medium text-[#171717]">{client.nom || "Sans nom"}</p>
                   <p className="mt-1 text-xs text-neutral-500">
                     {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
                   </p>
@@ -171,7 +171,7 @@ export default function PlanningView({
                   <span
                     className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs ${
                       infoStatut === "Complet"
-                        ? "bg-[#5C2A1D]/10 text-[#5C2A1D]"
+                        ? "bg-[#171717]/10 text-[#171717]"
                         : "bg-red-50 text-red-600"
                     }`}
                   >

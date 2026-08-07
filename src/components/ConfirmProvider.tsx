@@ -42,9 +42,9 @@ export default function ConfirmProvider({ children }: { children: React.ReactNod
       {children}
       {options && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
             {options.title && (
-              <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">
+              <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
                 {options.title}
               </h2>
             )}
@@ -53,7 +53,7 @@ export default function ConfirmProvider({ children }: { children: React.ReactNod
               <button
                 onClick={() => respond(true)}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 ${
-                  options.danger ? "bg-red-600" : "bg-[#5C2A1D]"
+                  options.danger ? "bg-red-600" : "bg-[#171717]"
                 }`}
               >
                 {options.confirmLabel || "Confirmer"}

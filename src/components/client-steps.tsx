@@ -248,7 +248,7 @@ export function ContactStep({ client, onChange }: StepProps) {
             {infoOptions.map((opt) => (
               <label
                 key={opt}
-                className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-[#F2E6D2]"
+                className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-[#fafafa]"
               >
                 <input
                   type="checkbox"
@@ -286,13 +286,13 @@ export function ContactStep({ client, onChange }: StepProps) {
             {client.infos_manquantes.map((s) => (
               <span
                 key={s}
-                className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#8B4531]"
+                className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#666666]"
               >
                 {s}
                 <button
                   type="button"
                   onClick={() => toggleInfoManquante(s)}
-                  className="text-[#8B4531]/60 hover:text-[#8B4531]"
+                  className="text-[#666666]/60 hover:text-[#666666]"
                 >
                   ✕
                 </button>
@@ -437,7 +437,7 @@ export function SejourStep({
       {client.hotel.trim() &&
         (hotelMatch ? (
           hotelMatch.sur_hurghada ? (
-            <div className="rounded-md bg-[#5C2A1D]/10 px-3 py-2 text-xs text-[#5C2A1D]">
+            <div className="rounded-md bg-[#171717]/10 px-3 py-2 text-xs text-[#171717]">
               ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
             </div>
           ) : (
@@ -463,7 +463,7 @@ export function SejourStep({
         <button
           type="button"
           onClick={addHotelStep}
-          className="text-sm text-[#5C2A1D] hover:underline"
+          className="text-sm text-[#171717] hover:underline"
         >
           + Ajouter d&apos;autres hôtels (circuit)
         </button>
@@ -541,7 +541,7 @@ export function SejourStep({
           <button
             type="button"
             onClick={addHotelStep}
-            className="text-xs text-[#5C2A1D] hover:underline"
+            className="text-xs text-[#171717] hover:underline"
           >
             + Ajouter un hôtel
           </button>
@@ -622,15 +622,15 @@ export function SejourStep({
         )}
       </div>
 
-      <div className="rounded-md border border-[#8B4531]/20 bg-white p-4">
-        <h3 className="font-heading text-sm font-semibold text-[#5C2A1D]">
+      <div className="rounded-md border border-[#666666]/20 bg-white p-4">
+        <h3 className="font-heading text-sm font-semibold text-[#171717]">
           Bloc pour l&apos;équipe Égypte
         </h3>
         <p className="mt-1 text-xs text-neutral-500">
           La date et le détail de l&apos;activité restent à taper à la main — ce bloc ne
           couvre que la partie client.
         </p>
-        <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#F2E6D2] p-3 text-xs">
+        <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
           {copyBlock}
         </pre>
         <button
@@ -758,7 +758,7 @@ function EncaisseButton({
       <span className="text-[10px] font-semibold text-yellow-700">En attente</span>
       <button
         onClick={onMarquer}
-        className="whitespace-nowrap rounded-md bg-[#5C2A1D] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+        className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
       >
         {marquerLabel}
       </button>
@@ -983,7 +983,7 @@ function PaiementResteFlow({
               </div>
               <button
                 onClick={validerRdv}
-                className="mt-3 rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                className="mt-3 rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
               >
                 Valider
               </button>
@@ -991,14 +991,14 @@ function PaiementResteFlow({
           ) : (
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm text-neutral-700">
-                <p className="font-medium text-[#5C2A1D]">
+                <p className="font-medium text-[#171717]">
                   RDV paiement — {fmtDateDMY(client.solde_date)} à {client.solde_rdv_heure}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  <span className="rounded-full bg-[#F2E6D2] px-2 py-0.5 text-xs text-[#5C2A1D]">
+                  <span className="rounded-full bg-[#fafafa] px-2 py-0.5 text-xs text-[#171717]">
                     ⌂ {client.hotel || "—"}
                   </span>
-                  <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs text-[#8B4531]">
+                  <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs text-[#666666]">
                     👤 {client.solde_assigne_a}
                   </span>
                   <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
@@ -1047,7 +1047,7 @@ function PaiementResteFlow({
                   </Field>
                   <button
                     onClick={validerDatePaiement}
-                    className="mt-3 rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                    className="mt-3 rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                   >
                     Valider
                   </button>
@@ -1055,7 +1055,7 @@ function PaiementResteFlow({
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-neutral-700">
-                    <p className="font-medium text-[#5C2A1D]">
+                    <p className="font-medium text-[#171717]">
                       {modeInfo.label} — {fmtDateDMY(client.solde_date)}
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -1106,9 +1106,9 @@ function PaiementResteFlow({
                       key={r.id}
                       type="button"
                       onClick={() => confirmActivite(r, client.paiement_integral_mode)}
-                      className="flex w-full items-center justify-between rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#5C2A1D]"
+                      className="flex w-full items-center justify-between rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717]"
                     >
-                      <span className="text-[#5C2A1D]">{r.nom_activite || "Activité sans nom"}</span>
+                      <span className="text-[#171717]">{r.nom_activite || "Activité sans nom"}</span>
                       <span className="font-amounts text-xs text-neutral-500">
                         {fmtDateDMY(r.date_debut)}
                       </span>
@@ -1125,7 +1125,7 @@ function PaiementResteFlow({
             <div className="rounded-md border border-orange-200 bg-orange-50/40 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm text-neutral-700">
-                  <p className="font-medium text-[#5C2A1D]">
+                  <p className="font-medium text-[#171717]">
                     {modeInfo.label} — {chosenResa.nom_activite || "Activité sans nom"} (
                     {fmtDateDMY(chosenResa.date_debut)})
                   </p>
@@ -1156,8 +1156,8 @@ function PaiementResteFlow({
 
       {egpModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
               Confirmer le montant en EGP
             </h2>
             <p className="mb-4 text-sm text-neutral-600">
@@ -1203,7 +1203,7 @@ function PaiementResteFlow({
                   });
                   setEgpModal(null);
                 }}
-                className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
               >
                 Oui, je valide
               </button>
@@ -1291,7 +1291,7 @@ export function PaiementsStep({
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Type de paiement</h3>
+        <h3 className="mb-2 text-sm font-semibold text-[#171717]">Type de paiement</h3>
         <select
           value={client.paiement_type}
           onChange={(e) => onChange({ paiement_type: e.target.value })}
@@ -1342,7 +1342,7 @@ export function PaiementsStep({
                   </div>
                   <button
                     onClick={validerAcompte}
-                    className="mt-3 rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                    className="mt-3 rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                   >
                     Valider
                   </button>
@@ -1350,7 +1350,7 @@ export function PaiementsStep({
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-neutral-700">
-                    <p className="font-medium text-[#5C2A1D]">
+                    <p className="font-medium text-[#171717]">
                       Acompte — {euros(client.acompte_montant)} € ({client.acompte_mode})
                       {client.acompte_paye && client.acompte_date_encaissement
                         ? ` — encaissé le ${fmtDateDMY(client.acompte_date_encaissement)}`
@@ -1394,8 +1394,8 @@ export function PaiementsStep({
 
       {acompteDateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg">
-            <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
               Marquer l&apos;acompte encaissé
             </h2>
             {acompteDateModal.step === "choix" ? (
@@ -1412,7 +1412,7 @@ export function PaiementsStep({
                       });
                       setAcompteDateModal(null);
                     }}
-                    className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                   >
                     Oui, encaissé aujourd&apos;hui
                   </button>
@@ -1442,7 +1442,7 @@ export function PaiementsStep({
                       onChange({ acompte_paye: true, acompte_date_encaissement: acompteDateModal.date });
                       setAcompteDateModal(null);
                     }}
-                    className="rounded-md bg-[#5C2A1D] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                   >
                     Valider
                   </button>
@@ -1594,7 +1594,7 @@ export function SuiviStep({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#5C2A1D]">Remboursements</h3>
+          <h3 className="text-sm font-semibold text-[#171717]">Remboursements</h3>
           <button
             onClick={addRemboursement}
             className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
@@ -1722,7 +1722,7 @@ export function SuiviStep({
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-[#5C2A1D]">Vérification du dossier</h3>
+        <h3 className="mb-2 text-sm font-semibold text-[#171717]">Vérification du dossier</h3>
         <div className="flex gap-2">
           <input
             value={verifNom}
@@ -1765,7 +1765,7 @@ export function SuiviStep({
               </svg>
             </span>
           </summary>
-          <div className="mt-2 max-h-64 w-72 overflow-y-auto rounded-md border border-neutral-200 bg-white text-left shadow-sm">
+          <div className="mt-2 max-h-64 w-72 overflow-y-auto rounded-md border border-[#eaeaea] bg-white text-left">
             {activityLog.length === 0 ? (
               <div className="p-3 text-sm text-neutral-400">Aucune activité enregistrée.</div>
             ) : (
@@ -1783,7 +1783,7 @@ export function SuiviStep({
                   </span>
                   <div className="min-w-0">
                     <p className="text-neutral-700">
-                      <span className="font-medium text-[#5C2A1D]">
+                      <span className="font-medium text-[#171717]">
                         {entry.actor_email ? entry.actor_email.split("@")[0] : "quelqu'un"}
                       </span>{" "}
                       {actionLabel(entry.action)} {tableLabel(entry.table_name)}
@@ -1797,7 +1797,7 @@ export function SuiviStep({
         </details>
       </div>
 
-      <div className="rounded-md bg-[#F2E6D2]/50 p-3 text-sm text-neutral-600">
+      <div className="rounded-md bg-[#fafafa]/50 p-3 text-sm text-neutral-600">
         {client.prochain_appel_date ? (
           <>
             📞 Prochain appel — {fmtDate(client.prochain_appel_date)}

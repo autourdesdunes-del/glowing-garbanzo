@@ -135,7 +135,7 @@ export default function LoginPage() {
 
   if (mode === "checking") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F2E6D2] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] px-4">
         <p className="text-sm text-neutral-500">Connexion…</p>
       </div>
     );
@@ -143,16 +143,16 @@ export default function LoginPage() {
 
   if (mode === "set-password") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F2E6D2] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#fafafa] px-4">
         <form
           onSubmit={handleSetPassword}
-          className="w-full max-w-sm rounded-xl bg-white p-8 shadow-md"
+          className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-8"
         >
           <div className="mb-6 text-center">
-            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#5C2A1D] font-bold text-[#F2E6D2]">
+            <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#171717] font-bold text-[#fafafa]">
               AD
             </div>
-            <h1 className="text-lg font-semibold text-[#5C2A1D]">Bienvenue !</h1>
+            <h1 className="text-lg font-semibold text-[#171717]">Bienvenue !</h1>
             <p className="text-sm text-neutral-500">Choisis ton mot de passe pour finaliser ton compte</p>
           </div>
 
@@ -165,7 +165,7 @@ export default function LoginPage() {
             minLength={8}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#5C2A1D] focus:outline-none"
+            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#171717] focus:outline-none"
           />
 
           <label className="mb-1 block text-sm font-medium text-neutral-700">
@@ -177,7 +177,7 @@ export default function LoginPage() {
             minLength={8}
             value={newPassword2}
             onChange={(e) => setNewPassword2(e.target.value)}
-            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#5C2A1D] focus:outline-none"
+            className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#171717] focus:outline-none"
           />
 
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -185,7 +185,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             {loading ? "Enregistrement…" : "Valider et accéder à l'espace"}
           </button>
@@ -195,16 +195,16 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F2E6D2] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#fafafa] px-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-xl bg-white p-8 shadow-md"
+        className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-8"
       >
         <div className="mb-6 text-center">
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#5C2A1D] font-bold text-[#F2E6D2]">
+          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#171717] font-bold text-[#fafafa]">
             AD
           </div>
-          <h1 className="text-lg font-semibold text-[#5C2A1D]">Autour des Dunes</h1>
+          <h1 className="text-lg font-semibold text-[#171717]">Autour des Dunes</h1>
           <p className="text-sm text-neutral-500">Espace interne</p>
         </div>
 
@@ -214,7 +214,7 @@ export default function LoginPage() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#5C2A1D] focus:outline-none"
+          className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#171717] focus:outline-none"
         />
 
         <label className="mb-1 block text-sm font-medium text-neutral-700">Mot de passe</label>
@@ -223,7 +223,7 @@ export default function LoginPage() {
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#5C2A1D] focus:outline-none"
+          className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-[#171717] focus:outline-none"
         />
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
@@ -231,7 +231,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {loading ? "Connexion…" : "Se connecter"}
         </button>

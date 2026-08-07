@@ -81,7 +81,7 @@ export default function PhotoUpload({
           </button>
         </div>
       ) : (
-        <label className="inline-block cursor-pointer rounded-md border border-dashed border-neutral-300 px-3 py-2 text-sm text-neutral-500 hover:border-[#5C2A1D]">
+        <label className="inline-block cursor-pointer rounded-md border border-dashed border-neutral-300 px-3 py-2 text-sm text-neutral-500 hover:border-[#171717]">
           {uploading ? "Envoi…" : "Choisir une photo"}
           <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
         </label>

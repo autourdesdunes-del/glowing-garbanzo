@@ -120,7 +120,7 @@ export default function HelpView() {
           onClick={() => setTab("hotels")}
           className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
             tab === "hotels"
-              ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+              ? "border-[#171717] bg-[#171717] text-white"
               : "border-neutral-300 text-neutral-600"
           }`}
         >
@@ -130,7 +130,7 @@ export default function HelpView() {
           onClick={() => setTab("taxes")}
           className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
             tab === "taxes"
-              ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
+              ? "border-[#171717] bg-[#171717] text-white"
               : "border-neutral-300 text-neutral-600"
           }`}
         >
@@ -140,7 +140,7 @@ export default function HelpView() {
 
       {tab === "hotels" && (
       <div>
-        <h2 className="font-heading text-lg font-semibold text-[#5C2A1D]">
+        <h2 className="font-heading text-lg font-semibold text-[#171717]">
           Hôtels — sur Hurghada ou non
         </h2>
         <p className="mt-1 text-sm text-neutral-500">
@@ -206,7 +206,7 @@ export default function HelpView() {
           const shown = expanded ? list : list.slice(0, 5);
           return (
             <div key={label} className="mt-5">
-              <h3 className="mb-2 text-sm font-semibold text-[#8B4531]">{label}</h3>
+              <h3 className="mb-2 text-sm font-semibold text-[#666666]">{label}</h3>
               <div className="divide-y divide-neutral-100 rounded-md border border-neutral-200 bg-white">
                 {shown.map((h) => (
                   <div key={h.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
@@ -225,7 +225,7 @@ export default function HelpView() {
               {list.length > 5 && (
                 <button
                   onClick={() => setExpandedGroups((prev) => ({ ...prev, [label]: !expanded }))}
-                  className="mt-1.5 text-xs text-[#5C2A1D] hover:underline"
+                  className="mt-1.5 text-xs text-[#171717] hover:underline"
                 >
                   {expanded ? "Voir moins" : `Voir les ${list.length - 5} autres`}
                 </button>
@@ -238,7 +238,7 @@ export default function HelpView() {
 
       {tab === "taxes" && (
       <div>
-        <h2 className="font-heading text-lg font-semibold text-[#5C2A1D]">
+        <h2 className="font-heading text-lg font-semibold text-[#171717]">
           Taxes de transfert par ville
         </h2>
         <p className="mt-1 text-sm text-neutral-500">
@@ -277,7 +277,7 @@ export default function HelpView() {
         {taxes.length > 5 && (
           <button
             onClick={() => setTaxesExpanded((v) => !v)}
-            className="mt-1.5 text-xs text-[#5C2A1D] hover:underline"
+            className="mt-1.5 text-xs text-[#171717] hover:underline"
           >
             {taxesExpanded ? "Voir moins" : `Voir les ${taxes.length - 5} autres`}
           </button>

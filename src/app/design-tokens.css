@@ -1,0 +1,14 @@
+/* Design tokens — source unique. Aucune couleur, aucun radius, aucun
+   dégradé, aucune ombre ne doit exister ailleurs dans le code que via
+   ces variables. Toute nouvelle valeur doit être ajoutée ici d'abord. */
+:root {
+  --ink: #171717;
+  --bg: #ffffff;
+  --bg-subtle: #fafafa;
+  --border: #eaeaea;
+  --text-muted: #666666;
+  --accent: #0070f3;
+  --radius: 6px;
+  --error: #ee0000;
+  --warning: #f5a623;
+}

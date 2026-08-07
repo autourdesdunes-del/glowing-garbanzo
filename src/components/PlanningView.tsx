@@ -160,7 +160,7 @@ export default function PlanningView({
                   </p>
                   <div className="mt-2 flex items-center justify-between">
                     {soldeIci ? (
-                      <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
+                      <span className="rounded-full bg-[#f5a623] px-2 py-0.5 text-xs text-white">
                         💰 Solde — {statutPaiement}
                       </span>
                     ) : (

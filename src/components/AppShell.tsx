@@ -644,16 +644,16 @@ function AppShellInner({
 
   return (
     <div className="flex min-h-screen bg-[#fafafa]">
-      <aside className="flex w-56 flex-shrink-0 flex-col bg-[#171717]">
+      <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white">
         <div className="flex items-center gap-2.5 px-4 py-5">
           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">
             AD
           </div>
           <div className="min-w-0">
-            <div className="font-heading truncate text-sm font-semibold text-white">
+            <div className="font-heading truncate text-sm font-semibold text-[#171717]">
               Autour des Dunes
             </div>
-            <div className="truncate text-[11px] text-white/50">Espace interne</div>
+            <div className="truncate text-[11px] text-[#666666]">Espace interne</div>
           </div>
         </div>
 
@@ -668,10 +668,10 @@ function AppShellInner({
                   setMode(t.key);
                   if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
                 }}
-                className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium transition ${
+                className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium transition ${
                   active
-                    ? "bg-white/15 text-white"
-                    : "text-white/65 hover:bg-white/10 hover:text-white"
+                    ? "bg-[#fafafa] text-[#171717]"
+                    : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
                 }`}
               >
                 <Icon />
@@ -682,19 +682,19 @@ function AppShellInner({
         </nav>
 
         {isDirection && (
-          <div className="border-t border-white/10 px-2.5 py-3">
+          <div className="border-t border-[#eaeaea] px-2.5 py-3">
             <button
               onClick={() => setViewAsTeam((v) => !v)}
-              className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-xs font-medium transition ${
+              className={`flex w-full items-center justify-between rounded-[6px] px-2.5 py-2 text-xs font-medium transition ${
                 viewAsTeam
                   ? "bg-[#C9973E] text-white"
-                  : "bg-white/10 text-white/70 hover:bg-white/15"
+                  : "bg-[#fafafa] text-[#666666] hover:bg-[#eaeaea]"
               }`}
             >
               <span>{viewAsTeam ? "Vue équipe (aperçu)" : "Voir comme l'équipe"}</span>
               <span
                 className={`flex h-4 w-7 flex-shrink-0 items-center rounded-full px-0.5 transition ${
-                  viewAsTeam ? "justify-end bg-white/40" : "justify-start bg-white/25"
+                  viewAsTeam ? "justify-end bg-[#171717]/40" : "justify-start bg-[#171717]/20"
                 }`}
               >
                 <span className="h-3 w-3 rounded-full bg-white" />
@@ -703,14 +703,14 @@ function AppShellInner({
           </div>
         )}
 
-        <div className="border-t border-white/10 px-2.5 py-3">
+        <div className="border-t border-[#eaeaea] px-2.5 py-3">
           <div
             className={`px-2.5 pb-2 text-[11px] transition-opacity ${
               saveState === "error"
-                ? "text-red-300 opacity-100"
+                ? "text-[#EE0000] opacity-100"
                 : saveState === "saving"
                   ? "text-[#C9973E] opacity-100"
-                  : "text-white/40 opacity-100"
+                  : "text-[#666666] opacity-100"
             }`}
           >
             {saveState === "error"
@@ -739,7 +739,7 @@ function AppShellInner({
             <ChangePasswordButton />
             <button
               onClick={handleSignOut}
-              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-3 py-1.5 text-[#171717] hover:bg-[#fafafa]"
+              className="appearance-none whitespace-nowrap rounded-[6px] border border-[#eaeaea] px-3 py-1.5 text-[#171717] hover:bg-[#fafafa]"
             >
               Déconnexion
             </button>

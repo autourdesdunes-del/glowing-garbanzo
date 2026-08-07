@@ -186,9 +186,7 @@ function ActionRow({
         onClick ? "cursor-pointer hover:bg-[#fafafa]" : ""
       }`}
     >
-      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[6px] border border-[#eaeaea] bg-[#fafafa] text-[#171717]">
-        <Icon name={icon} className="h-4.5 w-4.5" />
-      </span>
+      <Icon name={icon} className="h-4.5 w-4.5 flex-shrink-0 text-[#666666]" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-[#171717]">{title}</p>
         <p className="truncate text-xs text-[#666666]">{sub}</p>
@@ -474,11 +472,15 @@ export default function DashboardView({
               {priorityQueue.length} dossier(s)
             </span>
           </div>
-          <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+          <div
+            className={
+              priorityQueue.length === 0
+                ? "py-10 text-center text-sm text-[#666666]"
+                : "overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white"
+            }
+          >
             {priorityQueue.length === 0 ? (
-              <div className="p-8 text-center text-sm text-[#666666]">
-                Rien de prioritaire pour l&apos;instant.
-              </div>
+              "Rien de prioritaire pour l'instant."
             ) : (
               <table className="w-full text-sm">
                 <thead>

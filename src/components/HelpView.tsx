@@ -183,7 +183,7 @@ export default function HelpView() {
             )}
             <button
               onClick={addHotel}
-              className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
             >
               + Ajouter
             </button>
@@ -301,7 +301,7 @@ export default function HelpView() {
           </div>
           <button
             onClick={addTaxe}
-            className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             + Ajouter
           </button>

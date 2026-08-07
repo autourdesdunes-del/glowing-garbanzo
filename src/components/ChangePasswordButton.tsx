@@ -47,7 +47,7 @@ export default function ChangePasswordButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="appearance-none rounded-[6px] border border-[#eaeaea] px-3 py-1.5 text-[#171717] hover:bg-[#fafafa]"
+        className="appearance-none whitespace-nowrap text-xs text-[#666666] hover:text-[#171717]"
       >
         Mot de passe
       </button>

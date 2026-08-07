@@ -19,7 +19,7 @@ export default function MonthlyBarChart({
   const width = 640;
   const height = 200;
   const barGap = 8;
-  const barWidth = (width - barGap * (data.length - 1)) / data.length;
+  const barWidthRaw = (width - barGap * (data.length - 1)) / data.length; const barWidth = Math.min(barWidthRaw, 64); const totalRowWidth = barWidth * data.length + barGap * (data.length - 1); const offsetX = Math.max((width - totalRowWidth) / 2, 0);
 
   return (
     <div className="overflow-x-auto rounded-md bg-white p-4">
@@ -30,8 +30,8 @@ export default function MonthlyBarChart({
         aria-label="Chiffre d'affaires par mois"
       >
         {data.map((d, i) => {
-          const barHeight = Math.max((d.value / max) * height, d.value > 0 ? 3 : 0);
-          const x = i * (barWidth + barGap);
+          const barHeight = Math.max((d.value / max) * (height - 10), d.value > 0 ? 3 : 0);
+          const x = offsetX + i * (barWidth + barGap);
           const y = height - barHeight;
           return (
             <g key={d.label}>

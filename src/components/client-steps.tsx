@@ -275,7 +275,7 @@ export function ContactStep({ client, onChange }: StepProps) {
             <button
               type="button"
               onClick={addCustomInfo}
-              className="rounded-md bg-[#C9973E] px-2 text-sm text-white"
+              className="rounded-md bg-[#171717] px-2 text-sm text-white"
             >
               +
             </button>
@@ -286,7 +286,7 @@ export function ContactStep({ client, onChange }: StepProps) {
             {client.infos_manquantes.map((s) => (
               <span
                 key={s}
-                className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#666666]"
+                className="flex items-center gap-1 rounded-full bg-[#f5a623]/15 px-2 py-0.5 text-xs text-[#666666]"
               >
                 {s}
                 <button
@@ -635,7 +635,7 @@ export function SejourStep({
         </pre>
         <button
           onClick={doCopy}
-          className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          className="mt-2 rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           {copied ? "Copié ✓" : "Copier"}
         </button>
@@ -695,7 +695,7 @@ export function ActivitesStep({
             const id = await onAddReservation();
             if (id) setExpandedId(id);
           }}
-          className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Ajouter une activité
         </button>
@@ -998,7 +998,7 @@ function PaiementResteFlow({
                   <span className="rounded-full bg-[#fafafa] px-2 py-0.5 text-xs text-[#171717]">
                     ⌂ {client.hotel || "—"}
                   </span>
-                  <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs text-[#666666]">
+                  <span className="rounded-full bg-[#fafafa] px-2 py-0.5 text-xs text-[#171717]">
                     👤 {client.solde_assigne_a}
                   </span>
                   <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
@@ -1597,7 +1597,7 @@ export function SuiviStep({
           <h3 className="text-sm font-semibold text-[#171717]">Remboursements</h3>
           <button
             onClick={addRemboursement}
-            className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             + Ajouter un remboursement
           </button>
@@ -1732,7 +1732,7 @@ export function SuiviStep({
           />
           <button
             onClick={addVerification}
-            className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             Marquer vérifié aujourd&apos;hui
           </button>

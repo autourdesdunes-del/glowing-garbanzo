@@ -161,7 +161,7 @@ export default function SuivisView({
 
       {sub === "j1" && (
         <div className="space-y-6">
-          <div className="rounded-md border border-[#C9973E]/30 bg-[#C9973E]/10 p-3 text-xs text-[#666666]">
+          <div className="rounded-md border border-[#f5a623]/30 bg-[#f5a623]/10 p-3 text-xs text-[#666666]">
             Règle : le pick-up réel n&apos;est communiqué au client qu&apos;à J-1, avant 18h
             maximum — jamais avant. Le numéro de chambre se demande aussi à J-1.
           </div>
@@ -184,7 +184,7 @@ export default function SuivisView({
                       urgent
                         ? "border-red-400 bg-red-50"
                         : missing
-                          ? "border-[#C9973E] bg-[#C9973E]/10"
+                          ? "border-[#f5a623] bg-[#f5a623]/10"
                           : "border-neutral-200 bg-white"
                     }`}
                   >
@@ -257,7 +257,7 @@ export default function SuivisView({
                       urgent
                         ? "border-red-400 bg-red-50"
                         : missing
-                          ? "border-[#C9973E] bg-[#C9973E]/10"
+                          ? "border-[#f5a623] bg-[#f5a623]/10"
                           : "border-neutral-200 bg-white"
                     }`}
                   >
@@ -322,7 +322,7 @@ export default function SuivisView({
                   return (
                     <div
                       key={c.id}
-                      className="rounded-md border border-[#C9973E] bg-[#C9973E]/10 p-3 text-sm"
+                      className="rounded-md border border-[#f5a623] bg-[#f5a623]/10 p-3 text-sm"
                     >
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="font-amounts text-neutral-600">{c.solde_rdv_heure}</span>
@@ -429,7 +429,7 @@ export default function SuivisView({
                 key={c.id}
                 className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
                   c.prochain_appel_date === todayStr
-                    ? "border-[#C9973E] bg-[#C9973E]/10"
+                    ? "border-[#f5a623] bg-[#f5a623]/10"
                     : "border-neutral-200 bg-white"
                 }`}
               >
@@ -478,7 +478,7 @@ export default function SuivisView({
                 key={c.id}
                 className={`rounded-md border p-3 text-sm ${
                   dateCible === todayStr
-                    ? "border-[#C9973E] bg-[#C9973E]/10"
+                    ? "border-[#f5a623] bg-[#f5a623]/10"
                     : "border-neutral-200 bg-white"
                 }`}
               >
@@ -527,7 +527,7 @@ export default function SuivisView({
                 key={c.id}
                 className={`rounded-md border p-3 text-sm ${
                   dateCible === todayStr
-                    ? "border-[#C9973E] bg-[#C9973E]/10"
+                    ? "border-[#f5a623] bg-[#f5a623]/10"
                     : "border-neutral-200 bg-white"
                 }`}
               >
@@ -598,7 +598,7 @@ export default function SuivisView({
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.statut === "Effectué"
                           ? "bg-[#171717]/10 text-[#171717]"
-                          : "bg-[#C9973E]/20 text-[#666666]"
+                          : "bg-[#f5a623]/20 text-[#666666]"
                       }`}
                     >
                       {r.statut}
@@ -655,7 +655,7 @@ export default function SuivisView({
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.billet_acompte_paye
                           ? "bg-[#171717]/10 text-[#171717]"
-                          : "bg-[#C9973E]/20 text-[#666666]"
+                          : "bg-[#f5a623]/20 text-[#666666]"
                       }`}
                     >
                       Acompte {r.billet_acompte_paye ? "payé" : "en attente"}
@@ -664,7 +664,7 @@ export default function SuivisView({
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.billet_envoye
                           ? "bg-[#171717]/10 text-[#171717]"
-                          : "bg-[#C9973E]/20 text-[#666666]"
+                          : "bg-[#f5a623]/20 text-[#666666]"
                       }`}
                     >
                       {r.billet_envoye ? "Envoyé" : "Pas envoyé"}

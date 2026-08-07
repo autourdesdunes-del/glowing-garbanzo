@@ -116,7 +116,7 @@ export default function ReservationCard({
           {(soldeIci || hasOptions || hasInfo || r.billet_requis) && (
             <div className="mt-2 flex flex-wrap gap-2">
               {soldeIci && (
-                <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
+                <span className="rounded-full bg-[#f5a623] px-2 py-0.5 text-xs text-white">
                   💰 Solde ici — {soldeLabel}
                 </span>
               )}
@@ -143,7 +143,7 @@ export default function ReservationCard({
     return (
       <div
         onClick={() => onToggleExpanded(true)}
-        className="cursor-pointer rounded-md border border-[#C9973E]/40 bg-white p-3"
+        className="cursor-pointer rounded-md border border-[#f5a623]/40 bg-white p-3"
       >
         <p className="font-medium text-[#171717]">
           {r.nom_activite || "Activité sans nom"}
@@ -167,7 +167,7 @@ export default function ReservationCard({
         )}
         <div className="mt-2 flex items-center justify-between">
           {soldeIci ? (
-            <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
+            <span className="rounded-full bg-[#f5a623] px-2 py-0.5 text-xs text-white">
               💰 Solde ici — {soldeLabel}
             </span>
           ) : (
@@ -228,7 +228,7 @@ export default function ReservationCard({
       </div>
 
       {options.length > 0 && (
-        <div className="mb-3 rounded-md bg-[#C9973E]/10 px-3 py-2 text-xs text-[#666666]">
+        <div className="mb-3 rounded-md bg-[#f5a623]/10 px-3 py-2 text-xs text-[#666666]">
           ⚠ Option(s) ajoutée(s) : {options.map((o) => o.nom).join(", ")}
         </div>
       )}
@@ -377,7 +377,7 @@ export default function ReservationCard({
             onClick={() => onUpdate({ participants_mode: "custom" })}
             className={`rounded-full border px-3 py-1 text-xs ${
               r.participants_mode === "custom"
-                ? "border-[#C9973E] bg-[#C9973E] text-white"
+                ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
@@ -476,7 +476,7 @@ export default function ReservationCard({
         ))}
         <button
           onClick={onAddOption}
-          className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Ajouter une option
         </button>
@@ -501,7 +501,7 @@ export default function ReservationCard({
             onClick={() => onUpdate({ transfert_inclus: false })}
             className={`rounded-full border px-3 py-1 text-xs ${
               !r.transfert_inclus
-                ? "border-[#C9973E] bg-[#C9973E] text-white"
+                ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >

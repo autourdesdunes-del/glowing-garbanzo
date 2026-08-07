@@ -261,11 +261,11 @@ function AvailabilityCalendar({
               onClick={() => clickable && onToggleDate(iso)}
               className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs ${
                 isGreen
-                  ? "bg-[#0F5C56] text-white"
+                  ? "bg-[#171717] text-white"
                   : isBlue
                     ? "bg-blue-100 text-blue-700"
                     : "text-neutral-400"
-              } ${isToday ? "ring-1 ring-[#C9973E]" : ""} ${
+              } ${isToday ? "ring-1 ring-[#0070f3]" : ""} ${
                 clickable ? "cursor-pointer hover:opacity-80" : isPast ? "opacity-30" : ""
               }`}
             >
@@ -279,7 +279,7 @@ function AvailabilityCalendar({
           <span className="h-2.5 w-2.5 rounded-sm bg-blue-100" /> Jour habituel
         </span>
         <span className="flex items-center gap-1">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#0F5C56]" /> Confirmé
+          <span className="h-2.5 w-2.5 rounded-sm bg-[#171717]" /> Confirmé
         </span>
       </div>
     </div>
@@ -316,7 +316,7 @@ function ChipMultiSelect({
               onClick={() => onToggle(label)}
               className={`rounded-full border px-3 py-1 text-xs font-medium ${
                 active
-                  ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                  ? "border-[#171717] bg-[#171717] text-white"
                   : "border-neutral-300 text-neutral-600"
               }`}
             >
@@ -331,7 +331,7 @@ function ChipMultiSelect({
           {customValues.map((label) => (
             <span
               key={label}
-              className="flex items-center gap-1.5 rounded-full border border-[#0F5C56] bg-[#0F5C56] px-3 py-1 text-xs font-medium text-white"
+              className="flex items-center gap-1.5 rounded-full border border-[#171717] bg-[#171717] px-3 py-1 text-xs font-medium text-white"
             >
               {label}
               <button onClick={() => onToggle(label)} className="hover:opacity-70">
@@ -356,7 +356,7 @@ function ChipMultiSelect({
         />
         <button
           onClick={onAddCustom}
-          className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Ajouter
         </button>
@@ -458,7 +458,7 @@ export default function CatalogueView({
         </div>
         <button
           onClick={onAdd}
-          className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Nouvelle activité
         </button>
@@ -487,7 +487,7 @@ export default function CatalogueView({
             onClick={() => setTagFilter(null)}
             className={`rounded-full border px-3 py-1 text-xs font-medium ${
               !tagFilter
-                ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
@@ -499,7 +499,7 @@ export default function CatalogueView({
               onClick={() => setTagFilter(tag === tagFilter ? null : tag)}
               className={`rounded-full border px-3 py-1 text-xs font-medium ${
                 tagFilter === tag
-                  ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                  ? "border-[#171717] bg-[#171717] text-white"
                   : "border-neutral-300 text-neutral-600"
               }`}
             >
@@ -541,12 +541,12 @@ export default function CatalogueView({
                           </span>
                         ))}
                         {topVenteIds.has(a.id) && (
-                          <span className="rounded-full bg-[#C9973E]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#666666]">
+                          <span className="rounded-full bg-[#171717]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#666666]">
                             🏆 Top des ventes
                           </span>
                         )}
                         {canSeeMargins && topRentabiliteIds.has(a.id) && (
-                          <span className="rounded-full bg-[#0F5C56]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#0F5C56]">
+                          <span className="rounded-full bg-[#0070f3]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#0070f3]">
                             💰 Top rentabilité
                           </span>
                         )}
@@ -554,7 +554,7 @@ export default function CatalogueView({
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-2">
                       {canSeeMargins && a.marge_pct > 0 && (
-                        <span className="rounded-full bg-[#0F5C56]/10 px-2.5 py-1 text-[11px] font-medium text-[#0F5C56]">
+                        <span className="rounded-full bg-[#0070f3]/10 px-2.5 py-1 text-[11px] font-medium text-[#0070f3]">
                           Marge cible {a.marge_pct}%
                         </span>
                       )}
@@ -606,7 +606,7 @@ export default function CatalogueView({
                             title={j}
                             className={`flex h-8 w-8 flex-1 items-center justify-center rounded-full text-xs font-medium ${
                               active
-                                ? "border-2 border-[#0F5C56] text-[#0F5C56]"
+                                ? "border-2 border-[#171717] text-[#171717]"
                                 : "border border-neutral-200 text-neutral-300"
                             }`}
                           >
@@ -639,7 +639,7 @@ export default function CatalogueView({
                       <p className="text-sm text-neutral-700">
                         {a.guide && a.guide !== "Aucun" ? a.guide : "Pas de guide dédié"}
                         {a.guide_francophone_sur_demande && (
-                          <span className="ml-1.5 text-[#C9973E]">
+                          <span className="ml-1.5 text-[#f5a623]">
                             ⭐ Guide francophone sur demande
                           </span>
                         )}
@@ -797,9 +797,9 @@ export default function CatalogueView({
               </div>
             </div>
           ) : (
-            <div key={a.id} className="rounded-[6px] border border-[#C9973E]/40 bg-white p-4">
+            <div key={a.id} className="rounded-[6px] border border-[#f5a623]/40 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
-                <span className="rounded-full bg-[#C9973E]/20 px-3 py-1 text-xs text-[#666666]">
+                <span className="rounded-full bg-[#f5a623]/20 px-3 py-1 text-xs text-[#666666]">
                   ✎ Brouillon
                 </span>
                 <button
@@ -1101,7 +1101,7 @@ export default function CatalogueView({
                 ))}
                 <button
                   onClick={() => onAddTarif(a.id)}
-                  className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                 >
                   + Ajouter un tarif
                 </button>
@@ -1134,7 +1134,7 @@ export default function CatalogueView({
                 ))}
                 <button
                   onClick={() => onAddFaq(a.id)}
-                  className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                 >
                   + Ajouter une question
                 </button>

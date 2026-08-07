@@ -723,8 +723,8 @@ function AppShellInner({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-[#666666]/15 bg-white px-6 py-3">
-          <h1 className="flex-shrink-0 whitespace-nowrap font-heading text-base font-semibold text-[#171717]">
+        <header className="flex items-center gap-3 border-b border-[#eaeaea] bg-white px-6 py-3">
+          <h1 className="flex-shrink-0 whitespace-nowrap font-heading text-sm font-medium text-[#171717]">
             {currentTab?.label}
           </h1>
           <div className="flex min-w-0 flex-1 justify-center">
@@ -734,12 +734,12 @@ function AppShellInner({
               onOpenClient={openClient}
             />
           </div>
-          <div className="flex flex-shrink-0 items-center gap-3 text-sm text-neutral-500">
+          <div className="flex flex-shrink-0 items-center gap-4 text-xs text-neutral-400">
             <span className="hidden max-w-[180px] truncate sm:inline">{userEmail}</span>
             <ChangePasswordButton />
             <button
               onClick={handleSignOut}
-              className="appearance-none whitespace-nowrap rounded-[6px] border border-[#eaeaea] px-3 py-1.5 text-[#171717] hover:bg-[#fafafa]"
+              className="appearance-none whitespace-nowrap text-[#666666] hover:text-[#171717]"
             >
               Déconnexion
             </button>

@@ -377,7 +377,7 @@ export default function DashboardView({
     <div className="mx-auto max-w-6xl space-y-8 p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[26px] font-semibold text-[#171717]">
+          <h1 className="font-heading text-xl font-semibold text-[#171717]">
             Bonjour {firstName}
           </h1>
           <p className="mt-1.5 text-sm text-[#666666]">

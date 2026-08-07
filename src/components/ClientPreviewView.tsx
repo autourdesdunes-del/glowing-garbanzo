@@ -293,7 +293,7 @@ export default function ClientPreviewView({
                 i < trackerStep
                   ? "border-[#171717] bg-[#171717] text-white"
                   : i === trackerStep
-                    ? "border-[#C9973E] bg-[#C9973E] text-white"
+                    ? "border-[#0070f3] bg-[#0070f3] text-white"
                     : "border-neutral-300 bg-white text-neutral-400"
               }`}
             >
@@ -353,7 +353,7 @@ export default function ClientPreviewView({
         </div>
         <div className="mt-1 flex justify-between text-xs text-neutral-500">
           <span>{euros(totalPaye)} € déjà payés</span>
-          <span className="text-[#C9973E]">{euros(reste)} € restants</span>
+          <span className="text-[#f5a623]">{euros(reste)} € restants</span>
         </div>
       </NavPanel>
 
@@ -545,7 +545,7 @@ export default function ClientPreviewView({
           href="https://wa.me/201556221115"
           target="_blank"
           rel="noreferrer"
-          className="rounded-md bg-[#C9973E] px-3 py-2 text-sm font-medium"
+          className="rounded-md bg-[#0070f3] px-3 py-2 text-sm font-medium"
         >
           Écrire sur WhatsApp
         </a>

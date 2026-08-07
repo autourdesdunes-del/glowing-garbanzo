@@ -114,7 +114,7 @@ export const CATALOGUE_CATEGORIES = [
 
 export const STATUT_COLORS: Record<string, string> = {
   Prospect: "#666666",
-  "En négociation": "#C9973E",
+  "En négociation": "#f5a623",
   "Client confirmé": "#171717",
-  Perdu: "#9CA3AF",
+  Perdu: "#666666",
 };

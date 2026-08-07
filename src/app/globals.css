@@ -10,26 +10,33 @@
   --foreground: var(--color-terracotta);
 }
 
+/* Geist (geist/font/sans, chargée une seule fois dans layout.tsx) est
+   l'unique famille de police du produit — pas de police d'accent, y
+   compris pour les titres. --font-heading et --font-mono restent comme
+   points d'accroche sémantiques (marquer "ceci est un titre" / "ceci est
+   un montant") mais résolvent tous les deux vers Geist, jamais une autre
+   famille nommée. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-heading: var(--font-fraunces);
-  --font-sans: var(--font-work-sans);
-  --font-mono: var(--font-space-mono);
+  --font-heading: var(--font-geist-sans);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-sans);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-work-sans), sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
 h1, h2, h3, h4 {
-  font-family: var(--font-fraunces), serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
 .font-amounts {
-  font-family: var(--font-space-mono), monospace;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 
 .input {

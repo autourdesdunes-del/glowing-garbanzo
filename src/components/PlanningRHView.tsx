@@ -62,7 +62,7 @@ function statutLabel(statut: string, debut?: string, fin?: string) {
 }
 
 function statutBadgeClass(statut: string) {
-  if (statut === "conge") return "bg-[#C9973E] text-white";
+  if (statut === "conge") return "bg-[#f5a623] text-white";
   if (statut === "repos") return "bg-neutral-200 text-neutral-500";
   if (statut === "superviseur") return "bg-purple-200 text-purple-800";
   return "bg-blue-100 text-blue-700";
@@ -815,7 +815,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                 )}
                 <button
                   onClick={upsertShift}
-                  className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                 >
                   Enregistrer
                 </button>
@@ -988,7 +988,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                 />
                 <button
                   onClick={requestConge}
-                  className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                 >
                   Envoyer la demande
                 </button>

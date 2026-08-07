@@ -26,14 +26,14 @@ export default function DonutChart({
   }, []);
 
   return (
-    <div className="flex items-center gap-6 rounded-2xl bg-white p-6 shadow-sm">
+    <div className="flex items-center gap-6 rounded-[6px] border border-[#eaeaea] bg-white p-6">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0">
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#f2e6d2"
+          stroke="#eaeaea"
           strokeWidth={stroke}
         />
         {segments.map((s) =>
@@ -58,7 +58,7 @@ export default function DonutChart({
           textAnchor="middle"
           fontSize="22"
           fontWeight="600"
-          fill="#5C2A1D"
+          fill="#171717"
         >
           {total}
         </text>
@@ -68,7 +68,7 @@ export default function DonutChart({
             y={size / 2 + 16}
             textAnchor="middle"
             fontSize="9"
-            fill="#a8a29e"
+            fill="#666666"
           >
             {centerLabel}
           </text>
@@ -81,8 +81,8 @@ export default function DonutChart({
               className="h-2.5 w-2.5 flex-shrink-0 rounded-full"
               style={{ backgroundColor: d.color }}
             />
-            <span className="text-neutral-600">{d.label}</span>
-            <span className="font-amounts font-medium text-[#5C2A1D]">
+            <span className="text-[#666666]">{d.label}</span>
+            <span className="font-amounts font-medium text-[#171717]">
               {total > 0 ? Math.round((d.value / total) * 100) : 0}%
             </span>
           </div>

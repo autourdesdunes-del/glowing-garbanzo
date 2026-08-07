@@ -46,7 +46,7 @@ export default function QuickAddClient({
           setStatut(defaultStatut);
           setOpen(true);
         }}
-        className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+        className="whitespace-nowrap rounded-[6px] bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
       >
         + Nouveau
       </button>
@@ -55,30 +55,30 @@ export default function QuickAddClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <form
             onSubmit={handleSubmit}
-            className="w-full max-w-sm rounded-xl bg-white p-6 shadow-lg"
+            className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6"
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-heading text-lg font-semibold text-[#5C2A1D]">
+              <h2 className="font-heading text-lg font-semibold text-[#171717]">
                 {statut === "Prospect" ? "Nouveau prospect" : "Nouveau client"}
               </h2>
               <button
                 type="button"
                 onClick={close}
-                className="text-neutral-400 hover:text-neutral-600"
+                className="text-[#666666] hover:text-[#171717]"
               >
                 ✕
               </button>
             </div>
 
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Statut</label>
+            <label className="mb-1 block text-sm font-medium text-[#171717]">Statut</label>
             <div className="mb-3 flex gap-2">
               <button
                 type="button"
                 onClick={() => setStatut("Prospect")}
-                className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
+                className={`flex-1 rounded-[6px] border px-3 py-1.5 text-sm font-medium ${
                   statut === "Prospect"
-                    ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
-                    : "border-neutral-300 text-neutral-600"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-[#eaeaea] text-[#666666]"
                 }`}
               >
                 Prospect
@@ -86,17 +86,17 @@ export default function QuickAddClient({
               <button
                 type="button"
                 onClick={() => setStatut("Client confirmé")}
-                className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
+                className={`flex-1 rounded-[6px] border px-3 py-1.5 text-sm font-medium ${
                   statut === "Client confirmé"
-                    ? "border-[#5C2A1D] bg-[#5C2A1D] text-white"
-                    : "border-neutral-300 text-neutral-600"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-[#eaeaea] text-[#666666]"
                 }`}
               >
                 Client confirmé
               </button>
             </div>
 
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-[#171717]">
               Nom du client
             </label>
             <input
@@ -107,7 +107,7 @@ export default function QuickAddClient({
               className="input mb-3"
             />
 
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-[#171717]">
               Téléphone / WhatsApp
             </label>
             <input
@@ -116,7 +116,7 @@ export default function QuickAddClient({
               className="input mb-3"
             />
 
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label className="mb-1 block text-sm font-medium text-[#171717]">
               Contact via
             </label>
             <select
@@ -132,11 +132,11 @@ export default function QuickAddClient({
             <button
               type="submit"
               disabled={saving || !nom.trim()}
-              className="w-full rounded-md bg-[#5C2A1D] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              className="w-full rounded-[6px] bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "Création…" : statut === "Prospect" ? "Créer le prospect" : "Créer le client"}
             </button>
-            <p className="mt-2 text-center text-xs text-neutral-400">
+            <p className="mt-2 text-center text-xs text-[#666666]">
               Le reste du dossier se complète ensuite, à ton rythme.
             </p>
           </form>

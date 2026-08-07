@@ -26,28 +26,19 @@ function firstNameFromEmail(email: string) {
   return first ? first.charAt(0).toUpperCase() + first.slice(1) : "";
 }
 
-const AVATAR_TONES = ["#5C2A1D", "#8B4531", "#C9973E", "#946B3E"];
-function avatarTone(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return AVATAR_TONES[hash % AVATAR_TONES.length];
-}
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
 }
 
+// Encre uniforme — pas de teinte hachée par client : l'encre est la
+// marque, pas une palette décorative.
 function Avatar({ name, size = 34 }: { name: string; size?: number }) {
   return (
     <div
-      className="flex flex-shrink-0 items-center justify-center rounded-full font-medium text-white"
-      style={{
-        width: size,
-        height: size,
-        backgroundColor: avatarTone(name || "?"),
-        fontSize: size * 0.38,
-      }}
+      className="flex flex-shrink-0 items-center justify-center rounded-full bg-[#171717] font-medium text-white"
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
     >
       {initials(name || "Sans nom")}
     </div>
@@ -163,36 +154,22 @@ function StatTile({
   label: string;
   value: string;
   sub?: string;
-  tone: "solid" | "solid-dark" | "highlight" | "pale";
+  tone: "default" | "error";
 }) {
-  const toneClass = {
-    solid: "bg-[#5C2A1D] text-white",
-    "solid-dark": "bg-[#3d1c13] text-white",
-    highlight: "bg-[#C9973E] text-white",
-    pale: "bg-white text-[#5C2A1D] border border-[#8B4531]/10",
-  }[tone];
-  const badgeClass =
-    tone === "pale" ? "bg-[#F2E6D2] text-[#5C2A1D]" : "bg-white/15 text-white";
+  // Une seule surface (bg-subtle + bordure fine, pas d'ombre). Le seul
+  // signal de sévérité disponible est la couleur d'état sur la valeur
+  // elle-même — jamais une couleur de marque décorative.
+  const valueClass = tone === "error" ? "text-[#EE0000]" : "text-[#171717]";
   return (
-    <div className={`rounded-2xl p-5 shadow-sm ${toneClass}`}>
+    <div className="rounded-[6px] border border-[#eaeaea] bg-[#fafafa] p-5">
       <div className="flex items-start justify-between">
-        <p
-          className={`text-[11px] font-medium uppercase tracking-wide ${
-            tone === "pale" ? "text-neutral-400" : "text-white/70"
-          }`}
-        >
-          {label}
-        </p>
-        <span className={`flex h-8 w-8 items-center justify-center rounded-full ${badgeClass}`}>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-[#666666]">{label}</p>
+        <span className="flex h-8 w-8 items-center justify-center rounded-[6px] border border-[#eaeaea] bg-white text-[#666666]">
           <Icon name={icon} className="h-4 w-4" />
         </span>
       </div>
-      <p className="font-amounts mt-3 text-3xl font-semibold">{value}</p>
-      {sub && (
-        <p className={`mt-1 text-xs ${tone === "pale" ? "text-neutral-400" : "text-white/70"}`}>
-          {sub}
-        </p>
-      )}
+      <p className={`font-amounts mt-3 text-3xl font-semibold ${valueClass}`}>{value}</p>
+      {sub && <p className="mt-1 text-xs text-[#666666]">{sub}</p>}
     </div>
   );
 }
@@ -212,18 +189,18 @@ function ActionRow({
     <div
       onClick={onClick}
       className={`flex items-center gap-3 px-4 py-3.5 transition ${
-        onClick ? "cursor-pointer hover:bg-[#F2E6D2]/40" : ""
+        onClick ? "cursor-pointer hover:bg-[#fafafa]" : ""
       }`}
     >
-      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-[#F2E6D2] text-[#5C2A1D]">
+      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[6px] border border-[#eaeaea] bg-[#fafafa] text-[#171717]">
         <Icon name={icon} className="h-4.5 w-4.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-[#5C2A1D]">{title}</p>
-        <p className="truncate text-xs text-neutral-400">{sub}</p>
+        <p className="text-sm font-medium text-[#171717]">{title}</p>
+        <p className="truncate text-xs text-[#666666]">{sub}</p>
       </div>
       {onClick && (
-        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-neutral-300">
+        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[6px] text-[#666666]">
           ›
         </span>
       )}
@@ -408,18 +385,18 @@ export default function DashboardView({
     <div className="mx-auto max-w-6xl space-y-8 p-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-heading text-[26px] font-semibold text-[#5C2A1D]">
+          <h1 className="font-heading text-[26px] font-semibold text-[#171717]">
             Bonjour {firstName}
           </h1>
-          <p className="mt-1.5 text-sm text-neutral-500">
+          <p className="mt-1.5 text-sm text-[#666666]">
             {today.toLocaleDateString("fr-FR", {
               weekday: "long",
               day: "numeric",
               month: "long",
             })}
-            <span className="mx-2 text-neutral-300">·</span>
+            <span className="mx-2 text-[#eaeaea]">·</span>
             {plannedShift ? (
-              <span className="text-[#8B4531]">
+              <span className="text-[#666666]">
                 {plannedShift.statut === "conge"
                   ? "Congé aujourd'hui"
                   : plannedShift.statut === "repos"
@@ -434,18 +411,18 @@ export default function DashboardView({
                   type="time"
                   value={shiftDebut}
                   onChange={(e) => setShiftDebut(e.target.value)}
-                  className="rounded-md border border-neutral-300 px-1.5 py-0.5 text-xs"
+                  className="rounded-[6px] border border-[#eaeaea] px-1.5 py-0.5 text-xs"
                 />
-                <span className="text-neutral-400">–</span>
+                <span className="text-[#666666]">–</span>
                 <input
                   type="time"
                   value={shiftFin}
                   onChange={(e) => setShiftFin(e.target.value)}
-                  className="rounded-md border border-neutral-300 px-1.5 py-0.5 text-xs"
+                  className="rounded-[6px] border border-[#eaeaea] px-1.5 py-0.5 text-xs"
                 />
                 <button
                   onClick={saveShift}
-                  className="ml-1 rounded-md bg-[#5C2A1D] px-2.5 py-0.5 text-xs font-medium text-white"
+                  className="ml-1 rounded-[6px] bg-[#171717] px-2.5 py-0.5 text-xs font-medium text-white"
                 >
                   OK
                 </button>
@@ -453,7 +430,7 @@ export default function DashboardView({
             ) : (
               <button
                 onClick={() => setEditingShift(true)}
-                className="text-[#8B4531] underline decoration-dotted underline-offset-2 hover:text-[#5C2A1D]"
+                className="text-[#0070f3] underline decoration-dotted underline-offset-2"
               >
                 {shift && shift.shift_debut && shift.shift_fin
                   ? `Shift aujourd'hui : ${shift.shift_debut} – ${shift.shift_fin}`
@@ -466,56 +443,56 @@ export default function DashboardView({
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        <StatTile icon="users" label="Clients en Égypte" value={String(clientsInEgypt.length)} tone="solid" />
+        <StatTile icon="users" label="Clients en Égypte" value={String(clientsInEgypt.length)} tone="default" />
         <StatTile
           icon="alert"
           label="Cas urgents"
           value={String(urgentCount)}
           sub={urgentCount > 0 ? "aujourd'hui" : "rien pour l'instant"}
-          tone="pale"
+          tone={urgentCount > 0 ? "error" : "default"}
         />
         <StatTile
           icon="target"
           label="Prospects à relancer"
           value={String(staleProspects.length)}
           sub="arrivée < 14 j"
-          tone="highlight"
+          tone="default"
         />
         <StatTile
           icon="clipboard"
           label="Dossiers incomplets"
           value={String(incompleteUpcoming.length)}
           sub="arrivée < 14 j"
-          tone="solid-dark"
+          tone="default"
         />
         <StatTile
           icon="car"
           label="Pick-ups manquants"
           value={String(pickupsMissingTomorrow.length)}
           sub="demain"
-          tone="pale"
+          tone="default"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h2 className="font-heading text-lg font-semibold text-[#5C2A1D]">
+            <h2 className="font-heading text-lg font-semibold text-[#171717]">
               File d&apos;attente prioritaire
             </h2>
-            <span className="text-xs font-medium text-neutral-400">
+            <span className="font-amounts text-xs font-medium text-[#666666]">
               {priorityQueue.length} dossier(s)
             </span>
           </div>
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
             {priorityQueue.length === 0 ? (
-              <div className="p-8 text-center text-sm text-neutral-400">
+              <div className="p-8 text-center text-sm text-[#666666]">
                 Rien de prioritaire pour l&apos;instant.
               </div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
                     <th className="px-5 pb-3 pt-5 font-medium">Client</th>
                     <th className="px-3 pb-3 pt-5 font-medium">Arrivée</th>
                     <th className="px-3 pb-3 pt-5 font-medium">Motif</th>
@@ -527,13 +504,13 @@ export default function DashboardView({
                     <tr
                       key={client.id}
                       onClick={() => onOpenClient(client.id)}
-                      className="cursor-pointer border-t border-neutral-50 hover:bg-[#F2E6D2]/30"
+                      className="cursor-pointer border-t border-[#eaeaea] hover:bg-[#fafafa]"
                     >
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
                           <Avatar name={client.nom || "Sans nom"} />
                           <div>
-                            <p className="font-medium text-[#5C2A1D]">
+                            <p className="font-medium text-[#171717]">
                               {client.nom || "Sans nom"}
                             </p>
                             <p
@@ -545,7 +522,7 @@ export default function DashboardView({
                           </div>
                         </div>
                       </td>
-                      <td className="font-amounts px-3 py-3 text-neutral-500">
+                      <td className="font-amounts px-3 py-3 text-[#666666]">
                         {fmtDate(client.date_debut)}
                       </td>
                       <td className="px-3 py-3">
@@ -553,7 +530,7 @@ export default function DashboardView({
                           {motifs.map((m) => (
                             <span
                               key={m}
-                              className="whitespace-nowrap rounded-full bg-[#F2E6D2] px-2 py-0.5 text-[11px] text-[#5C2A1D]"
+                              className="whitespace-nowrap rounded-[4px] border border-[#eaeaea] bg-[#fafafa] px-2 py-0.5 text-[11px] text-[#171717]"
                             >
                               {m}
                               {m === "À relancer" && client.nb_relances > 0
@@ -570,12 +547,12 @@ export default function DashboardView({
                               e.stopPropagation();
                               marquerRelance(client);
                             }}
-                            className="whitespace-nowrap rounded-full bg-[#5C2A1D] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                            className="whitespace-nowrap rounded-[6px] bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                           >
                             Relancé aujourd&apos;hui
                           </button>
                         ) : (
-                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#F2E6D2] text-[#5C2A1D]">
+                          <span className="inline-flex h-7 w-7 items-center justify-center rounded-[6px] text-[#666666]">
                             ›
                           </span>
                         )}
@@ -587,7 +564,7 @@ export default function DashboardView({
             )}
           </div>
           {priorityQueue.length > 0 && (
-            <div className="flex items-center justify-between rounded-2xl bg-[#5C2A1D] px-5 py-4 text-sm text-white">
+            <div className="flex items-center justify-between rounded-[6px] border border-[#eaeaea] bg-[#fafafa] px-5 py-4 text-sm text-[#171717]">
               <span>
                 {priorityQueue.length} dossier(s) à traiter — commence par les arrivées les plus
                 proches.
@@ -598,10 +575,10 @@ export default function DashboardView({
 
         <div className="space-y-6">
           <div>
-            <h2 className="font-heading mb-3 text-lg font-semibold text-[#5C2A1D]">
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
               Actions rapides
             </h2>
-            <div className="divide-y divide-neutral-50 overflow-hidden rounded-2xl bg-white shadow-sm">
+            <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
               {callsToday.map((c) => (
                 <ActionRow
                   key={"call-" + c.id}
@@ -675,7 +652,7 @@ export default function DashboardView({
           </div>
 
           <div>
-            <h2 className="font-heading mb-3 text-lg font-semibold text-[#5C2A1D]">
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
               Répartition par statut
             </h2>
             <DonutChart
@@ -689,7 +666,7 @@ export default function DashboardView({
           </div>
 
           {isDirection && (
-            <StatTile icon="wallet" label="CA (activités)" value={`${euros(caTotal)} €`} tone="solid" />
+            <StatTile icon="wallet" label="CA (activités)" value={`${euros(caTotal)} €`} tone="default" />
           )}
         </div>
       </div>

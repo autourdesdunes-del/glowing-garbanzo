@@ -646,7 +646,7 @@ function AppShellInner({
     <div className="flex min-h-screen bg-[#fafafa]">
       <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white">
         <div className="flex items-center gap-2.5 px-4 py-5">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#171717] text-sm font-semibold text-white">
             AD
           </div>
           <div className="min-w-0">
@@ -668,7 +668,7 @@ function AppShellInner({
                   setMode(t.key);
                   if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
                 }}
-                className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium transition ${
+                className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium text-left transition ${
                   active
                     ? "bg-[#fafafa] text-[#171717]"
                     : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
@@ -687,7 +687,7 @@ function AppShellInner({
               onClick={() => setViewAsTeam((v) => !v)}
               className={`flex w-full items-center justify-between rounded-[6px] px-2.5 py-2 text-xs font-medium transition ${
                 viewAsTeam
-                  ? "bg-[#C9973E] text-white"
+                  ? "bg-[#171717] text-white"
                   : "bg-[#fafafa] text-[#666666] hover:bg-[#eaeaea]"
               }`}
             >
@@ -709,7 +709,7 @@ function AppShellInner({
               saveState === "error"
                 ? "text-[#EE0000] opacity-100"
                 : saveState === "saving"
-                  ? "text-[#C9973E] opacity-100"
+                  ? "text-[#f5a623] opacity-100"
                   : "text-[#666666] opacity-100"
             }`}
           >

@@ -414,7 +414,7 @@ export default function ClientDetail({
             </span>
           )}
           {(client.date_debut || client.date_fin) && (
-            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-3 py-1 text-[#666666]">
+            <span className="font-amounts rounded-full bg-[#f5a623]/20 px-3 py-1 text-[#666666]">
               {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
             </span>
           )}
@@ -435,7 +435,7 @@ export default function ClientDetail({
       </div>
 
       {autresSejours.length > 0 && (
-        <div className="rounded-lg border border-[#C9973E]/40 bg-[#C9973E]/10 p-4">
+        <div className="rounded-lg border border-[#f5a623]/40 bg-[#f5a623]/10 p-4">
           <p className="text-sm text-[#666666]">
             🔁 Ce client est déjà venu — {autresSejours.length} autre(s) séjour(s) enregistré(s) :
           </p>
@@ -513,7 +513,7 @@ export default function ClientDetail({
         title="Paiements"
         titleExtra={
           <span className="flex items-center gap-1.5">
-            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-semibold text-[#666666]">
+            <span className="font-amounts rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-semibold text-[#666666]">
               {euros(totalSejourHeader)} €
             </span>
             <span

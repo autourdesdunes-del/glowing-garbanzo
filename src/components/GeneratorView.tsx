@@ -284,7 +284,7 @@ export default function GeneratorView({
                         {c.item.categorie}
                       </span>
                       {c.item.marge_pct > 0 && (
-                        <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-[10px] font-medium text-[#0F5C56]">
+                        <span className="rounded-full bg-[#0070f3]/10 px-2 py-0.5 text-[10px] font-medium text-[#0070f3]">
                           Marge cible {c.item.marge_pct}%
                         </span>
                       )}
@@ -320,7 +320,7 @@ export default function GeneratorView({
               <button
                 onClick={addToClient}
                 disabled={saving}
-                className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
               >
                 {saving ? "Ajout…" : `Ajouter ${selectedItems.length || ""} activité(s)`}
               </button>

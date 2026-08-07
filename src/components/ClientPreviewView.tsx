@@ -10,6 +10,7 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
+import MarqueeAlongSvgPath from "@/components/ui/marquee-along-svg-path";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -221,6 +222,24 @@ export default function ClientPreviewView({
 
   const bookedNames = new Set(reservations.map((r) => r.nom_activite));
   const suggestions = catalogue.filter((a) => a.valide && !bookedNames.has(a.nom)).slice(0, 4);
+  const suggestionsWithPhoto = suggestions.filter((a) => a.photo_path);
+
+  const [suggestionPhotos, setSuggestionPhotos] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (suggestionsWithPhoto.length === 0) return;
+    (async () => {
+      const entries = await Promise.all(
+        suggestionsWithPhoto.map(async (a) => {
+          const { data } = await supabase.storage
+            .from("activity-photos")
+            .createSignedUrl(a.photo_path, 3600);
+          return [a.id, data?.signedUrl || ""] as const;
+        })
+      );
+      setSuggestionPhotos(Object.fromEntries(entries.filter(([, url]) => url)));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestionsWithPhoto.map((a) => a.id).join(",")]);
 
   const filteredFaq = FAQ_EGYPTE.filter(
     (f) => !search.trim() || (f.q + f.a).toLowerCase().includes(search.trim().toLowerCase())
@@ -414,6 +433,32 @@ export default function ClientPreviewView({
           <h2 className="font-heading mb-2 text-lg font-semibold text-[#5C2A1D]">
             Envie de plus ?
           </h2>
+          {suggestionsWithPhoto.length >= 3 && (
+            <div className="mb-3 h-28 overflow-hidden rounded-md bg-[#F2E6D2]">
+              <MarqueeAlongSvgPath
+                path="M0 80 C 100 20, 200 140, 300 80 C 400 20, 500 140, 600 80"
+                viewBox="0 0 600 160"
+                baseVelocity={2.5}
+                slowdownOnHover
+                repeat={2}
+                responsive
+                className="h-full w-full"
+              >
+                {suggestionsWithPhoto
+                  .filter((a) => suggestionPhotos[a.id])
+                  .map((a) => (
+                    <div key={a.id} className="h-16 w-16 overflow-hidden rounded-full border-2 border-white shadow-sm">
+                      <img
+                        src={suggestionPhotos[a.id]}
+                        alt={a.nom}
+                        className="h-full w-full object-cover"
+                        draggable={false}
+                      />
+                    </div>
+                  ))}
+              </MarqueeAlongSvgPath>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             {suggestions.map((a) => (
               <div key={a.id} className="rounded-md border border-neutral-200 bg-white p-3">

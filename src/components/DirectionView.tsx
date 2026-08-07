@@ -242,9 +242,9 @@ export default function DirectionView({
       </p>
 
       <div className="grid grid-cols-3 gap-4">
-        <StatTile label="CA total" value={`${euros(caTotal)} €`} accent="#171717" />
-        <StatTile label="Marge totale" value={`${euros(margeTotal)} €`} accent="#C9973E" />
-        <StatTile label="Marge" value={`${margePct}%`} accent="#666666" />
+        <StatTile label="CA total" value={`${euros(caTotal)} €`} />
+        <StatTile label="Marge totale" value={`${euros(margeTotal)} €`} />
+        <StatTile label="Marge" value={`${margePct}%`} />
       </div>
 
       <section>
@@ -371,10 +371,9 @@ export default function DirectionView({
   );
 }
 
-function StatTile({ label, value, accent }: { label: string; value: string; accent: string }) {
+function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="relative overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white p-4">
-      <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
       <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">{label}</p>
       <p className="font-amounts mt-1 text-2xl font-semibold text-[#171717]">{value}</p>
     </div>

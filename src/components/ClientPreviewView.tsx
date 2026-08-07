@@ -239,7 +239,7 @@ export default function ClientPreviewView({
       setSuggestionPhotos(Object.fromEntries(entries.filter(([, url]) => url)));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggestionsWithPhoto.map((a) => a.id).join(",")]);
+  }, [suggestionsWithPhoto.map((a) => a.id).join(",")]); const loadedSuggestionPhotos = suggestionsWithPhoto.filter((a) => suggestionPhotos[a.id]);
 
   const filteredFaq = FAQ_EGYPTE.filter(
     (f) => !search.trim() || (f.q + f.a).toLowerCase().includes(search.trim().toLowerCase())
@@ -433,7 +433,7 @@ export default function ClientPreviewView({
           <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
             Envie de plus ?
           </h2>
-          {suggestionsWithPhoto.length >= 3 && (
+          {loadedSuggestionPhotos.length >= 3 && (
             <div className="mb-3 h-28 overflow-hidden rounded-md bg-[#fafafa]">
               <MarqueeAlongSvgPath
                 path="M0 80 C 100 20, 200 140, 300 80 C 400 20, 500 140, 600 80"

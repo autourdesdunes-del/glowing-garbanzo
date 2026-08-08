@@ -105,6 +105,20 @@ export const CATALOGUE_TAGS_PRESETS = [
   "Détente",
 ] as const;
 
+// Champs additionnels que le Catalogue peut rendre obligatoires sur une
+// réservation, selon le type d'activité (brief section réservations).
+// Liste fermée : chaque valeur a un champ de saisie dédié dans
+// ReservationCard, contrairement aux presets "inclus/non-inclus" qui
+// acceptent du texte libre.
+export const CHAMPS_REQUIS_PRESETS = [
+    "Pointure",
+    "Créneau (matin / après-midi / coucher de soleil)",
+    "Conducteurs & passagers",
+    "Vol & horaire",
+  ] as const;
+
+export const CRENEAUX_ACTIVITE = ["Matin", "Après-midi", "Coucher de soleil"] as const;
+
 export const CATALOGUE_CATEGORIES = [
   "Excursion",
   "Transfert",

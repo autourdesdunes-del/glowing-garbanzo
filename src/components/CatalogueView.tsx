@@ -7,6 +7,7 @@ import {
   A_PREVOIR_PRESETS,
   CATALOGUE_CATEGORIES,
   CATALOGUE_TAGS_PRESETS,
+    CHAMPS_REQUIS_PRESETS,
   DUREE_OPTIONS,
   GUIDE_OPTIONS,
   INCLUS_PRESETS,
@@ -421,7 +422,7 @@ export default function CatalogueView({
 
   const toggleListField = (
     a: CatalogueItem,
-    field: "inclus_liste" | "non_inclus_liste" | "a_prevoir_liste" | "tags",
+    field: "inclus_liste" | "non_inclus_liste" | "a_prevoir_liste" | "tags" | "champs_requis_liste",
     label: string
   ) => {
     const liste = a[field] || [];
@@ -1075,6 +1076,35 @@ export default function CatalogueView({
                 />
               </div>
 
+                            <div className="mt-3">
+                                            <p className="mb-1.5 text-sm font-medium text-neutral-700">
+                                                              Champs obligatoires pour réserver cette activité
+                                            </p>
+                                            <p className="mb-1.5 text-xs text-neutral-400">
+                                                              Tant que ces informations ne sont pas remplies sur une réservation de ce type,
+                                                              l'employée ne pourra pas la valider.
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
+                                              {CHAMPS_REQUIS_PRESETS.map((label) => {
+                                  const active = (a.champs_requis_liste || []).includes(label);
+                                  return (
+                                                          <button
+                                                                                    key={label}
+                                                                                    type="button"
+                                                                                    onClick={() => toggleListField(a, "champs_requis_liste", label)}
+                                                                                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                                                                                                                active
+                                                                                                                  ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                                                                                                                  : "border-neutral-300 text-neutral-600"
+                                                                                      }`}
+                                                                                  >
+                                                            {active ? "✓ " : ""}
+                                                            {label}
+                                                          </button>
+                                                        );
+            })}
+                                            </div>
+                            </div>
               <div className="mt-3">
                 <p className="mb-1 text-sm font-medium text-neutral-700">
                   Tarifs supplémentaires proposés (accompagnateur, passager, bébé…)

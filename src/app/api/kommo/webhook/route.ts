@@ -1,10 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchKommoLeadContactInfo } from "@/lib/kommoApi";
 import {
     detectKommoEventType,
     extractContactEntries,
     extractCustomFieldValue,
     extractLeadEntries,
     parseKommoFormBody,
+      KOMMO_STATUS_MAP,
 } from "@/lib/kommoWebhook";
 
 // Étape 1 (lecture seule) de l'intégration Kommo : ce endpoint reçoit les
@@ -84,53 +86,100 @@ async function processKommoEvent(
 }
 
 async function processLeadEvent(
-    admin: ReturnType<typeof createAdminClient>,
-    payload: Record<string, unknown>
-  ): Promise<string | null> {
-    const entries = extractLeadEntries(payload);
-    let lastClientId: string | null = null;
-
-  for (const entry of entries) {
-        const leadId = Number(entry.id);
-        if (!leadId) continue;
-
-      const statusId = entry.status_id ? Number(entry.status_id) : null;
-        const statusNom = typeof entry.status_name === "string" ? entry.status_name : "";
-
-      const { data: existing } = await admin
-          .from("clients")
-          .select("id")
-          .eq("kommo_lead_id", leadId)
-          .maybeSingle();
-
-      if (existing) {
-              await admin
-                .from("clients")
-                .update({
-                            kommo_pipeline_status_id: statusId,
-                            kommo_pipeline_status_nom: statusNom,
-                            kommo_synced_at: new Date().toISOString(),
-                })
-                .eq("id", existing.id);
-              lastClientId = existing.id;
-      } else {
-              const { data: created } = await admin
-                .from("clients")
-                .insert({
-                            nom: typeof entry.name === "string" && entry.name ? entry.name : `Lead Kommo #${leadId}`,
-                            statut: "Prospect",
-                            kommo_lead_id: leadId,
-                            kommo_pipeline_status_id: statusId,
-                            kommo_pipeline_status_nom: statusNom,
-                            kommo_synced_at: new Date().toISOString(),
-                })
-                .select("id")
-                .single();
-              lastClientId = created?.id ?? null;
+      admin: ReturnType<typeof createAdminClient>,
+      payload: Record<string, unknown>
+    ): Promise<string | null> {
+      const entries = extractLeadEntries(payload);
+      let lastClientId: string | null = null;
+    
+      for (const entry of entries) {
+              const leadId = Number(entry.id);
+              if (!leadId) continue;
+          
+              const statusId = entry.status_id ? Number(entry.status_id) : null;
+              const mapped = statusId ? KOMMO_STATUS_MAP[statusId] : undefined;
+              const statusNom = typeof entry.status_name === "string" && entry.status_name
+                        ? entry.status_name
+                        : mapped?.nom ?? "";
+              const entryName = typeof entry.name === "string" ? entry.name : "";
+          
+              const { data: existing } = await admin
+                        .from("clients")
+                        .select("id, nom, telephone, email")
+                        .eq("kommo_lead_id", leadId)
+                        .maybeSingle();
+          
+              if (existing) {
+                        const patch: Record<string, unknown> = {
+                                    kommo_pipeline_status_id: statusId,
+                                    kommo_pipeline_status_nom: statusNom,
+                                    kommo_synced_at: new Date().toISOString(),
+                        };
+                        if (mapped) patch.statut = mapped.statutCrm;
+                  
+                        const isPlaceholder = !existing.nom || existing.nom.startsWith("Lead Kommo #");
+                        if (isPlaceholder) {
+                                    const info = await fetchKommoLeadContactInfo(leadId);
+                                    if (info?.nom) patch.nom = info.nom;
+                                    if (info?.telephone && !existing.telephone) patch.telephone = info.telephone;
+                                    if (info?.email && !existing.email) patch.email = info.email;
+                        }
+                  
+                        await admin.from("clients").update(patch).eq("id", existing.id);
+                        lastClientId = existing.id;
+                        continue;
+              }
+          
+              let nom = entryName;
+              let telephone = "";
+              let email = "";
+              if (!nom) {
+                        const info = await fetchKommoLeadContactInfo(leadId);
+                        if (info) {
+                                    nom = info.nom;
+                                    telephone = info.telephone;
+                                    email = info.email;
+                        }
+              }
+          
+              let matchedId: string | null = null;
+              if (telephone) {
+                        const { data } = await admin.from("clients").select("id").eq("telephone", telephone).maybeSingle();
+                        matchedId = data?.id ?? null;
+              }
+          
+              if (matchedId) {
+                        await admin
+                                    .from("clients")
+                                    .update({
+                                                  kommo_lead_id: leadId,
+                                                  kommo_pipeline_status_id: statusId,
+                                                  kommo_pipeline_status_nom: statusNom,
+                                                  kommo_synced_at: new Date().toISOString(),
+                                                  ...(mapped ? { statut: mapped.statutCrm } : {}),
+                                    })
+                                    .eq("id", matchedId);
+                        lastClientId = matchedId;
+              } else {
+                        const { data: created } = await admin
+                                    .from("clients")
+                                    .insert({
+                                                  nom: nom || `Lead Kommo #${leadId}`,
+                                                  statut: mapped?.statutCrm ?? "Prospect",
+                                                  telephone,
+                                                  email,
+                                                  kommo_lead_id: leadId,
+                                                  kommo_pipeline_status_id: statusId,
+                                                  kommo_pipeline_status_nom: statusNom,
+                                                  kommo_synced_at: new Date().toISOString(),
+                                    })
+                                    .select("id")
+                                    .single();
+                        lastClientId = created?.id ?? null;
+              }
       }
-  }
-
-  return lastClientId;
+    
+      return lastClientId;
 }
 
 async function processContactEvent(

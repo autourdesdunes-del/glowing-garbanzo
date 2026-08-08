@@ -9,7 +9,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { BILLET_STATUTS, MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
+import { BILLET_STATUTS,CRENEAUX_ACTIVITE,  MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
 import { paiementStatutKey, participantsFor, resaTotalMontant, STATUT_PAIEMENT_OPTIONS } from "@/lib/resa";
 import { Field } from "@/components/client-steps";
 
@@ -69,6 +69,26 @@ export default function ReservationCard({
   onUpdateCoutReel: (value: number) => void;
 }) {
   const [showPaxOverride, setShowPaxOverride] = useState(!!r.pax_override);
+    const [validationError, setValidationError] = useState(false);
+    const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+    const champsRequis = catalogueItem?.champs_requis_liste || [];
+    const missingChamps: string[] = [];
+    if (champsRequis.includes("Pointure") && !r.pointure.trim()) missingChamps.push("Pointure");
+    if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
+          missingChamps.push("Créneau");
+    }
+    if (
+          champsRequis.includes("Conducteurs & passagers") &&
+          (r.nb_conducteurs == null || r.nb_passagers == null)
+        ) {
+          missingChamps.push("Conducteurs & passagers");
+    }
+    if (
+          champsRequis.includes("Vol & horaire") &&
+          (!r.numero_vol.trim() || !r.horaire_vol.trim())
+        ) {
+          missingChamps.push("Vol & horaire");
+    }
   const pickFromCatalogue = (id: string) => {
     const item = catalogue.find((a) => a.id === id);
     if (!item) return;
@@ -220,12 +240,26 @@ export default function ReservationCard({
           Retirer
         </button>
         <button
-          onClick={() => onToggleExpanded(false)}
+          onClick={() => {
+                        if (missingChamps.length > 0) {
+                                        setValidationError(true);
+                                        return;
+                        }
+                        setValidationError(false);
+                        onUpdate({ statut_resa: "Confirmée" });
+                        onToggleExpanded(false);
+          }}
           className="text-xs font-medium text-[#171717] hover:underline"
         >
           Valider
         </button>
       </div>
+
+      {validationError && missingChamps.length > 0 && (
+              <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+                        ⚠ Impossible de valider — champs manquants : {missingChamps.join(", ")}
+              </div>
+            )}
 
       {options.length > 0 && (
         <div className="mb-3 rounded-md bg-[#f5a623]/10 px-3 py-2 text-xs text-[#666666]">
@@ -438,7 +472,107 @@ export default function ReservationCard({
           )}
         </div>
       </div>
-
+      {champsRequis.length > 0 && (
+              <div className="mt-3 rounded-md border border-[#0F5C56]/20 bg-[#0F5C56]/5 p-3">
+                        <p className="mb-2 text-sm font-medium text-neutral-700">
+                                    Informations requises pour cette activité
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                          {champsRequis.includes("Pointure") && (
+                              <Field label="Pointure *">
+                                              <input
+                                                                  value={r.pointure}
+                                                                  onChange={(e) => onUpdate({ pointure: e.target.value })}
+                                                                  className={`input ${
+                                                                                        validationError && !r.pointure.trim() ? "border-red-300 focus:border-red-400" : ""
+                                                                  }`}
+                                                                />
+                              </Field>
+                            )}
+                          {champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && (
+                              <Field label="Créneau *">
+                                              <select
+                                                                  value={r.creneau}
+                                                                  onChange={(e) => onUpdate({ creneau: e.target.value })}
+                                                                  className={`input ${
+                                                                                        validationError && !r.creneau ? "border-red-300 focus:border-red-400" : ""
+                                                                  }`}
+                                                                >
+                                                                <option value="">—</option>
+                                                {CRENEAUX_ACTIVITE.map((c) => (
+                                                                                      <option key={c}>{c}</option>
+                                                                                    ))}
+                                              </select>
+                              </Field>
+                            )}
+                          {champsRequis.includes("Conducteurs & passagers") && (
+                              <>
+                                              <Field label="Conducteurs *">
+                                                                <input
+                                                                                      type="number"
+                                                                                      min={0}
+                                                                                      value={r.nb_conducteurs ?? ""}
+                                                                                      onChange={(e) =>
+                                                                                                              onUpdate({
+                                                                                                                                        nb_conducteurs: e.target.value === "" ? null : Number(e.target.value),
+                                                                                                                })
+                                                                                        }
+                                                                                      className={`input ${
+                                                                                                              validationError && r.nb_conducteurs == null
+                                                                                                                ? "border-red-300 focus:border-red-400"
+                                                                                                                : ""
+                                                                                        }`}
+                                                                                    />
+                                              </Field>
+                                              <Field label="Passagers *">
+                                                                <input
+                                                                                      type="number"
+                                                                                      min={0}
+                                                                                      value={r.nb_passagers ?? ""}
+                                                                                      onChange={(e) =>
+                                                                                                              onUpdate({
+                                                                                                                                        nb_passagers: e.target.value === "" ? null : Number(e.target.value),
+                                                                                                                })
+                                                                                        }
+                                                                                      className={`input ${
+                                                                                                              validationError && r.nb_passagers == null
+                                                                                                                ? "border-red-300 focus:border-red-400"
+                                                                                                                : ""
+                                                                                        }`}
+                                                                                    />
+                                              </Field>
+                              </>
+                            )}
+                          {champsRequis.includes("Vol & horaire") && (
+                              <>
+                                              <Field label="Numéro de vol *">
+                                                                <input
+                                                                                      value={r.numero_vol}
+                                                                                      onChange={(e) => onUpdate({ numero_vol: e.target.value })}
+                                                                                      className={`input ${
+                                                                                                              validationError && !r.numero_vol.trim()
+                                                                                                                ? "border-red-300 focus:border-red-400"
+                                                                                                                : ""
+                                                                                        }`}
+                                                                                    />
+                                              </Field>
+                                              <Field label="Horaire de vol *">
+                                                                <input
+                                                                                      value={r.horaire_vol}
+                                                                                      onChange={(e) => onUpdate({ horaire_vol: e.target.value })}
+                                                                                      className={`input ${
+                                                                                                              validationError && !r.horaire_vol.trim()
+                                                                                                                ? "border-red-300 focus:border-red-400"
+                                                                                                                : ""
+                                                                                        }`}
+                                                                                    />
+                                              </Field>
+                              </>
+                            )}
+                        </div>
+              </div>
+            )}
+      
       <div className="mt-3">
         <p className="mb-1 text-sm font-medium text-neutral-700">Options</p>
         {options.map((o) => (

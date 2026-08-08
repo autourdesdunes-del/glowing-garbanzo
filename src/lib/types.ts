@@ -39,6 +39,7 @@ export type CatalogueItem = {
     point_rdv: string;
     photo_path: string;
     valide: boolean;
+        champs_requis_liste: string[];
     created_at: string;
     updated_at: string;
 };
@@ -100,6 +101,12 @@ export type Reservation = {
     a_prevoir: string;
     info_importante: string;
     photo_path: string;
+        pointure: string;
+        creneau: string;
+        nb_conducteurs: number | null;
+        nb_passagers: number | null;
+        numero_vol: string;
+        horaire_vol: string;
     statut_resa: "Brouillon" | "Confirmée";
     billet_requis: boolean;
     billet_statut: string;

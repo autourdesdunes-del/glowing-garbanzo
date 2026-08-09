@@ -196,7 +196,8 @@ export function participantsFor(r: Reservation, client: Client) {
     r.participants_mode === "tous" ? Number(client.adultes) || 0 : Number(r.participants_adultes) || 0;
   const nbEnf =
     r.participants_mode === "tous" ? Number(client.enfants) || 0 : Number(r.participants_enfants) || 0;
-  return { nbAd, nbEnf };
+  const nbAcc = r.participants_mode === "tous" ? 0 : Number(r.participants_accompagnateurs) || 0;
+  return { nbAd, nbEnf, nbAcc };
 }
 
 export function resaTotalMontant(
@@ -205,8 +206,8 @@ export function resaTotalMontant(
   options: ReservationOption[] = [],
   tarifs: ReservationTarif[] = []
 ) {
-  const { nbAd, nbEnf } = participantsFor(r, client);
-  const base = nbAd * (Number(r.pu_adulte) || 0) + nbEnf * (Number(r.pu_enfant) || 0);
+      const { nbAd, nbEnf, nbAcc } = participantsFor(r, client);
+  const base = nbAd * (Number(r.pu_adulte) || 0) + nbEnf * (Number(r.pu_enfant) || 0) + nbAcc * (Number(r.pu_accompagnateur) || 0);
   const optionsTotal = options.reduce((s, o) => s + (Number(o.prix) || 0), 0);
   const tarifsTotal = tarifs.reduce((s, t) => s + (Number(t.quantite) || 0) * (Number(t.pu) || 0), 0);
   const transfert = r.transfert_inclus ? 0 : Number(r.transfert_montant) || 0;

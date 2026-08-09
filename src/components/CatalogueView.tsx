@@ -748,6 +748,20 @@ export default function CatalogueView({
                         {euros(a.pu_bebe)}€
                       </span>
                     </div>
+                    {a.pu_accompagnateur > 0 && (
+                <div className="flex items-center gap-3">
+                    <RowIcon>
+                          <IconAdulte />
+                    </RowIcon>
+                    <div className="min-w-0 flex-1">
+                          <p className="text-sm text-neutral-700">Accompagnateur</p>
+                          <p className="text-[11px] text-neutral-400">{a.pu_accompagnateur_age}</p>
+                    </div>
+                    <span className="font-amounts text-sm text-[#171717]">
+                      {euros(a.pu_accompagnateur)}€
+                    </span>
+                </div>
+              )}
                   </div>
 
                   {(() => {
@@ -997,6 +1011,22 @@ export default function CatalogueView({
                       className="input min-w-[120px] flex-1"
                       placeholder="ex. 0 à 3 ans"
                     />
+                  </div>
+                </Field>
+                <Field label="PU accompagnateur (€)">
+                  <div className="flex gap-2">
+                      <input
+                              type="number"
+                              value={a.pu_accompagnateur}
+                              onChange={(e) => onUpdate(a.id, { pu_accompagnateur: Number(e.target.value) })}
+                              className="input w-20"
+                            />
+                      <input
+                              value={a.pu_accompagnateur_age}
+                              onChange={(e) => onUpdate(a.id, { pu_accompagnateur_age: e.target.value })}
+                              className="input min-w-[120px] flex-1"
+                              placeholder="ex. accompagnant non-plongeur"
+                            />
                   </div>
                 </Field>
                 {canSeeMargins && (

@@ -19,9 +19,11 @@ export type CatalogueItem = {
     pu_adulte: number;
     pu_enfant: number;
     pu_bebe: number;
+    pu_accompagnateur: number;
     pu_adulte_age: string;
     pu_enfant_age: string;
     pu_bebe_age: string;
+    pu_accompagnateur_age: string;
     marge_pct: number;
     horaire_approx: string;
     duree: string;
@@ -86,9 +88,11 @@ export type Reservation = {
     moment: string;
     pu_adulte: number;
     pu_enfant: number;
+    pu_accompagnateur: number;
     participants_mode: "tous" | "custom";
     participants_adultes: number;
     participants_enfants: number;
+    participants_accompagnateurs: number;
     participants_noms: string;
     pax_override: string;
     transfert_inclus: boolean;

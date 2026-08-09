@@ -97,6 +97,7 @@ export default function ReservationCard({
       catalogue_item_id: item.id,
       pu_adulte: item.pu_adulte,
       pu_enfant: item.pu_enfant,
+      pu_accompagnateur: item.pu_accompagnateur,
       horaire_approx: item.horaire_approx,
       inclus: (item.inclus_liste || []).join(", ") || item.inclus,
       non_inclus: item.non_inclus,
@@ -323,6 +324,14 @@ export default function ReservationCard({
             className="input"
           />
         </Field>
+        <Field label="PU accompagnateur (€)">
+          <input
+                type="number"
+                value={r.pu_accompagnateur}
+                onChange={(e) => onUpdate({ pu_accompagnateur: Number(e.target.value) })}
+                className="input"
+              />
+        </Field>
         {canSeeMargins && (
           <Field label="Coût réel (interne)">
             <input
@@ -435,6 +444,14 @@ export default function ReservationCard({
                 onChange={(e) => onUpdate({ participants_enfants: Number(e.target.value) })}
                 className="input"
               />
+            </Field>
+            <Field label="Accompagnateurs">
+              <input
+                    type="number"
+                    value={r.participants_accompagnateurs}
+                    onChange={(e) => onUpdate({ participants_accompagnateurs: Number(e.target.value) })}
+                    className="input"
+                  />
             </Field>
             <Field label="Noms">
               <input

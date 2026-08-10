@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ActivityLogEntry,
   CatalogueItem,
+  CatalogueOption,
   CatalogueTarif,
   Client,
   ClientHotel,
@@ -670,6 +671,7 @@ export function ActivitesStep({
   onDeleteTarif,
   catalogue,
   catalogueTarifs,
+  catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
   coutsMap,
@@ -681,7 +683,7 @@ export function ActivitesStep({
   onAddReservation: () => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
-  onAddOption: (resaId: string) => void;
+  onAddOption: (resaId: string, seed?: { nom: string; prix: number }) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
   onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
@@ -689,6 +691,7 @@ export function ActivitesStep({
   onDeleteTarif: (resaId: string, tarifId: string) => void;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
+  catalogueOptions: Record<string, CatalogueOption[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
   coutsMap: Record<string, number>;
@@ -734,6 +737,7 @@ export function ActivitesStep({
         onUpdateClient={onChange}
         catalogue={catalogue}
         catalogueTarifs={catalogueTarifs}
+        catalogueOptions={catalogueOptions}
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}
       />

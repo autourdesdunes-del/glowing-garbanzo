@@ -99,7 +99,6 @@ export const A_PREVOIR_PRESETS = [
 export const CATALOGUE_TAGS_PRESETS = [
   "Activités en mer",
   "Activités désert",
-  "Activités Le Caire",
   "Culture",
   "Aventure",
   "Détente",
@@ -111,11 +110,11 @@ export const CATALOGUE_TAGS_PRESETS = [
 // ReservationCard, contrairement aux presets "inclus/non-inclus" qui
 // acceptent du texte libre.
 export const CHAMPS_REQUIS_PRESETS = [
-    "Pointure",
-    "Créneau (matin / après-midi / coucher de soleil)",
-    "Conducteurs & passagers",
-    "Vol & horaire",
-  ] as const;
+  "Pointure",
+  "Créneau (matin / après-midi / coucher de soleil)",
+  "Conducteurs & passagers",
+  "Vol & horaire",
+] as const;
 
 export const CRENEAUX_ACTIVITE = ["Matin", "Après-midi", "Coucher de soleil"] as const;
 
@@ -128,7 +127,7 @@ export const CATALOGUE_CATEGORIES = [
 
 export const STATUT_COLORS: Record<string, string> = {
   Prospect: "#666666",
-  "En négociation": "#f5a623",
+  "En négociation": "#C9973E",
   "Client confirmé": "#171717",
-  Perdu: "#666666",
+  Perdu: "#9CA3AF",
 };

@@ -14,6 +14,7 @@ import {
 } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
+import MissingInfoModal from "@/components/MissingInfoModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
@@ -106,11 +107,31 @@ export default function ClientDetail({
     Suivi: false,
   };
   const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>(CLOSED_SECTIONS);
+  const [missingInfo, setMissingInfo] = useState<{
+    message: string;
+    actionLabel: string;
+    focusId: string;
+    section: (typeof SECTIONS)[number];
+  } | null>(null);
 
   useEffect(() => {
     setOpen(CLOSED_SECTIONS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
+
+  const goToMissingField = () => {
+    if (!missingInfo) return;
+    const { focusId, section } = missingInfo;
+    setOpen((prev) => ({ ...prev, [section]: true }));
+    setMissingInfo(null);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const el = document.getElementById(focusId);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        (el as HTMLInputElement | null)?.focus();
+      }, 100);
+    });
+  };
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [resaTarifs, setResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
@@ -414,7 +435,7 @@ export default function ClientDetail({
             </span>
           )}
           {(client.date_debut || client.date_fin) && (
-            <span className="font-amounts rounded-full bg-[#f5a623]/20 px-3 py-1 text-[#666666]">
+            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-3 py-1 text-[#666666]">
               {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
             </span>
           )}
@@ -435,7 +456,7 @@ export default function ClientDetail({
       </div>
 
       {autresSejours.length > 0 && (
-        <div className="rounded-lg border border-[#f5a623]/40 bg-[#f5a623]/10 p-4">
+        <div className="rounded-lg border border-[#C9973E]/40 bg-[#C9973E]/10 p-4">
           <p className="text-sm text-[#666666]">
             🔁 Ce client est déjà venu — {autresSejours.length} autre(s) séjour(s) enregistré(s) :
           </p>
@@ -471,7 +492,18 @@ export default function ClientDetail({
       </div>
 
       <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
-        <ContactStep client={client} onChange={onChange} />
+        <ContactStep
+          client={client}
+          onChange={onChange}
+          onNeedsField={(message, focusId) =>
+            setMissingInfo({
+              message,
+              actionLabel: "Je rajoute l'âge des enfants",
+              focusId,
+              section: "Séjour",
+            })
+          }
+        />
       </Section>
 
       <Section title="Séjour" open={open.Séjour} onToggle={() => toggle("Séjour")}>
@@ -513,7 +545,7 @@ export default function ClientDetail({
         title="Paiements"
         titleExtra={
           <span className="flex items-center gap-1.5">
-            <span className="font-amounts rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-semibold text-[#666666]">
+            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-semibold text-[#666666]">
               {euros(totalSejourHeader)} €
             </span>
             <span
@@ -540,6 +572,15 @@ export default function ClientDetail({
       <Section title="Suivi" open={open.Suivi} onToggle={() => toggle("Suivi")}>
         <SuiviStep client={client} onChange={onChange} reservations={reservations} />
       </Section>
+
+      {missingInfo && (
+        <MissingInfoModal
+          message={missingInfo.message}
+          actionLabel={missingInfo.actionLabel}
+          onAction={goToMissingField}
+          onClose={() => setMissingInfo(null)}
+        />
+      )}
     </div>
   );
 }

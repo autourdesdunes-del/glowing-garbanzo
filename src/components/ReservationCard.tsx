@@ -9,7 +9,13 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { BILLET_STATUTS,CRENEAUX_ACTIVITE,  MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
+import {
+  BILLET_STATUTS,
+  CHAMPS_REQUIS_PRESETS,
+  CRENEAUX_ACTIVITE,
+  MOMENTS,
+  OPTIONS_PRESETS,
+} from "@/lib/constants";
 import { paiementStatutKey, participantsFor, resaTotalMontant, STATUT_PAIEMENT_OPTIONS } from "@/lib/resa";
 import { Field } from "@/components/client-steps";
 
@@ -69,26 +75,32 @@ export default function ReservationCard({
   onUpdateCoutReel: (value: number) => void;
 }) {
   const [showPaxOverride, setShowPaxOverride] = useState(!!r.pax_override);
-    const [validationError, setValidationError] = useState(false);
-    const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
-    const champsRequis = catalogueItem?.champs_requis_liste || [];
-    const missingChamps: string[] = [];
-    if (champsRequis.includes("Pointure") && !r.pointure.trim()) missingChamps.push("Pointure");
-    if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
-          missingChamps.push("Créneau");
-    }
-    if (
-          champsRequis.includes("Conducteurs & passagers") &&
-          (r.nb_conducteurs == null || r.nb_passagers == null)
-        ) {
-          missingChamps.push("Conducteurs & passagers");
-    }
-    if (
-          champsRequis.includes("Vol & horaire") &&
-          (!r.numero_vol.trim() || !r.horaire_vol.trim())
-        ) {
-          missingChamps.push("Vol & horaire");
-    }
+  const [validationError, setValidationError] = useState(false);
+  const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+  const champsRequis = catalogueItem?.champs_requis_liste || [];
+  const missingChamps: string[] = [];
+  if (champsRequis.includes("Pointure") && !r.pointure.trim()) missingChamps.push("Pointure");
+  if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
+    missingChamps.push("Créneau");
+  }
+  if (
+    champsRequis.includes("Conducteurs & passagers") &&
+    (r.nb_conducteurs == null || r.nb_passagers == null)
+  ) {
+    missingChamps.push("Conducteurs & passagers");
+  }
+  if (
+    champsRequis.includes("Vol & horaire") &&
+    (!r.numero_vol.trim() || !r.horaire_vol.trim())
+  ) {
+    missingChamps.push("Vol & horaire");
+  }
+  const champsRequisPersonnalises = champsRequis.filter(
+    (c) => !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c)
+  );
+  champsRequisPersonnalises.forEach((c) => {
+    if (!(r.champs_requis_coches || []).includes(c)) missingChamps.push(c);
+  });
   const pickFromCatalogue = (id: string) => {
     const item = catalogue.find((a) => a.id === id);
     if (!item) return;
@@ -137,7 +149,7 @@ export default function ReservationCard({
           {(soldeIci || hasOptions || hasInfo || r.billet_requis) && (
             <div className="mt-2 flex flex-wrap gap-2">
               {soldeIci && (
-                <span className="rounded-full bg-[#f5a623] px-2 py-0.5 text-xs text-white">
+                <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
                   💰 Solde ici — {soldeLabel}
                 </span>
               )}
@@ -164,7 +176,7 @@ export default function ReservationCard({
     return (
       <div
         onClick={() => onToggleExpanded(true)}
-        className="cursor-pointer rounded-md border border-[#f5a623]/40 bg-white p-3"
+        className="cursor-pointer rounded-md border border-[#C9973E]/40 bg-white p-3"
       >
         <p className="font-medium text-[#171717]">
           {r.nom_activite || "Activité sans nom"}
@@ -188,7 +200,7 @@ export default function ReservationCard({
         )}
         <div className="mt-2 flex items-center justify-between">
           {soldeIci ? (
-            <span className="rounded-full bg-[#f5a623] px-2 py-0.5 text-xs text-white">
+            <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
               💰 Solde ici — {soldeLabel}
             </span>
           ) : (
@@ -242,13 +254,13 @@ export default function ReservationCard({
         </button>
         <button
           onClick={() => {
-                        if (missingChamps.length > 0) {
-                                        setValidationError(true);
-                                        return;
-                        }
-                        setValidationError(false);
-                        onUpdate({ statut_resa: "Confirmée" });
-                        onToggleExpanded(false);
+            if (missingChamps.length > 0) {
+              setValidationError(true);
+              return;
+            }
+            setValidationError(false);
+            onUpdate({ statut_resa: "Confirmée" });
+            onToggleExpanded(false);
           }}
           className="text-xs font-medium text-[#171717] hover:underline"
         >
@@ -257,13 +269,13 @@ export default function ReservationCard({
       </div>
 
       {validationError && missingChamps.length > 0 && (
-              <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-                        ⚠ Impossible de valider — champs manquants : {missingChamps.join(", ")}
-              </div>
-            )}
+        <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+          ⚠ Impossible de valider — champs manquants : {missingChamps.join(", ")}
+        </div>
+      )}
 
       {options.length > 0 && (
-        <div className="mb-3 rounded-md bg-[#f5a623]/10 px-3 py-2 text-xs text-[#666666]">
+        <div className="mb-3 rounded-md bg-[#C9973E]/10 px-3 py-2 text-xs text-[#666666]">
           ⚠ Option(s) ajoutée(s) : {options.map((o) => o.nom).join(", ")}
         </div>
       )}
@@ -326,11 +338,11 @@ export default function ReservationCard({
         </Field>
         <Field label="PU accompagnateur (€)">
           <input
-                type="number"
-                value={r.pu_accompagnateur}
-                onChange={(e) => onUpdate({ pu_accompagnateur: Number(e.target.value) })}
-                className="input"
-              />
+            type="number"
+            value={r.pu_accompagnateur}
+            onChange={(e) => onUpdate({ pu_accompagnateur: Number(e.target.value) })}
+            className="input"
+          />
         </Field>
         {canSeeMargins && (
           <Field label="Coût réel (interne)">
@@ -420,7 +432,7 @@ export default function ReservationCard({
             onClick={() => onUpdate({ participants_mode: "custom" })}
             className={`rounded-full border px-3 py-1 text-xs ${
               r.participants_mode === "custom"
-                ? "border-[#171717] bg-[#171717] text-white"
+                ? "border-[#C9973E] bg-[#C9973E] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
@@ -447,11 +459,11 @@ export default function ReservationCard({
             </Field>
             <Field label="Accompagnateurs">
               <input
-                    type="number"
-                    value={r.participants_accompagnateurs}
-                    onChange={(e) => onUpdate({ participants_accompagnateurs: Number(e.target.value) })}
-                    className="input"
-                  />
+                type="number"
+                value={r.participants_accompagnateurs}
+                onChange={(e) => onUpdate({ participants_accompagnateurs: Number(e.target.value) })}
+                className="input"
+              />
             </Field>
             <Field label="Noms">
               <input
@@ -489,107 +501,136 @@ export default function ReservationCard({
           )}
         </div>
       </div>
+
       {champsRequis.length > 0 && (
-              <div className="mt-3 rounded-md border border-[#0F5C56]/20 bg-[#0F5C56]/5 p-3">
-                        <p className="mb-2 text-sm font-medium text-neutral-700">
-                                    Informations requises pour cette activité
-                        </p>
-                        <div className="grid grid-cols-2 gap-3">
-                          {champsRequis.includes("Pointure") && (
-                              <Field label="Pointure *">
-                                              <input
-                                                                  value={r.pointure}
-                                                                  onChange={(e) => onUpdate({ pointure: e.target.value })}
-                                                                  className={`input ${
-                                                                                        validationError && !r.pointure.trim() ? "border-red-300 focus:border-red-400" : ""
-                                                                  }`}
-                                                                />
-                              </Field>
-                            )}
-                          {champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && (
-                              <Field label="Créneau *">
-                                              <select
-                                                                  value={r.creneau}
-                                                                  onChange={(e) => onUpdate({ creneau: e.target.value })}
-                                                                  className={`input ${
-                                                                                        validationError && !r.creneau ? "border-red-300 focus:border-red-400" : ""
-                                                                  }`}
-                                                                >
-                                                                <option value="">—</option>
-                                                {CRENEAUX_ACTIVITE.map((c) => (
-                                                                                      <option key={c}>{c}</option>
-                                                                                    ))}
-                                              </select>
-                              </Field>
-                            )}
-                          {champsRequis.includes("Conducteurs & passagers") && (
-                              <>
-                                              <Field label="Conducteurs *">
-                                                                <input
-                                                                                      type="number"
-                                                                                      min={0}
-                                                                                      value={r.nb_conducteurs ?? ""}
-                                                                                      onChange={(e) =>
-                                                                                                              onUpdate({
-                                                                                                                                        nb_conducteurs: e.target.value === "" ? null : Number(e.target.value),
-                                                                                                                })
-                                                                                        }
-                                                                                      className={`input ${
-                                                                                                              validationError && r.nb_conducteurs == null
-                                                                                                                ? "border-red-300 focus:border-red-400"
-                                                                                                                : ""
-                                                                                        }`}
-                                                                                    />
-                                              </Field>
-                                              <Field label="Passagers *">
-                                                                <input
-                                                                                      type="number"
-                                                                                      min={0}
-                                                                                      value={r.nb_passagers ?? ""}
-                                                                                      onChange={(e) =>
-                                                                                                              onUpdate({
-                                                                                                                                        nb_passagers: e.target.value === "" ? null : Number(e.target.value),
-                                                                                                                })
-                                                                                        }
-                                                                                      className={`input ${
-                                                                                                              validationError && r.nb_passagers == null
-                                                                                                                ? "border-red-300 focus:border-red-400"
-                                                                                                                : ""
-                                                                                        }`}
-                                                                                    />
-                                              </Field>
-                              </>
-                            )}
-                          {champsRequis.includes("Vol & horaire") && (
-                              <>
-                                              <Field label="Numéro de vol *">
-                                                                <input
-                                                                                      value={r.numero_vol}
-                                                                                      onChange={(e) => onUpdate({ numero_vol: e.target.value })}
-                                                                                      className={`input ${
-                                                                                                              validationError && !r.numero_vol.trim()
-                                                                                                                ? "border-red-300 focus:border-red-400"
-                                                                                                                : ""
-                                                                                        }`}
-                                                                                    />
-                                              </Field>
-                                              <Field label="Horaire de vol *">
-                                                                <input
-                                                                                      value={r.horaire_vol}
-                                                                                      onChange={(e) => onUpdate({ horaire_vol: e.target.value })}
-                                                                                      className={`input ${
-                                                                                                              validationError && !r.horaire_vol.trim()
-                                                                                                                ? "border-red-300 focus:border-red-400"
-                                                                                                                : ""
-                                                                                        }`}
-                                                                                    />
-                                              </Field>
-                              </>
-                            )}
-                        </div>
-              </div>
+        <div className="mt-3 rounded-md border border-[#0F5C56]/20 bg-[#0F5C56]/5 p-3">
+          <p className="mb-2 text-sm font-medium text-neutral-700">
+            Informations requises pour cette activité
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {champsRequis.includes("Pointure") && (
+              <Field label="Pointure *">
+                <input
+                  value={r.pointure}
+                  onChange={(e) => onUpdate({ pointure: e.target.value })}
+                  className={`input ${
+                    validationError && !r.pointure.trim() ? "border-red-300 focus:border-red-400" : ""
+                  }`}
+                />
+              </Field>
             )}
-      
+            {champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && (
+              <Field label="Créneau *">
+                <select
+                  value={r.creneau}
+                  onChange={(e) => onUpdate({ creneau: e.target.value })}
+                  className={`input ${
+                    validationError && !r.creneau ? "border-red-300 focus:border-red-400" : ""
+                  }`}
+                >
+                  <option value="">—</option>
+                  {CRENEAUX_ACTIVITE.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            {champsRequis.includes("Conducteurs & passagers") && (
+              <>
+                <Field label="Conducteurs *">
+                  <input
+                    type="number"
+                    min={0}
+                    value={r.nb_conducteurs ?? ""}
+                    onChange={(e) =>
+                      onUpdate({
+                        nb_conducteurs: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                    className={`input ${
+                      validationError && r.nb_conducteurs == null
+                        ? "border-red-300 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                </Field>
+                <Field label="Passagers *">
+                  <input
+                    type="number"
+                    min={0}
+                    value={r.nb_passagers ?? ""}
+                    onChange={(e) =>
+                      onUpdate({
+                        nb_passagers: e.target.value === "" ? null : Number(e.target.value),
+                      })
+                    }
+                    className={`input ${
+                      validationError && r.nb_passagers == null
+                        ? "border-red-300 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                </Field>
+              </>
+            )}
+            {champsRequis.includes("Vol & horaire") && (
+              <>
+                <Field label="Numéro de vol *">
+                  <input
+                    value={r.numero_vol}
+                    onChange={(e) => onUpdate({ numero_vol: e.target.value })}
+                    className={`input ${
+                      validationError && !r.numero_vol.trim()
+                        ? "border-red-300 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                </Field>
+                <Field label="Horaire de vol *">
+                  <input
+                    value={r.horaire_vol}
+                    onChange={(e) => onUpdate({ horaire_vol: e.target.value })}
+                    className={`input ${
+                      validationError && !r.horaire_vol.trim()
+                        ? "border-red-300 focus:border-red-400"
+                        : ""
+                    }`}
+                  />
+                </Field>
+              </>
+            )}
+          </div>
+          {champsRequisPersonnalises.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {champsRequisPersonnalises.map((c) => {
+                const checked = (r.champs_requis_coches || []).includes(c);
+                return (
+                  <label
+                    key={c}
+                    className={`flex items-center gap-2 text-sm text-neutral-700 ${
+                      validationError && !checked ? "text-red-600" : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) =>
+                        onUpdate({
+                          champs_requis_coches: e.target.checked
+                            ? [...(r.champs_requis_coches || []), c]
+                            : (r.champs_requis_coches || []).filter((x) => x !== c),
+                        })
+                      }
+                    />
+                    {c} *
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mt-3">
         <p className="mb-1 text-sm font-medium text-neutral-700">Options</p>
         {options.map((o) => (
@@ -627,7 +668,7 @@ export default function ReservationCard({
         ))}
         <button
           onClick={onAddOption}
-          className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Ajouter une option
         </button>
@@ -652,7 +693,7 @@ export default function ReservationCard({
             onClick={() => onUpdate({ transfert_inclus: false })}
             className={`rounded-full border px-3 py-1 text-xs ${
               !r.transfert_inclus
-                ? "border-[#171717] bg-[#171717] text-white"
+                ? "border-[#C9973E] bg-[#C9973E] text-white"
                 : "border-neutral-300 text-neutral-600"
             }`}
           >

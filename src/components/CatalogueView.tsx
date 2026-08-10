@@ -1014,23 +1014,49 @@ export default function CatalogueView({
                   Options proposées (privatif, dîner spectacle, visite supplémentaire…)
                 </p>
                 {(options[a.id] || []).map((o) => (
-                  <div key={o.id} className="mb-2 flex items-center gap-2">
-                    <input
-                      placeholder="Nom de l'option (ex. Privatif)"
-                      value={o.nom}
-                      onChange={(e) => onUpdateOption(a.id, o.id, { nom: e.target.value })}
-                      className="input flex-1"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Prix €"
-                      value={o.prix}
-                      onChange={(e) => onUpdateOption(a.id, o.id, { prix: Number(e.target.value) })}
-                      className="input w-24"
-                    />
-                    <button onClick={() => onDeleteOption(a.id, o.id)} className="text-red-600">
-                      ✕
-                    </button>
+                  <div key={o.id} className="mb-2 rounded-md border border-neutral-200 p-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        placeholder="Nom de l'option (ex. Privatif)"
+                        value={o.nom}
+                        onChange={(e) => onUpdateOption(a.id, o.id, { nom: e.target.value })}
+                        className="input flex-1"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Prix €"
+                        value={o.prix}
+                        onChange={(e) => onUpdateOption(a.id, o.id, { prix: Number(e.target.value) })}
+                        className="input w-24"
+                      />
+                      <button onClick={() => onDeleteOption(a.id, o.id)} className="text-red-600">
+                        ✕
+                      </button>
+                    </div>
+                    <div className="mt-1.5 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onUpdateOption(a.id, o.id, { mode: "personne" })}
+                        className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                          o.mode !== "groupe"
+                            ? "border-[#171717] bg-[#171717] text-white"
+                            : "border-neutral-300 text-neutral-600"
+                        }`}
+                      >
+                        Prix par personne
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onUpdateOption(a.id, o.id, { mode: "groupe" })}
+                        className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                          o.mode === "groupe"
+                            ? "border-[#C9973E] bg-[#C9973E] text-white"
+                            : "border-neutral-300 text-neutral-600"
+                        }`}
+                      >
+                        Prix groupe (forfait)
+                      </button>
+                    </div>
                   </div>
                 ))}
                 <button
@@ -1040,7 +1066,6 @@ export default function CatalogueView({
                   + Ajouter une option
                 </button>
               </div>
-
               <div className="mt-3">
                 <p className="mb-1 text-sm font-medium text-neutral-700">
                   FAQ (questions fréquentes des clients)
@@ -1651,6 +1676,34 @@ export default function CatalogueView({
                               </div>
                               <span className="font-amounts text-sm text-[#171717]">
                                 {euros(t.pu)}€
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {(() => {
+                    const filledOptions = (options[a.id] || []).filter((o) => o.nom.trim());
+                    if (filledOptions.length === 0) return null;
+                    return (
+                      <>
+                        <h4 className="mb-3 text-sm font-semibold text-[#171717]">Options</h4>
+                        <div className="mb-3 space-y-2">
+                          {filledOptions.map((o) => (
+                            <div key={o.id} className="flex items-center gap-3">
+                              <RowIcon>
+                                <IconTag />
+                              </RowIcon>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm text-neutral-700">{o.nom}</p>
+                                <p className="text-[11px] text-neutral-400">
+                                  {o.mode === "groupe" ? "Prix groupe (forfait)" : "Prix par personne"}
+                                </p>
+                              </div>
+                              <span className="font-amounts text-sm text-[#171717]">
+                                {euros(o.prix)}€
                               </span>
                             </div>
                           ))}

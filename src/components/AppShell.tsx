@@ -420,7 +420,7 @@ function AppShellInner({
     telephone: string;
     canal: string;
     statut?: "Prospect" | "Client confirmé";
-  }) => {
+  }): Promise<Client | null> => {
     const { data, error } = await supabase
       .from("clients")
       .insert({ ...EMPTY_CLIENT, ...quick, statut: quick?.statut || "Prospect" })
@@ -432,8 +432,10 @@ function AppShellInner({
       // Un "nouveau client" atterrit direct dans Clients, un "nouveau
       // prospect" dans Prospects — chacun là où il doit apparaître.
       setMode(quick?.statut === "Client confirmé" ? "team" : "prospects");
+      return data as Client;
     } else {
       toast("Impossible de créer le client.");
+      return null;
     }
   };
 
@@ -924,6 +926,7 @@ function AppShellInner({
               />
               <QuickAddClient
                 onCreate={addClient}
+                onUpdateClient={updateClientById}
                 defaultStatut={mode === "prospects" ? "Prospect" : "Client confirmé"}
               />
             </div>

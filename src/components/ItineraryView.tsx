@@ -2,6 +2,7 @@
 
 import {
   CatalogueItem,
+  CatalogueOption,
   CatalogueTarif,
   Client,
   Reservation,
@@ -81,6 +82,7 @@ export default function ItineraryView({
   onUpdateClient,
   catalogue,
   catalogueTarifs,
+  catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
   coutsMap,
@@ -95,7 +97,7 @@ export default function ItineraryView({
   onSetPickup: (id: string, pickup: string) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
-  onAddOption: (resaId: string) => void;
+  onAddOption: (resaId: string, seed?: { nom: string; prix: number }) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
   onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
@@ -104,6 +106,7 @@ export default function ItineraryView({
   onUpdateClient: (patch: Partial<Client>) => void;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
+  catalogueOptions: Record<string, CatalogueOption[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
   coutsMap: Record<string, number>;
@@ -128,7 +131,7 @@ export default function ItineraryView({
           onToggleExpanded={(v) => onToggleExpand(v ? r.id : null)}
           onUpdate={(patch) => onUpdateReservation(r.id, patch)}
           onDelete={() => onDeleteReservation(r.id)}
-          onAddOption={() => onAddOption(r.id)}
+          onAddOption={(seed) => onAddOption(r.id, seed)}
           onUpdateOption={(optId, patch) => onUpdateOption(r.id, optId, patch)}
           onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
           onAddTarif={(seed) => onAddTarif(r.id, seed)}
@@ -137,6 +140,7 @@ export default function ItineraryView({
           onUpdateClient={onUpdateClient}
           catalogue={catalogue}
           catalogueTarifs={r.catalogue_item_id ? catalogueTarifs[r.catalogue_item_id] || [] : []}
+          catalogueOptions={r.catalogue_item_id ? catalogueOptions[r.catalogue_item_id] || [] : []}
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}
           coutReel={coutsMap[r.id] || 0}

@@ -16,6 +16,7 @@ import {
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 import MissingInfoModal from "@/components/MissingInfoModal";
+import GuidedActivityModal from "@/components/GuidedActivityModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
@@ -110,6 +111,7 @@ export default function ClientDetail({
     Suivi: false,
   };
   const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>(CLOSED_SECTIONS);
+  const [guidedOpen, setGuidedOpen] = useState(false);
   const [missingInfo, setMissingInfo] = useState<{
     message: string;
     actionLabel: string;
@@ -478,12 +480,20 @@ export default function ClientDetail({
       )}
 
       <div className="flex items-center justify-between gap-3 text-xs">
-        <button
-          onClick={() => onDuplicateAsNewStay(client)}
-          className="text-[#171717] hover:underline"
-        >
-          + Nouveau séjour pour ce même client
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => onDuplicateAsNewStay(client)}
+            className="text-[#171717] hover:underline"
+          >
+            + Nouveau séjour pour ce même client
+          </button>
+          <button
+            onClick={() => setGuidedOpen(true)}
+            className="text-[#171717] hover:underline"
+          >
+            + Ajouter une activité
+          </button>
+        </div>
         <div className="flex gap-3">
           <button onClick={expandAll} className="text-[#171717] hover:underline">
             Tout déplier
@@ -493,6 +503,32 @@ export default function ClientDetail({
           </button>
         </div>
       </div>
+
+      <GuidedActivityModal
+        open={guidedOpen}
+        onClose={() => setGuidedOpen(false)}
+        client={client}
+        onChange={onChange}
+        reservations={reservations}
+        resaOptions={resaOptions}
+        resaTarifs={resaTarifs}
+        onAddReservation={addReservation}
+        onUpdateReservation={updateReservation}
+        onDeleteReservation={deleteReservation}
+        onAddOption={addOption}
+        onUpdateOption={updateOption}
+        onDeleteOption={deleteOption}
+        onAddTarif={addTarif}
+        onUpdateTarif={updateTarif}
+        onDeleteTarif={deleteTarif}
+        catalogue={catalogue}
+        catalogueTarifs={catalogueTarifs}
+        catalogueOptions={catalogueOptions}
+        canSeeMargins={canSeeMargins}
+        hotelHorsHurghada={hotelHorsHurghada}
+        coutsMap={coutsMap}
+        onUpdateCoutReel={updateCoutReel}
+      />
 
       <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
         <ContactStep

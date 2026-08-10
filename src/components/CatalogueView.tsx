@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueFaq, CatalogueItem, CatalogueTarif } from "@/lib/types";
+import { CatalogueFaq, CatalogueItem, CatalogueOption, CatalogueTarif } from "@/lib/types";
 import {
   A_PREVOIR_PRESETS,
   CATALOGUE_CATEGORIES,
@@ -437,6 +437,10 @@ export default function CatalogueView({
   onAddTarif,
   onUpdateTarif,
   onDeleteTarif,
+  options,
+  onAddOption,
+  onUpdateOption,
+  onDeleteOption,
   faq,
   onAddFaq,
   onUpdateFaq,
@@ -454,6 +458,10 @@ export default function CatalogueView({
   onAddTarif: (catalogueItemId: string) => void;
   onUpdateTarif: (catalogueItemId: string, tarifId: string, patch: Partial<CatalogueTarif>) => void;
   onDeleteTarif: (catalogueItemId: string, tarifId: string) => void;
+  options: Record<string, CatalogueOption[]>;
+  onAddOption: (catalogueItemId: string) => void;
+  onUpdateOption: (catalogueItemId: string, optionId: string, patch: Partial<CatalogueOption>) => void;
+  onDeleteOption: (catalogueItemId: string, optionId: string) => void;
   faq: Record<string, CatalogueFaq[]>;
   onAddFaq: (catalogueItemId: string) => void;
   onUpdateFaq: (catalogueItemId: string, faqId: string, patch: Partial<CatalogueFaq>) => void;
@@ -833,35 +841,58 @@ export default function CatalogueView({
                       />
                     </Field>
                     <div />
-                    <Field label="PU personne supp. — tarif 1 (€)">
-                      <input
-                        type="number"
-                        value={a.prix_groupe_extra1}
-                        onChange={(e) => onUpdate(a.id, { prix_groupe_extra1: Number(e.target.value) })}
-                        className="input"
-                      />
-                    </Field>
-                    <Field label="PU personne supp. — tarif 2, au-delà (€)">
-                      <input
-                        type="number"
-                        value={a.prix_groupe_extra2}
-                        onChange={(e) => onUpdate(a.id, { prix_groupe_extra2: Number(e.target.value) })}
-                        className="input"
-                      />
+                    <Field label="PU personne supp. (€)">
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={a.prix_groupe_extra1}
+                          onChange={(e) => onUpdate(a.id, { prix_groupe_extra1: Number(e.target.value) })}
+                          className="input w-20"
+                        />
+                        <input
+                          value={a.prix_groupe_extra1_age}
+                          onChange={(e) => onUpdate(a.id, { prix_groupe_extra1_age: e.target.value })}
+                          className="input min-w-[120px] flex-1"
+                          placeholder="ex. 11 ans et +"
+                        />
+                      </div>
                     </Field>
                     <Field label="PU enfant supp. (€)">
-                      <input
-                        type="number"
-                        value={a.prix_groupe_extra_enfant}
-                        onChange={(e) => onUpdate(a.id, { prix_groupe_extra_enfant: Number(e.target.value) })}
-                        className="input"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={a.prix_groupe_extra_enfant}
+                          onChange={(e) => onUpdate(a.id, { prix_groupe_extra_enfant: Number(e.target.value) })}
+                          className="input w-20"
+                        />
+                        <input
+                          value={a.prix_groupe_extra_enfant_age}
+                          onChange={(e) => onUpdate(a.id, { prix_groupe_extra_enfant_age: e.target.value })}
+                          className="input min-w-[120px] flex-1"
+                          placeholder="ex. 4 à 10 ans"
+                        />
+                      </div>
+                    </Field>
+                    <Field label="PU bébé (€)">
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={a.pu_bebe}
+                          onChange={(e) => onUpdate(a.id, { pu_bebe: Number(e.target.value) })}
+                          className="input w-20"
+                        />
+                        <input
+                          value={a.pu_bebe_age}
+                          onChange={(e) => onUpdate(a.id, { pu_bebe_age: e.target.value })}
+                          className="input min-w-[120px] flex-1"
+                          placeholder="ex. 0 à 3 ans"
+                        />
+                      </div>
                     </Field>
                     <p className="col-span-3 text-xs text-neutral-400">
                       Ex. speedboat : forfait 150 € pour 2 personnes, puis 10 €/personne
-                      supplémentaire (tarif 1), puis 5 €/personne au-delà (tarif 2). Ex. yacht :
-                      forfait 700 € pour 10 personnes, puis 10 €/adulte supp. et 5 €/enfant supp.
-                      — laisse un champ à 0 si ce palier ne s&apos;applique pas.
+                      supplémentaire. Ex. yacht : forfait 700 € pour 10 personnes, puis
+                      10 €/adulte supp. et 5 €/enfant supp.
                     </p>
                   </>
                 )}
@@ -887,6 +918,19 @@ export default function CatalogueView({
                     value={a.point_rdv}
                     onChange={(e) => onUpdate(a.id, { point_rdv: e.target.value })}
                     className="input"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-3">
+                <Field label="Spécificités importantes (apparaissent en rouge sur la fiche)">
+                  <textarea
+                    value={a.specificites}
+                    onChange={(e) => onUpdate(a.id, { specificites: e.target.value })}
+                    placeholder={
+                      "ex. Uniquement pour les familles avec enfants\nex. Nécessite un acompte de 120€ par personne à la réservation\nex. 2 adultes minimum\nex. Ne pas recommander cette activité, renvoyer vers Le Caire en mini-bus"
+                    }
+                    className="input min-h-[70px] resize-y"
                   />
                 </Field>
               </div>
@@ -999,6 +1043,38 @@ export default function CatalogueView({
 
               <div className="mt-3">
                 <p className="mb-1 text-sm font-medium text-neutral-700">
+                  Options proposées (privatif, dîner spectacle, visite supplémentaire…)
+                </p>
+                {(options[a.id] || []).map((o) => (
+                  <div key={o.id} className="mb-2 flex items-center gap-2">
+                    <input
+                      placeholder="Nom de l'option (ex. Privatif)"
+                      value={o.nom}
+                      onChange={(e) => onUpdateOption(a.id, o.id, { nom: e.target.value })}
+                      className="input flex-1"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Prix €"
+                      value={o.prix}
+                      onChange={(e) => onUpdateOption(a.id, o.id, { prix: Number(e.target.value) })}
+                      className="input w-24"
+                    />
+                    <button onClick={() => onDeleteOption(a.id, o.id)} className="text-red-600">
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => onAddOption(a.id)}
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                >
+                  + Ajouter une option
+                </button>
+              </div>
+
+              <div className="mt-3">
+                <p className="mb-1 text-sm font-medium text-neutral-700">
                   FAQ (questions fréquentes des clients)
                 </p>
                 {(faq[a.id] || []).map((f) => (
@@ -1085,7 +1161,7 @@ export default function CatalogueView({
         <div className="space-y-3">
           {searchResults.length === 0 && (
             <p className="text-sm text-neutral-400">
-              Aucune activité ne correspond à &laquo; {searchQuery} &raquo;.
+              Aucune activité ne correspond à « {searchQuery} ».
             </p>
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1286,7 +1362,7 @@ export default function CatalogueView({
                         onClick={() => onDuplicate(a)}
                         className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
                       >
-                        ⧉ Dupliquer
+                        ⎘ Dupliquer
                       </button>
                       <button
                         onClick={() => onUpdate(a.id, { valide: false })}
@@ -1317,6 +1393,12 @@ export default function CatalogueView({
                       )}
                     </div>
                   </div>
+
+                  {a.specificites && (
+                    <div className="mb-4 whitespace-pre-line rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+                      ⚠ {a.specificites}
+                    </div>
+                  )}
 
                   <h4 className="mb-2 text-sm font-semibold text-[#171717]">Description</h4>
                   <p className="mb-3 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
@@ -1542,23 +1624,11 @@ export default function CatalogueView({
                               <IconAdulte />
                             </RowIcon>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm text-neutral-700">Personne supp. (tarif 1)</p>
+                              <p className="text-sm text-neutral-700">Personne supp.</p>
+                              <p className="text-[11px] text-neutral-400">{a.prix_groupe_extra1_age}</p>
                             </div>
                             <span className="font-amounts text-sm text-[#171717]">
                               {euros(a.prix_groupe_extra1)}€
-                            </span>
-                          </div>
-                        )}
-                        {a.prix_groupe_extra2 > 0 && (
-                          <div className="flex items-center gap-3">
-                            <RowIcon>
-                              <IconAdulte />
-                            </RowIcon>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm text-neutral-700">Personne supp. (tarif 2, au-delà)</p>
-                            </div>
-                            <span className="font-amounts text-sm text-[#171717]">
-                              {euros(a.prix_groupe_extra2)}€
                             </span>
                           </div>
                         )}
@@ -1569,9 +1639,24 @@ export default function CatalogueView({
                             </RowIcon>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-neutral-700">Enfant supp.</p>
+                              <p className="text-[11px] text-neutral-400">{a.prix_groupe_extra_enfant_age}</p>
                             </div>
                             <span className="font-amounts text-sm text-[#171717]">
                               {euros(a.prix_groupe_extra_enfant)}€
+                            </span>
+                          </div>
+                        )}
+                        {a.pu_bebe > 0 && (
+                          <div className="flex items-center gap-3">
+                            <RowIcon>
+                              <IconBebe />
+                            </RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-neutral-700">Bébé</p>
+                              <p className="text-[11px] text-neutral-400">{a.pu_bebe_age}</p>
+                            </div>
+                            <span className="font-amounts text-sm text-[#171717]">
+                              {euros(a.pu_bebe)}€
                             </span>
                           </div>
                         )}

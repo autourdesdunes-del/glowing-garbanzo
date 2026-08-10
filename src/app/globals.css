@@ -14,9 +14,9 @@ button {
   -moz-appearance: none;
 }
 
-/* Un seul registre : Geist Sans partout, y compris pour les montants et
-    chiffres. .font-amounts ne garde que l'alignement tabulaire des
-    chiffres (tabular-nums), sans changer de police. */
+/* Deux registres : Geist Sans pour tout le texte courant/titres, Geist
+   Mono explicitement réservé au contenu chiffré/technique (dates,
+   montants, IDs, codes de statut) — jamais aux titres. */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -36,19 +36,26 @@ h1, h2, h3, h4 {
 }
 
 .font-amounts {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
 
-.input {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.6rem;
-  font-size: 0.875rem;
-  background: var(--bg);
-}
-.input:focus {
-  outline: none;
-  border-color: var(--ink);
+/* Dans @layer components pour que les utilitaires Tailwind (w-24, flex-1,
+   max-w-*…) puissent surcharger width:100% — une règle non "layered" a
+   toujours priorité sur toute règle dans un @layer, quel que soit l'ordre
+   ou la spécificité, ce qui cassait la largeur des inputs "flex-1" +
+   "w-24" côte à côte (ex. tarifs/options du catalogue). */
+@layer components {
+  .input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.4rem 0.6rem;
+    font-size: 0.875rem;
+    background: var(--bg);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
 }

@@ -1011,38 +1011,6 @@ export default function CatalogueView({
               </div>
               <div className="mt-3">
                 <p className="mb-1 text-sm font-medium text-neutral-700">
-                  Tarifs supplémentaires proposés (accompagnateur, passager, bébé…)
-                </p>
-                {(tarifs[a.id] || []).map((t) => (
-                  <div key={t.id} className="mb-2 flex items-center gap-2">
-                    <input
-                      placeholder="Libellé (ex. Accompagnateur)"
-                      value={t.label}
-                      onChange={(e) => onUpdateTarif(a.id, t.id, { label: e.target.value })}
-                      className="input flex-1"
-                    />
-                    <input
-                      type="number"
-                      placeholder="PU €"
-                      value={t.pu}
-                      onChange={(e) => onUpdateTarif(a.id, t.id, { pu: Number(e.target.value) })}
-                      className="input w-24"
-                    />
-                    <button onClick={() => onDeleteTarif(a.id, t.id)} className="text-red-600">
-                      ✕
-                    </button>
-                  </div>
-                ))}
-                <button
-                  onClick={() => onAddTarif(a.id)}
-                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-                >
-                  + Ajouter un tarif
-                </button>
-              </div>
-
-              <div className="mt-3">
-                <p className="mb-1 text-sm font-medium text-neutral-700">
                   Options proposées (privatif, dîner spectacle, visite supplémentaire…)
                 </p>
                 {(options[a.id] || []).map((o) => (
@@ -1161,7 +1129,7 @@ export default function CatalogueView({
         <div className="space-y-3">
           {searchResults.length === 0 && (
             <p className="text-sm text-neutral-400">
-              Aucune activité ne correspond à « {searchQuery} ».
+              Aucune activité ne correspond à &laquo; {searchQuery} &raquo;.
             </p>
           )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1362,7 +1330,7 @@ export default function CatalogueView({
                         onClick={() => onDuplicate(a)}
                         className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
                       >
-                        ⎘ Dupliquer
+                        ⧉ Dupliquer
                       </button>
                       <button
                         onClick={() => onUpdate(a.id, { valide: false })}

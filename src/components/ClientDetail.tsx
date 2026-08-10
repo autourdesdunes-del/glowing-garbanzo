@@ -480,20 +480,12 @@ export default function ClientDetail({
       )}
 
       <div className="flex items-center justify-between gap-3 text-xs">
-        <div className="flex gap-3">
-          <button
-            onClick={() => onDuplicateAsNewStay(client)}
-            className="text-[#171717] hover:underline"
-          >
-            + Nouveau séjour pour ce même client
-          </button>
-          <button
-            onClick={() => setGuidedOpen(true)}
-            className="text-[#171717] hover:underline"
-          >
-            + Ajouter une activité
-          </button>
-        </div>
+        <button
+          onClick={() => onDuplicateAsNewStay(client)}
+          className="text-[#171717] hover:underline"
+        >
+          + Nouveau séjour pour ce même client
+        </button>
         <div className="flex gap-3">
           <button onClick={expandAll} className="text-[#171717] hover:underline">
             Tout déplier
@@ -578,6 +570,7 @@ export default function ClientDetail({
           hotelHorsHurghada={hotelHorsHurghada}
           coutsMap={coutsMap}
           onUpdateCoutReel={updateCoutReel}
+          onRequestAdd={() => setGuidedOpen(true)}
         />
       </Section>
 

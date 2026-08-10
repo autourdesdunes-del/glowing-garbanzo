@@ -22,6 +22,10 @@ function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
+function isQuadActivity(a: CatalogueItem) {
+  return (a.nom || "").toLowerCase().includes("quad");
+}
+
 const JOUR_ABREV: Record<string, string> = {
   Lundi: "L",
   Mardi: "M",
@@ -402,6 +406,7 @@ export default function CatalogueView({
   onAdd,
   onUpdate,
   onDelete,
+  onDuplicate,
   tarifs,
   onAddTarif,
   onUpdateTarif,
@@ -418,6 +423,7 @@ export default function CatalogueView({
   onAdd: () => void;
   onUpdate: (id: string, patch: Partial<CatalogueItem>) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (item: CatalogueItem) => void;
   tarifs: Record<string, CatalogueTarif[]>;
   onAddTarif: (catalogueItemId: string) => void;
   onUpdateTarif: (catalogueItemId: string, tarifId: string, patch: Partial<CatalogueTarif>) => void;
@@ -519,6 +525,12 @@ export default function CatalogueView({
                   onChange={(e) => onUpdate(a.id, { nom: e.target.value })}
                   className="input flex-1"
                 />
+                <button
+                  onClick={() => onDuplicate(a)}
+                  className="text-xs text-[#171717] hover:underline"
+                >
+                  Dupliquer
+                </button>
                 <button
                   onClick={() => onDelete(a.id)}
                   className="text-xs text-red-600 hover:underline"
@@ -683,6 +695,11 @@ export default function CatalogueView({
                       placeholder="ex. 4 à 10 ans"
                     />
                   </div>
+                  {isQuadActivity(a) && (
+                    <p className="mt-1 text-xs font-medium text-red-600">
+                      ⚠ Interdit aux enfants de moins de 6 ans
+                    </p>
+                  )}
                 </Field>
                 <Field label="PU bébé (€)">
                   <div className="flex gap-2">
@@ -715,6 +732,14 @@ export default function CatalogueView({
                               placeholder="ex. accompagnant non-plongeur"
                             />
                   </div>
+                </Field>
+                <Field label="PU enfant 3 ans (€)">
+                  <input
+                    type="number"
+                    value={a.pu_enfant_3ans}
+                    onChange={(e) => onUpdate(a.id, { pu_enfant_3ans: Number(e.target.value) })}
+                    className="input w-20"
+                  />
                 </Field>
                 {canSeeMargins && (
                   <Field label="Marge cible (%)">
@@ -1136,6 +1161,12 @@ export default function CatalogueView({
                         </span>
                       )}
                       <button
+                        onClick={() => onDuplicate(a)}
+                        className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
+                      >
+                        ⧉ Dupliquer
+                      </button>
+                      <button
                         onClick={() => onUpdate(a.id, { valide: false })}
                         className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
                       >
@@ -1307,6 +1338,11 @@ export default function CatalogueView({
                       <div className="min-w-0 flex-1">
                         <p className="text-sm text-neutral-700">Enfant</p>
                         <p className="text-[11px] text-neutral-400">{a.pu_enfant_age}</p>
+                        {isQuadActivity(a) && (
+                          <p className="text-[11px] font-medium text-red-600">
+                            ⚠ Interdit aux enfants de moins de 6 ans
+                          </p>
+                        )}
                       </div>
                       <span className="font-amounts text-sm text-[#171717]">
                         {euros(a.pu_enfant)}€
@@ -1338,6 +1374,19 @@ export default function CatalogueView({
                     </span>
                 </div>
               )}
+                    {a.pu_enfant_3ans > 0 && (
+                      <div className="flex items-center gap-3">
+                        <RowIcon>
+                          <IconEnfant />
+                        </RowIcon>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-neutral-700">Enfant 3 ans</p>
+                        </div>
+                        <span className="font-amounts text-sm text-[#171717]">
+                          {euros(a.pu_enfant_3ans)}€
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {(() => {

@@ -216,14 +216,13 @@ export function resaTotalMontant(
   const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
   // Forfait groupe (ex. speedboat, yacht) : le prix n'est pas par personne
   // mais un forfait de base pour un nombre de personnes inclus, plus un
-  // tarif par personne supplémentaire (2 paliers possibles) et par enfant
-  // supplémentaire — ces compteurs se saisissent au cas par cas, comme
-  // l'accompagnateur ou l'enfant 3 ans, jamais déduits du séjour du client.
+  // tarif par personne supplémentaire et par enfant supplémentaire — ces
+  // compteurs se saisissent au cas par cas, comme l'accompagnateur ou
+  // l'enfant 3 ans, jamais déduits du séjour du client.
   const base =
     r.tarif_mode === "groupe"
       ? (Number(r.prix_groupe_base) || 0) +
         (Number(r.participants_extra1) || 0) * (Number(r.prix_groupe_extra1) || 0) +
-        (Number(r.participants_extra2) || 0) * (Number(r.prix_groupe_extra2) || 0) +
         (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0)
       : nbAd * (Number(r.pu_adulte) || 0) +
         nbEnf * (Number(r.pu_enfant) || 0) +

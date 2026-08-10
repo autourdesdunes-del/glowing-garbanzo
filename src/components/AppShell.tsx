@@ -421,19 +421,23 @@ function AppShellInner({
     canal: string;
     statut?: "Prospect" | "Client confirmé";
   }): Promise<Client | null> => {
-    const { data, error } = await supabase
-      .from("clients")
-      .insert({ ...EMPTY_CLIENT, ...quick, statut: quick?.statut || "Prospect" })
-      .select()
-      .single();
-    if (!error && data) {
-      setClients((prev) => [data as Client, ...prev]);
-      setSelectedId(data.id);
-      // Un "nouveau client" atterrit direct dans Clients, un "nouveau
-      // prospect" dans Prospects — chacun là où il doit apparaître.
-      setMode(quick?.statut === "Client confirmé" ? "team" : "prospects");
-      return data as Client;
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from("clients")
+        .insert({ ...EMPTY_CLIENT, ...quick, statut: quick?.statut || "Prospect" })
+        .select()
+        .single();
+      if (!error && data) {
+        setClients((prev) => [data as Client, ...prev]);
+        setSelectedId(data.id);
+        // Un "nouveau client" atterrit direct dans Clients, un "nouveau
+        // prospect" dans Prospects — chacun là où il doit apparaître.
+        setMode(quick?.statut === "Client confirmé" ? "team" : "prospects");
+        return data as Client;
+      }
+      toast("Impossible de créer le client.");
+      return null;
+    } catch {
       toast("Impossible de créer le client.");
       return null;
     }

@@ -439,6 +439,8 @@ export default function CatalogueView({
   const [newNonInclus, setNewNonInclus] = useState<Record<string, string>>({});
   const [newAPrevoir, setNewAPrevoir] = useState<Record<string, string>>({});
   const [newTag, setNewTag] = useState<Record<string, string>>({});
+  const [newChampsRequis, setNewChampsRequis] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState("");
   const allTags = Array.from(
     new Set([...CATALOGUE_TAGS_PRESETS, ...items.flatMap((a) => a.tags || [])])
   );
@@ -454,6 +456,14 @@ export default function CatalogueView({
       if (selectedTag === "__SANS__") return !(a.tags && a.tags.length);
       return (a.tags || []).includes(selectedTag);
     });
+  const normalize = (s: string) =>
+    (s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  const searchResults = searchQuery.trim()
+    ? items.filter((a) => normalize(a.nom).includes(normalize(searchQuery)))
+    : [];
 
   const toggleJour = (a: CatalogueItem, j: string) => {
     const jours = a.jours_disponibles || [];
@@ -477,7 +487,7 @@ export default function CatalogueView({
 
   const addCustomListField = (
     a: CatalogueItem,
-    field: "inclus_liste" | "non_inclus_liste" | "a_prevoir_liste" | "tags",
+    field: "inclus_liste" | "non_inclus_liste" | "a_prevoir_liste" | "tags" | "champs_requis_liste",
     value: string,
     clear: () => void
   ) => {
@@ -783,35 +793,29 @@ export default function CatalogueView({
                 />
               </div>
 
-                            <div className="mt-3">
-                                            <p className="mb-1.5 text-sm font-medium text-neutral-700">
-                                                              Champs obligatoires pour réserver cette activité
-                                            </p>
-                                            <p className="mb-1.5 text-xs text-neutral-400">
-                                                              Tant que ces informations ne sont pas remplies sur une réservation de ce type,
-                                                              l'employée ne pourra pas la valider.
-                                            </p>
-                                            <div className="flex flex-wrap gap-2">
-                                              {CHAMPS_REQUIS_PRESETS.map((label) => {
-                                  const active = (a.champs_requis_liste || []).includes(label);
-                                  return (
-                                                          <button
-                                                                                    key={label}
-                                                                                    type="button"
-                                                                                    onClick={() => toggleListField(a, "champs_requis_liste", label)}
-                                                                                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                                                                                                                active
-                                                                                                                  ? "border-[#171717] bg-[#171717] text-white"
-                                                                                                                  : "border-neutral-300 text-neutral-600"
-                                                                                      }`}
-                                                                                  >
-                                                            {active ? "✓ " : ""}
-                                                            {label}
-                                                          </button>
-                                                        );
-            })}
-                                            </div>
-                            </div>
+              <div className="mt-3">
+                <p className="mb-1.5 text-sm font-medium text-neutral-700">
+                  Champs obligatoires pour réserver cette activité
+                </p>
+                <p className="mb-1.5 text-xs text-neutral-400">
+                  Tant que ces informations ne sont pas remplies sur une réservation de ce type,
+                  l&apos;employée ne pourra pas la valider. Un champ personnalisé apparaît comme une
+                  case à cocher sur la réservation.
+                </p>
+                <ChipMultiSelect
+                  values={a.champs_requis_liste || []}
+                  presets={CHAMPS_REQUIS_PRESETS}
+                  onToggle={(label) => toggleListField(a, "champs_requis_liste", label)}
+                  newValue={newChampsRequis[a.id] || ""}
+                  onNewValueChange={(v) => setNewChampsRequis((prev) => ({ ...prev, [a.id]: v }))}
+                  onAddCustom={() =>
+                    addCustomListField(a, "champs_requis_liste", newChampsRequis[a.id] || "", () =>
+                      setNewChampsRequis((prev) => ({ ...prev, [a.id]: "" }))
+                    )
+                  }
+                  placeholder="Autre champ obligatoire…"
+                />
+              </div>
               <div className="mt-3">
                 <p className="mb-1 text-sm font-medium text-neutral-700">
                   Tarifs supplémentaires proposés (accompagnateur, passager, bébé…)
@@ -910,7 +914,62 @@ export default function CatalogueView({
         </button>
       </div>
 
-      {!selectedTag ? (
+      <div className="relative">
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Rechercher une activité par nom…"
+          className="input w-full"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {searchQuery.trim() ? (
+        <div className="space-y-3">
+          {searchResults.length === 0 && (
+            <p className="text-sm text-neutral-400">
+              Aucune activité ne correspond à &laquo; {searchQuery} &raquo;.
+            </p>
+          )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {searchResults.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => {
+                  setSelectedTag("__ALL__");
+                  setSelectedActivityId(a.id);
+                  setSearchQuery("");
+                }}
+                className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
+              >
+                <p className="font-heading text-base font-semibold text-[#171717]">
+                  {a.nom || "Sans nom"}
+                </p>
+                <p className="mt-0.5 text-xs text-neutral-400">{a.categorie}</p>
+                {!a.valide ? (
+                  <span className="mt-1.5 inline-block rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-[11px] text-[#666666]">
+                    ✎ Brouillon
+                  </span>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-600">
+                    <span>Adulte {euros(a.pu_adulte)}€</span>
+                    <span>Enfant {euros(a.pu_enfant)}€</span>
+                    <span>Bébé {euros(a.pu_bebe)}€</span>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : !selectedTag ? (
         <>
           <div className="flex items-center justify-end">
             <ViewToggle mode={tagViewMode} onChange={setTagViewMode} />

@@ -487,6 +487,48 @@ function AppShellInner({
     }
   };
 
+  const duplicateCatalogueItem = async (source: CatalogueItem) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, created_at, updated_at, ...rest } = source;
+    const { data, error } = await supabase
+      .from("catalogue_activites")
+      .insert({ ...rest, nom: `${source.nom} (copie)`, valide: false })
+      .select()
+      .single();
+    if (!error && data) {
+      const newItem = data as CatalogueItem;
+      setCatalogue((prev) => [newItem, ...prev]);
+      for (const t of catalogueTarifs[source.id] || []) {
+        const { data: td } = await supabase
+          .from("catalogue_tarifs")
+          .insert({ catalogue_item_id: newItem.id, label: t.label, pu: t.pu })
+          .select()
+          .single();
+        if (td) {
+          setCatalogueTarifs((prev) => ({
+            ...prev,
+            [newItem.id]: [...(prev[newItem.id] || []), td as CatalogueTarif],
+          }));
+        }
+      }
+      for (const f of catalogueFaq[source.id] || []) {
+        const { data: fd } = await supabase
+          .from("catalogue_faq")
+          .insert({ catalogue_item_id: newItem.id, question: f.question, reponse: f.reponse })
+          .select()
+          .single();
+        if (fd) {
+          setCatalogueFaq((prev) => ({
+            ...prev,
+            [newItem.id]: [...(prev[newItem.id] || []), fd as CatalogueFaq],
+          }));
+        }
+      }
+    } else {
+      toast("Impossible de dupliquer l'activité.");
+    }
+  };
+
   const updateCatalogueItem = async (id: string, patch: Partial<CatalogueItem>) => {
     setCatalogue((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
     const { error } = await supabase.from("catalogue_activites").update(patch).eq("id", id);
@@ -646,7 +688,7 @@ function AppShellInner({
     <div className="flex min-h-screen bg-[#fafafa]">
       <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white">
         <div className="flex items-center gap-2.5 px-4 py-5">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#171717] text-sm font-semibold text-white">
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">
             AD
           </div>
           <div className="min-w-0">
@@ -668,7 +710,7 @@ function AppShellInner({
                   setMode(t.key);
                   if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
                 }}
-                className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium text-left transition ${
+                className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium transition ${
                   active
                     ? "bg-[#fafafa] text-[#171717]"
                     : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
@@ -687,7 +729,7 @@ function AppShellInner({
               onClick={() => setViewAsTeam((v) => !v)}
               className={`flex w-full items-center justify-between rounded-[6px] px-2.5 py-2 text-xs font-medium transition ${
                 viewAsTeam
-                  ? "bg-[#171717] text-white"
+                  ? "bg-[#C9973E] text-white"
                   : "bg-[#fafafa] text-[#666666] hover:bg-[#eaeaea]"
               }`}
             >
@@ -709,7 +751,7 @@ function AppShellInner({
               saveState === "error"
                 ? "text-[#EE0000] opacity-100"
                 : saveState === "saving"
-                  ? "text-[#f5a623] opacity-100"
+                  ? "text-[#C9973E] opacity-100"
                   : "text-[#666666] opacity-100"
             }`}
           >
@@ -723,8 +765,8 @@ function AppShellInner({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-[#eaeaea] bg-white px-6 py-3">
-          <h1 className="flex-shrink-0 whitespace-nowrap font-heading text-sm font-medium text-[#171717]">
+        <header className="flex items-center gap-3 border-b border-[#666666]/15 bg-white px-6 py-3">
+          <h1 className="flex-shrink-0 whitespace-nowrap font-heading text-base font-semibold text-[#171717]">
             {currentTab?.label}
           </h1>
           <div className="flex min-w-0 flex-1 justify-center">
@@ -734,12 +776,12 @@ function AppShellInner({
               onOpenClient={openClient}
             />
           </div>
-          <div className="flex flex-shrink-0 items-center gap-4 text-xs text-neutral-400">
+          <div className="flex flex-shrink-0 items-center gap-3 text-sm text-neutral-500">
             <span className="hidden max-w-[180px] truncate sm:inline">{userEmail}</span>
             <ChangePasswordButton />
             <button
               onClick={handleSignOut}
-              className="appearance-none whitespace-nowrap text-[#666666] hover:text-[#171717]"
+              className="appearance-none whitespace-nowrap rounded-[6px] border border-[#eaeaea] px-3 py-1.5 text-[#171717] hover:bg-[#fafafa]"
             >
               Déconnexion
             </button>
@@ -912,6 +954,7 @@ function AppShellInner({
             onAdd={addCatalogueItem}
             onUpdate={updateCatalogueItem}
             onDelete={deleteCatalogueItem}
+            onDuplicate={duplicateCatalogueItem}
             tarifs={catalogueTarifs}
             onAddTarif={addCatalogueTarif}
             onUpdateTarif={updateCatalogueTarif}

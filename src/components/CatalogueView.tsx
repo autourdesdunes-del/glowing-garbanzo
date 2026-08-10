@@ -26,6 +26,32 @@ function isQuadActivity(a: CatalogueItem) {
   return (a.nom || "").toLowerCase().includes("quad");
 }
 
+function isSpaActivity(a: CatalogueItem) {
+  const n = (a.nom || "").toLowerCase();
+  return n.includes("spa") || n.includes("massage");
+}
+
+function PriceSummary({ a }: { a: CatalogueItem }) {
+  if (a.tarif_mode === "groupe") {
+    return (
+      <span>
+        Forfait {euros(a.prix_groupe_base)}€ ({a.prix_groupe_base_pax} pers.)
+      </span>
+    );
+  }
+  return (
+    <>
+      <span>Adulte {euros(a.pu_adulte)}€</span>
+      {isSpaActivity(a) ? (
+        <span>À partir de 10 ans</span>
+      ) : (
+        <span>Enfant {euros(a.pu_enfant)}€</span>
+      )}
+      {!isQuadActivity(a) && !isSpaActivity(a) && <span>Bébé {euros(a.pu_bebe)}€</span>}
+    </>
+  );
+}
+
 const JOUR_ABREV: Record<string, string> = {
   Lundi: "L",
   Mardi: "M",
@@ -610,6 +636,39 @@ export default function CatalogueView({
                 />
               </div>
 
+              <div className="mb-3">
+                <p className="mb-1.5 text-sm font-medium text-neutral-700">Tarification</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onUpdate(a.id, { tarif_mode: "personne" })}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                      a.tarif_mode !== "groupe"
+                        ? "border-[#171717] bg-[#171717] text-white"
+                        : "border-neutral-300 text-neutral-600"
+                    }`}
+                  >
+                    Par personne
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdate(a.id, { tarif_mode: "groupe" })}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                      a.tarif_mode === "groupe"
+                        ? "border-[#C9973E] bg-[#C9973E] text-white"
+                        : "border-neutral-300 text-neutral-600"
+                    }`}
+                  >
+                    Forfait groupe
+                  </button>
+                </div>
+                <p className="mt-1.5 text-xs text-neutral-400">
+                  Forfait groupe : pour les activités comme un speedboat ou un yacht, où le prix
+                  n&apos;est pas par personne mais un forfait de base pour un nombre de
+                  personnes, plus un tarif par personne supplémentaire.
+                </p>
+              </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <Field label="Catégorie">
                   <select
@@ -664,83 +723,148 @@ export default function CatalogueView({
                     ⭐ Guide francophone sur demande
                   </label>
                 </div>
-                <Field label="PU adulte (€)">
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={a.pu_adulte}
-                      onChange={(e) => onUpdate(a.id, { pu_adulte: Number(e.target.value) })}
-                      className="input w-20"
-                    />
-                    <input
-                      value={a.pu_adulte_age}
-                      onChange={(e) => onUpdate(a.id, { pu_adulte_age: e.target.value })}
-                      className="input min-w-[120px] flex-1"
-                      placeholder="ex. 11 ans et +"
-                    />
-                  </div>
-                </Field>
-                <Field label="PU enfant (€)">
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={a.pu_enfant}
-                      onChange={(e) => onUpdate(a.id, { pu_enfant: Number(e.target.value) })}
-                      className="input w-20"
-                    />
-                    <input
-                      value={a.pu_enfant_age}
-                      onChange={(e) => onUpdate(a.id, { pu_enfant_age: e.target.value })}
-                      className="input min-w-[120px] flex-1"
-                      placeholder="ex. 4 à 10 ans"
-                    />
-                  </div>
-                  {isQuadActivity(a) && (
-                    <p className="mt-1 text-xs font-medium text-red-600">
-                      ⚠ Interdit aux enfants de moins de 6 ans
+                {a.tarif_mode !== "groupe" ? (
+                  <>
+                    <Field label="PU adulte (€)">
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          value={a.pu_adulte}
+                          onChange={(e) => onUpdate(a.id, { pu_adulte: Number(e.target.value) })}
+                          className="input w-20"
+                        />
+                        <input
+                          value={a.pu_adulte_age}
+                          onChange={(e) => onUpdate(a.id, { pu_adulte_age: e.target.value })}
+                          className="input min-w-[120px] flex-1"
+                          placeholder="ex. 11 ans et +"
+                        />
+                      </div>
+                    </Field>
+                    {isSpaActivity(a) ? (
+                      <Field label="Âge minimum">
+                        <p className="mt-1.5 text-xs font-medium text-[#0F5C56]">
+                          ℹ️ À partir de 10 ans uniquement
+                        </p>
+                      </Field>
+                    ) : (
+                      <Field label="PU enfant (€)">
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={a.pu_enfant}
+                            onChange={(e) => onUpdate(a.id, { pu_enfant: Number(e.target.value) })}
+                            className="input w-20"
+                          />
+                          <input
+                            value={a.pu_enfant_age}
+                            onChange={(e) => onUpdate(a.id, { pu_enfant_age: e.target.value })}
+                            className="input min-w-[120px] flex-1"
+                            placeholder="ex. 4 à 10 ans"
+                          />
+                        </div>
+                        {isQuadActivity(a) && (
+                          <p className="mt-1 text-xs font-medium text-red-600">
+                            ⚠ Interdit aux enfants de moins de 6 ans
+                          </p>
+                        )}
+                      </Field>
+                    )}
+                    {!isQuadActivity(a) && !isSpaActivity(a) && (
+                      <Field label="PU bébé (€)">
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={a.pu_bebe}
+                            onChange={(e) => onUpdate(a.id, { pu_bebe: Number(e.target.value) })}
+                            className="input w-20"
+                          />
+                          <input
+                            value={a.pu_bebe_age}
+                            onChange={(e) => onUpdate(a.id, { pu_bebe_age: e.target.value })}
+                            className="input min-w-[120px] flex-1"
+                            placeholder="ex. 0 à 3 ans"
+                          />
+                        </div>
+                      </Field>
+                    )}
+                    <Field label="PU accompagnateur (€)">
+                      <div className="flex gap-2">
+                          <input
+                                  type="number"
+                                  value={a.pu_accompagnateur}
+                                  onChange={(e) => onUpdate(a.id, { pu_accompagnateur: Number(e.target.value) })}
+                                  className="input w-20"
+                                />
+                          <input
+                                  value={a.pu_accompagnateur_age}
+                                  onChange={(e) => onUpdate(a.id, { pu_accompagnateur_age: e.target.value })}
+                                  className="input min-w-[120px] flex-1"
+                                  placeholder="ex. accompagnant non-plongeur"
+                                />
+                      </div>
+                    </Field>
+                    <Field label="PU enfant 3 ans (€)">
+                      <input
+                        type="number"
+                        value={a.pu_enfant_3ans}
+                        onChange={(e) => onUpdate(a.id, { pu_enfant_3ans: Number(e.target.value) })}
+                        className="input w-20"
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <Field label="Prix forfait de base (€)">
+                      <input
+                        type="number"
+                        value={a.prix_groupe_base}
+                        onChange={(e) => onUpdate(a.id, { prix_groupe_base: Number(e.target.value) })}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Nombre de personnes incluses">
+                      <input
+                        type="number"
+                        min={0}
+                        value={a.prix_groupe_base_pax}
+                        onChange={(e) => onUpdate(a.id, { prix_groupe_base_pax: Number(e.target.value) })}
+                        className="input"
+                      />
+                    </Field>
+                    <div />
+                    <Field label="PU personne supp. — tarif 1 (€)">
+                      <input
+                        type="number"
+                        value={a.prix_groupe_extra1}
+                        onChange={(e) => onUpdate(a.id, { prix_groupe_extra1: Number(e.target.value) })}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="PU personne supp. — tarif 2, au-delà (€)">
+                      <input
+                        type="number"
+                        value={a.prix_groupe_extra2}
+                        onChange={(e) => onUpdate(a.id, { prix_groupe_extra2: Number(e.target.value) })}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="PU enfant supp. (€)">
+                      <input
+                        type="number"
+                        value={a.prix_groupe_extra_enfant}
+                        onChange={(e) => onUpdate(a.id, { prix_groupe_extra_enfant: Number(e.target.value) })}
+                        className="input"
+                      />
+                    </Field>
+                    <p className="col-span-3 text-xs text-neutral-400">
+                      Ex. speedboat : forfait 150 € pour 2 personnes, puis 10 €/personne
+                      supplémentaire (tarif 1), puis 5 €/personne au-delà (tarif 2). Ex. yacht :
+                      forfait 700 € pour 10 personnes, puis 10 €/adulte supp. et 5 €/enfant supp.
+                      — laisse un champ à 0 si ce palier ne s&apos;applique pas.
                     </p>
-                  )}
-                </Field>
-                <Field label="PU bébé (€)">
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={a.pu_bebe}
-                      onChange={(e) => onUpdate(a.id, { pu_bebe: Number(e.target.value) })}
-                      className="input w-20"
-                    />
-                    <input
-                      value={a.pu_bebe_age}
-                      onChange={(e) => onUpdate(a.id, { pu_bebe_age: e.target.value })}
-                      className="input min-w-[120px] flex-1"
-                      placeholder="ex. 0 à 3 ans"
-                    />
-                  </div>
-                </Field>
-                <Field label="PU accompagnateur (€)">
-                  <div className="flex gap-2">
-                      <input
-                              type="number"
-                              value={a.pu_accompagnateur}
-                              onChange={(e) => onUpdate(a.id, { pu_accompagnateur: Number(e.target.value) })}
-                              className="input w-20"
-                            />
-                      <input
-                              value={a.pu_accompagnateur_age}
-                              onChange={(e) => onUpdate(a.id, { pu_accompagnateur_age: e.target.value })}
-                              className="input min-w-[120px] flex-1"
-                              placeholder="ex. accompagnant non-plongeur"
-                            />
-                  </div>
-                </Field>
-                <Field label="PU enfant 3 ans (€)">
-                  <input
-                    type="number"
-                    value={a.pu_enfant_3ans}
-                    onChange={(e) => onUpdate(a.id, { pu_enfant_3ans: Number(e.target.value) })}
-                    className="input w-20"
-                  />
-                </Field>
+                  </>
+                )}
                 {canSeeMargins && (
                   <Field label="Marge cible (%)">
                     <input
@@ -985,9 +1109,7 @@ export default function CatalogueView({
                   </span>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-600">
-                    <span>Adulte {euros(a.pu_adulte)}€</span>
-                    <span>Enfant {euros(a.pu_enfant)}€</span>
-                    <span>Bébé {euros(a.pu_bebe)}€</span>
+                    <PriceSummary a={a} />
                   </div>
                 )}
               </button>
@@ -1319,73 +1441,141 @@ export default function CatalogueView({
                 <div className="border-t border-neutral-100 bg-[#fafafa]/30 p-5 lg:border-l lg:border-t-0">
                   <h4 className="mb-3 text-sm font-semibold text-[#171717]">Tarifs</h4>
                   <div className="mb-5 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <RowIcon>
-                        <IconAdulte />
-                      </RowIcon>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-700">Adulte</p>
-                        <p className="text-[11px] text-neutral-400">{a.pu_adulte_age}</p>
-                      </div>
-                      <span className="font-amounts text-sm text-[#171717]">
-                        {euros(a.pu_adulte)}€
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <RowIcon>
-                        <IconEnfant />
-                      </RowIcon>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-700">Enfant</p>
-                        <p className="text-[11px] text-neutral-400">{a.pu_enfant_age}</p>
-                        {isQuadActivity(a) && (
-                          <p className="text-[11px] font-medium text-red-600">
-                            ⚠ Interdit aux enfants de moins de 6 ans
+                    {a.tarif_mode !== "groupe" ? (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <RowIcon>
+                            <IconAdulte />
+                          </RowIcon>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-neutral-700">Adulte</p>
+                            <p className="text-[11px] text-neutral-400">{a.pu_adulte_age}</p>
+                          </div>
+                          <span className="font-amounts text-sm text-[#171717]">
+                            {euros(a.pu_adulte)}€
+                          </span>
+                        </div>
+                        {isSpaActivity(a) ? (
+                          <p className="text-[11px] font-medium text-[#0F5C56]">
+                            ℹ️ À partir de 10 ans uniquement
                           </p>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <RowIcon>
+                              <IconEnfant />
+                            </RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-neutral-700">Enfant</p>
+                              <p className="text-[11px] text-neutral-400">{a.pu_enfant_age}</p>
+                              {isQuadActivity(a) && (
+                                <p className="text-[11px] font-medium text-red-600">
+                                  ⚠ Interdit aux enfants de moins de 6 ans
+                                </p>
+                              )}
+                            </div>
+                            <span className="font-amounts text-sm text-[#171717]">
+                              {euros(a.pu_enfant)}€
+                            </span>
+                          </div>
                         )}
-                      </div>
-                      <span className="font-amounts text-sm text-[#171717]">
-                        {euros(a.pu_enfant)}€
-                      </span>
-                    </div>
+                        {!isQuadActivity(a) && !isSpaActivity(a) && (
+                          <div className="flex items-center gap-3">
+                            <RowIcon>
+                              <IconBebe />
+                            </RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-neutral-700">Bébé</p>
+                              <p className="text-[11px] text-neutral-400">{a.pu_bebe_age}</p>
+                            </div>
+                            <span className="font-amounts text-sm text-[#171717]">
+                              {euros(a.pu_bebe)}€
+                            </span>
+                          </div>
+                        )}
+                        {a.pu_accompagnateur > 0 && (
                     <div className="flex items-center gap-3">
-                      <RowIcon>
-                        <IconBebe />
-                      </RowIcon>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-700">Bébé</p>
-                        <p className="text-[11px] text-neutral-400">{a.pu_bebe_age}</p>
-                      </div>
-                      <span className="font-amounts text-sm text-[#171717]">
-                        {euros(a.pu_bebe)}€
-                      </span>
-                    </div>
-                    {a.pu_accompagnateur > 0 && (
-                <div className="flex items-center gap-3">
-                    <RowIcon>
-                          <IconAdulte />
-                    </RowIcon>
-                    <div className="min-w-0 flex-1">
-                          <p className="text-sm text-neutral-700">Accompagnateur</p>
-                          <p className="text-[11px] text-neutral-400">{a.pu_accompagnateur_age}</p>
-                    </div>
-                    <span className="font-amounts text-sm text-[#171717]">
-                      {euros(a.pu_accompagnateur)}€
-                    </span>
-                </div>
-              )}
-                    {a.pu_enfant_3ans > 0 && (
-                      <div className="flex items-center gap-3">
                         <RowIcon>
-                          <IconEnfant />
+                              <IconAdulte />
                         </RowIcon>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-neutral-700">Enfant 3 ans</p>
+                              <p className="text-sm text-neutral-700">Accompagnateur</p>
+                              <p className="text-[11px] text-neutral-400">{a.pu_accompagnateur_age}</p>
                         </div>
                         <span className="font-amounts text-sm text-[#171717]">
-                          {euros(a.pu_enfant_3ans)}€
+                          {euros(a.pu_accompagnateur)}€
                         </span>
-                      </div>
+                    </div>
+                  )}
+                        {a.pu_enfant_3ans > 0 && (
+                          <div className="flex items-center gap-3">
+                            <RowIcon>
+                              <IconEnfant />
+                            </RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-neutral-700">Enfant 3 ans</p>
+                            </div>
+                            <span className="font-amounts text-sm text-[#171717]">
+                              {euros(a.pu_enfant_3ans)}€
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <RowIcon>
+                            <IconAdulte />
+                          </RowIcon>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-neutral-700">Forfait de base</p>
+                            <p className="text-[11px] text-neutral-400">
+                              jusqu&apos;à {a.prix_groupe_base_pax} personne(s)
+                            </p>
+                          </div>
+                          <span className="font-amounts text-sm text-[#171717]">
+                            {euros(a.prix_groupe_base)}€
+                          </span>
+                        </div>
+                        {a.prix_groupe_extra1 > 0 && (
+                          <div className="flex items-center gap-3">
+                            <RowIcon>
+                              <IconAdulte />
+                            </RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-neutral-700">Personne supp. (tarif 1)</p>
+                            </div>
+                            <span className="font-amounts text-sm text-[#171717]">
+                              {euros(a.prix_groupe_extra1)}€
+                            </span>
+                          </div>
+                        )}
+                        {a.prix_groupe_extra2 > 0 && (
+                          <div className="flex items-center gap-3">
+                            <RowIcon>
+                              <IconAdulte />
+                            </RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-neutral-700">Personne supp. (tarif 2, au-delà)</p>
+                            </div>
+                            <span className="font-amounts text-sm text-[#171717]">
+                              {euros(a.prix_groupe_extra2)}€
+                            </span>
+                          </div>
+                        )}
+                        {a.prix_groupe_extra_enfant > 0 && (
+                          <div className="flex items-center gap-3">
+                            <RowIcon>
+                              <IconEnfant />
+                            </RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-neutral-700">Enfant supp.</p>
+                            </div>
+                            <span className="font-amounts text-sm text-[#171717]">
+                              {euros(a.prix_groupe_extra_enfant)}€
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -1475,9 +1665,7 @@ export default function CatalogueView({
                       </p>
                       <p className="mt-0.5 text-xs text-neutral-400">{a.categorie}</p>
                       <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-600">
-                        <span>Adulte {euros(a.pu_adulte)}€</span>
-                        <span>Enfant {euros(a.pu_enfant)}€</span>
-                        <span>Bébé {euros(a.pu_bebe)}€</span>
+                        <PriceSummary a={a} />
                       </div>
                     </button>
                   ) : (
@@ -1493,9 +1681,7 @@ export default function CatalogueView({
                         <p className="text-xs text-neutral-400">{a.categorie}</p>
                       </div>
                       <div className="flex flex-shrink-0 gap-3 text-xs text-neutral-600">
-                        <span>Adulte {euros(a.pu_adulte)}€</span>
-                        <span>Enfant {euros(a.pu_enfant)}€</span>
-                        <span>Bébé {euros(a.pu_bebe)}€</span>
+                        <PriceSummary a={a} />
                       </div>
                     </button>
                   )

@@ -196,8 +196,15 @@ export function participantsFor(r: Reservation, client: Client) {
     r.participants_mode === "tous" ? Number(client.adultes) || 0 : Number(r.participants_adultes) || 0;
   const nbEnf =
     r.participants_mode === "tous" ? Number(client.enfants) || 0 : Number(r.participants_enfants) || 0;
+  // L'accompagnateur n'existe qu'au niveau d'une réservation précise (ex.
+  // plongée) — pas de notion d'accompagnateur au niveau du séjour du
+  // client, donc rien à récupérer en mode "tous".
   const nbAcc = r.participants_mode === "tous" ? 0 : Number(r.participants_accompagnateurs) || 0;
-  return { nbAd, nbEnf, nbAcc };
+  // Même logique que l'accompagnateur : le tarif enfant 3 ans (ex. Le Caire
+  // en avion) se saisit au cas par cas sur la réservation, jamais déduit du
+  // total d'enfants du séjour.
+  const nbEnf3 = r.participants_mode === "tous" ? 0 : Number(r.participants_enfants_3ans) || 0;
+  return { nbAd, nbEnf, nbAcc, nbEnf3 };
 }
 
 export function resaTotalMontant(
@@ -206,8 +213,22 @@ export function resaTotalMontant(
   options: ReservationOption[] = [],
   tarifs: ReservationTarif[] = []
 ) {
-      const { nbAd, nbEnf, nbAcc } = participantsFor(r, client);
-  const base = nbAd * (Number(r.pu_adulte) || 0) + nbEnf * (Number(r.pu_enfant) || 0) + nbAcc * (Number(r.pu_accompagnateur) || 0);
+  const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+  // Forfait groupe (ex. speedboat, yacht) : le prix n'est pas par personne
+  // mais un forfait de base pour un nombre de personnes inclus, plus un
+  // tarif par personne supplémentaire (2 paliers possibles) et par enfant
+  // supplémentaire — ces compteurs se saisissent au cas par cas, comme
+  // l'accompagnateur ou l'enfant 3 ans, jamais déduits du séjour du client.
+  const base =
+    r.tarif_mode === "groupe"
+      ? (Number(r.prix_groupe_base) || 0) +
+        (Number(r.participants_extra1) || 0) * (Number(r.prix_groupe_extra1) || 0) +
+        (Number(r.participants_extra2) || 0) * (Number(r.prix_groupe_extra2) || 0) +
+        (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0)
+      : nbAd * (Number(r.pu_adulte) || 0) +
+        nbEnf * (Number(r.pu_enfant) || 0) +
+        nbAcc * (Number(r.pu_accompagnateur) || 0) +
+        nbEnf3 * (Number(r.pu_enfant_3ans) || 0);
   const optionsTotal = options.reduce((s, o) => s + (Number(o.prix) || 0), 0);
   const tarifsTotal = tarifs.reduce((s, t) => s + (Number(t.quantite) || 0) * (Number(t.pu) || 0), 0);
   const transfert = r.transfert_inclus ? 0 : Number(r.transfert_montant) || 0;

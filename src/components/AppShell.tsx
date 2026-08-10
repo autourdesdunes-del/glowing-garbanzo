@@ -905,6 +905,7 @@ function AppShellInner({
             <PipelineView
               clients={scoped}
               statuts={activeStatuts}
+              groupBy={mode === "team" ? "timing" : "statut"}
               onUpdateStatut={(id, statut) => updateClientById(id, { statut })}
               onOpenClient={(id) => {
                 setSelectedId(id);

@@ -3,10 +3,21 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
-import { Field } from "@/components/client-steps";
+import { useConfirm } from "@/components/ConfirmProvider";
+import { ActivitesStep, Field, PaiementsStep } from "@/components/client-steps";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import { CANAUX, RELATIONS } from "@/lib/constants";
-import { Client, HotelReference, TransfertTaxe } from "@/lib/types";
+import {
+  CatalogueItem,
+  CatalogueOption,
+  CatalogueTarif,
+  Client,
+  HotelReference,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+  TransfertTaxe,
+} from "@/lib/types";
 import { matchHotel } from "@/lib/hotelHelp";
 
 type StepId =
@@ -31,12 +42,17 @@ type StepId =
   | "bebes"
   | "ages_bebes"
   | "ados"
+  | "activites"
+  | "paiements"
   | "done";
 
 // Contact puis Séjour, un champ à la fois — beaucoup de champs à remplir
 // dans un dossier, on les fait défiler un par un plutôt qu'un long
 // formulaire. Les étapes conditionnelles (canal_autre, pseudo…) ne
 // s'insèrent que si la réponse précédente les rend pertinentes.
+// Activités et Paiements sont trop imbriqués (éditeur de réservation,
+// règle du solde unique) pour être redécoupés sans risque — on réutilise
+// les écrans existants du dossier tels quels, comme deux étapes de plus.
 function buildSteps(a: Partial<Client>): StepId[] {
   const steps: StepId[] = ["nom", "statut", "canal"];
   if (a.canal === "Autre") steps.push("canal_autre");
@@ -48,7 +64,7 @@ function buildSteps(a: Partial<Client>): StepId[] {
   if ((a.enfants ?? 0) > 0) steps.push("ages_enfants");
   steps.push("bebes");
   if ((a.bebes ?? 0) > 0) steps.push("ages_bebes");
-  steps.push("ados", "done");
+  steps.push("ados", "activites", "paiements", "done");
   return steps;
 }
 
@@ -66,6 +82,15 @@ const CONTACT_STEPS: StepId[] = [
   "infos_manquantes",
 ];
 
+const WIDE_STEPS: StepId[] = ["activites", "paiements"];
+
+function sectionLabel(step: StepId): string {
+  if (CONTACT_STEPS.includes(step)) return "Contact";
+  if (step === "activites") return "Activités";
+  if (step === "paiements") return "Paiements";
+  return "Séjour";
+}
+
 export default function QuickAddClient({
   onCreate,
   onUpdateClient,
@@ -82,6 +107,7 @@ export default function QuickAddClient({
 }) {
   const supabase = createClient();
   const toast = useToast();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [stepIdx, setStepIdx] = useState(0);
@@ -92,15 +118,25 @@ export default function QuickAddClient({
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
+  const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
+  const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
+  const [catalogueOptions, setCatalogueOptions] = useState<Record<string, CatalogueOption[]>>({});
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
+  const [resaTarifs, setResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const [{ data: h }, { data: t }, { data: opts }] = await Promise.all([
-        supabase.from("hotels_reference").select("*"),
-        supabase.from("transfert_taxes").select("*"),
-        supabase.from("infos_manquantes_options").select("label").order("created_at", { ascending: true }),
-      ]);
+      const [{ data: h }, { data: t }, { data: opts }, { data: cat }, { data: catTarifs }, { data: catOptions }] =
+        await Promise.all([
+          supabase.from("hotels_reference").select("*"),
+          supabase.from("transfert_taxes").select("*"),
+          supabase.from("infos_manquantes_options").select("label").order("created_at", { ascending: true }),
+          supabase.from("catalogue_activites").select("*").order("created_at", { ascending: false }),
+          supabase.from("catalogue_tarifs").select("*"),
+          supabase.from("catalogue_options").select("*"),
+        ]);
       setHotelsRef((h as HotelReference[]) || []);
       setTaxesRef((t as TransfertTaxe[]) || []);
       const fetched = ((opts as { label: string }[]) || []).map((o) => o.label);
@@ -109,6 +145,17 @@ export default function QuickAddClient({
           ? fetched
           : ["Complet", "Room number", "Date de RDV", "Numéro WhatsApp", "Billets d'avion", "Passeport", "Acompte PayPal", "Localisation", "Ticket de train"]
       );
+      setCatalogue((cat as CatalogueItem[]) || []);
+      const groupedCatTarifs: Record<string, CatalogueTarif[]> = {};
+      ((catTarifs as CatalogueTarif[]) || []).forEach((t2) => {
+        groupedCatTarifs[t2.catalogue_item_id] = [...(groupedCatTarifs[t2.catalogue_item_id] || []), t2];
+      });
+      setCatalogueTarifs(groupedCatTarifs);
+      const groupedCatOptions: Record<string, CatalogueOption[]> = {};
+      ((catOptions as CatalogueOption[]) || []).forEach((o2) => {
+        groupedCatOptions[o2.catalogue_item_id] = [...(groupedCatOptions[o2.catalogue_item_id] || []), o2];
+      });
+      setCatalogueOptions(groupedCatOptions);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -120,6 +167,9 @@ export default function QuickAddClient({
     setClientId(null);
     setAnswers({});
     setNewInfoLabel("");
+    setReservations([]);
+    setResaOptions({});
+    setResaTarifs({});
   };
 
   const patch = (fields: Partial<Client>) => {
@@ -129,7 +179,6 @@ export default function QuickAddClient({
 
   const steps = buildSteps(answers);
   const step = steps[stepIdx];
-  const isContact = CONTACT_STEPS.includes(step);
 
   const goNext = async () => {
     if (step === "nom") {
@@ -188,6 +237,119 @@ export default function QuickAddClient({
   const taxeMatch = hotelMatch
     ? taxesRef.find((t) => t.ville.trim().toLowerCase() === hotelMatch.ville.trim().toLowerCase())
     : null;
+  const hotelHorsHurghada = !!hotelMatch && !hotelMatch.sur_hurghada;
+
+  const addReservation = async (): Promise<string | null> => {
+    if (!clientId) return null;
+    const { data, error } = await supabase
+      .from("reservations")
+      .insert({ client_id: clientId, transfert_inclus: !hotelHorsHurghada })
+      .select()
+      .single();
+    if (!error && data) {
+      setReservations((prev) => [...prev, data as Reservation]);
+      return (data as Reservation).id;
+    }
+    toast("Impossible d'ajouter l'activité.");
+    return null;
+  };
+
+  const updateReservation = async (id: string, resaPatch: Partial<Reservation>) => {
+    setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...resaPatch } : r)));
+    const { error } = await supabase.from("reservations").update(resaPatch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteReservation = async (id: string) => {
+    const ok = await confirm({
+      title: "Retirer cette activité ?",
+      message: "Ses options et son lien éventuel au solde seront aussi retirés. Cette action est irréversible.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
+    setReservations((prev) => prev.filter((r) => r.id !== id));
+    setResaOptions((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    setResaTarifs((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    const { error } = await supabase.from("reservations").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const addResaOption = async (resaId: string, seed?: { nom: string; prix: number }) => {
+    const { data, error } = await supabase
+      .from("reservation_options")
+      .insert({ reservation_id: resaId, nom: seed?.nom || "Guide francophone", prix: seed?.prix || 0 })
+      .select()
+      .single();
+    if (!error && data) {
+      setResaOptions((prev) => ({
+        ...prev,
+        [resaId]: [...(prev[resaId] || []), data as ReservationOption],
+      }));
+    } else {
+      toast("Impossible d'ajouter l'option.");
+    }
+  };
+
+  const updateResaOption = async (resaId: string, optId: string, optPatch: Partial<ReservationOption>) => {
+    setResaOptions((prev) => ({
+      ...prev,
+      [resaId]: (prev[resaId] || []).map((o) => (o.id === optId ? { ...o, ...optPatch } : o)),
+    }));
+    const { error } = await supabase.from("reservation_options").update(optPatch).eq("id", optId);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteResaOption = async (resaId: string, optId: string) => {
+    setResaOptions((prev) => ({
+      ...prev,
+      [resaId]: (prev[resaId] || []).filter((o) => o.id !== optId),
+    }));
+    const { error } = await supabase.from("reservation_options").delete().eq("id", optId);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const addResaTarif = async (resaId: string, seed?: { label: string; pu: number }) => {
+    const { data, error } = await supabase
+      .from("reservation_tarifs")
+      .insert({ reservation_id: resaId, label: seed?.label || "", pu: seed?.pu || 0, quantite: 0 })
+      .select()
+      .single();
+    if (!error && data) {
+      setResaTarifs((prev) => ({
+        ...prev,
+        [resaId]: [...(prev[resaId] || []), data as ReservationTarif],
+      }));
+    } else {
+      toast("Impossible d'ajouter ce tarif.");
+    }
+  };
+
+  const updateResaTarif = async (resaId: string, tarifId: string, tarifPatch: Partial<ReservationTarif>) => {
+    setResaTarifs((prev) => ({
+      ...prev,
+      [resaId]: (prev[resaId] || []).map((t) => (t.id === tarifId ? { ...t, ...tarifPatch } : t)),
+    }));
+    const { error } = await supabase.from("reservation_tarifs").update(tarifPatch).eq("id", tarifId);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteResaTarif = async (resaId: string, tarifId: string) => {
+    setResaTarifs((prev) => ({
+      ...prev,
+      [resaId]: (prev[resaId] || []).filter((t) => t.id !== tarifId),
+    }));
+    const { error } = await supabase.from("reservation_tarifs").delete().eq("id", tarifId);
+    if (error) toast("Échec de la suppression.");
+  };
 
   return (
     <>
@@ -203,7 +365,11 @@ export default function QuickAddClient({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-md rounded-[6px] border border-[#eaeaea] bg-white p-6">
+          <div
+            className={`w-full max-h-[90vh] overflow-y-auto rounded-[6px] border border-[#eaeaea] bg-white p-6 ${
+              WIDE_STEPS.includes(step) ? "max-w-2xl" : "max-w-md"
+            }`}
+          >
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="font-heading text-lg font-semibold text-[#171717]">
@@ -215,7 +381,7 @@ export default function QuickAddClient({
                 </h2>
                 {step !== "nom" && step !== "done" && (
                   <p className="mt-0.5 text-xs text-[#666666]">
-                    {isContact ? "Contact" : "Séjour"} — étape {stepIdx + 1}/{steps.length - 1}
+                    {sectionLabel(step)} — étape {stepIdx + 1}/{steps.length - 1}
                   </p>
                 )}
               </div>
@@ -237,12 +403,7 @@ export default function QuickAddClient({
               </div>
             )}
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                goNext();
-              }}
-            >
+            <div>
               {step === "nom" && (
                 <Field label="Nom du client">
                   <input
@@ -250,6 +411,12 @@ export default function QuickAddClient({
                     required
                     value={nomDraft}
                     onChange={(e) => setNomDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        goNext();
+                      }
+                    }}
                     className="input"
                   />
                 </Field>
@@ -580,14 +747,50 @@ export default function QuickAddClient({
                 </div>
               )}
 
+              {step === "activites" && clientId && (
+                <ActivitesStep
+                  client={{ ...answers, id: clientId } as Client}
+                  onChange={patch}
+                  reservations={reservations}
+                  resaOptions={resaOptions}
+                  resaTarifs={resaTarifs}
+                  onAddReservation={addReservation}
+                  onUpdateReservation={updateReservation}
+                  onDeleteReservation={deleteReservation}
+                  onAddOption={addResaOption}
+                  onUpdateOption={updateResaOption}
+                  onDeleteOption={deleteResaOption}
+                  onAddTarif={addResaTarif}
+                  onUpdateTarif={updateResaTarif}
+                  onDeleteTarif={deleteResaTarif}
+                  catalogue={catalogue}
+                  catalogueTarifs={catalogueTarifs}
+                  catalogueOptions={catalogueOptions}
+                  canSeeMargins={false}
+                  hotelHorsHurghada={hotelHorsHurghada}
+                  coutsMap={{}}
+                  onUpdateCoutReel={() => {}}
+                />
+              )}
+
+              {step === "paiements" && clientId && (
+                <PaiementsStep
+                  client={{ ...answers, id: clientId } as Client}
+                  onChange={patch}
+                  reservations={reservations}
+                  resaOptions={resaOptions}
+                  resaTarifs={resaTarifs}
+                />
+              )}
+
               {step === "done" && (
                 <div className="text-center">
                   <p className="text-sm text-[#171717]">
                     Le dossier de <strong>{answers.nom}</strong> est créé et enregistré.
                   </p>
                   <p className="mt-2 text-xs text-[#666666]">
-                    Activités, paiements et suivi se complètent ensuite, à ton rythme, depuis le
-                    dossier.
+                    Le suivi (au revoir, avis, relances…) se complète ensuite, à ton rythme, depuis
+                    le dossier.
                   </p>
                 </div>
               )}
@@ -612,15 +815,16 @@ export default function QuickAddClient({
                   </button>
                 ) : (
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={goNext}
                     disabled={creating || (step === "nom" && !nomDraft.trim())}
                     className="flex-1 rounded-[6px] bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                   >
-                    {creating ? "Création…" : step === "nom" ? "Suivant" : "Suivant"}
+                    {creating ? "Création…" : "Suivant"}
                   </button>
                 )}
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

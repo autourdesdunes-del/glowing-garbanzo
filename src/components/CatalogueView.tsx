@@ -400,7 +400,7 @@ export default function CatalogueView({
   canSeeMargins: boolean;
 }) {
   const [categoryFilter, setCategoryFilter] = useState<string>("Toutes");
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [newInclus, setNewInclus] = useState<Record<string, string>>({});
   const [newNonInclus, setNewNonInclus] = useState<Record<string, string>>({});
   const [newAPrevoir, setNewAPrevoir] = useState<Record<string, string>>({});
@@ -408,9 +408,18 @@ export default function CatalogueView({
   const allTags = Array.from(
     new Set([...CATALOGUE_TAGS_PRESETS, ...items.flatMap((a) => a.tags || [])])
   );
+  const tagCounts = allTags.map((tag) => ({
+    tag,
+    count: items.filter((a) => (a.tags || []).includes(tag)).length,
+  }));
+  const sansCategorieCount = items.filter((a) => !(a.tags && a.tags.length)).length;
   const filtered = items
     .filter((a) => categoryFilter === "Toutes" || a.categorie === categoryFilter)
-    .filter((a) => !tagFilter || (a.tags || []).includes(tagFilter));
+    .filter((a) => {
+      if (!selectedTag || selectedTag === "__ALL__") return true;
+      if (selectedTag === "__SANS__") return !(a.tags && a.tags.length);
+      return (a.tags || []).includes(selectedTag);
+    });
 
   const toggleJour = (a: CatalogueItem, j: string) => {
     const jours = a.jours_disponibles || [];
@@ -458,59 +467,75 @@ export default function CatalogueView({
           </p>
         </div>
         <button
-          onClick={onAdd}
+          onClick={() => {
+            onAdd();
+            setSelectedTag("__ALL__");
+          }}
           className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Nouvelle activité
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {["Toutes", ...CATALOGUE_CATEGORIES].map((cat) => (
+      {!selectedTag ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <button
-            key={cat}
-            onClick={() => setCategoryFilter(cat)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
-              categoryFilter === cat
-                ? "border-[#171717] bg-[#171717] text-white"
-                : "border-neutral-300 text-neutral-600"
-            }`}
+            onClick={() => setSelectedTag("__ALL__")}
+            className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
           >
-            {cat}
+            <p className="font-heading text-base font-semibold text-[#171717]">
+              Toutes les activités
+            </p>
+            <p className="mt-1 text-xs text-neutral-400">{items.length} activité(s)</p>
           </button>
-        ))}
-      </div>
-
-      {allTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-neutral-400">Trier par thème :</span>
-          <button
-            onClick={() => setTagFilter(null)}
-            className={`rounded-full border px-3 py-1 text-xs font-medium ${
-              !tagFilter
-                ? "border-[#171717] bg-[#171717] text-white"
-                : "border-neutral-300 text-neutral-600"
-            }`}
-          >
-            Tous
-          </button>
-          {allTags.map((tag) => (
+          {tagCounts.map(({ tag, count }) => (
             <button
               key={tag}
-              onClick={() => setTagFilter(tag === tagFilter ? null : tag)}
-              className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                tagFilter === tag
-                  ? "border-[#171717] bg-[#171717] text-white"
-                  : "border-neutral-300 text-neutral-600"
-              }`}
+              onClick={() => setSelectedTag(tag)}
+              className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
             >
-              {tag}
+              <p className="font-heading text-base font-semibold text-[#171717]">{tag}</p>
+              <p className="mt-1 text-xs text-neutral-400">{count} activité(s)</p>
             </button>
           ))}
+          {sansCategorieCount > 0 && (
+            <button
+              onClick={() => setSelectedTag("__SANS__")}
+              className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
+            >
+              <p className="font-heading text-base font-semibold text-[#171717]">
+                Sans catégorie
+              </p>
+              <p className="mt-1 text-xs text-neutral-400">{sansCategorieCount} activité(s)</p>
+            </button>
+          )}
         </div>
-      )}
+      ) : (
+        <>
+          <button
+            onClick={() => setSelectedTag(null)}
+            className="text-sm font-medium text-[#171717] hover:underline"
+          >
+            ← Toutes les catégories
+          </button>
 
-      {filtered.length === 0 && (
+          <div className="flex flex-wrap gap-2">
+            {["Toutes", ...CATALOGUE_CATEGORIES].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  categoryFilter === cat
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 text-neutral-600"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {filtered.length === 0 && (
         <div className="text-sm text-neutral-400">
           Aucune activité dans cette catégorie pour l&apos;instant.
         </div>
@@ -1209,7 +1234,9 @@ export default function CatalogueView({
             </div>
           )
         )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

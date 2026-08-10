@@ -37,7 +37,8 @@ const TIMING_BUCKETS = [
     match: (c: Client) => {
       if (!c.date_debut) return false;
       if (c.date_fin && todayStr() >= c.date_debut && todayStr() <= c.date_fin) return false;
-      return daysUntil(c.date_debut) <= 7;
+      const d = daysUntil(c.date_debut);
+      return d >= 0 && d <= 7;
     },
   },
   {
@@ -54,6 +55,15 @@ const TIMING_BUCKETS = [
     key: "plus_tard",
     label: "Plus tard / date à définir",
     match: (c: Client) => !c.date_debut || daysUntil(c.date_debut) > 90,
+  },
+  {
+    key: "termine",
+    label: "Séjour terminé",
+    match: (c: Client) => {
+      if (!c.date_debut) return false;
+      if (c.date_fin && todayStr() >= c.date_debut && todayStr() <= c.date_fin) return false;
+      return daysUntil(c.date_debut) < 0;
+    },
   },
 ] as const;
 

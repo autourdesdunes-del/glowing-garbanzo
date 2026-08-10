@@ -527,7 +527,7 @@ function AppShellInner({
       for (const o of catalogueOptions[source.id] || []) {
         const { data: od } = await supabase
           .from("catalogue_options")
-          .insert({ catalogue_item_id: newItem.id, nom: o.nom, prix: o.prix })
+          .insert({ catalogue_item_id: newItem.id, nom: o.nom, prix: o.prix, mode: o.mode })
           .select()
           .single();
         if (od) {
@@ -618,7 +618,7 @@ function AppShellInner({
   const addCatalogueOption = async (catalogueItemId: string) => {
     const { data, error } = await supabase
       .from("catalogue_options")
-      .insert({ catalogue_item_id: catalogueItemId, nom: "", prix: 0 })
+      .insert({ catalogue_item_id: catalogueItemId, nom: "", prix: 0, mode: "personne" })
       .select()
       .single();
     if (!error && data) {

@@ -676,6 +676,7 @@ export function ActivitesStep({
   hotelHorsHurghada,
   coutsMap,
   onUpdateCoutReel,
+  onRequestAdd,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -696,6 +697,12 @@ export function ActivitesStep({
   hotelHorsHurghada?: boolean;
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
+  // Dans le dossier normal, ce bouton doit rouvrir la petite fenêtre
+  // guidée plutôt que dérouler l'éditeur inline — mais le pas-à-pas de
+  // création et la fenêtre guidée elle-même veulent garder le comportement
+  // inline d'origine, d'où ce prop optionnel plutôt qu'un changement de
+  // comportement global.
+  onRequestAdd?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -704,6 +711,10 @@ export function ActivitesStep({
       <div className="flex justify-end">
         <button
           onClick={async () => {
+            if (onRequestAdd) {
+              onRequestAdd();
+              return;
+            }
             const id = await onAddReservation();
             if (id) setExpandedId(id);
           }}

@@ -366,6 +366,37 @@ function ChipMultiSelect({
   );
 }
 
+function ViewToggle({
+  mode,
+  onChange,
+}: {
+  mode: "cards" | "rows";
+  onChange: (m: "cards" | "rows") => void;
+}) {
+  return (
+    <div className="flex gap-1 rounded-md border border-neutral-200 p-0.5">
+      <button
+        type="button"
+        onClick={() => onChange("cards")}
+        className={`rounded px-2.5 py-1 text-xs font-medium ${
+          mode === "cards" ? "bg-[#171717] text-white" : "text-neutral-500 hover:bg-neutral-100"
+        }`}
+      >
+        ▦ Cartes
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("rows")}
+        className={`rounded px-2.5 py-1 text-xs font-medium ${
+          mode === "rows" ? "bg-[#171717] text-white" : "text-neutral-500 hover:bg-neutral-100"
+        }`}
+      >
+        ☰ Lignes
+      </button>
+    </div>
+  );
+}
+
 export default function CatalogueView({
   items,
   onAdd,
@@ -401,6 +432,9 @@ export default function CatalogueView({
 }) {
   const [categoryFilter, setCategoryFilter] = useState<string>("Toutes");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
+  const [tagViewMode, setTagViewMode] = useState<"cards" | "rows">("cards");
+  const [activityViewMode, setActivityViewMode] = useState<"cards" | "rows">("cards");
   const [newInclus, setNewInclus] = useState<Record<string, string>>({});
   const [newNonInclus, setNewNonInclus] = useState<Record<string, string>>({});
   const [newAPrevoir, setNewAPrevoir] = useState<Record<string, string>>({});
@@ -454,390 +488,8 @@ export default function CatalogueView({
     clear();
   };
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-3 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-heading text-xl font-semibold text-[#171717]">
-            Catalogue d&apos;activités
-          </h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Rempli une fois, réutilisé pour chaque réservation — pense à une nouvelle employée qui
-            découvre l&apos;activité : sois précise et complète.
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            onAdd();
-            setSelectedTag("__ALL__");
-          }}
-          className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-        >
-          + Nouvelle activité
-        </button>
-      </div>
-
-      {!selectedTag ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <button
-            onClick={() => setSelectedTag("__ALL__")}
-            className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
-          >
-            <p className="font-heading text-base font-semibold text-[#171717]">
-              Toutes les activités
-            </p>
-            <p className="mt-1 text-xs text-neutral-400">{items.length} activité(s)</p>
-          </button>
-          {tagCounts.map(({ tag, count }) => (
-            <button
-              key={tag}
-              onClick={() => setSelectedTag(tag)}
-              className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
-            >
-              <p className="font-heading text-base font-semibold text-[#171717]">{tag}</p>
-              <p className="mt-1 text-xs text-neutral-400">{count} activité(s)</p>
-            </button>
-          ))}
-          {sansCategorieCount > 0 && (
-            <button
-              onClick={() => setSelectedTag("__SANS__")}
-              className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
-            >
-              <p className="font-heading text-base font-semibold text-[#171717]">
-                Sans catégorie
-              </p>
-              <p className="mt-1 text-xs text-neutral-400">{sansCategorieCount} activité(s)</p>
-            </button>
-          )}
-        </div>
-      ) : (
-        <>
-          <button
-            onClick={() => setSelectedTag(null)}
-            className="text-sm font-medium text-[#171717] hover:underline"
-          >
-            ← Toutes les catégories
-          </button>
-
-          <div className="flex flex-wrap gap-2">
-            {["Toutes", ...CATALOGUE_CATEGORIES].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                  categoryFilter === cat
-                    ? "border-[#171717] bg-[#171717] text-white"
-                    : "border-neutral-300 text-neutral-600"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {filtered.length === 0 && (
-        <div className="text-sm text-neutral-400">
-          Aucune activité dans cette catégorie pour l&apos;instant.
-        </div>
-      )}
-
-      <div className="space-y-5">
-        {filtered.map((a) =>
-          a.valide ? (
-            <div
-              key={a.id}
-              className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white"
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px]">
-                {/* LEFT: photo + description + details */}
-                <div className="p-5">
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="font-heading text-lg font-semibold text-[#171717]">
-                        {a.nom || "Sans nom"}
-                      </h3>
-                      <p className="text-xs text-neutral-400">{a.categorie}</p>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {(a.tags || []).map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-full bg-[#171717]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#171717]"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                        {topVenteIds.has(a.id) && (
-                          <span className="rounded-full bg-[#171717]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#666666]">
-                            🏆 Top des ventes
-                          </span>
-                        )}
-                        {canSeeMargins && topRentabiliteIds.has(a.id) && (
-                          <span className="rounded-full bg-[#0070f3]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#0070f3]">
-                            💰 Top rentabilité
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-shrink-0 items-center gap-2">
-                      {canSeeMargins && a.marge_pct > 0 && (
-                        <span className="rounded-full bg-[#0070f3]/10 px-2.5 py-1 text-[11px] font-medium text-[#0070f3]">
-                          Marge cible {a.marge_pct}%
-                        </span>
-                      )}
-                      <button
-                        onClick={() => onUpdate(a.id, { valide: false })}
-                        className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
-                      >
-                        ✎ Modifier
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="relative mb-4">
-                    <CardPhoto path={a.photo_path} alt={a.nom} />
-                    <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-                      {a.duree && (
-                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
-                          ⏱ {a.duree}
-                        </span>
-                      )}
-                      {a.horaire_approx && (
-                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
-                          🕐 {a.horaire_approx}
-                        </span>
-                      )}
-                      {a.point_rdv && (
-                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
-                          📍 {a.point_rdv}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <h4 className="mb-2 text-sm font-semibold text-[#171717]">Description</h4>
-                  <p className="mb-3 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
-                    {a.description || (
-                      <span className="italic text-neutral-400">
-                        Pas encore de description — ajoute-la en modifiant l&apos;activité.
-                      </span>
-                    )}
-                  </p>
-                  <div className="mb-5">
-                    <div className="flex gap-1.5">
-                      {JOURS_SEMAINE.map((j) => {
-                        const active = (a.jours_disponibles || []).includes(j);
-                        return (
-                          <div
-                            key={j}
-                            title={j}
-                            className={`flex h-8 w-8 flex-1 items-center justify-center rounded-full text-xs font-medium ${
-                              active
-                                ? "border-2 border-[#171717] text-[#171717]"
-                                : "border border-neutral-200 text-neutral-300"
-                            }`}
-                          >
-                            {JOUR_ABREV[j]}
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {a.disponibilites && (
-                      <p className="mt-2 text-xs text-neutral-500">ℹ️ {a.disponibilites}</p>
-                    )}
-                  </div>
-
-                  {a.programme && (
-                    <>
-                      <h4 className="mb-2 text-sm font-semibold text-[#171717]">
-                        Programme complet
-                      </h4>
-                      <p className="mb-5 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
-                        {a.programme}
-                      </p>
-                    </>
-                  )}
-
-                  <h4 className="mb-1 text-sm font-semibold text-[#171717]">
-                    Ce qu&apos;il faut savoir
-                  </h4>
-                  <div className="mb-5">
-                    <InfoRow icon={<IconGuide />} label="Guide">
-                      <p className="text-sm text-neutral-700">
-                        {a.guide && a.guide !== "Aucun" ? a.guide : "Pas de guide dédié"}
-                        {a.guide_francophone_sur_demande && (
-                          <span className="ml-1.5 text-[#f5a623]">
-                            ⭐ Guide francophone sur demande
-                          </span>
-                        )}
-                      </p>
-                    </InfoRow>
-                    <InfoRow icon={<IconPin />} label="Point de RDV" value={a.point_rdv} />
-                    <InfoRow icon={<IconCheck />} label="Inclus">
-                      {(a.inclus_liste || []).length > 0 ? (
-                        <ul className="space-y-0.5 text-sm text-neutral-700">
-                          {(a.inclus_liste || []).map((i) => (
-                            <li key={i}>✓ {i}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-neutral-400 italic">Rien de précisé</p>
-                      )}
-                    </InfoRow>
-                    <InfoRow icon={<IconCross />} label="Non inclus">
-                      {(a.non_inclus_liste || []).length > 0 ? (
-                        <ul className="space-y-0.5 text-sm text-neutral-700">
-                          {(a.non_inclus_liste || []).map((i) => (
-                            <li key={i}>✕ {i}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-neutral-400 italic">Rien de précisé</p>
-                      )}
-                    </InfoRow>
-                    <InfoRow icon={<IconBag />} label="À prévoir">
-                      {(a.a_prevoir_liste || []).length > 0 ? (
-                        <ul className="space-y-0.5 text-sm text-neutral-700">
-                          {(a.a_prevoir_liste || []).map((i) => (
-                            <li key={i}>• {i}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-sm text-neutral-400 italic">Rien de précisé</p>
-                      )}
-                    </InfoRow>
-                  </div>
-
-                  {(faq[a.id] || []).length > 0 && (
-                    <>
-                      <h4 className="mb-1 text-sm font-semibold text-[#171717]">FAQ</h4>
-                      <div className="divide-y divide-neutral-100">
-                        {(faq[a.id] || []).map((f) => (
-                          <details key={f.id} className="group py-2">
-                            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-neutral-700">
-                              {f.question || "Question sans titre"}
-                              <svg
-                                viewBox="0 0 20 20"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                                className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400 transition-transform group-open:rotate-180"
-                              >
-                                <path d="M5 7.5 10 12.5 15 7.5" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </summary>
-                            <p className="mt-1.5 text-sm text-neutral-600">{f.reponse}</p>
-                          </details>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* RIGHT: tarifs sidebar */}
-                <div className="border-t border-neutral-100 bg-[#fafafa]/30 p-5 lg:border-l lg:border-t-0">
-                  <h4 className="mb-3 text-sm font-semibold text-[#171717]">Tarifs</h4>
-                  <div className="mb-5 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <RowIcon>
-                        <IconAdulte />
-                      </RowIcon>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-700">Adulte</p>
-                        <p className="text-[11px] text-neutral-400">{a.pu_adulte_age}</p>
-                      </div>
-                      <span className="font-amounts text-sm text-[#171717]">
-                        {euros(a.pu_adulte)}€
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <RowIcon>
-                        <IconEnfant />
-                      </RowIcon>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-700">Enfant</p>
-                        <p className="text-[11px] text-neutral-400">{a.pu_enfant_age}</p>
-                      </div>
-                      <span className="font-amounts text-sm text-[#171717]">
-                        {euros(a.pu_enfant)}€
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <RowIcon>
-                        <IconBebe />
-                      </RowIcon>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-neutral-700">Bébé</p>
-                        <p className="text-[11px] text-neutral-400">{a.pu_bebe_age}</p>
-                      </div>
-                      <span className="font-amounts text-sm text-[#171717]">
-                        {euros(a.pu_bebe)}€
-                      </span>
-                    </div>
-                    {a.pu_accompagnateur > 0 && (
-                <div className="flex items-center gap-3">
-                    <RowIcon>
-                          <IconAdulte />
-                    </RowIcon>
-                    <div className="min-w-0 flex-1">
-                          <p className="text-sm text-neutral-700">Accompagnateur</p>
-                          <p className="text-[11px] text-neutral-400">{a.pu_accompagnateur_age}</p>
-                    </div>
-                    <span className="font-amounts text-sm text-[#171717]">
-                      {euros(a.pu_accompagnateur)}€
-                    </span>
-                </div>
-              )}
-                  </div>
-
-                  {(() => {
-                    const filledTarifs = (tarifs[a.id] || []).filter((t) => t.label.trim());
-                    if (filledTarifs.length === 0) return null;
-                    return (
-                      <>
-                        <h4 className="mb-3 text-sm font-semibold text-[#171717]">
-                          Tarifs supplémentaires
-                        </h4>
-                        <div className="mb-3 space-y-2">
-                          {filledTarifs.map((t) => (
-                            <div key={t.id} className="flex items-center gap-3">
-                              <RowIcon>
-                                <IconTag />
-                              </RowIcon>
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm text-neutral-700">{t.label}</p>
-                              </div>
-                              <span className="font-amounts text-sm text-[#171717]">
-                                {euros(t.pu)}€
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    );
-                  })()}
-                  <button
-                    onClick={() => {
-                      onUpdate(a.id, { valide: false });
-                      onAddTarif(a.id);
-                    }}
-                    className="w-full rounded-full bg-[#171717] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-                  >
-                    + Ajouter un tarif
-                  </button>
-
-                  <h4 className="mb-3 mt-6 text-sm font-semibold text-[#171717]">
-                    Disponibilités
-                  </h4>
-                  <AvailabilityCalendar
-                    jours={a.jours_disponibles}
-                    dates={a.prochaines_dispo_dates}
-                    editable={false}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div key={a.id} className="rounded-[6px] border border-[#f5a623]/40 bg-white p-4">
+  const renderBrouillon = (a: CatalogueItem) => (
+    <div className="rounded-[6px] border border-[#f5a623]/40 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
                 <span className="rounded-full bg-[#f5a623]/20 px-3 py-1 text-xs text-[#666666]">
                   ✎ Brouillon
@@ -1149,7 +801,7 @@ export default function CatalogueView({
                                                                                     onClick={() => toggleListField(a, "champs_requis_liste", label)}
                                                                                     className={`rounded-full border px-3 py-1 text-xs font-medium ${
                                                                                                                 active
-                                                                                                                  ? "border-[#0F5C56] bg-[#0F5C56] text-white"
+                                                                                                                  ? "border-[#171717] bg-[#171717] text-white"
                                                                                                                   : "border-neutral-300 text-neutral-600"
                                                                                       }`}
                                                                                   >
@@ -1231,10 +883,518 @@ export default function CatalogueView({
                   onPathChange={(photo_path) => onUpdate(a.id, { photo_path })}
                 />
               </div>
-            </div>
-          )
-        )}
+    </div>
+  );
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-3 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="font-heading text-xl font-semibold text-[#171717]">
+            Catalogue d&apos;activités
+          </h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Rempli une fois, réutilisé pour chaque réservation — pense à une nouvelle employée qui
+            découvre l&apos;activité : sois précise et complète.
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            onAdd();
+            setSelectedTag("__ALL__");
+            setSelectedActivityId(null);
+          }}
+          className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+        >
+          + Nouvelle activité
+        </button>
+      </div>
+
+      {!selectedTag ? (
+        <>
+          <div className="flex items-center justify-end">
+            <ViewToggle mode={tagViewMode} onChange={setTagViewMode} />
           </div>
+          {tagViewMode === "cards" ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <button
+                onClick={() => setSelectedTag("__ALL__")}
+                className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
+              >
+                <p className="font-heading text-base font-semibold text-[#171717]">
+                  Toutes les activités
+                </p>
+                <p className="mt-1 text-xs text-neutral-400">{items.length} activité(s)</p>
+              </button>
+              {tagCounts.map(({ tag, count }) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(tag)}
+                  className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
+                >
+                  <p className="font-heading text-base font-semibold text-[#171717]">{tag}</p>
+                  <p className="mt-1 text-xs text-neutral-400">{count} activité(s)</p>
+                </button>
+              ))}
+              {sansCategorieCount > 0 && (
+                <button
+                  onClick={() => setSelectedTag("__SANS__")}
+                  className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
+                >
+                  <p className="font-heading text-base font-semibold text-[#171717]">
+                    Sans catégorie
+                  </p>
+                  <p className="mt-1 text-xs text-neutral-400">{sansCategorieCount} activité(s)</p>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-neutral-100 overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+              <button
+                onClick={() => setSelectedTag("__ALL__")}
+                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#fafafa]"
+              >
+                <p className="font-heading text-sm font-semibold text-[#171717]">
+                  Toutes les activités
+                </p>
+                <p className="text-xs text-neutral-400">{items.length} activité(s)</p>
+              </button>
+              {tagCounts.map(({ tag, count }) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(tag)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#fafafa]"
+                >
+                  <p className="font-heading text-sm font-semibold text-[#171717]">{tag}</p>
+                  <p className="text-xs text-neutral-400">{count} activité(s)</p>
+                </button>
+              ))}
+              {sansCategorieCount > 0 && (
+                <button
+                  onClick={() => setSelectedTag("__SANS__")}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[#fafafa]"
+                >
+                  <p className="font-heading text-sm font-semibold text-[#171717]">
+                    Sans catégorie
+                  </p>
+                  <p className="text-xs text-neutral-400">{sansCategorieCount} activité(s)</p>
+                </button>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <button
+            onClick={() => {
+              setSelectedTag(null);
+              setSelectedActivityId(null);
+            }}
+            className="text-sm font-medium text-[#171717] hover:underline"
+          >
+            ← Toutes les catégories
+          </button>
+
+          <div className="flex flex-wrap gap-2">
+            {["Toutes", ...CATALOGUE_CATEGORIES].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  categoryFilter === cat
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 text-neutral-600"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {selectedActivityId ? (
+            (() => {
+              const a = items.find((i) => i.id === selectedActivityId);
+              if (!a) return null;
+              if (!a.valide) {
+                return (
+                  <div>
+                    <button
+                      onClick={() => setSelectedActivityId(null)}
+                      className="mb-3 text-sm font-medium text-[#171717] hover:underline"
+                    >
+                      ← Toutes les activités
+                    </button>
+                    {renderBrouillon(a)}
+                  </div>
+                );
+              }
+              return (
+                <div>
+                  <button
+                    onClick={() => setSelectedActivityId(null)}
+                    className="mb-3 text-sm font-medium text-[#171717] hover:underline"
+                  >
+                    ← Toutes les activités
+                  </button>
+            <div
+              key={a.id}
+              className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px]">
+                {/* LEFT: photo + description + details */}
+                <div className="p-5">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="font-heading text-lg font-semibold text-[#171717]">
+                        {a.nom || "Sans nom"}
+                      </h3>
+                      <p className="text-xs text-neutral-400">{a.categorie}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {(a.tags || []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-[#171717]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#171717]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {topVenteIds.has(a.id) && (
+                          <span className="rounded-full bg-[#171717]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#666666]">
+                            🏆 Top des ventes
+                          </span>
+                        )}
+                        {canSeeMargins && topRentabiliteIds.has(a.id) && (
+                          <span className="rounded-full bg-[#0070f3]/10 px-2.5 py-0.5 text-[11px] font-medium text-[#0070f3]">
+                            💰 Top rentabilité
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      {canSeeMargins && a.marge_pct > 0 && (
+                        <span className="rounded-full bg-[#0070f3]/10 px-2.5 py-1 text-[11px] font-medium text-[#0070f3]">
+                          Marge cible {a.marge_pct}%
+                        </span>
+                      )}
+                      <button
+                        onClick={() => onUpdate(a.id, { valide: false })}
+                        className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
+                      >
+                        ✎ Modifier
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="relative mb-4">
+                    <CardPhoto path={a.photo_path} alt={a.nom} />
+                    <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                      {a.duree && (
+                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
+                          ⏱ {a.duree}
+                        </span>
+                      )}
+                      {a.horaire_approx && (
+                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
+                          🕐 {a.horaire_approx}
+                        </span>
+                      )}
+                      {a.point_rdv && (
+                        <span className="rounded-full border border-[#eaeaea] bg-white/90 px-3 py-1 text-[11px] font-medium text-[#171717] backdrop-blur">
+                          📍 {a.point_rdv}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <h4 className="mb-2 text-sm font-semibold text-[#171717]">Description</h4>
+                  <p className="mb-3 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
+                    {a.description || (
+                      <span className="italic text-neutral-400">
+                        Pas encore de description — ajoute-la en modifiant l&apos;activité.
+                      </span>
+                    )}
+                  </p>
+                  <div className="mb-5">
+                    <div className="flex gap-1.5">
+                      {JOURS_SEMAINE.map((j) => {
+                        const active = (a.jours_disponibles || []).includes(j);
+                        return (
+                          <div
+                            key={j}
+                            title={j}
+                            className={`flex h-8 w-8 flex-1 items-center justify-center rounded-full text-xs font-medium ${
+                              active
+                                ? "border-2 border-[#171717] text-[#171717]"
+                                : "border border-neutral-200 text-neutral-300"
+                            }`}
+                          >
+                            {JOUR_ABREV[j]}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {a.disponibilites && (
+                      <p className="mt-2 text-xs text-neutral-500">ℹ️ {a.disponibilites}</p>
+                    )}
+                  </div>
+
+                  {a.programme && (
+                    <>
+                      <h4 className="mb-2 text-sm font-semibold text-[#171717]">
+                        Programme complet
+                      </h4>
+                      <p className="mb-5 whitespace-pre-line text-sm leading-relaxed text-neutral-600">
+                        {a.programme}
+                      </p>
+                    </>
+                  )}
+
+                  <h4 className="mb-1 text-sm font-semibold text-[#171717]">
+                    Ce qu&apos;il faut savoir
+                  </h4>
+                  <div className="mb-5">
+                    <InfoRow icon={<IconGuide />} label="Guide">
+                      <p className="text-sm text-neutral-700">
+                    {a.guide && a.guide !== "Aucun" ? a.guide : "Pas de guide dédié"}
+                        {a.guide_francophone_sur_demande && (
+                          <span className="ml-1.5 text-[#f5a623]">
+                            ⭐ Guide francophone sur demande
+                          </span>
+                        )}
+                      </p>
+                    </InfoRow>
+                    <InfoRow icon={<IconPin />} label="Point de RDV" value={a.point_rdv} />
+                    <InfoRow icon={<IconCheck />} label="Inclus">
+                      {(a.inclus_liste || []).length > 0 ? (
+                        <ul className="space-y-0.5 text-sm text-neutral-700">
+                          {(a.inclus_liste || []).map((i) => (
+                            <li key={i}>✓ {i}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-neutral-400 italic">Rien de précisé</p>
+                      )}
+                    </InfoRow>
+                    <InfoRow icon={<IconCross />} label="Non inclus">
+                      {(a.non_inclus_liste || []).length > 0 ? (
+                        <ul className="space-y-0.5 text-sm text-neutral-700">
+                          {(a.non_inclus_liste || []).map((i) => (
+                            <li key={i}>✕ {i}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-neutral-400 italic">Rien de précisé</p>
+                      )}
+                    </InfoRow>
+                    <InfoRow icon={<IconBag />} label="À prévoir">
+                      {(a.a_prevoir_liste || []).length > 0 ? (
+                        <ul className="space-y-0.5 text-sm text-neutral-700">
+                          {(a.a_prevoir_liste || []).map((i) => (
+                            <li key={i}>• {i}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-neutral-400 italic">Rien de précisé</p>
+                      )}
+                    </InfoRow>
+                  </div>
+
+                  {(faq[a.id] || []).length > 0 && (
+                    <>
+                      <h4 className="mb-1 text-sm font-semibold text-[#171717]">FAQ</h4>
+                      <div className="divide-y divide-neutral-100">
+                        {(faq[a.id] || []).map((f) => (
+                          <details key={f.id} className="group py-2">
+                            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-neutral-700">
+                              {f.question || "Question sans titre"}
+                              <svg
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400 transition-transform group-open:rotate-180"
+                              >
+                                <path d="M5 7.5 10 12.5 15 7.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </summary>
+                            <p className="mt-1.5 text-sm text-neutral-600">{f.reponse}</p>
+                          </details>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* RIGHT: tarifs sidebar */}
+                <div className="border-t border-neutral-100 bg-[#fafafa]/30 p-5 lg:border-l lg:border-t-0">
+                  <h4 className="mb-3 text-sm font-semibold text-[#171717]">Tarifs</h4>
+                  <div className="mb-5 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <RowIcon>
+                        <IconAdulte />
+                      </RowIcon>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-neutral-700">Adulte</p>
+                        <p className="text-[11px] text-neutral-400">{a.pu_adulte_age}</p>
+                      </div>
+                      <span className="font-amounts text-sm text-[#171717]">
+                        {euros(a.pu_adulte)}€
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <RowIcon>
+                        <IconEnfant />
+                      </RowIcon>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-neutral-700">Enfant</p>
+                        <p className="text-[11px] text-neutral-400">{a.pu_enfant_age}</p>
+                      </div>
+                      <span className="font-amounts text-sm text-[#171717]">
+                        {euros(a.pu_enfant)}€
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <RowIcon>
+                        <IconBebe />
+                      </RowIcon>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-neutral-700">Bébé</p>
+                        <p className="text-[11px] text-neutral-400">{a.pu_bebe_age}</p>
+                      </div>
+                      <span className="font-amounts text-sm text-[#171717]">
+                        {euros(a.pu_bebe)}€
+                      </span>
+                    </div>
+                    {a.pu_accompagnateur > 0 && (
+                <div className="flex items-center gap-3">
+                    <RowIcon>
+                          <IconAdulte />
+                    </RowIcon>
+                    <div className="min-w-0 flex-1">
+                          <p className="text-sm text-neutral-700">Accompagnateur</p>
+                          <p className="text-[11px] text-neutral-400">{a.pu_accompagnateur_age}</p>
+                    </div>
+                    <span className="font-amounts text-sm text-[#171717]">
+                      {euros(a.pu_accompagnateur)}€
+                    </span>
+                </div>
+              )}
+                  </div>
+
+                  {(() => {
+                    const filledTarifs = (tarifs[a.id] || []).filter((t) => t.label.trim());
+                    if (filledTarifs.length === 0) return null;
+                    return (
+                      <>
+                        <h4 className="mb-3 text-sm font-semibold text-[#171717]">
+                          Tarifs supplémentaires
+                        </h4>
+                        <div className="mb-3 space-y-2">
+                          {filledTarifs.map((t) => (
+                            <div key={t.id} className="flex items-center gap-3">
+                              <RowIcon>
+                                <IconTag />
+                              </RowIcon>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm text-neutral-700">{t.label}</p>
+                              </div>
+                              <span className="font-amounts text-sm text-[#171717]">
+                                {euros(t.pu)}€
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                  <button
+                    onClick={() => {
+                      onUpdate(a.id, { valide: false });
+                      onAddTarif(a.id);
+                    }}
+                    className="w-full rounded-full bg-[#171717] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    + Ajouter un tarif
+                  </button>
+
+                  <h4 className="mb-3 mt-6 text-sm font-semibold text-[#171717]">
+                    Disponibilités
+                  </h4>
+                  <AvailabilityCalendar
+                    jours={a.jours_disponibles}
+                    dates={a.prochaines_dispo_dates}
+                    editable={false}
+                  />
+                </div>
+              </div>
+            </div>
+                </div>
+              );
+            })()
+          ) : (
+            <>
+              <div className="mb-3 flex items-center justify-end">
+                <ViewToggle mode={activityViewMode} onChange={setActivityViewMode} />
+              </div>
+              {filtered.length === 0 && (
+                <div className="text-sm text-neutral-400">
+                  Aucune activité dans cette catégorie pour l&apos;instant.
+                </div>
+              )}
+              <div
+                className={
+                  activityViewMode === "cards"
+                    ? "grid grid-cols-1 gap-3 sm:grid-cols-2"
+                    : "divide-y divide-neutral-100 overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white"
+                }
+              >
+                {filtered.map((a) =>
+                  !a.valide ? (
+                    <div
+                      key={a.id}
+                      className={activityViewMode === "cards" ? "sm:col-span-2" : ""}
+                    >
+                      {renderBrouillon(a)}
+                    </div>
+                  ) : activityViewMode === "cards" ? (
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedActivityId(a.id)}
+                      className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
+                    >
+                      <p className="font-heading text-base font-semibold text-[#171717]">
+                        {a.nom || "Sans nom"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-neutral-400">{a.categorie}</p>
+                      <div className="mt-2 flex flex-wrap gap-3 text-xs text-neutral-600">
+                        <span>Adulte {euros(a.pu_adulte)}€</span>
+                        <span>Enfant {euros(a.pu_enfant)}€</span>
+                        <span>Bébé {euros(a.pu_bebe)}€</span>
+                      </div>
+                    </button>
+                  ) : (
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedActivityId(a.id)}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[#fafafa]"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-[#171717]">
+                          {a.nom || "Sans nom"}
+                        </p>
+                        <p className="text-xs text-neutral-400">{a.categorie}</p>
+                      </div>
+                      <div className="flex flex-shrink-0 gap-3 text-xs text-neutral-600">
+                        <span>Adulte {euros(a.pu_adulte)}€</span>
+                        <span>Enfant {euros(a.pu_enfant)}€</span>
+                        <span>Bébé {euros(a.pu_bebe)}€</span>
+                      </div>
+                    </button>
+                  )
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>

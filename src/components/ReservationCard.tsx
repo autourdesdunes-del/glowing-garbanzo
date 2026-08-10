@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   CatalogueItem,
+  CatalogueOption,
   CatalogueTarif,
   Client,
   Reservation,
@@ -48,6 +49,7 @@ export default function ReservationCard({
   onUpdateClient,
   catalogue,
   catalogueTarifs,
+  catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
   coutReel,
@@ -61,7 +63,7 @@ export default function ReservationCard({
   onToggleExpanded: (v: boolean) => void;
   onUpdate: (patch: Partial<Reservation>) => void;
   onDelete: () => void;
-  onAddOption: () => void;
+  onAddOption: (seed?: { nom: string; prix: number }) => void;
   onUpdateOption: (optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (optId: string) => void;
   onAddTarif: (seed?: { label: string; pu: number }) => void;
@@ -70,6 +72,7 @@ export default function ReservationCard({
   onUpdateClient: (patch: Partial<Client>) => void;
   catalogue: CatalogueItem[];
   catalogueTarifs: CatalogueTarif[];
+  catalogueOptions: CatalogueOption[];
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
   coutReel: number;
@@ -117,7 +120,6 @@ export default function ReservationCard({
       tarif_mode: item.tarif_mode,
       prix_groupe_base: item.prix_groupe_base,
       prix_groupe_extra1: item.prix_groupe_extra1,
-      prix_groupe_extra2: item.prix_groupe_extra2,
       prix_groupe_extra_enfant: item.prix_groupe_extra_enfant,
       horaire_approx: item.horaire_approx,
       inclus: (item.inclus_liste || []).join(", ") || item.inclus,
@@ -422,19 +424,11 @@ export default function ReservationCard({
                 className="input"
               />
             </Field>
-            <Field label="PU personne supp. — tarif 1 (€)">
+            <Field label="PU personne supp. (€)">
               <input
                 type="number"
                 value={r.prix_groupe_extra1}
                 onChange={(e) => onUpdate({ prix_groupe_extra1: Number(e.target.value) })}
-                className="input"
-              />
-            </Field>
-            <Field label="PU personne supp. — tarif 2 (€)">
-              <input
-                type="number"
-                value={r.prix_groupe_extra2}
-                onChange={(e) => onUpdate({ prix_groupe_extra2: Number(e.target.value) })}
                 className="input"
               />
             </Field>
@@ -446,21 +440,12 @@ export default function ReservationCard({
                 className="input"
               />
             </Field>
-            <Field label="Nb personnes supp. (tarif 1)">
+            <Field label="Nb personnes supp.">
               <input
                 type="number"
                 min={0}
                 value={r.participants_extra1}
                 onChange={(e) => onUpdate({ participants_extra1: Number(e.target.value) })}
-                className="input"
-              />
-            </Field>
-            <Field label="Nb personnes supp. (tarif 2)">
-              <input
-                type="number"
-                min={0}
-                value={r.participants_extra2}
-                onChange={(e) => onUpdate({ participants_extra2: Number(e.target.value) })}
                 className="input"
               />
             </Field>
@@ -543,7 +528,6 @@ export default function ReservationCard({
           + Ajouter un PU supplémentaire
         </button>
       </div>
-
       <div className="mt-3">
         <p className="mb-1 text-sm font-medium text-neutral-700">Participants</p>
         <div className="flex flex-wrap gap-2">
@@ -805,8 +789,20 @@ export default function ReservationCard({
             </button>
           </div>
         ))}
+        {catalogueOptions
+          .filter((co) => !options.some((o) => o.nom === co.nom))
+          .map((co) => (
+            <button
+              key={co.id}
+              type="button"
+              onClick={() => onAddOption({ nom: co.nom, prix: co.prix })}
+              className="mb-2 mr-2 rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-500 hover:border-[#171717] hover:text-[#171717]"
+            >
+              + {co.nom} ({euros(co.prix)} €)
+            </button>
+          ))}
         <button
-          onClick={onAddOption}
+          onClick={() => onAddOption()}
           className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >
           + Ajouter une option

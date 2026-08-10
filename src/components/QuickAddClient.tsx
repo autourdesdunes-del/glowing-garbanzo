@@ -135,17 +135,22 @@ export default function QuickAddClient({
     if (step === "nom") {
       if (!nomDraft.trim()) return;
       setCreating(true);
-      const created = await onCreate({
-        nom: nomDraft.trim(),
-        telephone: "",
-        canal: "WhatsApp",
-        statut: defaultStatut,
-      });
-      setCreating(false);
-      if (!created) return;
-      setClientId(created.id);
-      setAnswers(created);
-      setStepIdx(1);
+      try {
+        const created = await onCreate({
+          nom: nomDraft.trim(),
+          telephone: "",
+          canal: "WhatsApp",
+          statut: defaultStatut,
+        });
+        if (!created) return;
+        setClientId(created.id);
+        setAnswers(created);
+        setStepIdx(1);
+      } catch {
+        toast("Impossible de créer le client — réessaie.");
+      } finally {
+        setCreating(false);
+      }
       return;
     }
     setStepIdx((i) => Math.min(i + 1, steps.length - 1));

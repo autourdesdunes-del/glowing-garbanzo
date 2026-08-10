@@ -29,9 +29,11 @@ export type CatalogueItem = {
   prix_groupe_base: number;
   prix_groupe_base_pax: number;
   prix_groupe_extra1: number;
-  prix_groupe_extra2: number;
+  prix_groupe_extra1_age: string;
   prix_groupe_extra_enfant: number;
+  prix_groupe_extra_enfant_age: string;
   marge_pct: number;
+  specificites: string;
   horaire_approx: string;
   duree: string;
   prochaine_disponibilite: string;
@@ -76,6 +78,14 @@ export type CatalogueTarif = {
   created_at: string;
 };
 
+export type CatalogueOption = {
+  id: string;
+  catalogue_item_id: string;
+  nom: string;
+  prix: number;
+  created_at: string;
+};
+
 export type ReservationTarif = {
   id: string;
   reservation_id: string;
@@ -100,7 +110,6 @@ export type Reservation = {
   tarif_mode: "personne" | "groupe";
   prix_groupe_base: number;
   prix_groupe_extra1: number;
-  prix_groupe_extra2: number;
   prix_groupe_extra_enfant: number;
   participants_mode: "tous" | "custom";
   participants_adultes: number;
@@ -108,7 +117,6 @@ export type Reservation = {
   participants_accompagnateurs: number;
   participants_enfants_3ans: number;
   participants_extra1: number;
-  participants_extra2: number;
   participants_extra_enfants: number;
   participants_noms: string;
   pax_override: string;

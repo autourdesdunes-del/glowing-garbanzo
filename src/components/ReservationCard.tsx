@@ -18,6 +18,7 @@ import {
 } from "@/lib/constants";
 import { paiementStatutKey, participantsFor, resaTotalMontant, STATUT_PAIEMENT_OPTIONS } from "@/lib/resa";
 import { Field } from "@/components/client-steps";
+import MissingInfoModal from "@/components/MissingInfoModal";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -76,9 +77,11 @@ export default function ReservationCard({
 }) {
   const [showPaxOverride, setShowPaxOverride] = useState(!!r.pax_override);
   const [validationError, setValidationError] = useState(false);
+  const [showMomentModal, setShowMomentModal] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
   const champsRequis = catalogueItem?.champs_requis_liste || [];
   const missingChamps: string[] = [];
+  if (!r.moment) missingChamps.push("Moment (matin / après-midi)");
   if (champsRequis.includes("Pointure") && !r.pointure.trim()) missingChamps.push("Pointure");
   if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
     missingChamps.push("Créneau");
@@ -110,6 +113,7 @@ export default function ReservationCard({
       pu_adulte: item.pu_adulte,
       pu_enfant: item.pu_enfant,
       pu_accompagnateur: item.pu_accompagnateur,
+      pu_enfant_3ans: item.pu_enfant_3ans,
       horaire_approx: item.horaire_approx,
       inclus: (item.inclus_liste || []).join(", ") || item.inclus,
       non_inclus: item.non_inclus,
@@ -256,6 +260,7 @@ export default function ReservationCard({
           onClick={() => {
             if (missingChamps.length > 0) {
               setValidationError(true);
+              if (!r.moment) setShowMomentModal(true);
               return;
             }
             setValidationError(false);
@@ -272,6 +277,24 @@ export default function ReservationCard({
         <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
           ⚠ Impossible de valider — champs manquants : {missingChamps.join(", ")}
         </div>
+      )}
+
+      {showMomentModal && (
+        <MissingInfoModal
+          message="vous devez renseigner si l'activité a lieu le matin ou l'après-midi."
+          actionLabel="Je renseigne le moment"
+          onAction={() => {
+            setShowMomentModal(false);
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                const el = document.getElementById(`field-moment-${r.id}`);
+                el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                (el as HTMLSelectElement | null)?.focus();
+              }, 50);
+            });
+          }}
+          onClose={() => setShowMomentModal(false)}
+        />
       )}
 
       {options.length > 0 && (
@@ -309,12 +332,16 @@ export default function ReservationCard({
             />
           )}
         </div>
-        <Field label="Moment">
+        <Field label="Moment *">
           <select
+            id={`field-moment-${r.id}`}
             value={r.moment}
             onChange={(e) => onUpdate({ moment: e.target.value })}
-            className="input"
+            className={`input ${
+              validationError && !r.moment ? "border-red-300 focus:border-red-400" : ""
+            }`}
           >
+            <option value="">—</option>
             {MOMENTS.map((m) => (
               <option key={m}>{m}</option>
             ))}
@@ -341,6 +368,14 @@ export default function ReservationCard({
             type="number"
             value={r.pu_accompagnateur}
             onChange={(e) => onUpdate({ pu_accompagnateur: Number(e.target.value) })}
+            className="input"
+          />
+        </Field>
+        <Field label="PU enfant 3 ans (€)">
+          <input
+            type="number"
+            value={r.pu_enfant_3ans}
+            onChange={(e) => onUpdate({ pu_enfant_3ans: Number(e.target.value) })}
             className="input"
           />
         </Field>
@@ -462,6 +497,14 @@ export default function ReservationCard({
                 type="number"
                 value={r.participants_accompagnateurs}
                 onChange={(e) => onUpdate({ participants_accompagnateurs: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="Enfants 3 ans">
+              <input
+                type="number"
+                value={r.participants_enfants_3ans}
+                onChange={(e) => onUpdate({ participants_enfants_3ans: Number(e.target.value) })}
                 className="input"
               />
             </Field>

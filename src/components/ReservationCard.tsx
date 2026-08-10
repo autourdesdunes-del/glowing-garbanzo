@@ -114,6 +114,11 @@ export default function ReservationCard({
       pu_enfant: item.pu_enfant,
       pu_accompagnateur: item.pu_accompagnateur,
       pu_enfant_3ans: item.pu_enfant_3ans,
+      tarif_mode: item.tarif_mode,
+      prix_groupe_base: item.prix_groupe_base,
+      prix_groupe_extra1: item.prix_groupe_extra1,
+      prix_groupe_extra2: item.prix_groupe_extra2,
+      prix_groupe_extra_enfant: item.prix_groupe_extra_enfant,
       horaire_approx: item.horaire_approx,
       inclus: (item.inclus_liste || []).join(", ") || item.inclus,
       non_inclus: item.non_inclus,
@@ -303,6 +308,31 @@ export default function ReservationCard({
         </div>
       )}
 
+      <div className="mb-2 flex gap-2">
+        <button
+          type="button"
+          onClick={() => onUpdate({ tarif_mode: "personne" })}
+          className={`rounded-full border px-3 py-1 text-xs ${
+            r.tarif_mode !== "groupe"
+              ? "border-[#171717] bg-[#171717] text-white"
+              : "border-neutral-300 text-neutral-600"
+          }`}
+        >
+          Tarif par personne
+        </button>
+        <button
+          type="button"
+          onClick={() => onUpdate({ tarif_mode: "groupe" })}
+          className={`rounded-full border px-3 py-1 text-xs ${
+            r.tarif_mode === "groupe"
+              ? "border-[#C9973E] bg-[#C9973E] text-white"
+              : "border-neutral-300 text-neutral-600"
+          }`}
+        >
+          Forfait groupe
+        </button>
+      </div>
+
       <div className="grid grid-cols-3 gap-3">
         <Field label="Date début">
           <input
@@ -347,38 +377,104 @@ export default function ReservationCard({
             ))}
           </select>
         </Field>
-        <Field label="PU adulte (€)">
-          <input
-            type="number"
-            value={r.pu_adulte}
-            onChange={(e) => onUpdate({ pu_adulte: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
-        <Field label="PU enfant (€)">
-          <input
-            type="number"
-            value={r.pu_enfant}
-            onChange={(e) => onUpdate({ pu_enfant: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
-        <Field label="PU accompagnateur (€)">
-          <input
-            type="number"
-            value={r.pu_accompagnateur}
-            onChange={(e) => onUpdate({ pu_accompagnateur: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
-        <Field label="PU enfant 3 ans (€)">
-          <input
-            type="number"
-            value={r.pu_enfant_3ans}
-            onChange={(e) => onUpdate({ pu_enfant_3ans: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
+        {r.tarif_mode !== "groupe" ? (
+          <>
+            <Field label="PU adulte (€)">
+              <input
+                type="number"
+                value={r.pu_adulte}
+                onChange={(e) => onUpdate({ pu_adulte: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="PU enfant (€)">
+              <input
+                type="number"
+                value={r.pu_enfant}
+                onChange={(e) => onUpdate({ pu_enfant: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="PU accompagnateur (€)">
+              <input
+                type="number"
+                value={r.pu_accompagnateur}
+                onChange={(e) => onUpdate({ pu_accompagnateur: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="PU enfant 3 ans (€)">
+              <input
+                type="number"
+                value={r.pu_enfant_3ans}
+                onChange={(e) => onUpdate({ pu_enfant_3ans: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+          </>
+        ) : (
+          <>
+            <Field label="Prix forfait de base (€)">
+              <input
+                type="number"
+                value={r.prix_groupe_base}
+                onChange={(e) => onUpdate({ prix_groupe_base: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="PU personne supp. — tarif 1 (€)">
+              <input
+                type="number"
+                value={r.prix_groupe_extra1}
+                onChange={(e) => onUpdate({ prix_groupe_extra1: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="PU personne supp. — tarif 2 (€)">
+              <input
+                type="number"
+                value={r.prix_groupe_extra2}
+                onChange={(e) => onUpdate({ prix_groupe_extra2: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="PU enfant supp. (€)">
+              <input
+                type="number"
+                value={r.prix_groupe_extra_enfant}
+                onChange={(e) => onUpdate({ prix_groupe_extra_enfant: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="Nb personnes supp. (tarif 1)">
+              <input
+                type="number"
+                min={0}
+                value={r.participants_extra1}
+                onChange={(e) => onUpdate({ participants_extra1: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="Nb personnes supp. (tarif 2)">
+              <input
+                type="number"
+                min={0}
+                value={r.participants_extra2}
+                onChange={(e) => onUpdate({ participants_extra2: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+            <Field label="Nb enfants supp.">
+              <input
+                type="number"
+                min={0}
+                value={r.participants_extra_enfants}
+                onChange={(e) => onUpdate({ participants_extra_enfants: Number(e.target.value) })}
+                className="input"
+              />
+            </Field>
+          </>
+        )}
         {canSeeMargins && (
           <Field label="Coût réel (interne)">
             <input

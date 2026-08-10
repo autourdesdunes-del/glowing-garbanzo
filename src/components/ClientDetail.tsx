@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CatalogueItem,
+  CatalogueOption,
   CatalogueTarif,
   Client,
   HotelReference,
@@ -82,6 +83,7 @@ export default function ClientDetail({
   canSeeMargins,
   catalogue,
   catalogueTarifs,
+  catalogueOptions,
   onOpenHelp,
 }: {
   client: Client;
@@ -94,6 +96,7 @@ export default function ClientDetail({
   canSeeMargins: boolean;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
+  catalogueOptions: Record<string, CatalogueOption[]>;
   onOpenHelp: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -270,10 +273,10 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
-  const addOption = async (resaId: string) => {
+  const addOption = async (resaId: string, seed?: { nom: string; prix: number }) => {
     const { data, error } = await supabase
       .from("reservation_options")
-      .insert({ reservation_id: resaId, nom: "Guide francophone", prix: 0 })
+      .insert({ reservation_id: resaId, nom: seed?.nom || "Guide francophone", prix: seed?.prix || 0 })
       .select()
       .single();
     if (!error && data) {
@@ -534,6 +537,7 @@ export default function ClientDetail({
           onDeleteTarif={deleteTarif}
           catalogue={catalogue}
           catalogueTarifs={catalogueTarifs}
+          catalogueOptions={catalogueOptions}
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}
           coutsMap={coutsMap}

@@ -23,11 +23,20 @@ function daysUntil(dateStr: string): number {
 // opérationnelle (pick-up, solde, billets…), pas le statut administratif.
 const TIMING_BUCKETS = [
   {
+    key: "en_egypte",
+    label: "En Égypte",
+    match: (c: Client) =>
+      !!c.date_debut &&
+      !!c.date_fin &&
+      todayStr() >= c.date_debut &&
+      todayStr() <= c.date_fin,
+  },
+  {
     key: "j7",
-    label: "J-7 (ou en Égypte)",
+    label: "J-7",
     match: (c: Client) => {
       if (!c.date_debut) return false;
-      if (c.date_fin && todayStr() >= c.date_debut && todayStr() <= c.date_fin) return true;
+      if (c.date_fin && todayStr() >= c.date_debut && todayStr() <= c.date_fin) return false;
       return daysUntil(c.date_debut) <= 7;
     },
   },

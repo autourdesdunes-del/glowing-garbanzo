@@ -83,6 +83,7 @@ export type CatalogueOption = {
   catalogue_item_id: string;
   nom: string;
   prix: number;
+  mode: "personne" | "groupe";
   created_at: string;
 };
 

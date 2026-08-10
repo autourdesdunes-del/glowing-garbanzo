@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CatalogueFaq,
   CatalogueItem,
+  CatalogueOption,
   CatalogueTarif,
   Client,
   EMPTY_CLIENT,
@@ -221,21 +222,28 @@ function AppShellInner({
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
+  const [catalogueOptions, setCatalogueOptions] = useState<Record<string, CatalogueOption[]>>({});
   const [catalogueFaq, setCatalogueFaq] = useState<Record<string, CatalogueFaq[]>>({});
   const [allResaTarifs, setAllResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
 
   useEffect(() => {
     (async () => {
-      const [{ data, error }, { data: cat, error: catError }, { data: catTarifs }, { data: catFaq }] =
-        await Promise.all([
-          supabase.from("clients").select("*").order("created_at", { ascending: false }),
-          supabase
-            .from("catalogue_activites")
-            .select("*")
-            .order("created_at", { ascending: false }),
-          supabase.from("catalogue_tarifs").select("*"),
-          supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
-        ]);
+      const [
+        { data, error },
+        { data: cat, error: catError },
+        { data: catTarifs },
+        { data: catOptions },
+        { data: catFaq },
+      ] = await Promise.all([
+        supabase.from("clients").select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("catalogue_activites")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("catalogue_tarifs").select("*"),
+        supabase.from("catalogue_options").select("*"),
+        supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
+      ]);
       if (!error && data) {
         setClients(data as Client[]);
         if (data.length && !selectedId) setSelectedId(data[0].id);
@@ -246,6 +254,11 @@ function AppShellInner({
         groupedCatTarifs[t.catalogue_item_id] = [...(groupedCatTarifs[t.catalogue_item_id] || []), t];
       });
       setCatalogueTarifs(groupedCatTarifs);
+      const groupedCatOptions: Record<string, CatalogueOption[]> = {};
+      ((catOptions as CatalogueOption[]) || []).forEach((o) => {
+        groupedCatOptions[o.catalogue_item_id] = [...(groupedCatOptions[o.catalogue_item_id] || []), o];
+      });
+      setCatalogueOptions(groupedCatOptions);
       const groupedFaq: Record<string, CatalogueFaq[]> = {};
       ((catFaq as CatalogueFaq[]) || []).forEach((f) => {
         groupedFaq[f.catalogue_item_id] = [...(groupedFaq[f.catalogue_item_id] || []), f];
@@ -511,6 +524,19 @@ function AppShellInner({
           }));
         }
       }
+      for (const o of catalogueOptions[source.id] || []) {
+        const { data: od } = await supabase
+          .from("catalogue_options")
+          .insert({ catalogue_item_id: newItem.id, nom: o.nom, prix: o.prix })
+          .select()
+          .single();
+        if (od) {
+          setCatalogueOptions((prev) => ({
+            ...prev,
+            [newItem.id]: [...(prev[newItem.id] || []), od as CatalogueOption],
+          }));
+        }
+      }
       for (const f of catalogueFaq[source.id] || []) {
         const { data: fd } = await supabase
           .from("catalogue_faq")
@@ -586,6 +612,47 @@ function AppShellInner({
       [catalogueItemId]: (prev[catalogueItemId] || []).filter((t) => t.id !== tarifId),
     }));
     const { error } = await supabase.from("catalogue_tarifs").delete().eq("id", tarifId);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const addCatalogueOption = async (catalogueItemId: string) => {
+    const { data, error } = await supabase
+      .from("catalogue_options")
+      .insert({ catalogue_item_id: catalogueItemId, nom: "", prix: 0 })
+      .select()
+      .single();
+    if (!error && data) {
+      const o = data as CatalogueOption;
+      setCatalogueOptions((prev) => ({
+        ...prev,
+        [catalogueItemId]: [...(prev[catalogueItemId] || []), o],
+      }));
+    } else {
+      toast("Impossible d'ajouter cette option.");
+    }
+  };
+
+  const updateCatalogueOption = async (
+    catalogueItemId: string,
+    optionId: string,
+    patch: Partial<CatalogueOption>
+  ) => {
+    setCatalogueOptions((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).map((o) =>
+        o.id === optionId ? { ...o, ...patch } : o
+      ),
+    }));
+    const { error } = await supabase.from("catalogue_options").update(patch).eq("id", optionId);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteCatalogueOption = async (catalogueItemId: string, optionId: string) => {
+    setCatalogueOptions((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).filter((o) => o.id !== optionId),
+    }));
+    const { error } = await supabase.from("catalogue_options").delete().eq("id", optionId);
     if (error) toast("Échec de la suppression.");
   };
 
@@ -938,6 +1005,7 @@ function AppShellInner({
                 canSeeMargins={effectiveIsDirection}
                 catalogue={catalogue}
                 catalogueTarifs={catalogueTarifs}
+                catalogueOptions={catalogueOptions}
                 onOpenHelp={() => setMode("help")}
               />
             )}
@@ -959,6 +1027,10 @@ function AppShellInner({
             onAddTarif={addCatalogueTarif}
             onUpdateTarif={updateCatalogueTarif}
             onDeleteTarif={deleteCatalogueTarif}
+            options={catalogueOptions}
+            onAddOption={addCatalogueOption}
+            onUpdateOption={updateCatalogueOption}
+            onDeleteOption={deleteCatalogueOption}
             faq={catalogueFaq}
             onAddFaq={addCatalogueFaq}
             onUpdateFaq={updateCatalogueFaq}

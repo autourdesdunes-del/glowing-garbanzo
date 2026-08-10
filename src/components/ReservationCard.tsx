@@ -798,7 +798,7 @@ export default function ReservationCard({
               onClick={() => onAddOption({ nom: co.nom, prix: co.prix })}
               className="mb-2 mr-2 rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-500 hover:border-[#171717] hover:text-[#171717]"
             >
-              + {co.nom} ({euros(co.prix)} €)
+              + {co.nom} ({euros(co.prix)} € {co.mode === "groupe" ? "groupe" : "/pers."})
             </button>
           ))}
         <button

@@ -160,9 +160,9 @@ function horaireDetail(r: Reservation) {
 
 function pickupMissingTeamMessage(r: Reservation, client: Client) {
   const detail = horaireDetail(r);
-  return `Pick-up manquant — ${client.nom || "Sans nom"} — ${r.nom_activite || "Activité sans nom"}${
+  return `Missing pick-up — ${client.nom || "No name"} — ${r.nom_activite || "No activity name"}${
     detail ? ` (${detail})` : ""
-  }. Merci de confirmer l'heure de pick-up avant 18h.`;
+  }`;
 }
 
 function pickupClientMessage(r: Reservation, client: Client, montantRestant: number) {
@@ -186,6 +186,7 @@ function PickupActivityCard({
   badge,
   paiementWarning,
   acompteWarning,
+  onAskPickup,
 }: {
   r: Reservation;
   client: Client;
@@ -193,6 +194,7 @@ function PickupActivityCard({
   badge: { label: string; className: string } | null;
   paiementWarning: { amount: number; devise: "€" | "EGP" } | null;
   acompteWarning: { montant: number; mode: string } | null;
+  onAskPickup: (r: Reservation) => void;
 }) {
   const { nbAd, nbEnf } = participantsFor(r, client);
   return (
@@ -216,6 +218,21 @@ function PickupActivityCard({
       <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
         <span>{fmtDate(r.date_debut)}</span>
         {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) && <span>· {r.moment}</span>}
+        {r.pickup_reel ? (
+          <span>· Pick-up {r.pickup_reel}</span>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAskPickup(r);
+            }}
+            title="Pick-up manquant"
+            className="text-red-500 hover:text-red-600"
+          >
+            ⏰
+          </button>
+        )}
       </div>
       <div className="mt-1 text-xs text-neutral-500">
         {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
@@ -402,6 +419,11 @@ export default function SuivisView({
       // clipboard indisponible, ignorer
     }
   };
+  const askPickup = (r: Reservation) => {
+    if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
+    const val = window.prompt("Pick-up réel (heure / lieu) :", "");
+    if (val && val.trim()) onUpdateReservation(r.id, { pickup_reel: val.trim() });
+  };
   const soldeRestantFor = (c: Client) => {
     const acomptePaye =
       c.paiement_type === "acompte" && c.acompte_paye ? Number(c.acompte_montant) || 0 : 0;
@@ -564,6 +586,7 @@ export default function SuivisView({
                           badge={badge}
                           paiementWarning={paiementWarning}
                           acompteWarning={acompteWarning}
+                          onAskPickup={askPickup}
                         />
                       </div>
                       <div className="flex w-full flex-col gap-2 sm:w-56">
@@ -641,6 +664,7 @@ export default function SuivisView({
                           badge={badge}
                           paiementWarning={paiementWarning}
                           acompteWarning={acompteWarning}
+                          onAskPickup={askPickup}
                         />
                       </div>
                       <div className="flex w-full sm:w-56">

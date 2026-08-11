@@ -51,6 +51,7 @@ export type CatalogueItem = {
   photo_path: string;
   valide: boolean;
   champs_requis_liste: string[];
+  ordre: number;
   created_at: string;
   updated_at: string;
 };

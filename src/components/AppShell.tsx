@@ -252,7 +252,7 @@ function AppShellInner({
         supabase
           .from("catalogue_activites")
           .select("*")
-          .order("created_at", { ascending: false }),
+          .order("ordre", { ascending: true }),
         supabase.from("catalogue_tarifs").select("*"),
         supabase.from("catalogue_options").select("*"),
         supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
@@ -510,14 +510,17 @@ function AppShellInner({
     if (error) toast("Échec de l'enregistrement.");
   };
 
+  const nextCatalogueOrdre = () =>
+    catalogue.length ? Math.max(...catalogue.map((a) => a.ordre ?? 0)) + 1 : 0;
+
   const addCatalogueItem = async () => {
     const { data, error } = await supabase
       .from("catalogue_activites")
-      .insert({})
+      .insert({ ordre: nextCatalogueOrdre() })
       .select()
       .single();
     if (!error && data) {
-      setCatalogue((prev) => [data as CatalogueItem, ...prev]);
+      setCatalogue((prev) => [...prev, data as CatalogueItem]);
     } else {
       toast("Impossible de créer l'activité.");
     }
@@ -525,15 +528,15 @@ function AppShellInner({
 
   const duplicateCatalogueItem = async (source: CatalogueItem) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { id, created_at, updated_at, ...rest } = source;
+    const { id, created_at, updated_at, ordre, ...rest } = source;
     const { data, error } = await supabase
       .from("catalogue_activites")
-      .insert({ ...rest, nom: `${source.nom} (copie)`, valide: false })
+      .insert({ ...rest, nom: `${source.nom} (copie)`, valide: false, ordre: nextCatalogueOrdre() })
       .select()
       .single();
     if (!error && data) {
       const newItem = data as CatalogueItem;
-      setCatalogue((prev) => [newItem, ...prev]);
+      setCatalogue((prev) => [...prev, newItem]);
       for (const t of catalogueTarifs[source.id] || []) {
         const { data: td } = await supabase
           .from("catalogue_tarifs")
@@ -582,6 +585,27 @@ function AppShellInner({
     setCatalogue((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
     const { error } = await supabase.from("catalogue_activites").update(patch).eq("id", id);
     if (error) toast("Échec de l'enregistrement.");
+  };
+
+  // Glisser-déposer réservé à la Direction (voir canSeeMargins côté
+  // Catalogue) — déplace l'activité juste avant/après la cible dans l'ordre
+  // global, qui pilote aussi bien l'affichage du Catalogue que la liste de
+  // choix de l'assistant "Ajouter une activité".
+  const reorderCatalogueItem = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    const fromIdx = catalogue.findIndex((a) => a.id === draggedId);
+    const toIdx = catalogue.findIndex((a) => a.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const list = [...catalogue];
+    const [moved] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, moved);
+    const reordered = list.map((a, i) => ({ ...a, ordre: i }));
+    setCatalogue(reordered);
+    Promise.all(
+      reordered.map((a) => supabase.from("catalogue_activites").update({ ordre: a.ordre }).eq("id", a.id))
+    ).then((results) => {
+      if (results.some((r) => r.error)) toast("Échec de l'enregistrement du nouvel ordre.");
+    });
   };
 
   const deleteCatalogueItem = async (id: string) => {
@@ -1071,6 +1095,7 @@ function AppShellInner({
             items={catalogue}
             onAdd={addCatalogueItem}
             onUpdate={updateCatalogueItem}
+            onReorder={reorderCatalogueItem}
             onDelete={deleteCatalogueItem}
             onDuplicate={duplicateCatalogueItem}
             tarifs={catalogueTarifs}

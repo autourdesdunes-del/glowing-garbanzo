@@ -12,6 +12,7 @@ import {
 } from "@/lib/types";
 import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
 import {
+  groupeExtraCounts,
   isSpeedboatFixedJournee,
   isSpeedboatPriveMaisonDauphins,
   needsMomentSpeedboat,
@@ -792,7 +793,15 @@ export default function AddActivityWizard({
           // même travail) n'a jamais lieu puisque le mode est déjà actif.
           if (r.tarif_mode === "groupe") {
             const { nbAd, nbEnf } = participantsFor(r, client);
-            onUpdateReservation(r.id, { participants_extra1: nbAd, participants_extra_enfants: nbEnf });
+            const { extra1, extraEnfants } = groupeExtraCounts(
+              nbAd,
+              nbEnf,
+              catalogueItem?.prix_groupe_base_pax ?? 0
+            );
+            onUpdateReservation(r.id, {
+              participants_extra1: extra1,
+              participants_extra_enfants: extraEnfants,
+            });
           }
           setStep("tarifs");
         }, "Suivant — Tarifs")}
@@ -820,16 +829,23 @@ export default function AddActivityWizard({
           </button>
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              // Pré-remplit avec les participants déjà choisis à l'étape
+              // précédente — l'employée n'a pas à ressaisir des nombres
+              // qu'elle vient déjà de sélectionner. Le forfait de base
+              // couvre déjà prix_groupe_base_pax personnes, donc seuls les
+              // adultes au-delà comptent en supplément.
+              const { extra1, extraEnfants } = groupeExtraCounts(
+                nbAd,
+                nbEnf,
+                catalogueItem?.prix_groupe_base_pax ?? 0
+              );
               onUpdateReservation(r.id, {
                 tarif_mode: "groupe",
-                // Pré-remplit avec les participants déjà choisis à l'étape
-                // précédente — l'employée n'a pas à ressaisir des nombres
-                // qu'elle vient déjà de sélectionner.
-                participants_extra1: nbAd,
-                participants_extra_enfants: nbEnf,
-              })
-            }
+                participants_extra1: extra1,
+                participants_extra_enfants: extraEnfants,
+              });
+            }}
             className={`rounded-full border px-3 py-1 text-xs ${
               r.tarif_mode === "groupe"
                 ? "border-[#C9973E] bg-[#C9973E] text-white"

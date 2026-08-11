@@ -260,6 +260,17 @@ export function needsMomentSpeedboat(nom: string) {
   return true;
 }
 
+// Pré-remplissage du forfait groupe : le forfait de base couvre déjà
+// prix_groupe_base_pax personnes (des adultes en priorité) — seuls les
+// adultes au-delà de ce nombre sont "en supplément". Les enfants ne sont
+// jamais inclus dans le forfait de base, donc comptent tous en supplément.
+export function groupeExtraCounts(nbAd: number, nbEnf: number, basePax: number) {
+  return {
+    extra1: Math.max(0, nbAd - (Number(basePax) || 0)),
+    extraEnfants: nbEnf,
+  };
+}
+
 export function participantsFor(r: Reservation, client: Client) {
   const nbAd =
     r.participants_mode === "tous" ? Number(client.adultes) || 0 : Number(r.participants_adultes) || 0;

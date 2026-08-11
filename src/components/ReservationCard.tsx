@@ -12,6 +12,7 @@ import {
 } from "@/lib/types";
 import { BILLET_STATUTS, CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
 import {
+  groupeExtraCounts,
   hideMoment,
   isSpeedboatPriveMaisonDauphins,
   needsMomentSpeedboat,
@@ -126,8 +127,15 @@ export default function ReservationCard({
     // Certaines activités démarrent déjà en forfait groupe (tarif_mode
     // copié depuis le catalogue) — sans ce pré-remplissage, le clic sur
     // "Forfait groupe" (qui fait le même travail) n'a jamais lieu puisque
-    // le mode est déjà actif.
+    // le mode est déjà actif. Le forfait de base couvre déjà
+    // prix_groupe_base_pax personnes, donc seuls les adultes au-delà
+    // comptent en supplément.
     const { nbAd: nbAdActuel, nbEnf: nbEnfActuel } = participantsFor(r, client);
+    const { extra1: extra1Actuel, extraEnfants: extraEnfantsActuel } = groupeExtraCounts(
+      nbAdActuel,
+      nbEnfActuel,
+      item.prix_groupe_base_pax
+    );
     onUpdate({
       nom_activite: item.nom,
       catalogue_item_id: item.id,
@@ -140,7 +148,7 @@ export default function ReservationCard({
       prix_groupe_extra1: item.prix_groupe_extra1,
       prix_groupe_extra_enfant: item.prix_groupe_extra_enfant,
       ...(item.tarif_mode === "groupe"
-        ? { participants_extra1: nbAdActuel, participants_extra_enfants: nbEnfActuel }
+        ? { participants_extra1: extra1Actuel, participants_extra_enfants: extraEnfantsActuel }
         : {}),
       horaire_approx: item.horaire_approx,
       inclus: (item.inclus_liste || []).join(", ") || item.inclus,
@@ -408,15 +416,22 @@ export default function ReservationCard({
         </button>
         <button
           type="button"
-          onClick={() =>
+          onClick={() => {
+            // Pré-remplit avec les participants déjà choisis plus bas —
+            // pas besoin de ressaisir des nombres déjà sélectionnés. Le
+            // forfait de base couvre déjà prix_groupe_base_pax personnes,
+            // donc seuls les adultes au-delà comptent en supplément.
+            const { extra1, extraEnfants } = groupeExtraCounts(
+              nbAd,
+              nbEnf,
+              catalogueItem?.prix_groupe_base_pax ?? 0
+            );
             onUpdate({
               tarif_mode: "groupe",
-              // Pré-remplit avec les participants déjà choisis plus bas —
-              // pas besoin de ressaisir des nombres déjà sélectionnés.
-              participants_extra1: nbAd,
-              participants_extra_enfants: nbEnf,
-            })
-          }
+              participants_extra1: extra1,
+              participants_extra_enfants: extraEnfants,
+            });
+          }}
           className={`rounded-full border px-3 py-1 text-xs ${
             r.tarif_mode === "groupe"
               ? "border-[#C9973E] bg-[#C9973E] text-white"

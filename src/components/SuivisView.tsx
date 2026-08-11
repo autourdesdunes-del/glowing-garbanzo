@@ -37,6 +37,8 @@ export const SUIVIS_SUBS = [
 
 export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"];
 
+const APPEL_PLATEFORMES = ["Instagram", "WhatsApp", "Mobile", "Google Meet", "Zoom"];
+
 function JumpBtn({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -446,12 +448,45 @@ export default function SuivisView({
                   onChange={(e) => onUpdateClient(c.id, { prochain_appel_heure: e.target.value })}
                   className="input w-28 text-xs"
                 />
+                <select
+                  value={c.prochain_appel_fuseau}
+                  onChange={(e) =>
+                    onUpdateClient(c.id, {
+                      prochain_appel_fuseau: e.target.value as "france" | "egypte",
+                    })
+                  }
+                  className="input w-32 text-xs"
+                >
+                  <option value="france">Heure française</option>
+                  <option value="egypte">Heure égyptienne</option>
+                </select>
+                <select
+                  value={c.prochain_appel_plateforme}
+                  onChange={(e) =>
+                    onUpdateClient(c.id, { prochain_appel_plateforme: e.target.value })
+                  }
+                  className="input w-36 text-xs"
+                >
+                  <option value="">Plateforme…</option>
+                  {APPEL_PLATEFORMES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
                 <span>
                   <strong>{c.nom || "Sans nom"}</strong>
                 </span>
                 <span className="flex-1" />
                 <button
-                  onClick={() => onUpdateClient(c.id, { prochain_appel_date: null, prochain_appel_heure: "" })}
+                  onClick={() =>
+                    onUpdateClient(c.id, {
+                      prochain_appel_date: null,
+                      prochain_appel_heure: "",
+                      prochain_appel_fuseau: "france",
+                      prochain_appel_plateforme: "",
+                    })
+                  }
                   className="text-xs text-red-600 hover:underline"
                 >
                   Retirer

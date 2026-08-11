@@ -232,6 +232,8 @@ export type Client = {
   tags: string[];
   prochain_appel_date: string | null;
   prochain_appel_heure: string;
+  prochain_appel_fuseau: "france" | "egypte";
+  prochain_appel_plateforme: string;
   dernier_contact_date: string | null;
   nb_relances: number;
   kommo_contact_id: number | null;
@@ -295,6 +297,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   tags: [],
   prochain_appel_date: null,
   prochain_appel_heure: "",
+  prochain_appel_fuseau: "france",
+  prochain_appel_plateforme: "",
   dernier_contact_date: null,
   nb_relances: 0,
   kommo_contact_id: null,

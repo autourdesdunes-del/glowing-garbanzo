@@ -41,7 +41,7 @@ export default function ConfirmProvider({ children }: { children: React.ReactNod
     <ConfirmContext.Provider value={confirm}>
       {children}
       {options && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
             {options.title && (
               <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">

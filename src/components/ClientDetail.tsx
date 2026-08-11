@@ -23,7 +23,7 @@ import AvoirUseModal from "@/components/AvoirUseModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
-import { resaTotalMontant, avoirConsomme } from "@/lib/resa";
+import { resaTotalMontant, avoirUtiliseTotal } from "@/lib/resa";
 import {
   ActivitesStep,
   ContactStep,
@@ -58,7 +58,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+    <div id={`section-${title}`} className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between px-5 py-3.5 text-left"
@@ -192,7 +192,8 @@ export default function ClientDetail({
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
   const [avoirs, setAvoirs] = useState<Avoir[]>([]);
-  const [avoirPrompt, setAvoirPrompt] = useState(false);
+  const [avoirPromptReservationId, setAvoirPromptReservationId] = useState<string | null>(null);
+  const [avoirAppliedNotice, setAvoirAppliedNotice] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -240,6 +241,9 @@ export default function ClientDetail({
   const avoirDisponible = avoirs.reduce((s, a) => s + (Number(a.montant_restant) || 0), 0);
 
   const useAvoir = async (montant: number) => {
+    const reservationId = avoirPromptReservationId;
+    setAvoirPromptReservationId(null);
+    if (!reservationId) return;
     let restant = montant;
     for (const a of avoirs) {
       if (restant <= 0) break;
@@ -248,7 +252,11 @@ export default function ClientDetail({
       restant -= pris;
       await updateAvoir(a.id, { montant_restant: (Number(a.montant_restant) || 0) - pris });
     }
-    toast(`Avoir de ${montant.toLocaleString("fr-FR")} € appliqué au séjour.`);
+    // Le montant appliqué se rattache à cette activité précise, pour
+    // s'afficher sur sa carte ("avoir de X € utilisé sur cette activité"),
+    // même si le solde qu'il réduit reste unique pour tout le séjour.
+    await updateReservation(reservationId, { avoir_utilise: montant });
+    setAvoirAppliedNotice(montant);
   };
 
   useEffect(() => {
@@ -345,13 +353,13 @@ export default function ClientDetail({
       .select()
       .single();
     if (!error && data) {
-      setReservations((prev) => [...prev, data as Reservation]);
+      const newReservation = data as Reservation;
+      setReservations((prev) => [...prev, newReservation]);
       // Cette nouvelle activité peut être l'occasion de consommer un avoir
-      // en attente — on ne le lie pas à cette réservation précise (le solde
-      // reste unique par séjour), la réduction s'applique au montant global
-      // restant dû, où qu'il soit collecté.
-      if (avoirDisponible > 0) setAvoirPrompt(true);
-      return (data as Reservation).id;
+      // en attente — le montant utilisé se rattache à cette réservation
+      // précise pour rester visible sur sa carte.
+      if (avoirDisponible > 0) setAvoirPromptReservationId(newReservation.id);
+      return newReservation.id;
     }
     toast("Impossible d'ajouter l'activité.");
     return null;
@@ -470,7 +478,7 @@ export default function ClientDetail({
 
   const acomptePayeMontant =
     client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  const avoirUtiliseHeader = avoirConsomme(avoirs);
+  const avoirUtiliseHeader = avoirUtiliseTotal(reservations);
   const soldeRestantHeader = Math.max(totalSejourHeader - acomptePayeMontant - avoirUtiliseHeader, 0);
   const totalPayeHeader = acomptePayeMontant + avoirUtiliseHeader + (client.solde_paye ? soldeRestantHeader : 0);
   const paiementFullyPaid = totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader;
@@ -687,7 +695,6 @@ export default function ClientDetail({
           onRequestAdd={() => setGuidedOpen(true)}
           onBusEscalation={handleBusEscalation}
           busEscalations={busEscalations}
-          avoirs={avoirs}
         />
       </Section>
 
@@ -716,7 +723,6 @@ export default function ClientDetail({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
-          avoirs={avoirs}
         />
       </Section>
 
@@ -733,11 +739,45 @@ export default function ClientDetail({
       </Section>
 
       <AvoirUseModal
-        open={avoirPrompt}
+        open={avoirPromptReservationId !== null}
         montantDisponible={avoirDisponible}
-        onClose={() => setAvoirPrompt(false)}
+        onClose={() => setAvoirPromptReservationId(null)}
         onUse={useAvoir}
       />
+
+      {avoirAppliedNotice !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setAvoirAppliedNotice(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="font-heading text-base font-semibold text-[#171717]">Avoir utilisé</h3>
+            <p className="mt-2 text-sm text-neutral-600">
+              Un avoir de <strong>{euros(avoirAppliedNotice)} €</strong> a été utilisé sur cette
+              activité. Repassez par l&apos;onglet Paiements pour vérifier le montant restant dû.
+            </p>
+            <button
+              onClick={() => {
+                setAvoirAppliedNotice(null);
+                setOpen({ ...CLOSED_SECTIONS, Paiements: true });
+                requestAnimationFrame(() => {
+                  setTimeout(() => {
+                    document
+                      .getElementById("section-Paiements")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 100);
+                });
+              }}
+              className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Aller aux Paiements
+            </button>
+          </div>
+        </div>
+      )}
 
       {missingInfo && (
         <MissingInfoModal

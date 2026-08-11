@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Avoir,
   BusEscalation,
   CatalogueItem,
   CatalogueOption,
@@ -92,7 +91,6 @@ export default function ItineraryView({
   coutsMap,
   onUpdateCoutReel,
   busEscalations = [],
-  avoirs = [],
 }: {
   client: Client;
   reservations: Reservation[];
@@ -118,7 +116,6 @@ export default function ItineraryView({
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   busEscalations?: BusEscalation[];
-  avoirs?: Avoir[];
 }) {
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
@@ -159,7 +156,7 @@ export default function ItineraryView({
 
     const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
     const badge = paiementBadge(client, r);
-    const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs, avoirs);
+    const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs);
     const acompteWarning = acompteWaitingWarning(client, r, reservations);
     const busEscalation = busEscalations.find((e) => e.reservation_id === r.id);
     return (
@@ -194,6 +191,11 @@ export default function ItineraryView({
           {paiementWarning && (
             <span className="text-xs font-medium text-red-600">
               ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+            </span>
+          )}
+          {r.avoir_utilise > 0 && (
+            <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
+              Avoir de {euros(r.avoir_utilise)} € utilisé sur cette activité
             </span>
           )}
         </div>

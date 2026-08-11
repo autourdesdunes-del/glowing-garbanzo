@@ -690,7 +690,6 @@ export function ActivitesStep({
   onRequestAdd,
   onBusEscalation,
   busEscalations,
-  avoirs,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -719,7 +718,6 @@ export function ActivitesStep({
   onRequestAdd?: () => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   busEscalations: BusEscalation[];
-  avoirs?: Avoir[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
@@ -779,7 +777,6 @@ export function ActivitesStep({
         onUpdateReservation={onUpdateReservation}
         coutsMap={coutsMap}
         onUpdateCoutReel={onUpdateCoutReel}
-        avoirs={avoirs}
         onDeleteReservation={(id) => {
           onDeleteReservation(id);
           setExpandedId((cur) => (cur === id ? null : cur));
@@ -1297,12 +1294,10 @@ export function PaiementsStep({
   reservations,
   resaOptions,
   resaTarifs,
-  avoirs = [],
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
-  avoirs?: Avoir[];
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -1315,10 +1310,8 @@ export function PaiementsStep({
     0
   );
   const acomptePaye = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  const avoirUtilise = avoirs.reduce(
-    (s, a) => s + Math.max((Number(a.montant) || 0) - (Number(a.montant_restant) || 0), 0),
-    0
-  );
+  const avoirsUtilises = reservations.filter((r) => Number(r.avoir_utilise) > 0);
+  const avoirUtilise = avoirsUtilises.reduce((s, r) => s + (Number(r.avoir_utilise) || 0), 0);
   // Le solde n'est plus un montant saisi à la main : c'est toujours le reste
   // du séjour une fois l'acompte et un éventuel avoir consommé déduits.
   const soldeRestant = Math.max(totalSejour - acomptePaye - avoirUtilise, 0);
@@ -1370,6 +1363,20 @@ export function PaiementsStep({
           Reste à payer : {euros(reste)} €
         </span>
       </div>
+
+      {avoirsUtilises.length > 0 && (
+        <div className="rounded-md border border-[#C9973E]/30 bg-[#C9973E]/10 p-3 text-sm">
+          <h3 className="mb-1 text-sm font-semibold text-[#8B4531]">Avoirs déduits</h3>
+          <div className="space-y-1">
+            {avoirsUtilises.map((r) => (
+              <div key={r.id} className="text-[#8B4531]">
+                Avoir de <strong>{euros(r.avoir_utilise)} €</strong> déduit sur{" "}
+                {r.nom_activite || "Activité sans nom"}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <h3 className="mb-2 text-sm font-semibold text-[#171717]">Type de paiement</h3>

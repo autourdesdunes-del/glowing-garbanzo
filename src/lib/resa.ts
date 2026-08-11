@@ -1,4 +1,4 @@
-import { Avoir, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 
 // Le solde reste unique par séjour (règle métier — jamais un solde par
 // activité), mais l'équipe doit pouvoir choisir explicitement son statut de
@@ -147,20 +147,22 @@ export function paiementBadge(client: Client, r: Reservation) {
   return { label: opt.label, className: opt.className };
 }
 
+// Un avoir utilisé se rattache toujours à l'activité qui en a bénéficié
+// (reservation.avoir_utilise, affiché sur sa carte) — le total consommé sur
+// le séjour est simplement la somme de ce champ sur toutes les activités.
+export function avoirUtiliseTotal(reservations: Reservation[]) {
+  return reservations.reduce((s, rr) => s + (Number(rr.avoir_utilise) || 0), 0);
+}
+
 // "Paiement intégral" → "à la première activité" : signale, sur l'activité
 // choisie comme point de collecte (la première par défaut, ou une autre si
 // l'employée en a sélectionné une autre), le montant qui reste à encaisser.
-export function avoirConsomme(avoirs: Avoir[]) {
-  return avoirs.reduce((s, a) => s + Math.max((Number(a.montant) || 0) - (Number(a.montant_restant) || 0), 0), 0);
-}
-
 export function activitePaiementWarning(
   client: Client,
   r: Reservation,
   reservations: Reservation[],
   resaOptions: Record<string, ReservationOption[]>,
-  resaTarifs: Record<string, ReservationTarif[]>,
-  avoirs: Avoir[] = []
+  resaTarifs: Record<string, ReservationTarif[]>
 ): { amount: number; devise: "€" | "EGP" } | null {
   if (client.solde_paye) return null;
   if (client.paiement_integral_mode !== "activite_eur" && client.paiement_integral_mode !== "activite_egp")
@@ -179,7 +181,7 @@ export function activitePaiementWarning(
   // Un avoir consommé réduit le montant restant dû pour tout le séjour, où
   // qu'il soit collecté (règle du solde unique par séjour) — jamais un
   // deuxième "solde" par activité.
-  const amount = Math.max(totalSejour - acompte - avoirConsomme(avoirs), 0);
+  const amount = Math.max(totalSejour - acompte - avoirUtiliseTotal(reservations), 0);
   return { amount, devise: "€" };
 }
 

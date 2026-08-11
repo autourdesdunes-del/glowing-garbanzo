@@ -150,6 +150,7 @@ export type Reservation = {
   billet_envoye: boolean;
   billet_lien: string;
   billet_notes: string;
+  avoir_utilise: number;
   created_at: string;
   updated_at: string;
 };

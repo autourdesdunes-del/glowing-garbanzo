@@ -1051,6 +1051,11 @@ export default function ReservationCard({
       </div>
 
       <div className="mt-4 border-t border-[#666666]/10 pt-3 text-sm">
+        {r.avoir_utilise > 0 && (
+          <div className="mb-2 inline-block rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+            Avoir de {euros(r.avoir_utilise)} € utilisé sur cette activité
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3">
           <span>
             Total activité : <strong>{euros(total)} €</strong>

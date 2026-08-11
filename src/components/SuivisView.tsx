@@ -317,7 +317,7 @@ export default function SuivisView({
                 {rdvTodayRows.map((c) => {
                   const montant = soldeRestantFor(c);
                   const clientMsg = `Bonjour ${c.nom || ""}, petit rappel pour aujourd'hui : rendez-vous à ${c.solde_rdv_heure || "l'heure convenue"} devant l'hôtel ${c.hotel || "—"} (à l'extérieur) pour le règlement du solde de ${euros(montant)} €. À tout à l'heure !`;
-                  const teamMsg = `RDV paiement aujourd'hui — ${c.nom || "Sans nom"} — Hôtel ${c.hotel || "—"} — ${c.solde_rdv_heure || "heure ?"} — Montant à récupérer : ${euros(montant)} €`;
+                  const teamMsg = `Payment appointment today — ${c.nom || "No name"} — Hotel ${c.hotel || "—"} — ${c.solde_rdv_heure || "time ?"} — Amount to collect: ${euros(montant)} €`;
                   return (
                     <div
                       key={c.id}

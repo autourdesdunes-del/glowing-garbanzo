@@ -52,7 +52,8 @@ function avisMessage(nom: string) {
 }
 
 export const SUIVIS_SUBS = [
-  { key: "j1", label: "Pick-ups & chambres (J-1)" },
+  { key: "j1", label: "Pick-ups (J-1)" },
+  { key: "chambres", label: "Numéros de chambre" },
   { key: "rdv", label: "RDV paiements" },
   { key: "appels", label: "Appels" },
   { key: "aurevoir", label: "Au revoir" },
@@ -576,7 +577,7 @@ export default function SuivisView({
         <div className="space-y-6">
           <div className="rounded-md border border-[#f5a623]/30 bg-[#f5a623]/10 p-3 text-xs text-[#666666]">
             Règle : le pick-up réel n&apos;est communiqué au client qu&apos;à J-1, avant 18h
-            maximum — jamais avant. Le numéro de chambre se demande aussi à J-1.
+            maximum — jamais avant.
           </div>
 
           <div>
@@ -611,14 +612,17 @@ export default function SuivisView({
                       }`}
                     >
                       <div className="mb-1.5 flex items-center gap-2 text-xs">
-                        <strong className="text-sm text-[#171717]">{client.nom || "Sans nom"}</strong>
+                        <button
+                          onClick={() => onOpenClient(client.id)}
+                          className="text-sm font-semibold text-[#171717] hover:underline"
+                        >
+                          {client.nom || "Sans nom"}
+                        </button>
                         {urgent && (
                           <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-medium text-white">
                             En retard — 18h dépassé
                           </span>
                         )}
-                        <span className="flex-1" />
-                        <JumpBtn onClick={() => onOpenClient(client.id)} />
                       </div>
                       <PickupActivityCard
                         r={r}
@@ -687,12 +691,15 @@ export default function SuivisView({
                   return (
                     <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3">
                       <div className="mb-1.5 flex items-center gap-2 text-xs">
-                        <strong className="text-sm text-[#171717]">{client.nom || "Sans nom"}</strong>
+                        <button
+                          onClick={() => onOpenClient(client.id)}
+                          className="text-sm font-semibold text-[#171717] hover:underline"
+                        >
+                          {client.nom || "Sans nom"}
+                        </button>
                         <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
                           Pick-up {r.pickup_reel}
                         </span>
-                        <span className="flex-1" />
-                        <JumpBtn onClick={() => onOpenClient(client.id)} />
                       </div>
                       <PickupActivityCard
                         r={r}
@@ -716,6 +723,15 @@ export default function SuivisView({
             </div>
           )}
 
+        </div>
+      )}
+
+      {sub === "chambres" && (
+        <div className="space-y-6">
+          <div className="rounded-md border border-[#0F5C56]/30 bg-[#0F5C56]/5 p-3 text-xs text-[#666666]">
+            Règle : le numéro de chambre se demande à J-1 de la première activité du client.
+          </div>
+
           <div>
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
               Numéros de chambre à demander
@@ -723,59 +739,46 @@ export default function SuivisView({
             {roomsJ1.length === 0 && (
               <div className="text-sm text-neutral-400">Aucun numéro de chambre manquant.</div>
             )}
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {roomsJ1.map((c) => {
-                const missing = !c.chambre;
-                const urgent = missing && pastDeadline;
+                const urgent = pastDeadline;
                 return (
                   <div
                     key={c.id}
                     className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
-                      urgent
-                        ? "border-red-400 bg-red-50"
-                        : missing
-                          ? "border-[#f5a623] bg-[#f5a623]/10"
-                          : "border-neutral-200 bg-white"
+                      urgent ? "border-[#0F5C56] bg-[#0F5C56]/15" : "border-[#0F5C56]/40 bg-[#0F5C56]/5"
                     }`}
                   >
-                    <span>
-                      <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
-                    </span>
-                    {missing ? (
-                      <>
-                        {urgent && (
-                          <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-medium text-white">
-                            En retard — 18h dépassé
-                          </span>
-                        )}
-                        <input
-                          type="text"
-                          placeholder="N° de chambre"
-                          value={chambreDrafts[c.id] ?? ""}
-                          onChange={(e) =>
-                            setChambreDrafts((d) => ({ ...d, [c.id]: e.target.value }))
-                          }
-                          className="input w-32 text-xs"
-                        />
-                        <button
-                          onClick={() => {
-                            const val = (chambreDrafts[c.id] || "").trim();
-                            if (!val) return;
-                            onUpdateClient(c.id, { chambre: val });
-                            setChambreDrafts((d) => ({ ...d, [c.id]: "" }));
-                          }}
-                          className="rounded-md bg-[#171717] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
-                        >
-                          Confirmer
-                        </button>
-                      </>
-                    ) : (
-                      <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
-                        Chambre {c.chambre}
+                    <button
+                      onClick={() => onOpenClient(c.id)}
+                      className="text-sm font-semibold text-[#171717] hover:underline"
+                    >
+                      {c.nom || "Sans nom"}
+                    </button>
+                    <span className="text-neutral-500">{c.hotel || "Hôtel ?"}</span>
+                    {urgent && (
+                      <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white">
+                        En retard — 18h dépassé
                       </span>
                     )}
-                    <span className="flex-1" />
-                    <JumpBtn onClick={() => onOpenClient(c.id)} />
+                    <input
+                      type="text"
+                      placeholder="N° de chambre"
+                      value={chambreDrafts[c.id] ?? ""}
+                      onChange={(e) => setChambreDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
+                      className="input w-32 text-xs"
+                    />
+                    <button
+                      onClick={() => {
+                        const val = (chambreDrafts[c.id] || "").trim();
+                        if (!val) return;
+                        onUpdateClient(c.id, { chambre: val });
+                        setChambreDrafts((d) => ({ ...d, [c.id]: "" }));
+                      }}
+                      className="rounded-md bg-[#171717] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                    >
+                      Confirmer
+                    </button>
                   </div>
                 );
               })}

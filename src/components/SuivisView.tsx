@@ -11,7 +11,7 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import { addDays, localDateStr } from "@/lib/dates";
-import { resaTotalMontant } from "@/lib/resa";
+import { hideMoment, participantsFor, resaTotalMontant } from "@/lib/resa";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 
 function euros(n: number) {
@@ -137,6 +137,99 @@ function RdvPaiementModal({
               : `Copier message ${c.solde_assigne_a || "équipe"}`}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Détail d'horaire à citer dans les messages pick-up : l'heure précise si
+// elle a été choisie, sinon le moment (sauf quand hideMoment dit que ça ne
+// veut rien dire pour cette activité, ex. speedboat sunset déjà dans le nom).
+function horaireDetail(r: Reservation) {
+  if (r.horaire_souhaite) return r.horaire_souhaite;
+  if (r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite)) return r.moment;
+  return "";
+}
+
+function pickupMissingTeamMessage(r: Reservation, client: Client) {
+  const detail = horaireDetail(r);
+  return `Pick-up manquant — ${client.nom || "Sans nom"} — ${r.nom_activite || "Activité sans nom"}${
+    detail ? ` (${detail})` : ""
+  }. Merci de confirmer l'heure de pick-up avant 18h.`;
+}
+
+function pickupClientMessage(r: Reservation, client: Client, montantRestant: number) {
+  const prenom = firstNameOf(client.nom) || "—";
+  const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
+  const paiementLigne = soldeIci
+    ? `\nComme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros sur place demain auprès de notre représentant sur place.`
+    : "";
+  return `Bonjour ${prenom}, pour demain pour votre activité ${r.nom_activite || "—"} le chauffeur viendra vous récupérer à ${r.pickup_reel} devant la réception de votre hôtel, côté extérieur.\nPour cette activité n'oubliez pas ${r.a_prevoir || "le nécessaire pour l'activité"}.${paiementLigne}\nVous trouverez dans votre page client le rappel du programme de la journée de demain.☀️`;
+}
+
+// Même style de carte que la fiche client (ReservationCard, vue repliée) —
+// pour reconnaître une activité au premier coup d'œil, y compris quand il y
+// en a 50 dans la journée.
+function PickupActivityCard({
+  r,
+  client,
+  total,
+}: {
+  r: Reservation;
+  client: Client;
+  total: number;
+}) {
+  const { nbAd, nbEnf } = participantsFor(r, client);
+  const soldeIci = client.solde_activite_id === r.id;
+  const detail = horaireDetail(r);
+  if (r.statut_resa === "Confirmée") {
+    return (
+      <div className="rounded-md border border-[#171717]/30 bg-white p-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[#171717]">✓</span>
+          <span className="font-medium text-[#171717]">
+            {r.nom_activite || "Activité sans nom"}
+            {detail ? ` (${detail})` : ""}
+          </span>
+          <span className="flex-1" />
+          <span className="font-amounts text-sm">{euros(total)} €</span>
+        </div>
+        {soldeIci && (
+          <span className="mt-2 inline-block rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
+            💰 Solde ici — {client.solde_paye ? "Payé" : "À régler"}
+          </span>
+        )}
+        {r.info_importante && (
+          <div className="mt-2 rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
+            ⚠ {r.info_importante}
+          </div>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-md border border-[#C9973E]/40 bg-white p-3">
+      <p className="font-medium text-[#171717]">
+        {r.nom_activite || "Activité sans nom"}
+        {detail ? ` (${detail})` : ""}
+      </p>
+      <p className="mt-1 text-xs text-neutral-500">
+        {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
+      </p>
+      {r.info_importante && (
+        <div className="mt-2 rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
+          ⚠ {r.info_importante}
+        </div>
+      )}
+      <div className="mt-2 flex items-center justify-between">
+        {soldeIci ? (
+          <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
+            💰 Solde ici — {client.solde_paye ? "Payé" : "À régler"}
+          </span>
+        ) : (
+          <span />
+        )}
+        <span className="font-amounts text-sm">{euros(total)} €</span>
       </div>
     </div>
   );
@@ -410,6 +503,10 @@ export default function SuivisView({
     .map((r) => ({ r, client: clients.find((c) => c.id === r.client_id) }))
     .filter((x): x is { r: Reservation; client: Client } => !!x.client)
     .sort((a, b) => (a.r.moment || "").localeCompare(b.r.moment || ""));
+  // Trié entre manquants et déjà renseignés — pour s'y retrouver quand il y
+  // a 50 pick-ups dans la journée.
+  const pickupsJ1Missing = pickupsJ1.filter(({ r }) => !r.pickup_reel);
+  const pickupsJ1Done = pickupsJ1.filter(({ r }) => r.pickup_reel);
 
   const roomsJ1 = clients.filter((c) => c.date_debut === tomorrowStr);
 
@@ -424,51 +521,45 @@ export default function SuivisView({
 
           <div>
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-              Pick-ups à confirmer pour demain ({fmtDate(tomorrowStr)})
+              Pick-ups manquants pour demain ({fmtDate(tomorrowStr)})
             </h3>
-            {pickupsJ1.length === 0 && (
-              <div className="text-sm text-neutral-400">Aucune activité prévue demain.</div>
-            )}
-            <div className="space-y-2">
-              {pickupsJ1.map(({ r, client }) => {
-                const missing = !r.pickup_reel;
-                const urgent = missing && pastDeadline;
-                return (
-                  <div
-                    key={r.id}
-                    className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
-                      urgent
-                        ? "border-red-400 bg-red-50"
-                        : missing
-                          ? "border-[#f5a623] bg-[#f5a623]/10"
-                          : "border-neutral-200 bg-white"
-                    }`}
-                  >
-                    <span>
-                      <strong>{client.nom || "Sans nom"}</strong> —{" "}
-                      {r.nom_activite || "Activité sans nom"}
-                    </span>
-                    <span className="text-neutral-500">{r.moment}</span>
-                    {r.horaire_approx && (
-                      <span className="text-neutral-400">
-                        horaire approx. (interne) : {r.horaire_approx}
-                      </span>
-                    )}
-                    {missing ? (
-                      <>
-                        {urgent && (
-                          <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-medium text-white">
-                            En retard — 18h dépassé
-                          </span>
-                        )}
+            {pickupsJ1Missing.length === 0 ? (
+              <div className="text-sm text-neutral-400">
+                {pickupsJ1.length === 0 ? "Aucune activité prévue demain." : "Tous les pick-ups sont renseignés ✓"}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pickupsJ1Missing.map(({ r, client }) => {
+                  const urgent = pastDeadline;
+                  const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+                  const teamMsg = pickupMissingTeamMessage(r, client);
+                  return (
+                    <div
+                      key={r.id}
+                      className={`flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start ${
+                        urgent ? "border-red-400 bg-red-50" : "border-[#f5a623]/40 bg-[#f5a623]/5"
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="mb-1.5 flex items-center gap-2 text-xs">
+                          <strong className="text-sm text-[#171717]">{client.nom || "Sans nom"}</strong>
+                          {urgent && (
+                            <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-medium text-white">
+                              En retard — 18h dépassé
+                            </span>
+                          )}
+                          <span className="flex-1" />
+                          <JumpBtn onClick={() => onOpenClient(client.id)} />
+                        </div>
+                        <PickupActivityCard r={r} client={client} total={total} />
+                      </div>
+                      <div className="flex w-full flex-col gap-2 sm:w-56">
                         <input
                           type="text"
                           placeholder="Pick-up réel (heure / lieu)"
                           value={pickupDrafts[r.id] ?? ""}
-                          onChange={(e) =>
-                            setPickupDrafts((d) => ({ ...d, [r.id]: e.target.value }))
-                          }
-                          className="input w-52 text-xs"
+                          onChange={(e) => setPickupDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
+                          className="input text-xs"
                         />
                         <button
                           onClick={() => {
@@ -477,23 +568,66 @@ export default function SuivisView({
                             onUpdateReservation(r.id, { pickup_reel: val });
                             setPickupDrafts((d) => ({ ...d, [r.id]: "" }));
                           }}
-                          className="rounded-md bg-[#171717] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                          className="rounded-md bg-[#171717] px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
                         >
                           Confirmer
                         </button>
-                      </>
-                    ) : (
-                      <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
-                        Pick-up {r.pickup_reel}
-                      </span>
-                    )}
-                    <span className="flex-1" />
-                    <JumpBtn onClick={() => onOpenClient(client.id)} />
-                  </div>
-                );
-              })}
-            </div>
+                        <button
+                          onClick={() => copyText("pickup-missing-" + r.id, teamMsg)}
+                          className="rounded-md border border-red-600 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                        >
+                          {copiedKey === "pickup-missing-" + r.id
+                            ? "Copié ✓"
+                            : "Rappel pick-up manquant"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
+          {pickupsJ1Done.length > 0 && (
+            <div>
+              <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+                Pick-ups confirmés pour demain
+              </h3>
+              <div className="space-y-2">
+                {pickupsJ1Done.map(({ r, client }) => {
+                  const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+                  const montantRestant = soldeRestantFor(client);
+                  const clientMsg = pickupClientMessage(r, client, montantRestant);
+                  return (
+                    <div
+                      key={r.id}
+                      className="flex flex-col gap-2 rounded-md border border-neutral-200 bg-white p-3 sm:flex-row sm:items-start"
+                    >
+                      <div className="flex-1">
+                        <div className="mb-1.5 flex items-center gap-2 text-xs">
+                          <strong className="text-sm text-[#171717]">{client.nom || "Sans nom"}</strong>
+                          <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
+                            Pick-up {r.pickup_reel}
+                          </span>
+                          <span className="flex-1" />
+                          <JumpBtn onClick={() => onOpenClient(client.id)} />
+                        </div>
+                        <PickupActivityCard r={r} client={client} total={total} />
+                      </div>
+                      <div className="flex w-full sm:w-56">
+                        <button
+                          onClick={() => copyText("pickup-client-" + r.id, clientMsg)}
+                          className="w-full rounded-md bg-[#171717] px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          {copiedKey === "pickup-client-" + r.id ? "Copié ✓" : "Copier message client"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div>
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">

@@ -165,7 +165,6 @@ export default function ReservationCard({
   const soldeLabel = soldeIci ? (client.solde_paye ? "Payé" : "À régler") : null;
   const statutKey = paiementStatutKey(client, r);
   const badge = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === statutKey)!;
-  const hasOptions = options.length > 0;
   const hasInfo = !!r.info_importante;
 
   if (!expanded) {
@@ -175,12 +174,20 @@ export default function ReservationCard({
           onClick={() => onToggleExpanded(true)}
           className="cursor-pointer rounded-md border border-[#171717]/30 bg-white p-3"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-[#171717]">✓</span>
             <span className="font-medium text-[#171717]">
               {r.nom_activite || "Activité sans nom"}
               {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
             </span>
+            {options.map((o) => (
+              <span
+                key={o.id}
+                className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white"
+              >
+                ⚙ {formatOptionLabel(o)}
+              </span>
+            ))}
             <span className="flex-1" />
             <span className="font-amounts text-sm">{euros(total)} €</span>
           </div>
@@ -188,16 +195,11 @@ export default function ReservationCard({
             {fmtDate(r.date_debut)}
             {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
           </p>
-          {(soldeIci || hasOptions || hasInfo || r.billet_requis) && (
+          {(soldeIci || hasInfo || r.billet_requis) && (
             <div className="mt-2 flex flex-wrap gap-2">
               {soldeIci && (
                 <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
                   💰 Solde ici — {soldeLabel}
-                </span>
-              )}
-              {hasOptions && (
-                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-                  ⚙ {options.map((o) => formatOptionLabel(o)).join(", ")}
                 </span>
               )}
               {r.billet_requis && (
@@ -220,13 +222,23 @@ export default function ReservationCard({
         onClick={() => onToggleExpanded(true)}
         className="cursor-pointer rounded-md border border-[#C9973E]/40 bg-white p-3"
       >
-        <p className="font-medium text-[#171717]">
-          {r.nom_activite || "Activité sans nom"}
-          {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
-          {soldeIci && !client.solde_paye && (
-            <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
-          )}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-medium text-[#171717]">
+            {r.nom_activite || "Activité sans nom"}
+            {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+            {soldeIci && !client.solde_paye && (
+              <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
+            )}
+          </p>
+          {options.map((o) => (
+            <span
+              key={o.id}
+              className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white"
+            >
+              ⚙ {formatOptionLabel(o)}
+            </span>
+          ))}
+        </div>
         <p className="mt-1 text-xs text-neutral-500">
           {fmtDate(r.date_debut)}
           {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
@@ -251,11 +263,6 @@ export default function ReservationCard({
           )}
           <span className="font-amounts text-sm">{euros(total)} €</span>
         </div>
-        {hasOptions && (
-          <span className="mt-1 block text-xs text-neutral-500">
-            ⚙ {options.map((o) => formatOptionLabel(o)).join(", ")}
-          </span>
-        )}
         {r.billet_requis && (
           <span className="mt-1 block text-xs text-neutral-500">
             ✈ Billet — {r.billet_statut}

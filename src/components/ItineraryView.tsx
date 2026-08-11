@@ -170,6 +170,14 @@ export default function ItineraryView({
             {r.nom_activite || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </span>
+          {(resaOptions[r.id] || []).map((o) => (
+            <span
+              key={o.id}
+              className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white"
+            >
+              ⚙ {formatOptionLabel(o)}
+            </span>
+          ))}
           {busEscalation && (
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
@@ -219,18 +227,6 @@ export default function ItineraryView({
           )}
         </div>
         <div className="mt-1 text-xs text-neutral-500">{paxLine(r, client)}</div>
-        {(resaOptions[r.id] || []).length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {(resaOptions[r.id] || []).map((o) => (
-              <span
-                key={o.id}
-                className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600"
-              >
-                ⚙ {formatOptionLabel(o)}
-              </span>
-            ))}
-          </div>
-        )}
         <div className="mt-1.5 flex items-center justify-between">
           <span className="font-amounts text-xs font-medium text-[#171717]">{euros(total)} €</span>
           {badge && (

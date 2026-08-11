@@ -199,8 +199,8 @@ export default function ReservationCard({
         </p>
         <p className="mt-1 text-xs text-neutral-500">
           {fmtDate(r.date_debut)}
-          {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""} ·{" "}
-          {r.moment}
+          {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
+          {r.horaire_souhaite ? "" : ` · ${r.moment}`}
           {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
         </p>
         <p className="mt-1 text-xs text-neutral-500">

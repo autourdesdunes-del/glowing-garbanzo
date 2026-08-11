@@ -472,7 +472,7 @@ export default function AddActivityWizard({
               className="input"
             />
           </Field>
-          {!isSpa && (
+          {!isSpa && !isSunset && (
             <div>
               <label className="mb-1 flex items-center gap-2 text-sm font-medium text-neutral-700">
                 <input

@@ -51,7 +51,7 @@ export const VILLES_VOL = [
 export const ASSIGNE_A_OPTIONS = ["Bode", "Sylvie", "Autre"] as const;
 
 export const MOMENTS = ["Matin", "Après-midi", "Journée", "Plusieurs jours"] as const;
-export const OPTIONS_PRESETS = ["Guide francophone", "Privatif", "Parachute", "Autre"] as const;
+export const OPTIONS_PRESETS = ["Guide francophone", "Privatif", "Parachute", "2ème île", "Autre"] as const;
 export const RAISONS_REMBOURSEMENT = [
   "Annulation",
   "Problème activité",

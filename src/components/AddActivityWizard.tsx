@@ -72,9 +72,11 @@ const SAFARI_ADULTS_TEXT =
 // concerne (île / moment / créneau), toujours à partir du nom catalogue de
 // base — jamais en concaténant sur le titre déjà modifié, pour rester
 // idempotent si l'employée revient en arrière et change sa réponse.
-function baseTitleFor(catalogueItem: CatalogueItem, ileSelectionnee: string) {
+function baseTitleFor(catalogueItem: CatalogueItem, ileSelectionnee: string, ileSelectionnee2?: string) {
   const iType = speedboatIleType(catalogueItem.nom);
-  return iType && ileSelectionnee ? speedboatIleTitre(iType, ileSelectionnee) : catalogueItem.nom;
+  return iType && ileSelectionnee
+    ? speedboatIleTitre(iType, ileSelectionnee, ileSelectionnee2 || undefined)
+    : catalogueItem.nom;
 }
 
 function titleWithSuffix(base: string, suffix: string) {
@@ -224,6 +226,7 @@ export default function AddActivityWizard({
         transfert_inclus: !hotelHorsHurghada,
         moment: isSpeedboatFixedJournee(item.nom) ? "Journée" : "",
         ile_selectionnee: "",
+        ile_selectionnee_2: "",
       });
       setDraftId(id);
       setValidationError(false);
@@ -246,6 +249,7 @@ export default function AddActivityWizard({
         transfert_inclus: !hotelHorsHurghada,
         moment: linked && isSpeedboatFixedJournee(linked.nom) ? "Journée" : "",
         ile_selectionnee: "",
+        ile_selectionnee_2: "",
       });
       setDraftId(id);
       setValidationError(false);
@@ -451,7 +455,7 @@ export default function AddActivityWizard({
                     ...(catalogueItem && !isCustomFlow
                       ? {
                           nom_activite: titleWithSuffix(
-                            baseTitleFor(catalogueItem, r.ile_selectionnee),
+                            baseTitleFor(catalogueItem, r.ile_selectionnee, r.ile_selectionnee_2),
                             creneau
                           ),
                         }
@@ -629,7 +633,7 @@ export default function AddActivityWizard({
     const selectIle = (ile: string) => {
       onUpdateReservation(r.id, {
         ile_selectionnee: ile,
-        nom_activite: speedboatIleTitre(iType || "complete", ile),
+        nom_activite: speedboatIleTitre(iType || "complete", ile, r.ile_selectionnee_2 || undefined),
       });
       setValidationError(false);
     };
@@ -707,7 +711,7 @@ export default function AddActivityWizard({
                 onUpdateReservation(r.id, {
                   moment: m,
                   ...(catalogueItem && !isCustomFlow
-                    ? { nom_activite: titleWithSuffix(baseTitleFor(catalogueItem, r.ile_selectionnee), m) }
+                    ? { nom_activite: titleWithSuffix(baseTitleFor(catalogueItem, r.ile_selectionnee, r.ile_selectionnee_2), m) }
                     : {}),
                 });
                 setValidationError(false);
@@ -905,7 +909,7 @@ export default function AddActivityWizard({
         ...(catalogueItem && !isCustomFlow
           ? {
               nom_activite: titleWithSuffix(
-                baseTitleFor(catalogueItem, r.ile_selectionnee),
+                baseTitleFor(catalogueItem, r.ile_selectionnee, r.ile_selectionnee_2),
                 `${nbChevaux} ${animalLabel}`
               ),
             }
@@ -1194,10 +1198,18 @@ export default function AddActivityWizard({
   }
 
   if (step === "options") {
+    const iType = speedboatIleType(catalogueItem?.nom || r.nom_activite);
+    const selectIle2 = (ile2: string) => {
+      onUpdateReservation(r.id, {
+        ile_selectionnee_2: ile2,
+        ...(iType ? { nom_activite: speedboatIleTitre(iType, r.ile_selectionnee, ile2) } : {}),
+      });
+    };
     return wrap(
       <>
         {options.map((o) => {
           const isParachute = o.nom === "Parachute";
+          const is2emeIle = o.nom === "2ème île";
           return (
             <div key={o.id} className="mb-2 flex flex-wrap items-center gap-2">
               <select
@@ -1250,6 +1262,29 @@ export default function AddActivityWizard({
               <button onClick={() => onDeleteOption(r.id, o.id)} className="text-red-600">
                 ✕
               </button>
+              {is2emeIle && (
+                <div className="mt-1 flex w-full flex-wrap gap-2">
+                  {SPEEDBOAT_ILES.filter((ile) => ile !== r.ile_selectionnee).map((ile) => (
+                    <button
+                      key={ile}
+                      type="button"
+                      onClick={() => selectIle2(ile)}
+                      className={`rounded-md border px-3 py-1.5 text-sm font-medium ${
+                        r.ile_selectionnee_2 === ile
+                          ? "border-[#171717] bg-[#171717] text-white"
+                          : "border-neutral-200 text-neutral-700 hover:border-[#171717]"
+                      }`}
+                    >
+                      {ile}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {is2emeIle && !r.ile_selectionnee_2 && (
+                <div className="w-full rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
+                  ⚠ Merci de choisir la 2ème île.
+                </div>
+              )}
             </div>
           );
         })}

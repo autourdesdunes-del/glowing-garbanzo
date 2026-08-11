@@ -243,9 +243,11 @@ export function speedboatIleType(nom: string): "complete" | "demi" | null {
 }
 
 // Le titre affiché une fois l'île choisie — remplace le nom générique du
-// catalogue ("... avec 1 île") par l'île réellement sélectionnée.
-export function speedboatIleTitre(iType: "complete" | "demi", ile: string) {
-  return iType === "demi" ? `Speedboat privé 4h avec ${ile}` : `Speedboat privé journée complète avec ${ile}`;
+// catalogue ("... avec 1 île") par l'île réellement sélectionnée. L'option
+// "2ème île" (voir OPTIONS_PRESETS) ajoute une seconde île au titre.
+export function speedboatIleTitre(iType: "complete" | "demi", ile: string, ile2?: string) {
+  const iles = ile2 ? `${ile} + ${ile2}` : ile;
+  return iType === "demi" ? `Speedboat privé 4h avec ${iles}` : `Speedboat privé journée complète avec ${iles}`;
 }
 
 // "Journée" s'applique automatiquement, sans jamais le demander : le

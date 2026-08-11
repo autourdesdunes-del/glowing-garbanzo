@@ -357,7 +357,10 @@ export default function ReservationCard({
                 key={ile}
                 type="button"
                 onClick={() =>
-                  onUpdate({ ile_selectionnee: ile, nom_activite: speedboatIleTitre(ileType, ile) })
+                  onUpdate({
+                    ile_selectionnee: ile,
+                    nom_activite: speedboatIleTitre(ileType, ile, r.ile_selectionnee_2 || undefined),
+                  })
                 }
                 className={`rounded-full border px-3 py-1 text-xs font-medium ${
                   r.ile_selectionnee === ile
@@ -844,6 +847,7 @@ export default function ReservationCard({
         <p className="mb-1 text-sm font-medium text-neutral-700">Options</p>
         {options.map((o) => {
           const isParachute = o.nom === "Parachute";
+          const is2emeIle = o.nom === "2ème île";
           return (
             <div key={o.id} className="mb-2 flex flex-wrap items-center gap-2">
               <select
@@ -895,6 +899,36 @@ export default function ReservationCard({
               <button onClick={() => onDeleteOption(o.id)} className="text-red-600">
                 ✕
               </button>
+              {is2emeIle && (
+                <div className="mt-1 flex w-full flex-wrap gap-2">
+                  {SPEEDBOAT_ILES.filter((ile) => ile !== r.ile_selectionnee).map((ile) => (
+                    <button
+                      key={ile}
+                      type="button"
+                      onClick={() =>
+                        onUpdate({
+                          ile_selectionnee_2: ile,
+                          ...(ileType
+                            ? { nom_activite: speedboatIleTitre(ileType, r.ile_selectionnee, ile) }
+                            : {}),
+                        })
+                      }
+                      className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                        r.ile_selectionnee_2 === ile
+                          ? "border-[#171717] bg-[#171717] text-white"
+                          : "border-neutral-300 text-neutral-600"
+                      }`}
+                    >
+                      {ile}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {is2emeIle && !r.ile_selectionnee_2 && (
+                <div className="w-full rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
+                  ⚠ Merci de choisir la 2ème île.
+                </div>
+              )}
             </div>
           );
         })}

@@ -66,17 +66,50 @@ export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"];
 
 const APPEL_PLATEFORMES = ["Instagram", "WhatsApp", "Mobile", "Google Meet", "Zoom"];
 
-function JumpBtn({ onClick }: { onClick: () => void }) {
+// Remplace le bouton "→ Fiche client" : le prénom/nom lui-même amène à la
+// fiche, en un clic au lieu de deux.
+function ClientNameLink({ nom, onClick }: { nom: string; onClick: () => void }) {
   return (
     <button
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
-      className="rounded-full bg-neutral-100 px-3 py-1 text-xs text-[#171717] hover:bg-neutral-200"
+      className="font-semibold text-[#171717] hover:underline"
     >
-      → Fiche client
+      {nom || "Sans nom"}
     </button>
+  );
+}
+
+const AVIS_STATUT_STYLES: Record<Client["avis_statut"], string> = {
+  "À demander": "border-[#4A7FD6] bg-[#4A7FD6]/10 text-[#4A7FD6]",
+  "À ne pas demander": "border-[#D6544A] bg-[#D6544A]/10 text-[#D6544A]",
+  "Déjà publié": "border-[#3E8F5C] bg-[#3E8F5C]/10 text-[#3E8F5C]",
+};
+
+function AvisStatutSelector({
+  value,
+  onChange,
+}: {
+  value: Client["avis_statut"];
+  onChange: (v: Client["avis_statut"]) => void;
+}) {
+  const options: Client["avis_statut"][] = ["À demander", "À ne pas demander", "Déjà publié"];
+  return (
+    <div className="flex flex-wrap gap-1">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          onClick={() => onChange(opt)}
+          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
+            value === opt ? AVIS_STATUT_STYLES[opt] : "border-neutral-200 bg-white text-neutral-400"
+          }`}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -292,9 +325,7 @@ function AppelRow({
             {c.prochain_appel_plateforme}
           </span>
         )}
-        <span>
-          <strong>{c.nom || "Sans nom"}</strong>
-        </span>
+        <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
         {assignee && (
           <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
             👤 {assignee}
@@ -310,7 +341,6 @@ function AppelRow({
         >
           Annuler la confirmation
         </button>
-        <JumpBtn onClick={() => onOpenClient(c.id)} />
       </div>
     );
   }
@@ -357,9 +387,7 @@ function AppelRow({
           </option>
         ))}
       </select>
-      <span>
-        <strong>{c.nom || "Sans nom"}</strong>
-      </span>
+      <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
       {assignee && (
         <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
           👤 {assignee}
@@ -388,7 +416,6 @@ function AppelRow({
       >
         Retirer
       </button>
-      <JumpBtn onClick={() => onOpenClient(c.id)} />
     </div>
   );
 }
@@ -824,7 +851,8 @@ export default function SuivisView({
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="font-amounts text-neutral-600">{c.solde_rdv_heure}</span>
                         <span>
-                          <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
+                          <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} /> —{" "}
+                          {c.hotel || "Hôtel ?"}
                         </span>
                         <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#171717]">
                           👤 {c.solde_assigne_a || "Non assigné"}
@@ -833,7 +861,6 @@ export default function SuivisView({
                           {euros(montant)} €
                         </span>
                         <span className="flex-1" />
-                        <JumpBtn onClick={() => onOpenClient(c.id)} />
                       </div>
                       <div className="mt-2.5 flex flex-wrap gap-2">
                         <button
@@ -1011,8 +1038,9 @@ export default function SuivisView({
                     {fmtDate(dateCible)}
                     {dateCible === todayStr ? " — aujourd'hui" : ""}
                   </span>
-                  <span>
-                    <strong>{c.nom || "Sans nom"}</strong>
+                  <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
+                  <span className="font-amounts text-xs text-neutral-500">
+                    {c.date_debut ? fmtDate(c.date_debut) : "?"} → {c.date_fin ? fmtDate(c.date_fin) : "?"}
                   </span>
                   <label className="flex items-center gap-1 text-xs text-neutral-600">
                     <input
@@ -1029,7 +1057,6 @@ export default function SuivisView({
                   >
                     {copiedKey === "aurevoir-" + c.id ? "Copié ✓" : "Copier le message"}
                   </button>
-                  <JumpBtn onClick={() => onOpenClient(c.id)} />
                 </div>
               </div>
             ))}
@@ -1049,11 +1076,11 @@ export default function SuivisView({
                   className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
                 >
                   <span className="font-amounts text-neutral-500">{fmtDate(dateCible)}</span>
-                  <span>
-                    <strong>{c.nom || "Sans nom"}</strong>
+                  <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
+                  <span className="font-amounts text-xs text-neutral-500">
+                    {c.date_debut ? fmtDate(c.date_debut) : "?"} → {c.date_fin ? fmtDate(c.date_fin) : "?"}
                   </span>
                   <span className="flex-1" />
-                  <JumpBtn onClick={() => onOpenClient(c.id)} />
                 </div>
               ))}
             </div>
@@ -1084,17 +1111,11 @@ export default function SuivisView({
                     {fmtDate(dateCible)}
                     {dateCible === todayStr ? " — aujourd'hui" : ""}
                   </span>
-                  <span>
-                    <strong>{c.nom || "Sans nom"}</strong>
-                  </span>
-                  <label className="flex items-center gap-1 text-xs text-neutral-600">
-                    <input
-                      type="checkbox"
-                      checked={c.avis_envoye}
-                      onChange={(e) => onUpdateClient(c.id, { avis_envoye: e.target.checked })}
-                    />
-                    Envoyé
-                  </label>
+                  <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
+                  <AvisStatutSelector
+                    value={c.avis_statut}
+                    onChange={(v) => onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })}
+                  />
                   <span className="flex-1" />
                   <button
                     onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
@@ -1102,7 +1123,6 @@ export default function SuivisView({
                   >
                     {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier le message"}
                   </button>
-                  <JumpBtn onClick={() => onOpenClient(c.id)} />
                 </div>
               </div>
             ))}
@@ -1122,11 +1142,12 @@ export default function SuivisView({
                   className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
                 >
                   <span className="font-amounts text-neutral-500">{fmtDate(dateCible)}</span>
-                  <span>
-                    <strong>{c.nom || "Sans nom"}</strong>
-                  </span>
+                  <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
+                  <AvisStatutSelector
+                    value={c.avis_statut}
+                    onChange={(v) => onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })}
+                  />
                   <span className="flex-1" />
-                  <JumpBtn onClick={() => onOpenClient(c.id)} />
                 </div>
               ))}
             </div>
@@ -1159,7 +1180,7 @@ export default function SuivisView({
                       {fmtDate(r.date_probleme)}
                     </span>
                     <span>
-                      <strong>{client.nom || "Sans nom"}</strong> —{" "}
+                      <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} /> —{" "}
                       {r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison}
                     </span>
                     <span className="text-neutral-500">
@@ -1184,7 +1205,6 @@ export default function SuivisView({
                         Date du remboursement :{" "}
                         {r.date_remboursement ? fmtDate(r.date_remboursement) : "—"}
                       </div>
-                      <JumpBtn onClick={() => onOpenClient(client.id)} />
                     </div>
                   )}
                 </div>
@@ -1220,7 +1240,7 @@ export default function SuivisView({
                       {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
                     </span>
                     <span>
-                      <strong>{client.nom || "Sans nom"}</strong> —{" "}
+                      <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} /> —{" "}
                       {r.nom_activite || "Activité"}
                     </span>
                     <span
@@ -1260,7 +1280,6 @@ export default function SuivisView({
                         </div>
                       )}
                       <div>Notes : {r.billet_notes || "—"}</div>
-                      <JumpBtn onClick={() => onOpenClient(client.id)} />
                     </div>
                   )}
                 </div>

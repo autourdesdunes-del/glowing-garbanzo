@@ -232,6 +232,7 @@ export type Client = {
   acompte_date_encaissement: string | null;
   au_revoir_envoye: boolean;
   avis_envoye: boolean;
+  avis_statut: "À demander" | "À ne pas demander" | "Déjà publié";
   tags: string[];
   prochain_appel_date: string | null;
   prochain_appel_heure: string;
@@ -298,6 +299,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   acompte_date_encaissement: null,
   au_revoir_envoye: false,
   avis_envoye: false,
+  avis_statut: "À demander",
   tags: [],
   prochain_appel_date: null,
   prochain_appel_heure: "",

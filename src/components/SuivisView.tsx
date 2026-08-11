@@ -83,9 +83,9 @@ function ClientNameLink({ nom, onClick }: { nom: string; onClick: () => void }) 
 }
 
 const AVIS_STATUT_STYLES: Record<Client["avis_statut"], string> = {
-  "À demander": "border-[#4A7FD6] bg-[#4A7FD6]/10 text-[#4A7FD6]",
-  "À ne pas demander": "border-[#D6544A] bg-[#D6544A]/10 text-[#D6544A]",
-  "Déjà publié": "border-[#3E8F5C] bg-[#3E8F5C]/10 text-[#3E8F5C]",
+  "À demander": "border-[#4A7FD6]/40 bg-[#4A7FD6]/10 text-[#3861A8]",
+  "À ne pas demander": "border-[#D6544A]/40 bg-[#D6544A]/10 text-[#B23F36]",
+  "Déjà publié": "border-[#3E8F5C]/40 bg-[#3E8F5C]/10 text-[#2C6B44]",
 };
 
 function AvisStatutSelector({
@@ -95,21 +95,26 @@ function AvisStatutSelector({
   value: Client["avis_statut"];
   onChange: (v: Client["avis_statut"]) => void;
 }) {
-  const options: Client["avis_statut"][] = ["À demander", "À ne pas demander", "Déjà publié"];
   return (
-    <div className="flex flex-wrap gap-1">
-      {options.map((opt) => (
-        <button
-          key={opt}
-          onClick={() => onChange(opt)}
-          className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
-            value === opt ? AVIS_STATUT_STYLES[opt] : "border-neutral-200 bg-white text-neutral-400"
-          }`}
-        >
-          {opt}
-        </button>
-      ))}
-    </div>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Client["avis_statut"])}
+      className={`ml-auto shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-medium outline-none ${AVIS_STATUT_STYLES[value]}`}
+    >
+      <option value="À demander">À demander</option>
+      <option value="À ne pas demander">À ne pas demander</option>
+      <option value="Déjà publié">Déjà publié</option>
+    </select>
+  );
+}
+
+function DateRangeBadge({ debut, fin }: { debut: string | null; fin: string | null }) {
+  return (
+    <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#F2E6D2] px-3 py-1 text-xs text-[#8B4531]">
+      <span>{debut ? fmtDate(debut) : "?"}</span>
+      <span className="text-[#C9973E]">→</span>
+      <span>{fin ? fmtDate(fin) : "?"}</span>
+    </span>
   );
 }
 
@@ -161,7 +166,7 @@ function RdvPaiementModal({
           <div>Hôtel : {c.hotel || "—"}</div>
           {c.solde_rdv_lieu && <div>Lieu : {c.solde_rdv_lieu}</div>}
           <div>👤 Assigné à : {c.solde_assigne_a || "Non assigné"}</div>
-          <div className="font-amounts font-medium text-[#171717]">Montant : {euros(montant)} €</div>
+          <div className="font-medium text-[#171717]">Montant : {euros(montant)} €</div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
@@ -287,7 +292,7 @@ function PickupActivityCard({
         {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
       </div>
       <div className="mt-1.5 flex items-center justify-between">
-        <span className="font-amounts text-xs font-medium text-[#171717]">{euros(total)} €</span>
+        <span className="text-xs font-medium text-[#171717]">{euros(total)} €</span>
         {badge && (
           <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
             {badge.label}
@@ -314,7 +319,7 @@ function AppelRow({
   if (c.prochain_appel_confirme) {
     return (
       <div className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm">
-        <span className="font-amounts text-neutral-500">
+        <span className="text-neutral-500">
           {fmtDate(c.prochain_appel_date)} {c.prochain_appel_heure}
         </span>
         <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
@@ -849,7 +854,7 @@ export default function SuivisView({
                       className="cursor-pointer rounded-md border border-[#0070f3] bg-[#0070f3]/10 p-3 text-sm"
                     >
                       <div className="flex flex-wrap items-center gap-3">
-                        <span className="font-amounts text-neutral-600">{c.solde_rdv_heure}</span>
+                        <span className="text-neutral-600">{c.solde_rdv_heure}</span>
                         <span>
                           <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} /> —{" "}
                           {c.hotel || "Hôtel ?"}
@@ -857,7 +862,7 @@ export default function SuivisView({
                         <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#171717]">
                           👤 {c.solde_assigne_a || "Non assigné"}
                         </span>
-                        <span className="font-amounts font-medium text-[#171717]">
+                        <span className="font-medium text-[#171717]">
                           {euros(montant)} €
                         </span>
                         <span className="flex-1" />
@@ -929,7 +934,7 @@ export default function SuivisView({
                             onClick={() => setRdvModalClientId(c.id)}
                             className="cursor-pointer rounded-md border border-neutral-200 bg-white p-2.5 text-xs hover:border-[#0070f3]"
                           >
-                            <div className="font-amounts text-neutral-500">{c.solde_rdv_heure}</div>
+                            <div className="text-neutral-500">{c.solde_rdv_heure}</div>
                             <div className="font-medium text-[#171717]">{c.nom || "Sans nom"}</div>
                             <div className="text-neutral-500">{c.hotel || "Hôtel ?"}</div>
                           </div>
@@ -1034,14 +1039,11 @@ export default function SuivisView({
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="font-amounts text-neutral-500">
+                  <span className="text-neutral-500">
                     {fmtDate(dateCible)}
                     {dateCible === todayStr ? " — aujourd'hui" : ""}
                   </span>
                   <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-                  <span className="font-amounts text-xs text-neutral-500">
-                    {c.date_debut ? fmtDate(c.date_debut) : "?"} → {c.date_fin ? fmtDate(c.date_fin) : "?"}
-                  </span>
                   <label className="flex items-center gap-1 text-xs text-neutral-600">
                     <input
                       type="checkbox"
@@ -1050,13 +1052,13 @@ export default function SuivisView({
                     />
                     Envoyé
                   </label>
-                  <span className="flex-1" />
                   <button
                     onClick={() => copyText("aurevoir-" + c.id, auRevoirMessage(c.nom))}
                     className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                   >
                     {copiedKey === "aurevoir-" + c.id ? "Copié ✓" : "Copier le message"}
                   </button>
+                  <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                 </div>
               </div>
             ))}
@@ -1075,12 +1077,9 @@ export default function SuivisView({
                   key={c.id}
                   className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
                 >
-                  <span className="font-amounts text-neutral-500">{fmtDate(dateCible)}</span>
+                  <span className="text-neutral-500">{fmtDate(dateCible)}</span>
                   <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-                  <span className="font-amounts text-xs text-neutral-500">
-                    {c.date_debut ? fmtDate(c.date_debut) : "?"} → {c.date_fin ? fmtDate(c.date_fin) : "?"}
-                  </span>
-                  <span className="flex-1" />
+                  <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                 </div>
               ))}
             </div>
@@ -1107,22 +1106,21 @@ export default function SuivisView({
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="font-amounts text-neutral-500">
+                  <span className="text-neutral-500">
                     {fmtDate(dateCible)}
                     {dateCible === todayStr ? " — aujourd'hui" : ""}
                   </span>
                   <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-                  <AvisStatutSelector
-                    value={c.avis_statut}
-                    onChange={(v) => onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })}
-                  />
-                  <span className="flex-1" />
                   <button
                     onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
                     className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                   >
                     {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier le message"}
                   </button>
+                  <AvisStatutSelector
+                    value={c.avis_statut}
+                    onChange={(v) => onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })}
+                  />
                 </div>
               </div>
             ))}
@@ -1141,13 +1139,12 @@ export default function SuivisView({
                   key={c.id}
                   className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
                 >
-                  <span className="font-amounts text-neutral-500">{fmtDate(dateCible)}</span>
+                  <span className="text-neutral-500">{fmtDate(dateCible)}</span>
                   <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
                   <AvisStatutSelector
                     value={c.avis_statut}
                     onChange={(v) => onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })}
                   />
-                  <span className="flex-1" />
                 </div>
               ))}
             </div>
@@ -1176,7 +1173,7 @@ export default function SuivisView({
                     onClick={() => toggleExpand(key)}
                     className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
                   >
-                    <span className="font-amounts text-neutral-500">
+                    <span className="text-neutral-500">
                       {fmtDate(r.date_probleme)}
                     </span>
                     <span>
@@ -1186,7 +1183,7 @@ export default function SuivisView({
                     <span className="text-neutral-500">
                       {activite ? activite.nom_activite : "Non liée"}
                     </span>
-                    <span className="font-amounts">{euros(r.montant)} €</span>
+                    <span>{euros(r.montant)} €</span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.statut === "Effectué"
@@ -1236,7 +1233,7 @@ export default function SuivisView({
                     onClick={() => toggleExpand(key)}
                     className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
                   >
-                    <span className="font-amounts text-neutral-500">
+                    <span className="text-neutral-500">
                       {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
                     </span>
                     <span>

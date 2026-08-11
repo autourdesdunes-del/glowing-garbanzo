@@ -724,16 +724,18 @@ export default function AddActivityWizard({
                   className="input"
                 />
               </Field>
-              <Field label="PU enfant supp. (€)">
-                <input
-                  type="number"
-                  value={r.prix_groupe_extra_enfant}
-                  onChange={(e) =>
-                    onUpdateReservation(r.id, { prix_groupe_extra_enfant: Number(e.target.value) })
-                  }
-                  className="input"
-                />
-              </Field>
+              {nbEnf > 0 && (
+                <Field label="PU enfant supp. (€)">
+                  <input
+                    type="number"
+                    value={r.prix_groupe_extra_enfant}
+                    onChange={(e) =>
+                      onUpdateReservation(r.id, { prix_groupe_extra_enfant: Number(e.target.value) })
+                    }
+                    className="input"
+                  />
+                </Field>
+              )}
               <Field label="Nb personnes supp.">
                 <input
                   type="number"
@@ -745,17 +747,19 @@ export default function AddActivityWizard({
                   className="input"
                 />
               </Field>
-              <Field label="Nb enfants supp.">
-                <input
-                  type="number"
-                  min={0}
-                  value={r.participants_extra_enfants}
-                  onChange={(e) =>
-                    onUpdateReservation(r.id, { participants_extra_enfants: Number(e.target.value) })
-                  }
-                  className="input"
-                />
-              </Field>
+              {nbEnf > 0 && (
+                <Field label="Nb enfants supp.">
+                  <input
+                    type="number"
+                    min={0}
+                    value={r.participants_extra_enfants}
+                    onChange={(e) =>
+                      onUpdateReservation(r.id, { participants_extra_enfants: Number(e.target.value) })
+                    }
+                    className="input"
+                  />
+                </Field>
+              )}
             </>
           )}
         </div>

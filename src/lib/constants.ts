@@ -41,6 +41,8 @@ export const RAISONS_REMBOURSEMENT = [
   "Autre",
 ] as const;
 
+export const TYPE_MODIFICATION_OPTIONS = ["Tarif", "Horaire", "Programme", "Autre"] as const;
+
 export const JOURS_SEMAINE = [
   "Lundi",
   "Mardi",

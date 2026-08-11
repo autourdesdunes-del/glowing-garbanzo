@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  CatalogueModificationRequest,
   Client,
   PlanningShift,
   Profile,
@@ -42,6 +43,7 @@ export const SUIVIS_SUBS = [
   { key: "avis", label: "Avis clients" },
   { key: "remb", label: "Remboursements" },
   { key: "billets", label: "Billets d'avion" },
+  { key: "modif_catalogue", label: "Demandes catalogue" },
 ] as const;
 
 export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"];
@@ -199,9 +201,11 @@ export default function SuivisView({
   remboursements,
   profiles,
   planningShifts,
+  catalogueModificationRequests,
   onUpdateClient,
   onUpdateReservation,
   onOpenClient,
+  onResolveCatalogueModificationRequest,
 }: {
   sub: SuivisSub;
   clients: Client[];
@@ -211,9 +215,11 @@ export default function SuivisView({
   remboursements: Remboursement[];
   profiles: Profile[];
   planningShifts: PlanningShift[];
+  catalogueModificationRequests: CatalogueModificationRequest[];
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onOpenClient: (id: string) => void;
+  onResolveCatalogueModificationRequest: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [newAppelClientId, setNewAppelClientId] = useState("");
@@ -283,6 +289,10 @@ export default function SuivisView({
   );
 
   const billetsRows = reservations.filter((r) => r.billet_requis);
+
+  const modifCatalogueRows = [...catalogueModificationRequests].sort((a, b) =>
+    b.created_at.localeCompare(a.created_at)
+  );
 
   // Personne assignée à un appel : déduite du planning équipe (qui travaille
   // à cette date, à cette heure), pas une saisie manuelle — plusieurs noms
@@ -810,6 +820,62 @@ export default function SuivisView({
                         {r.date_remboursement ? fmtDate(r.date_remboursement) : "—"}
                       </div>
                       <JumpBtn onClick={() => onOpenClient(client.id)} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {sub === "modif_catalogue" && (
+        <div>
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+            Demandes de modification du catalogue
+          </h3>
+          {modifCatalogueRows.length === 0 && (
+            <div className="text-sm text-neutral-400">Aucune demande enregistrée.</div>
+          )}
+          <div className="space-y-2">
+            {modifCatalogueRows.map((r) => {
+              const key = "modif-" + r.id;
+              const isOpen = expanded[key];
+              return (
+                <div key={r.id} className="rounded-md border border-neutral-200 bg-white">
+                  <div
+                    onClick={() => toggleExpand(key)}
+                    className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
+                  >
+                    <span className="font-amounts text-neutral-500">{fmtDate(r.created_at)}</span>
+                    <span>
+                      <strong>{r.demandeur_nom || "Sans nom"}</strong> —{" "}
+                      {r.catalogue_item_noms.join(", ") || "Activité(s) non précisée(s)"}
+                    </span>
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+                      {r.type_modification === "Autre" ? r.autre_detail || "Autre" : r.type_modification}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        r.statut === "Traité"
+                          ? "bg-[#171717]/10 text-[#171717]"
+                          : "bg-[#f5a623]/20 text-[#666666]"
+                      }`}
+                    >
+                      {r.statut}
+                    </span>
+                  </div>
+                  {isOpen && (
+                    <div className="space-y-2 border-t border-neutral-100 p-3 text-sm text-neutral-600">
+                      <div>{r.explication}</div>
+                      {r.statut !== "Traité" && (
+                        <button
+                          onClick={() => onResolveCatalogueModificationRequest(r.id)}
+                          className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          Marquer traité
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CatalogueFaq, CatalogueItem, CatalogueOption, CatalogueTarif } from "@/lib/types";
 import {
@@ -13,10 +13,13 @@ import {
   INCLUS_PRESETS,
   JOURS_SEMAINE,
   NON_INCLUS_PRESETS,
+  TYPE_MODIFICATION_OPTIONS,
 } from "@/lib/constants";
 import { Field } from "@/components/client-steps";
 import PhotoUpload from "@/components/PhotoUpload";
+import CatalogueModificationRequestModal from "@/components/CatalogueModificationRequestModal";
 import { localDateStr } from "@/lib/dates";
+import { useToast } from "@/components/ToastProvider";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -428,7 +431,7 @@ function ViewToggle({
 }
 
 export default function CatalogueView({
-  items,
+  items: itemsAll,
   onAdd,
   onUpdate,
   onReorder,
@@ -472,6 +475,8 @@ export default function CatalogueView({
   topRentabiliteIds: Set<string>;
   canSeeMargins: boolean;
 }) {
+  const supabase = useMemo(() => createClient(), []);
+  const toast = useToast();
   const [categoryFilter, setCategoryFilter] = useState<string>("Toutes");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
@@ -484,10 +489,52 @@ export default function CatalogueView({
   const [newChampsRequis, setNewChampsRequis] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
   // Réordonner le catalogue est réservé à la Direction — l'ordre choisi
   // pilote aussi bien cet affichage que la liste de choix de l'assistant
   // "Ajouter une activité" côté équipe.
   const canReorder = canSeeMargins;
+  // Le catalogue n'est modifiable que par la Direction — l'équipe le
+  // consulte en lecture seule et ne voit que les activités validées (les
+  // brouillons n'ont pas leur place dans un usage client/réservation).
+  const items = canSeeMargins ? itemsAll : itemsAll.filter((a) => a.valide);
+
+  const submitModificationRequest = async (payload: {
+    catalogueItemIds: string[];
+    typeModification: (typeof TYPE_MODIFICATION_OPTIONS)[number];
+    autreDetail: string;
+    explication: string;
+  }) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const demandeurNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    const noms = payload.catalogueItemIds
+      .map((id) => itemsAll.find((a) => a.id === id)?.nom)
+      .filter((n): n is string => !!n);
+    const { error } = await supabase.from("catalogue_modification_requests").insert({
+      catalogue_item_ids: payload.catalogueItemIds,
+      catalogue_item_noms: noms,
+      type_modification: payload.typeModification,
+      autre_detail: payload.autreDetail,
+      explication: payload.explication,
+      demandeur_id: user.id,
+      demandeur_nom: demandeurNom,
+    });
+    if (error) {
+      toast("Échec de l'envoi de la demande.");
+      return;
+    }
+    toast("Demande envoyée à la Direction.");
+    setRequestOpen(false);
+  };
+
   const allTags = Array.from(
     new Set([...CATALOGUE_TAGS_PRESETS, ...items.flatMap((a) => a.tags || [])])
   );
@@ -1117,6 +1164,13 @@ export default function CatalogueView({
 
   return (
     <div className="mx-auto max-w-5xl space-y-3 p-6">
+      {requestOpen && (
+        <CatalogueModificationRequestModal
+          items={items}
+          onSubmit={submitModificationRequest}
+          onClose={() => setRequestOpen(false)}
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-heading text-xl font-semibold text-[#171717]">
@@ -1127,16 +1181,25 @@ export default function CatalogueView({
             découvre l&apos;activité : sois précise et complète.
           </p>
         </div>
-        <button
-          onClick={() => {
-            onAdd();
-            setSelectedTag("__ALL__");
-            setSelectedActivityId(null);
-          }}
-          className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-        >
-          + Nouvelle activité
-        </button>
+        {canSeeMargins ? (
+          <button
+            onClick={() => {
+              onAdd();
+              setSelectedTag("__ALL__");
+              setSelectedActivityId(null);
+            }}
+            className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            + Nouvelle activité
+          </button>
+        ) : (
+          <button
+            onClick={() => setRequestOpen(true)}
+            className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            Demander une modification
+          </button>
+        )}
       </div>
 
       <div className="relative">
@@ -1358,18 +1421,22 @@ export default function CatalogueView({
                           Marge cible {a.marge_pct}%
                         </span>
                       )}
-                      <button
-                        onClick={() => onDuplicate(a)}
-                        className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
-                      >
-                        ⧉ Dupliquer
-                      </button>
-                      <button
-                        onClick={() => onUpdate(a.id, { valide: false })}
-                        className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
-                      >
-                        ✎ Modifier
-                      </button>
+                      {canSeeMargins && (
+                        <>
+                          <button
+                            onClick={() => onDuplicate(a)}
+                            className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
+                          >
+                            ⧉ Dupliquer
+                          </button>
+                          <button
+                            onClick={() => onUpdate(a.id, { valide: false })}
+                            className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
+                          >
+                            ✎ Modifier
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1718,15 +1785,17 @@ export default function CatalogueView({
                       </>
                     );
                   })()}
-                  <button
-                    onClick={() => {
-                      onUpdate(a.id, { valide: false });
-                      onAddTarif(a.id);
-                    }}
-                    className="w-full rounded-full bg-[#171717] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-                  >
-                    + Ajouter un tarif
-                  </button>
+                  {canSeeMargins && (
+                    <button
+                      onClick={() => {
+                        onUpdate(a.id, { valide: false });
+                        onAddTarif(a.id);
+                      }}
+                      className="w-full rounded-full bg-[#171717] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                    >
+                      + Ajouter un tarif
+                    </button>
+                  )}
 
                   <h4 className="mb-3 mt-6 text-sm font-semibold text-[#171717]">
                     Disponibilités

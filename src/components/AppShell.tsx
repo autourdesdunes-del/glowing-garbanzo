@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CatalogueFaq,
   CatalogueItem,
+  CatalogueModificationRequest,
   CatalogueOption,
   CatalogueTarif,
   Client,
@@ -228,6 +229,9 @@ function AppShellInner({
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
+  const [catalogueModificationRequests, setCatalogueModificationRequests] = useState<
+    CatalogueModificationRequest[]
+  >([]);
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
@@ -355,8 +359,12 @@ function AppShellInner({
       setPlanningLoaded(true);
 
       if (mode === "suivis") {
-        const { data: rembs } = await supabase.from("remboursements").select("*");
+        const [{ data: rembs }, { data: modifs }] = await Promise.all([
+          supabase.from("remboursements").select("*"),
+          supabase.from("catalogue_modification_requests").select("*"),
+        ]);
         setAllRemboursements((rembs as Remboursement[]) || []);
+        setCatalogueModificationRequests((modifs as CatalogueModificationRequest[]) || []);
         setSuivisLoaded(true);
       }
     })();
@@ -507,6 +515,17 @@ function AppShellInner({
   const updateReservationById = async (id: string, patch: Partial<Reservation>) => {
     setAllReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     const { error } = await supabase.from("reservations").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const resolveCatalogueModificationRequest = async (id: string) => {
+    setCatalogueModificationRequests((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, statut: "Traité" } : r))
+    );
+    const { error } = await supabase
+      .from("catalogue_modification_requests")
+      .update({ statut: "Traité" })
+      .eq("id", id);
     if (error) toast("Échec de l'enregistrement.");
   };
 
@@ -1148,9 +1167,11 @@ function AppShellInner({
               remboursements={allRemboursements}
               profiles={teamProfiles}
               planningShifts={teamPlanningShifts}
+              catalogueModificationRequests={catalogueModificationRequests}
               onUpdateClient={updateClientById}
               onUpdateReservation={updateReservationById}
               onOpenClient={openClient}
+              onResolveCatalogueModificationRequest={resolveCatalogueModificationRequest}
             />
           )}
         </div>

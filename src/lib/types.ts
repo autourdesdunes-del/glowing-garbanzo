@@ -421,3 +421,16 @@ export type BusEscalation = {
   resolu_at: string | null;
   created_at: string;
 };
+
+export type CatalogueModificationRequest = {
+  id: string;
+  catalogue_item_ids: string[];
+  catalogue_item_noms: string[];
+  type_modification: "Tarif" | "Horaire" | "Programme" | "Autre";
+  autre_detail: string;
+  explication: string;
+  demandeur_id: string;
+  demandeur_nom: string;
+  statut: "En attente" | "Traité";
+  created_at: string;
+};

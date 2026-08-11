@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  Avoir,
   BusEscalation,
   CatalogueItem,
   CatalogueOption,
@@ -18,10 +19,11 @@ import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 import MissingInfoModal from "@/components/MissingInfoModal";
 import GuidedActivityModal from "@/components/GuidedActivityModal";
+import AvoirUseModal from "@/components/AvoirUseModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
-import { resaTotalMontant } from "@/lib/resa";
+import { resaTotalMontant, avoirConsomme } from "@/lib/resa";
 import {
   ActivitesStep,
   ContactStep,
@@ -189,6 +191,65 @@ export default function ClientDetail({
   const [generatingDoc, setGeneratingDoc] = useState<"devis" | "facture" | null>(null);
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
+  const [avoirs, setAvoirs] = useState<Avoir[]>([]);
+  const [avoirPrompt, setAvoirPrompt] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("avoirs")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: true });
+      setAvoirs((data as Avoir[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  const addAvoir = async () => {
+    const { data, error } = await supabase
+      .from("avoirs")
+      .insert({ client_id: client.id })
+      .select()
+      .single();
+    if (!error && data) {
+      setAvoirs((prev) => [...prev, data as Avoir]);
+    } else {
+      toast("Impossible d'ajouter l'avoir.");
+    }
+  };
+
+  const updateAvoir = async (id: string, patch: Partial<Avoir>) => {
+    setAvoirs((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+    const { error } = await supabase.from("avoirs").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteAvoir = async (id: string) => {
+    const ok = await confirm({
+      message: "Retirer cet avoir ? Cette action est irréversible.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
+    setAvoirs((prev) => prev.filter((a) => a.id !== id));
+    const { error } = await supabase.from("avoirs").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const avoirDisponible = avoirs.reduce((s, a) => s + (Number(a.montant_restant) || 0), 0);
+
+  const useAvoir = async (montant: number) => {
+    let restant = montant;
+    for (const a of avoirs) {
+      if (restant <= 0) break;
+      const pris = Math.min(restant, Number(a.montant_restant) || 0);
+      if (pris <= 0) continue;
+      restant -= pris;
+      await updateAvoir(a.id, { montant_restant: (Number(a.montant_restant) || 0) - pris });
+    }
+    toast(`Avoir de ${montant.toLocaleString("fr-FR")} € appliqué au séjour.`);
+  };
 
   useEffect(() => {
     (async () => {
@@ -285,6 +346,11 @@ export default function ClientDetail({
       .single();
     if (!error && data) {
       setReservations((prev) => [...prev, data as Reservation]);
+      // Cette nouvelle activité peut être l'occasion de consommer un avoir
+      // en attente — on ne le lie pas à cette réservation précise (le solde
+      // reste unique par séjour), la réduction s'applique au montant global
+      // restant dû, où qu'il soit collecté.
+      if (avoirDisponible > 0) setAvoirPrompt(true);
       return (data as Reservation).id;
     }
     toast("Impossible d'ajouter l'activité.");
@@ -404,8 +470,9 @@ export default function ClientDetail({
 
   const acomptePayeMontant =
     client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  const soldeRestantHeader = Math.max(totalSejourHeader - acomptePayeMontant, 0);
-  const totalPayeHeader = acomptePayeMontant + (client.solde_paye ? soldeRestantHeader : 0);
+  const avoirUtiliseHeader = avoirConsomme(avoirs);
+  const soldeRestantHeader = Math.max(totalSejourHeader - acomptePayeMontant - avoirUtiliseHeader, 0);
+  const totalPayeHeader = acomptePayeMontant + avoirUtiliseHeader + (client.solde_paye ? soldeRestantHeader : 0);
   const paiementFullyPaid = totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader;
 
   const handleDownload = async (docType: "devis" | "facture") => {
@@ -620,6 +687,7 @@ export default function ClientDetail({
           onRequestAdd={() => setGuidedOpen(true)}
           onBusEscalation={handleBusEscalation}
           busEscalations={busEscalations}
+          avoirs={avoirs}
         />
       </Section>
 
@@ -648,12 +716,28 @@ export default function ClientDetail({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
+          avoirs={avoirs}
         />
       </Section>
 
       <Section title="Suivi" open={open.Suivi} onToggle={() => toggle("Suivi")}>
-        <SuiviStep client={client} onChange={onChange} reservations={reservations} />
+        <SuiviStep
+          client={client}
+          onChange={onChange}
+          reservations={reservations}
+          avoirs={avoirs}
+          onAddAvoir={addAvoir}
+          onUpdateAvoir={updateAvoir}
+          onDeleteAvoir={deleteAvoir}
+        />
       </Section>
+
+      <AvoirUseModal
+        open={avoirPrompt}
+        montantDisponible={avoirDisponible}
+        onClose={() => setAvoirPrompt(false)}
+        onUse={useAvoir}
+      />
 
       {missingInfo && (
         <MissingInfoModal

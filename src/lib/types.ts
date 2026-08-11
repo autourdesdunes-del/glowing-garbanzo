@@ -69,6 +69,7 @@ export type ReservationOption = {
   reservation_id: string;
   nom: string;
   prix: number;
+  quantite: number;
 };
 
 export type CatalogueTarif = {
@@ -165,6 +166,24 @@ export type Remboursement = {
   par: string;
   date_remboursement: string | null;
   statut: "En attente" | "Effectué";
+  paypal_email: string;
+  rib_photo_path: string | null;
+  created_at: string;
+};
+
+// Crédit "à utiliser pendant le séjour" du client — se consomme au fil des
+// activités ajoutées (montant_restant) au lieu d'être versé une fois comme
+// un remboursement. Pas de date de fin propre : elle suit toujours
+// client.date_fin.
+export type Avoir = {
+  id: string;
+  client_id: string;
+  montant: number;
+  montant_restant: number;
+  raison: string;
+  raison_autre: string;
+  activite_id: string | null;
+  date_probleme: string | null;
   created_at: string;
 };
 

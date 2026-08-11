@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Avoir,
   BusEscalation,
   CatalogueItem,
   CatalogueOption,
@@ -90,6 +91,7 @@ export default function ItineraryView({
   coutsMap,
   onUpdateCoutReel,
   busEscalations = [],
+  avoirs = [],
 }: {
   client: Client;
   reservations: Reservation[];
@@ -115,6 +117,7 @@ export default function ItineraryView({
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   busEscalations?: BusEscalation[];
+  avoirs?: Avoir[];
 }) {
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
@@ -155,7 +158,7 @@ export default function ItineraryView({
 
     const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
     const badge = paiementBadge(client, r);
-    const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs);
+    const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs, avoirs);
     const acompteWarning = acompteWaitingWarning(client, r, reservations);
     const busEscalation = busEscalations.find((e) => e.reservation_id === r.id);
     return (

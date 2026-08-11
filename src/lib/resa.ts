@@ -1,4 +1,4 @@
-import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { Avoir, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 
 // Le solde reste unique par séjour (règle métier — jamais un solde par
 // activité), mais l'équipe doit pouvoir choisir explicitement son statut de
@@ -150,12 +150,17 @@ export function paiementBadge(client: Client, r: Reservation) {
 // "Paiement intégral" → "à la première activité" : signale, sur l'activité
 // choisie comme point de collecte (la première par défaut, ou une autre si
 // l'employée en a sélectionné une autre), le montant qui reste à encaisser.
+export function avoirConsomme(avoirs: Avoir[]) {
+  return avoirs.reduce((s, a) => s + Math.max((Number(a.montant) || 0) - (Number(a.montant_restant) || 0), 0), 0);
+}
+
 export function activitePaiementWarning(
   client: Client,
   r: Reservation,
   reservations: Reservation[],
   resaOptions: Record<string, ReservationOption[]>,
-  resaTarifs: Record<string, ReservationTarif[]>
+  resaTarifs: Record<string, ReservationTarif[]>,
+  avoirs: Avoir[] = []
 ): { amount: number; devise: "€" | "EGP" } | null {
   if (client.solde_paye) return null;
   if (client.paiement_integral_mode !== "activite_eur" && client.paiement_integral_mode !== "activite_egp")
@@ -171,7 +176,10 @@ export function activitePaiementWarning(
     0
   );
   const acompte = client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
-  const amount = Math.max(totalSejour - acompte, 0);
+  // Un avoir consommé réduit le montant restant dû pour tout le séjour, où
+  // qu'il soit collecté (règle du solde unique par séjour) — jamais un
+  // deuxième "solde" par activité.
+  const amount = Math.max(totalSejour - acompte - avoirConsomme(avoirs), 0);
   return { amount, devise: "€" };
 }
 
@@ -271,6 +279,14 @@ export function groupeExtraCounts(nbAd: number, nbEnf: number, basePax: number) 
   };
 }
 
+// Affichage d'une option sur les cartes — les options vendues par
+// participant (ex. Parachute, quantite > 1) doivent montrer le nombre
+// dessus ("+5 participants Parachute"), les autres restent un simple nom.
+export function formatOptionLabel(o: ReservationOption) {
+  const quantite = Number(o.quantite) || 1;
+  return quantite > 1 ? `+${quantite} participants ${o.nom}` : o.nom;
+}
+
 export function participantsFor(r: Reservation, client: Client) {
   const nbAd =
     r.participants_mode === "tous" ? Number(client.adultes) || 0 : Number(r.participants_adultes) || 0;
@@ -308,7 +324,10 @@ export function resaTotalMontant(
         nbEnf * (Number(r.pu_enfant) || 0) +
         nbAcc * (Number(r.pu_accompagnateur) || 0) +
         nbEnf3 * (Number(r.pu_enfant_3ans) || 0);
-  const optionsTotal = options.reduce((s, o) => s + (Number(o.prix) || 0), 0);
+  const optionsTotal = options.reduce(
+    (s, o) => s + (Number(o.prix) || 0) * (Number(o.quantite) || 1),
+    0
+  );
   const tarifsTotal = tarifs.reduce((s, t) => s + (Number(t.quantite) || 0) * (Number(t.pu) || 0), 0);
   const transfert = r.transfert_inclus ? 0 : Number(r.transfert_montant) || 0;
   // L'île Oziréa applique un supplément fixe par personne, quel que soit le

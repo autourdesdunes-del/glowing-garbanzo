@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ActivityLogEntry,
+  Avoir,
   BusEscalation,
   CatalogueItem,
   CatalogueOption,
@@ -34,6 +35,7 @@ import ItineraryView from "@/components/ItineraryView";
 import { Field } from "@/components/Field";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
+import RibScreenshotUpload from "@/components/RibScreenshotUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
@@ -675,6 +677,7 @@ export function ActivitesStep({
   onRequestAdd,
   onBusEscalation,
   busEscalations,
+  avoirs,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -703,6 +706,7 @@ export function ActivitesStep({
   onRequestAdd?: () => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   busEscalations: BusEscalation[];
+  avoirs?: Avoir[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
@@ -762,6 +766,7 @@ export function ActivitesStep({
         onUpdateReservation={onUpdateReservation}
         coutsMap={coutsMap}
         onUpdateCoutReel={onUpdateCoutReel}
+        avoirs={avoirs}
         onDeleteReservation={(id) => {
           onDeleteReservation(id);
           setExpandedId((cur) => (cur === id ? null : cur));
@@ -1279,10 +1284,12 @@ export function PaiementsStep({
   reservations,
   resaOptions,
   resaTarifs,
+  avoirs = [],
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  avoirs?: Avoir[];
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -1295,10 +1302,14 @@ export function PaiementsStep({
     0
   );
   const acomptePaye = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  const avoirUtilise = avoirs.reduce(
+    (s, a) => s + Math.max((Number(a.montant) || 0) - (Number(a.montant_restant) || 0), 0),
+    0
+  );
   // Le solde n'est plus un montant saisi à la main : c'est toujours le reste
-  // du séjour une fois l'acompte déduit.
-  const soldeRestant = Math.max(totalSejour - acomptePaye, 0);
-  const totalPaye = acomptePaye + (client.solde_paye ? soldeRestant : 0);
+  // du séjour une fois l'acompte et un éventuel avoir consommé déduits.
+  const soldeRestant = Math.max(totalSejour - acomptePaye - avoirUtilise, 0);
+  const totalPaye = acomptePaye + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
   const reste = totalSejour - totalPaye;
 
   const validerAcompte = () => {
@@ -1322,7 +1333,7 @@ export function PaiementsStep({
   };
 
   const resteApresAcompte = Math.max(
-    totalSejour - (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0),
+    totalSejour - (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0) - avoirUtilise,
     0
   );
 
@@ -1337,6 +1348,11 @@ export function PaiementsStep({
         <span className="rounded-full bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700">
           Payé : {euros(totalPaye)} €
         </span>
+        {avoirUtilise > 0 && (
+          <span className="rounded-full bg-[#C9973E]/20 px-3 py-1.5 text-xs font-medium text-[#8B4531]">
+            Dont avoir utilisé : {euros(avoirUtilise)} €
+          </span>
+        )}
         <span className="rounded-full bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700">
           Reste à payer : {euros(reste)} €
         </span>
@@ -1559,7 +1575,17 @@ const ACTION_ICONS: Record<string, string> = {
 export function SuiviStep({
   client,
   reservations,
-}: StepProps & { reservations: Reservation[] }) {
+  avoirs,
+  onAddAvoir,
+  onUpdateAvoir,
+  onDeleteAvoir,
+}: StepProps & {
+  reservations: Reservation[];
+  avoirs: Avoir[];
+  onAddAvoir: () => void;
+  onUpdateAvoir: (id: string, patch: Partial<Avoir>) => void;
+  onDeleteAvoir: (id: string) => void;
+}) {
   const supabase = createClient();
   const confirm = useConfirm();
   const toast = useToast();
@@ -1730,6 +1756,24 @@ export function SuiviStep({
                     ))}
                   </select>
                 </Field>
+                {r.mode === "PayPal" && (
+                  <Field label="Adresse PayPal du client">
+                    <input
+                      value={r.paypal_email}
+                      onChange={(e) => updateRemboursement(r.id, { paypal_email: e.target.value })}
+                      placeholder="prenom.nom@email.com"
+                      className="input"
+                    />
+                  </Field>
+                )}
+                {r.mode === "Virement bancaire" && (
+                  <Field label="RIB">
+                    <RibScreenshotUpload
+                      path={r.rib_photo_path}
+                      onChange={(path) => updateRemboursement(r.id, { rib_photo_path: path })}
+                    />
+                  </Field>
+                )}
                 <Field label="Fait par">
                   <input
                     value={r.par}
@@ -1764,6 +1808,97 @@ export function SuiviStep({
               </div>
               <button
                 onClick={() => deleteRemboursement(r.id)}
+                className="mt-2 text-xs text-red-600 hover:underline"
+              >
+                Retirer
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[#171717]">
+            Avoirs <span className="font-normal text-neutral-500">— à utiliser pendant le séjour</span>
+          </h3>
+          <button
+            onClick={onAddAvoir}
+            className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            + Ajouter un avoir
+          </button>
+        </div>
+        {avoirs.length === 0 && <div className="text-sm text-neutral-400">Aucun avoir.</div>}
+        <div className="space-y-3">
+          {avoirs.map((a) => (
+            <div key={a.id} className="rounded-md border border-neutral-200 bg-white p-3">
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 font-medium text-[#8B4531]">
+                  Restant : {euros(a.montant_restant)} € / {euros(a.montant)} €
+                </span>
+                <span className="text-neutral-500">
+                  À utiliser jusqu&apos;au {client.date_fin ? fmtDate(client.date_fin) : "—"} (date de fin de séjour)
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Montant de l'avoir (€)">
+                  <input
+                    type="number"
+                    value={a.montant}
+                    onChange={(e) => {
+                      const montant = Number(e.target.value) || 0;
+                      const consomme = a.montant - a.montant_restant;
+                      onUpdateAvoir(a.id, { montant, montant_restant: Math.max(montant - consomme, 0) });
+                    }}
+                    className="input"
+                  />
+                </Field>
+                <Field label="Raison">
+                  <select
+                    value={a.raison}
+                    onChange={(e) => onUpdateAvoir(a.id, { raison: e.target.value })}
+                    className="input"
+                  >
+                    {RAISONS_REMBOURSEMENT.map((x) => (
+                      <option key={x}>{x}</option>
+                    ))}
+                  </select>
+                </Field>
+                {a.raison === "Autre" && (
+                  <Field label="Préciser la raison">
+                    <input
+                      value={a.raison_autre}
+                      onChange={(e) => onUpdateAvoir(a.id, { raison_autre: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                )}
+                <Field label="Activité liée">
+                  <select
+                    value={a.activite_id ?? ""}
+                    onChange={(e) => onUpdateAvoir(a.id, { activite_id: e.target.value || null })}
+                    className="input"
+                  >
+                    <option value="">Non liée</option>
+                    {reservations.map((res) => (
+                      <option key={res.id} value={res.id}>
+                        {res.nom_activite || "Activité sans nom"}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Date du problème">
+                  <input
+                    type="date"
+                    value={a.date_probleme ?? ""}
+                    onChange={(e) => onUpdateAvoir(a.id, { date_probleme: e.target.value || null })}
+                    className="input"
+                  />
+                </Field>
+              </div>
+              <button
+                onClick={() => onDeleteAvoir(a.id)}
                 className="mt-2 text-xs text-red-600 hover:underline"
               >
                 Retirer

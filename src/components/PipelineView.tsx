@@ -113,7 +113,7 @@ function ClientCard({
       {incomplete && (
         <div className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">
           <span>⚠</span>
-          <span className="truncate">{missingInfos.join(", ")}</span>
+          <span>{missingInfos.join(", ")}</span>
         </div>
       )}
       {(c.tags || []).length > 0 && (

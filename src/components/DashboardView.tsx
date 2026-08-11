@@ -189,7 +189,7 @@ function ActionRow({
       <Icon name={icon} className="h-4.5 w-4.5 flex-shrink-0 text-[#666666]" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-[#171717]">{title}</p>
-        <p className="truncate text-xs text-[#666666]">{sub}</p>
+        <p className="text-xs text-[#666666]">{sub}</p>
       </div>
       {onClick && (
         <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[6px] text-[#666666]">

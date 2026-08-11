@@ -413,24 +413,31 @@ function AppShellInner({
     setSuivisSub("j1");
   };
 
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingPatch = useRef<Partial<Client>>({});
-  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const errorToastShown = useRef(false);
+  // Gardés par client (id -> ...) et non par un seul ref partagé : sinon,
+  // changer de client pendant qu'une sauvegarde/retry est encore en vol pour
+  // le précédent fait fusionner les modifications des deux clients dans le
+  // même patch et l'envoie sur le mauvais id.
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const pendingPatches = useRef<Record<string, Partial<Client>>>({});
+  const retryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const errorToastShown = useRef<Record<string, boolean>>({});
 
   const flushSave = useCallback(
     async (id: string, attempt = 0) => {
-      const patch = pendingPatch.current;
-      if (Object.keys(patch).length === 0) return;
+      const patch = pendingPatches.current[id];
+      if (!patch || Object.keys(patch).length === 0) return;
       setSaveState("saving");
       const { error } = await supabase.from("clients").update(patch).eq("id", id);
 
       if (!error) {
         // Only clear the fields we actually just sent — the user may have
         // kept typing (and queuing more changes) while this request was in flight.
-        Object.keys(patch).forEach((k) => delete (pendingPatch.current as Record<string, unknown>)[k]);
+        const current = pendingPatches.current[id];
+        if (current) {
+          Object.keys(patch).forEach((k) => delete (current as Record<string, unknown>)[k]);
+        }
         setSaveState("saved");
-        errorToastShown.current = false;
+        errorToastShown.current[id] = false;
         setTimeout(() => setSaveState("idle"), 1000);
         return;
       }
@@ -440,29 +447,28 @@ function AppShellInner({
       // here — the UI still looks "connecté" but requests 401 until the
       // token is refreshed — so force a refresh before retrying.
       setSaveState("error");
-      if (!errorToastShown.current) {
+      if (!errorToastShown.current[id]) {
         toast("Échec de l'enregistrement — nouvelle tentative en cours…");
-        errorToastShown.current = true;
+        errorToastShown.current[id] = true;
       }
       if (attempt === 0) {
         await supabase.auth.refreshSession();
       }
       const delay = Math.min(2000 * 2 ** attempt, 15000);
-      if (retryTimer.current) clearTimeout(retryTimer.current);
-      retryTimer.current = setTimeout(() => flushSave(id, attempt + 1), delay);
+      if (retryTimers.current[id]) clearTimeout(retryTimers.current[id]);
+      retryTimers.current[id] = setTimeout(() => flushSave(id, attempt + 1), delay);
     },
     [supabase, toast]
   );
 
   const updateSelected = (patch: Partial<Client>) => {
     if (!selected) return;
-    setClients((prev) =>
-      prev.map((c) => (c.id === selected.id ? { ...c, ...patch } : c))
-    );
-    pendingPatch.current = { ...pendingPatch.current, ...patch };
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    if (retryTimer.current) clearTimeout(retryTimer.current);
-    saveTimer.current = setTimeout(() => flushSave(selected.id), 600);
+    const id = selected.id;
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    pendingPatches.current[id] = { ...pendingPatches.current[id], ...patch };
+    if (saveTimers.current[id]) clearTimeout(saveTimers.current[id]);
+    if (retryTimers.current[id]) clearTimeout(retryTimers.current[id]);
+    saveTimers.current[id] = setTimeout(() => flushSave(id), 600);
   };
 
   const addClient = async (quick?: {

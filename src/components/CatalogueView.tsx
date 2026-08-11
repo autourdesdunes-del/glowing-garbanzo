@@ -1760,7 +1760,7 @@ export default function CatalogueView({
                                 <IconTag />
                               </RowIcon>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm text-neutral-700">{t.label}</p>
+                                <p className="text-sm text-neutral-700">{t.label}</p>
                               </div>
                               <span className="font-amounts text-sm text-[#171717]">
                                 {euros(t.pu)}€
@@ -1785,7 +1785,7 @@ export default function CatalogueView({
                                 <IconTag />
                               </RowIcon>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-sm text-neutral-700">{o.nom}</p>
+                                <p className="text-sm text-neutral-700">{o.nom}</p>
                                 <p className="text-[11px] text-neutral-400">
                                   {o.mode === "groupe" ? "Prix groupe (forfait)" : "Prix par personne"}
                                 </p>
@@ -1862,7 +1862,7 @@ export default function CatalogueView({
                     }`}
                   >
                     <span className="text-neutral-300">⠿</span>
-                    <span className="truncate text-sm font-medium text-[#171717]">
+                    <span className="min-w-0 flex-1 text-sm font-medium text-[#171717]">
                       {a.nom || "Sans nom"}
                     </span>
                   </div>
@@ -1923,7 +1923,7 @@ export default function CatalogueView({
                       className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[#fafafa]"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-[#171717]">
+                        <p className="text-sm font-medium text-[#171717]">
                           {a.nom || "Sans nom"}
                         </p>
                         <p className="text-xs text-neutral-400">{a.categorie}</p>

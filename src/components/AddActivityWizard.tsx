@@ -85,7 +85,7 @@ export default function AddActivityWizard({
   catalogueTarifs: Record<string, CatalogueTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   hotelHorsHurghada?: boolean;
-  onBusEscalation: (nomActivite: string) => Promise<void>;
+  onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   onAddReservation: () => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
@@ -125,8 +125,8 @@ export default function AddActivityWizard({
   steps.push("date", "participants", "tarifs", "options", "transfert");
   const stepIndex = steps.indexOf(step);
 
-  const startFromCatalogue = async (item: CatalogueItem) => {
-    if (creating) return;
+  const startFromCatalogue = async (item: CatalogueItem): Promise<string | null> => {
+    if (creating) return null;
     setCreating(true);
     const id = await onAddReservation();
     if (id) {
@@ -154,6 +154,7 @@ export default function AddActivityWizard({
       setStep((item.champs_requis_liste || []).length > 0 ? "specifs" : "date");
     }
     setCreating(false);
+    return id;
   };
 
   const startCustom = async () => {
@@ -230,9 +231,9 @@ export default function AddActivityWizard({
             onCancel={() => setPendingBusActivity(null)}
             onProceedAnyway={async () => {
               const item = pendingBusActivity;
-              await onBusEscalation(item.nom);
               setPendingBusActivity(null);
-              await startFromCatalogue(item);
+              const newId = await startFromCatalogue(item);
+              if (newId) await onBusEscalation(item.nom, newId);
             }}
           />
         )}
@@ -249,9 +250,6 @@ export default function AddActivityWizard({
                 className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
               >
                 <span className="block font-medium text-[#171717]">{a.nom}</span>
-                <span className="font-amounts text-xs text-neutral-500">
-                  {euros(a.pu_adulte)} € adulte · {euros(a.pu_enfant)} € enfant
-                </span>
               </button>
             ))}
           </div>

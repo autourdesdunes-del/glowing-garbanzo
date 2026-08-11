@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  BusEscalation,
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
@@ -118,9 +119,27 @@ export default function ClientDetail({
     focusId: string;
     section: (typeof SECTIONS)[number];
   } | null>(null);
+  const [busEscalations, setBusEscalations] = useState<BusEscalation[]>([]);
 
   useEffect(() => {
     setOpen(CLOSED_SECTIONS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  const refreshBusEscalations = async () => {
+    const { data } = await supabase
+      .from("bus_escalations")
+      .select("*")
+      .eq("client_id", client.id)
+      .neq("statut", "validee");
+    setBusEscalations((data as BusEscalation[]) || []);
+  };
+
+  useEffect(() => {
+    const check = () => refreshBusEscalations();
+    check();
+    const id = setInterval(check, 20000);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
 
@@ -128,7 +147,7 @@ export default function ClientDetail({
   // on trace qui a validé cette décision pour que la Direction/Sylvie
   // puisse vérifier avec la conversation que c'est bien une demande du
   // client, pas un raccourci pris par l'employée.
-  const handleBusEscalation = async (nomActivite: string) => {
+  const handleBusEscalation = async (nomActivite: string, reservationId: string) => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -142,10 +161,12 @@ export default function ClientDetail({
     await supabase.from("bus_escalations").insert({
       client_id: client.id,
       client_nom: client.nom,
+      reservation_id: reservationId,
       nom_activite: nomActivite,
       employe_id: user.id,
       employe_nom: employeNom,
     });
+    refreshBusEscalations();
   };
 
   const goToMissingField = () => {
@@ -545,6 +566,7 @@ export default function ClientDetail({
         coutsMap={coutsMap}
         onUpdateCoutReel={updateCoutReel}
         onBusEscalation={handleBusEscalation}
+        busEscalations={busEscalations}
       />
 
       <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
@@ -597,6 +619,7 @@ export default function ClientDetail({
           onUpdateCoutReel={updateCoutReel}
           onRequestAdd={() => setGuidedOpen(true)}
           onBusEscalation={handleBusEscalation}
+          busEscalations={busEscalations}
         />
       </Section>
 

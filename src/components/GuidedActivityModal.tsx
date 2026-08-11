@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ActivitesStep, PaiementsStep } from "@/components/client-steps";
 import {
+  BusEscalation,
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
@@ -43,6 +44,7 @@ export default function GuidedActivityModal({
   coutsMap,
   onUpdateCoutReel,
   onBusEscalation,
+  busEscalations,
 }: {
   open: boolean;
   onClose: () => void;
@@ -67,7 +69,8 @@ export default function GuidedActivityModal({
   hotelHorsHurghada: boolean;
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
-  onBusEscalation: (nomActivite: string) => Promise<void>;
+  onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
+  busEscalations: BusEscalation[];
 }) {
   const [step, setStep] = useState<Step>("activites");
 
@@ -127,6 +130,7 @@ export default function GuidedActivityModal({
             coutsMap={coutsMap}
             onUpdateCoutReel={onUpdateCoutReel}
             onBusEscalation={onBusEscalation}
+            busEscalations={busEscalations}
           />
         )}
 

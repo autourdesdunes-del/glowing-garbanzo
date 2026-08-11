@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BusEscalation,
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
@@ -88,6 +89,7 @@ export default function ItineraryView({
   hotelHorsHurghada,
   coutsMap,
   onUpdateCoutReel,
+  busEscalations = [],
 }: {
   client: Client;
   reservations: Reservation[];
@@ -112,6 +114,7 @@ export default function ItineraryView({
   hotelHorsHurghada?: boolean;
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
+  busEscalations?: BusEscalation[];
 }) {
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
@@ -154,6 +157,7 @@ export default function ItineraryView({
     const badge = paiementBadge(client, r);
     const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs);
     const acompteWarning = acompteWaitingWarning(client, r, reservations);
+    const busEscalation = busEscalations.find((e) => e.reservation_id === r.id);
     return (
       <div
         key={r.id}
@@ -165,6 +169,19 @@ export default function ItineraryView({
             {r.nom_activite || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </span>
+          {busEscalation && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                busEscalation.statut === "refusee"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {busEscalation.statut === "refusee"
+                ? "⚠ Bus refusé — à traiter"
+                : "⏳ Bus en attente de validation"}
+            </span>
+          )}
           {acompteWarning && (
             <span className="text-xs font-medium text-yellow-700">
               ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}

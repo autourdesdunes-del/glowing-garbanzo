@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ActivityLogEntry,
+  BusEscalation,
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
@@ -673,6 +674,7 @@ export function ActivitesStep({
   onUpdateCoutReel,
   onRequestAdd,
   onBusEscalation,
+  busEscalations,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -699,7 +701,8 @@ export function ActivitesStep({
   // inline d'origine, d'où ce prop optionnel plutôt qu'un changement de
   // comportement global.
   onRequestAdd?: () => void;
-  onBusEscalation: (nomActivite: string) => Promise<void>;
+  onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
+  busEscalations: BusEscalation[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
@@ -775,6 +778,7 @@ export function ActivitesStep({
         catalogueOptions={catalogueOptions}
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}
+        busEscalations={busEscalations}
       />
     </div>
   );

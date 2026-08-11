@@ -177,7 +177,7 @@ export default function QuickAddClient({
     if (clientId) onUpdateClient(clientId, fields);
   };
 
-  const handleBusEscalation = async (nomActivite: string) => {
+  const handleBusEscalation = async (nomActivite: string, reservationId: string) => {
     if (!clientId) return;
     const {
       data: { user },
@@ -192,6 +192,7 @@ export default function QuickAddClient({
     await supabase.from("bus_escalations").insert({
       client_id: clientId,
       client_nom: answers.nom || "",
+      reservation_id: reservationId,
       nom_activite: nomActivite,
       employe_id: user.id,
       employe_nom: employeNom,
@@ -792,6 +793,7 @@ export default function QuickAddClient({
                   coutsMap={{}}
                   onUpdateCoutReel={() => {}}
                   onBusEscalation={handleBusEscalation}
+                  busEscalations={[]}
                 />
               )}
 

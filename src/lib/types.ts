@@ -409,6 +409,7 @@ export type BusEscalation = {
   id: string;
   client_id: string;
   client_nom: string;
+  reservation_id: string | null;
   nom_activite: string;
   employe_id: string;
   employe_nom: string;

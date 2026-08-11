@@ -68,14 +68,22 @@ const APPEL_PLATEFORMES = ["Instagram", "WhatsApp", "Mobile", "Google Meet", "Zo
 
 // Remplace le bouton "→ Fiche client" : le prénom/nom lui-même amène à la
 // fiche, en un clic au lieu de deux.
-function ClientNameLink({ nom, onClick }: { nom: string; onClick: () => void }) {
+function ClientNameLink({
+  nom,
+  onClick,
+  className,
+}: {
+  nom: string;
+  onClick: () => void;
+  className?: string;
+}) {
   return (
     <button
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
-      className="font-semibold text-[#171717] hover:underline"
+      className={className ?? "font-semibold text-[#171717] hover:underline"}
     >
       {nom || "Sans nom"}
     </button>
@@ -318,34 +326,43 @@ function AppelRow({
 }) {
   if (c.prochain_appel_confirme) {
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm">
-        <span className="text-neutral-500">
-          {fmtDate(c.prochain_appel_date)} {c.prochain_appel_heure}
-        </span>
-        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-          {c.prochain_appel_fuseau === "egypte" ? "Heure égyptienne" : "Heure française"}
-        </span>
-        {c.prochain_appel_plateforme && (
+      <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
+        <div className="flex items-start justify-between gap-2">
+          <ClientNameLink
+            nom={c.nom}
+            onClick={() => onOpenClient(c.id)}
+            className="font-heading text-base font-semibold text-[#171717] hover:underline"
+          />
+          <button
+            onClick={() => onUpdateClient(c.id, { prochain_appel_confirme: false })}
+            className="shrink-0 text-xs text-neutral-400 hover:text-neutral-600 hover:underline"
+          >
+            Annuler la confirmation
+          </button>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-neutral-500">
+          <span>
+            {fmtDate(c.prochain_appel_date)} {c.prochain_appel_heure}
+          </span>
           <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-            {c.prochain_appel_plateforme}
+            {c.prochain_appel_fuseau === "egypte" ? "Heure égyptienne" : "Heure française"}
           </span>
-        )}
-        <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-        {assignee && (
-          <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
-            👤 {assignee}
+          {c.prochain_appel_plateforme && (
+            <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
+              {c.prochain_appel_plateforme}
+            </span>
+          )}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {assignee && (
+            <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
+              👤 {assignee}
+            </span>
+          )}
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+            Confirmé ✓
           </span>
-        )}
-        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
-          Confirmé ✓
-        </span>
-        <span className="flex-1" />
-        <button
-          onClick={() => onUpdateClient(c.id, { prochain_appel_confirme: false })}
-          className="text-xs text-neutral-500 hover:underline"
-        >
-          Annuler la confirmation
-        </button>
+        </div>
       </div>
     );
   }

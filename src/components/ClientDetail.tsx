@@ -124,6 +124,30 @@ export default function ClientDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
 
+  // Le client insiste pour la formule bus (au lieu du mini-bus recommandé) —
+  // on trace qui a validé cette décision pour que la Direction/Sylvie
+  // puisse vérifier avec la conversation que c'est bien une demande du
+  // client, pas un raccourci pris par l'employée.
+  const handleBusEscalation = async (nomActivite: string) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    await supabase.from("bus_escalations").insert({
+      client_id: client.id,
+      client_nom: client.nom,
+      nom_activite: nomActivite,
+      employe_id: user.id,
+      employe_nom: employeNom,
+    });
+  };
+
   const goToMissingField = () => {
     if (!missingInfo) return;
     const { focusId, section } = missingInfo;
@@ -520,6 +544,7 @@ export default function ClientDetail({
         hotelHorsHurghada={hotelHorsHurghada}
         coutsMap={coutsMap}
         onUpdateCoutReel={updateCoutReel}
+        onBusEscalation={handleBusEscalation}
       />
 
       <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
@@ -571,6 +596,7 @@ export default function ClientDetail({
           coutsMap={coutsMap}
           onUpdateCoutReel={updateCoutReel}
           onRequestAdd={() => setGuidedOpen(true)}
+          onBusEscalation={handleBusEscalation}
         />
       </Section>
 

@@ -13,6 +13,7 @@ import {
 import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
 import { Field } from "@/components/Field";
+import BusRedirectAlert from "@/components/BusRedirectAlert";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -30,6 +31,14 @@ function isSpaMassage(nom: string) {
 function isSpeedboatSunset(nom: string) {
   const n = (nom || "").toLowerCase();
   return n.includes("speedboat") && n.includes("sunset");
+}
+
+// Le Caire/Louxor "en bus" (grand groupe, toutes nationalités mélangées) —
+// on pousse à recommander la formule mini-bus à la place avant de laisser
+// ajouter cette version, sauf si "mini" est déjà dans le nom.
+function isDiscouragedBusActivity(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return (n.includes("caire") || n.includes("louxor")) && n.includes("bus") && !n.includes("mini");
 }
 
 type Step = "choix" | "specifs" | "date" | "participants" | "tarifs" | "options" | "transfert";
@@ -69,12 +78,14 @@ export default function AddActivityWizard({
   resaTarifs,
   onFinish,
   onCancel,
+  onBusEscalation,
 }: {
   client: Client;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   hotelHorsHurghada?: boolean;
+  onBusEscalation: (nomActivite: string) => Promise<void>;
   onAddReservation: () => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
@@ -94,6 +105,7 @@ export default function AddActivityWizard({
   const [draftId, setDraftId] = useState<string | null>(null);
   const [customName, setCustomName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [pendingBusActivity, setPendingBusActivity] = useState<CatalogueItem | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
 
@@ -212,6 +224,18 @@ export default function AddActivityWizard({
   if (step === "choix") {
     return wrap(
       <>
+        {pendingBusActivity && (
+          <BusRedirectAlert
+            nomActivite={pendingBusActivity.nom}
+            onCancel={() => setPendingBusActivity(null)}
+            onProceedAnyway={async () => {
+              const item = pendingBusActivity;
+              await onBusEscalation(item.nom);
+              setPendingBusActivity(null);
+              await startFromCatalogue(item);
+            }}
+          />
+        )}
         {catalogue.length > 0 && (
           <div className="mb-3 grid grid-cols-2 gap-2">
             {catalogue.map((a) => (
@@ -219,7 +243,9 @@ export default function AddActivityWizard({
                 key={a.id}
                 type="button"
                 disabled={creating}
-                onClick={() => startFromCatalogue(a)}
+                onClick={() =>
+                  isDiscouragedBusActivity(a.nom) ? setPendingBusActivity(a) : startFromCatalogue(a)
+                }
                 className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
               >
                 <span className="block font-medium text-[#171717]">{a.nom}</span>

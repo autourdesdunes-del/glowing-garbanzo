@@ -404,3 +404,18 @@ export type InfoManquanteOption = {
   label: string;
   created_at: string;
 };
+
+export type BusEscalation = {
+  id: string;
+  client_id: string;
+  client_nom: string;
+  nom_activite: string;
+  employe_id: string;
+  employe_nom: string;
+  statut: "en_attente" | "validee" | "refusee";
+  resolu_par: string | null;
+  resolu_par_nom: string;
+  resolu_message: string;
+  resolu_at: string | null;
+  created_at: string;
+};

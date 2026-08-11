@@ -37,6 +37,7 @@ import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
 import AppelReminders from "@/components/AppelReminders";
+import BusEscalationCenter from "@/components/BusEscalationCenter";
 
 type Mode =
   | "dashboard"
@@ -781,6 +782,7 @@ function AppShellInner({
         planningShifts={teamPlanningShifts}
         currentUserId={userId}
       />
+      <BusEscalationCenter profiles={teamProfiles} currentUserId={userId} />
       <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white">
         <div className="flex items-center gap-2.5 px-4 py-5">
           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">

@@ -42,6 +42,7 @@ export default function GuidedActivityModal({
   hotelHorsHurghada,
   coutsMap,
   onUpdateCoutReel,
+  onBusEscalation,
 }: {
   open: boolean;
   onClose: () => void;
@@ -66,6 +67,7 @@ export default function GuidedActivityModal({
   hotelHorsHurghada: boolean;
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
+  onBusEscalation: (nomActivite: string) => Promise<void>;
 }) {
   const [step, setStep] = useState<Step>("activites");
 
@@ -124,6 +126,7 @@ export default function GuidedActivityModal({
             hotelHorsHurghada={hotelHorsHurghada}
             coutsMap={coutsMap}
             onUpdateCoutReel={onUpdateCoutReel}
+            onBusEscalation={onBusEscalation}
           />
         )}
 

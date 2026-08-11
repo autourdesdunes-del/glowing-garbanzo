@@ -177,6 +177,27 @@ export default function QuickAddClient({
     if (clientId) onUpdateClient(clientId, fields);
   };
 
+  const handleBusEscalation = async (nomActivite: string) => {
+    if (!clientId) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    await supabase.from("bus_escalations").insert({
+      client_id: clientId,
+      client_nom: answers.nom || "",
+      nom_activite: nomActivite,
+      employe_id: user.id,
+      employe_nom: employeNom,
+    });
+  };
+
   const steps = buildSteps(answers);
   const step = steps[stepIdx];
 
@@ -770,6 +791,7 @@ export default function QuickAddClient({
                   hotelHorsHurghada={hotelHorsHurghada}
                   coutsMap={{}}
                   onUpdateCoutReel={() => {}}
+                  onBusEscalation={handleBusEscalation}
                 />
               )}
 

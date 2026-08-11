@@ -672,6 +672,7 @@ export function ActivitesStep({
   coutsMap,
   onUpdateCoutReel,
   onRequestAdd,
+  onBusEscalation,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -698,6 +699,7 @@ export function ActivitesStep({
   // inline d'origine, d'où ce prop optionnel plutôt qu'un changement de
   // comportement global.
   onRequestAdd?: () => void;
+  onBusEscalation: (nomActivite: string) => Promise<void>;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
@@ -724,6 +726,7 @@ export function ActivitesStep({
         resaTarifs={resaTarifs}
         onFinish={() => setAddingNew(false)}
         onCancel={() => setAddingNew(false)}
+        onBusEscalation={onBusEscalation}
       />
     );
   }

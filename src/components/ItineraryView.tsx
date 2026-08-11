@@ -14,6 +14,7 @@ import {
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
+  formatOptionLabel,
   hideMoment,
   paiementBadge,
   participantsFor,
@@ -216,6 +217,18 @@ export default function ItineraryView({
           )}
         </div>
         <div className="mt-1 text-xs text-neutral-500">{paxLine(r, client)}</div>
+        {(resaOptions[r.id] || []).length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {(resaOptions[r.id] || []).map((o) => (
+              <span
+                key={o.id}
+                className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600"
+              >
+                ⚙ {formatOptionLabel(o)}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="mt-1.5 flex items-center justify-between">
           <span className="font-amounts text-xs font-medium text-[#171717]">{euros(total)} €</span>
           {badge && (

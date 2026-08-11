@@ -1045,39 +1045,63 @@ export default function AddActivityWizard({
   if (step === "options") {
     return wrap(
       <>
-        {options.map((o) => (
-          <div key={o.id} className="mb-2 flex items-center gap-2">
-            <select
-              value={OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) ? o.nom : "Autre"}
-              onChange={(e) =>
-                onUpdateOption(r.id, o.id, { nom: e.target.value === "Autre" ? "" : e.target.value })
-              }
-              className="input"
-            >
-              {OPTIONS_PRESETS.map((p) => (
-                <option key={p}>{p}</option>
-              ))}
-            </select>
-            {!OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) && (
-              <input
-                placeholder="Préciser"
-                value={o.nom}
-                onChange={(e) => onUpdateOption(r.id, o.id, { nom: e.target.value })}
+        {options.map((o) => {
+          const isParachute = o.nom === "Parachute";
+          return (
+            <div key={o.id} className="mb-2 flex flex-wrap items-center gap-2">
+              <select
+                value={OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) ? o.nom : "Autre"}
+                onChange={(e) => {
+                  const nom = e.target.value === "Autre" ? "" : e.target.value;
+                  onUpdateOption(
+                    r.id,
+                    o.id,
+                    nom === "Parachute" && !o.prix ? { nom, prix: 10, quantite: o.quantite || 1 } : { nom }
+                  );
+                }}
                 className="input"
+              >
+                {OPTIONS_PRESETS.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+              {!OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) && (
+                <input
+                  placeholder="Préciser"
+                  value={o.nom}
+                  onChange={(e) => onUpdateOption(r.id, o.id, { nom: e.target.value })}
+                  className="input"
+                />
+              )}
+              <input
+                type="number"
+                placeholder={isParachute ? "PU €" : "Prix €"}
+                value={o.prix}
+                onChange={(e) => onUpdateOption(r.id, o.id, { prix: Number(e.target.value) })}
+                className="input w-24"
               />
-            )}
-            <input
-              type="number"
-              placeholder="Prix €"
-              value={o.prix}
-              onChange={(e) => onUpdateOption(r.id, o.id, { prix: Number(e.target.value) })}
-              className="input"
-            />
-            <button onClick={() => onDeleteOption(r.id, o.id)} className="text-red-600">
-              ✕
-            </button>
-          </div>
-        ))}
+              {isParachute && (
+                <>
+                  <span className="text-xs text-neutral-400">×</span>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="Nb participants"
+                    value={o.quantite}
+                    onChange={(e) => onUpdateOption(r.id, o.id, { quantite: Number(e.target.value) })}
+                    className="input w-32"
+                  />
+                  <span className="font-amounts text-xs text-neutral-500">
+                    = {euros((Number(o.prix) || 0) * (Number(o.quantite) || 1))} €
+                  </span>
+                </>
+              )}
+              <button onClick={() => onDeleteOption(r.id, o.id)} className="text-red-600">
+                ✕
+              </button>
+            </div>
+          );
+        })}
         {catOptions
           .filter((co) => !options.some((o) => o.nom === co.nom))
           .map((co) => (

@@ -13,6 +13,7 @@ import {
 import { BILLET_STATUTS, CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
 import {
   groupeExtraCounts,
+  formatOptionLabel,
   hideMoment,
   isSpeedboatPriveMaisonDauphins,
   needsMomentSpeedboat,
@@ -196,7 +197,7 @@ export default function ReservationCard({
               )}
               {hasOptions && (
                 <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-                  ⚙ {options.map((o) => o.nom).join(", ")}
+                  ⚙ {options.map((o) => formatOptionLabel(o)).join(", ")}
                 </span>
               )}
               {r.billet_requis && (
@@ -252,7 +253,7 @@ export default function ReservationCard({
         </div>
         {hasOptions && (
           <span className="mt-1 block text-xs text-neutral-500">
-            ⚙ {options.length} option(s) ajoutée(s)
+            ⚙ {options.map((o) => formatOptionLabel(o)).join(", ")}
           </span>
         )}
         {r.billet_requis && (
@@ -398,7 +399,7 @@ export default function ReservationCard({
 
       {options.length > 0 && (
         <div className="mb-3 rounded-md bg-[#C9973E]/10 px-3 py-2 text-xs text-[#666666]">
-          ⚠ Option(s) ajoutée(s) : {options.map((o) => o.nom).join(", ")}
+          ⚠ Option(s) ajoutée(s) : {options.map((o) => formatOptionLabel(o)).join(", ")}
         </div>
       )}
 
@@ -828,39 +829,62 @@ export default function ReservationCard({
 
       <div className="mt-3">
         <p className="mb-1 text-sm font-medium text-neutral-700">Options</p>
-        {options.map((o) => (
-          <div key={o.id} className="mb-2 flex items-center gap-2">
-            <select
-              value={OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) ? o.nom : "Autre"}
-              onChange={(e) =>
-                onUpdateOption(o.id, { nom: e.target.value === "Autre" ? "" : e.target.value })
-              }
-              className="input"
-            >
-              {OPTIONS_PRESETS.map((p) => (
-                <option key={p}>{p}</option>
-              ))}
-            </select>
-            {!OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) && (
-              <input
-                placeholder="Préciser"
-                value={o.nom}
-                onChange={(e) => onUpdateOption(o.id, { nom: e.target.value })}
+        {options.map((o) => {
+          const isParachute = o.nom === "Parachute";
+          return (
+            <div key={o.id} className="mb-2 flex flex-wrap items-center gap-2">
+              <select
+                value={OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) ? o.nom : "Autre"}
+                onChange={(e) => {
+                  const nom = e.target.value === "Autre" ? "" : e.target.value;
+                  onUpdateOption(
+                    o.id,
+                    nom === "Parachute" && !o.prix ? { nom, prix: 10, quantite: o.quantite || 1 } : { nom }
+                  );
+                }}
                 className="input"
+              >
+                {OPTIONS_PRESETS.map((p) => (
+                  <option key={p}>{p}</option>
+                ))}
+              </select>
+              {!OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) && (
+                <input
+                  placeholder="Préciser"
+                  value={o.nom}
+                  onChange={(e) => onUpdateOption(o.id, { nom: e.target.value })}
+                  className="input"
+                />
+              )}
+              <input
+                type="number"
+                placeholder={isParachute ? "PU €" : "Prix €"}
+                value={o.prix}
+                onChange={(e) => onUpdateOption(o.id, { prix: Number(e.target.value) })}
+                className="input w-24"
               />
-            )}
-            <input
-              type="number"
-              placeholder="Prix €"
-              value={o.prix}
-              onChange={(e) => onUpdateOption(o.id, { prix: Number(e.target.value) })}
-              className="input"
-            />
-            <button onClick={() => onDeleteOption(o.id)} className="text-red-600">
-              ✕
-            </button>
-          </div>
-        ))}
+              {isParachute && (
+                <>
+                  <span className="text-xs text-neutral-400">×</span>
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="Nb participants"
+                    value={o.quantite}
+                    onChange={(e) => onUpdateOption(o.id, { quantite: Number(e.target.value) })}
+                    className="input w-32"
+                  />
+                  <span className="font-amounts text-xs text-neutral-500">
+                    = {euros((Number(o.prix) || 0) * (Number(o.quantite) || 1))} €
+                  </span>
+                </>
+              )}
+              <button onClick={() => onDeleteOption(o.id)} className="text-red-600">
+                ✕
+              </button>
+            </div>
+          );
+        })}
         {catalogueOptions
           .filter((co) => !options.some((o) => o.nom === co.nom))
           .map((co) => (

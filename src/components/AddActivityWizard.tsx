@@ -18,6 +18,13 @@ function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
+// Pour les activités spa/massage, "moment" (matin/après-midi/journée/plusieurs
+// jours) ne veut rien dire — on demande un horaire précis à la place.
+function isSpaMassage(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return n.includes("spa") || n.includes("massage");
+}
+
 type Step = "choix" | "specifs" | "date" | "participants" | "tarifs" | "options" | "transfert";
 
 const STEP_TITLES: Record<Step, string> = {
@@ -166,7 +173,12 @@ export default function AddActivityWizard({
           Étape {stepIndex + 1}/{steps.length}
         </span>
       </div>
-      {r && step !== "choix" && <p className="mb-3 text-sm text-neutral-500">{r.nom_activite}</p>}
+      {r && step !== "choix" && (
+        <p className="mb-3 text-sm text-neutral-500">
+          {r.nom_activite}
+          {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+        </p>
+      )}
       {children}
     </div>
   );
@@ -402,8 +414,12 @@ export default function AddActivityWizard({
   }
 
   if (step === "date") {
+    const isSpa = isSpaMassage(r.nom_activite);
+    const missingMoment = !isSpa && !r.moment;
+    const missingHoraire = isSpa && !r.horaire_souhaite;
+
     const goNext = () => {
-      if (!r.moment) {
+      if (missingMoment || missingHoraire) {
         setValidationError(true);
         return;
       }
@@ -422,45 +438,63 @@ export default function AddActivityWizard({
               className="input"
             />
           </Field>
-          <div>
-            <label className="mb-1 flex items-center gap-2 text-sm font-medium text-neutral-700">
-              <input
-                type="checkbox"
-                checked={!!r.date_fin}
-                onChange={(e) =>
-                  onUpdateReservation(r.id, { date_fin: e.target.checked ? r.date_debut || "" : null })
-                }
-              />
-              Plusieurs jours
-            </label>
-            {r.date_fin && (
-              <input
-                type="date"
-                value={r.date_fin}
-                onChange={(e) => onUpdateReservation(r.id, { date_fin: e.target.value || null })}
-                className="input"
-              />
-            )}
-          </div>
+          {!isSpa && (
+            <div>
+              <label className="mb-1 flex items-center gap-2 text-sm font-medium text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={!!r.date_fin}
+                  onChange={(e) =>
+                    onUpdateReservation(r.id, { date_fin: e.target.checked ? r.date_debut || "" : null })
+                  }
+                />
+                Plusieurs jours
+              </label>
+              {r.date_fin && (
+                <input
+                  type="date"
+                  value={r.date_fin}
+                  onChange={(e) => onUpdateReservation(r.id, { date_fin: e.target.value || null })}
+                  className="input"
+                />
+              )}
+            </div>
+          )}
         </div>
         <div className="mt-3">
-          <Field label="Moment *">
-            <select
-              value={r.moment}
-              onChange={(e) => onUpdateReservation(r.id, { moment: e.target.value })}
-              className={`input ${validationError && !r.moment ? "border-red-300 focus:border-red-400" : ""}`}
-            >
-              <option value="">—</option>
-              {MOMENTS.map((m) => (
-                <option key={m}>{m}</option>
-              ))}
-            </select>
-          </Field>
+          {isSpa ? (
+            <Field label="Horaire souhaité *">
+              <input
+                type="time"
+                value={r.horaire_souhaite}
+                onChange={(e) => onUpdateReservation(r.id, { horaire_souhaite: e.target.value })}
+                className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
+              />
+            </Field>
+          ) : (
+            <Field label="Moment *">
+              <select
+                value={r.moment}
+                onChange={(e) => onUpdateReservation(r.id, { moment: e.target.value })}
+                className={`input ${missingMoment && validationError ? "border-red-300 focus:border-red-400" : ""}`}
+              >
+                <option value="">—</option>
+                {MOMENTS.map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+              </select>
+            </Field>
+          )}
         </div>
 
-        {validationError && !r.moment && (
+        {validationError && missingMoment && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
             ⚠ Impossible de continuer — le moment (matin / après-midi…) est obligatoire.
+          </div>
+        )}
+        {validationError && missingHoraire && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Impossible de continuer — l&apos;horaire souhaité est obligatoire.
           </div>
         )}
 
@@ -881,16 +915,22 @@ export default function AddActivityWizard({
           Taxe de transfert
         </button>
       </div>
-      {hotelHorsHurghada && r.transfert_inclus && (
-        <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-700">
-          <span>⚠ Cet hôtel n&apos;est pas sur Hurghada, il y a peut-être une taxe de transfert.</span>
-          <button
-            type="button"
-            onClick={() => onUpdateReservation(r.id, { transfert_inclus: false })}
-            className="whitespace-nowrap rounded-md bg-orange-600 px-2 py-1 text-white hover:opacity-90"
-          >
-            Corriger
-          </button>
+      {hotelHorsHurghada ? (
+        r.transfert_inclus && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-700">
+            <span>⚠ Cet hôtel n&apos;est pas sur Hurghada, il y a peut-être une taxe de transfert.</span>
+            <button
+              type="button"
+              onClick={() => onUpdateReservation(r.id, { transfert_inclus: false })}
+              className="whitespace-nowrap rounded-md bg-orange-600 px-2 py-1 text-white hover:opacity-90"
+            >
+              Corriger
+            </button>
+          </div>
+        )
+      ) : (
+        <div className="mt-2 rounded-md bg-green-50 px-2 py-1.5 text-xs text-green-700">
+          ✔️ Cet hôtel est bien situé sur Hurghada
         </div>
       )}
       {!r.transfert_inclus && (

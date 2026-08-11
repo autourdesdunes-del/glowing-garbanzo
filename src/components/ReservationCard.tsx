@@ -149,6 +149,7 @@ export default function ReservationCard({
             <span className="text-[#171717]">✓</span>
             <span className="font-medium text-[#171717]">
               {r.nom_activite || "Activité sans nom"}
+              {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
             </span>
             <span className="flex-1" />
             <span className="font-amounts text-sm">{euros(total)} €</span>
@@ -191,6 +192,7 @@ export default function ReservationCard({
       >
         <p className="font-medium text-[#171717]">
           {r.nom_activite || "Activité sans nom"}
+          {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           {soldeIci && !client.solde_paye && (
             <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
           )}

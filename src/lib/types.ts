@@ -104,6 +104,7 @@ export type Reservation = {
   date_debut: string | null;
   date_fin: string | null;
   moment: string;
+  horaire_souhaite: string;
   pu_adulte: number;
   pu_enfant: number;
   pu_accompagnateur: number;

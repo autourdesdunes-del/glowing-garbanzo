@@ -160,7 +160,10 @@ export default function ItineraryView({
         className="cursor-pointer rounded-md bg-[#fafafa]/50 px-3 py-2.5 text-sm hover:bg-[#fafafa]"
       >
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-medium text-[#171717]">{r.nom_activite || "Activité sans nom"}</span>
+          <span className="font-medium text-[#171717]">
+            {r.nom_activite || "Activité sans nom"}
+            {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+          </span>
           {acompteWarning && (
             <span className="text-xs font-medium text-yellow-700">
               ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}

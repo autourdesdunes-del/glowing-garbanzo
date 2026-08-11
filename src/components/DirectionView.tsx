@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import {
+  CatalogueItem,
+  CatalogueModificationRequest,
+  Client,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 import { todayStr } from "@/lib/dates";
@@ -33,6 +40,10 @@ function lastDayOfMonth(ym: string) {
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
+function fmtDate(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
 
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const csv = rows
@@ -62,6 +73,8 @@ export default function DirectionView({
   catalogue,
   onUpdateCatalogueItem,
   coutsMap,
+  catalogueModificationRequests,
+  onResolveCatalogueModificationRequest,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -70,7 +83,13 @@ export default function DirectionView({
   catalogue: CatalogueItem[];
   onUpdateCatalogueItem: (id: string, patch: Partial<CatalogueItem>) => void;
   coutsMap: Record<string, number>;
+  catalogueModificationRequests: CatalogueModificationRequest[];
+  onResolveCatalogueModificationRequest: (id: string) => void;
 }) {
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const modifCatalogueRows = [...catalogueModificationRequests].sort((a, b) =>
+    b.created_at.localeCompare(a.created_at)
+  );
   const currentMonth = todayStr().slice(0, 7);
   const monthOptions = useMemo(() => {
     const set = new Set<string>([currentMonth]);
@@ -179,6 +198,63 @@ export default function DirectionView({
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-6">
+      {modifCatalogueRows.length > 0 && (
+        <div>
+          <h3 className="font-heading mb-2 flex items-center gap-2 text-sm font-semibold text-[#171717]">
+            Demandes de modification du catalogue
+            {modifCatalogueRows.some((r) => r.statut !== "Traité") && (
+              <span className="rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-medium text-[#666666]">
+                {modifCatalogueRows.filter((r) => r.statut !== "Traité").length} en attente
+              </span>
+            )}
+          </h3>
+          <div className="space-y-2">
+            {modifCatalogueRows.map((r) => {
+              const isOpen = expandedRequestId === r.id;
+              return (
+                <div key={r.id} className="rounded-md border border-neutral-200 bg-white">
+                  <div
+                    onClick={() => setExpandedRequestId(isOpen ? null : r.id)}
+                    className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
+                  >
+                    <span className="font-amounts text-neutral-500">{fmtDate(r.created_at)}</span>
+                    <span>
+                      <strong>{r.demandeur_nom || "Sans nom"}</strong> —{" "}
+                      {r.catalogue_item_noms.join(", ") || "Activité(s) non précisée(s)"}
+                    </span>
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+                      {r.type_modification === "Autre" ? r.autre_detail || "Autre" : r.type_modification}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        r.statut === "Traité"
+                          ? "bg-[#171717]/10 text-[#171717]"
+                          : "bg-[#f5a623]/20 text-[#666666]"
+                      }`}
+                    >
+                      {r.statut}
+                    </span>
+                  </div>
+                  {isOpen && (
+                    <div className="space-y-2 border-t border-neutral-100 p-3 text-sm text-neutral-600">
+                      <div>{r.explication}</div>
+                      {r.statut !== "Traité" && (
+                        <button
+                          onClick={() => onResolveCatalogueModificationRequest(r.id)}
+                          className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          Marquer traité
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h2 className="font-heading text-xl font-semibold text-[#171717]">Vue direction</h2>
         <div className="flex flex-wrap items-end gap-2">

@@ -359,13 +359,14 @@ function AppShellInner({
       setPlanningLoaded(true);
 
       if (mode === "suivis") {
-        const [{ data: rembs }, { data: modifs }] = await Promise.all([
-          supabase.from("remboursements").select("*"),
-          supabase.from("catalogue_modification_requests").select("*"),
-        ]);
+        const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
-        setCatalogueModificationRequests((modifs as CatalogueModificationRequest[]) || []);
         setSuivisLoaded(true);
+      }
+
+      if (mode === "suivis" || mode === "direction") {
+        const { data: modifs } = await supabase.from("catalogue_modification_requests").select("*");
+        setCatalogueModificationRequests((modifs as CatalogueModificationRequest[]) || []);
       }
     })();
   }, [mode, supabase, isDirection]);
@@ -1167,11 +1168,9 @@ function AppShellInner({
               remboursements={allRemboursements}
               profiles={teamProfiles}
               planningShifts={teamPlanningShifts}
-              catalogueModificationRequests={catalogueModificationRequests}
               onUpdateClient={updateClientById}
               onUpdateReservation={updateReservationById}
               onOpenClient={openClient}
-              onResolveCatalogueModificationRequest={resolveCatalogueModificationRequest}
             />
           )}
         </div>
@@ -1244,6 +1243,8 @@ function AppShellInner({
               catalogue={catalogue}
               onUpdateCatalogueItem={updateCatalogueItem}
               coutsMap={allCoutsMap}
+              catalogueModificationRequests={catalogueModificationRequests}
+              onResolveCatalogueModificationRequest={resolveCatalogueModificationRequest}
             />
           )}
         </div>

@@ -10,6 +10,8 @@ import {
   CatalogueTarif,
   Client,
   EMPTY_CLIENT,
+  PlanningShift,
+  Profile,
   Remboursement,
   Reservation,
   ReservationOption,
@@ -221,6 +223,8 @@ function AppShellInner({
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
   const [suivisLoaded, setSuivisLoaded] = useState(false);
+  const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
+  const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
   const [catalogueOptions, setCatalogueOptions] = useState<Record<string, CatalogueOption[]>>({});
@@ -339,8 +343,14 @@ function AppShellInner({
       setPlanningLoaded(true);
 
       if (mode === "suivis") {
-        const { data: rembs } = await supabase.from("remboursements").select("*");
+        const [{ data: rembs }, { data: profs }, { data: shifts }] = await Promise.all([
+          supabase.from("remboursements").select("*"),
+          supabase.from("profiles").select("*"),
+          supabase.from("planning_shifts").select("*"),
+        ]);
         setAllRemboursements((rembs as Remboursement[]) || []);
+        setTeamProfiles((profs as Profile[]) || []);
+        setTeamPlanningShifts((shifts as PlanningShift[]) || []);
         setSuivisLoaded(true);
       }
     })();
@@ -1097,6 +1107,8 @@ function AppShellInner({
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
               remboursements={allRemboursements}
+              profiles={teamProfiles}
+              planningShifts={teamPlanningShifts}
               onUpdateClient={updateClientById}
               onUpdateReservation={updateReservationById}
               onOpenClient={openClient}

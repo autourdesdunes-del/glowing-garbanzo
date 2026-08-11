@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Client, Remboursement, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import {
+  Client,
+  PlanningShift,
+  Profile,
+  Remboursement,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
 import { addDays, localDateStr } from "@/lib/dates";
 import { resaTotalMontant } from "@/lib/resa";
 
@@ -53,6 +61,134 @@ function JumpBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
+function AppelRow({
+  c,
+  todayStr,
+  assignee,
+  onUpdateClient,
+  onOpenClient,
+}: {
+  c: Client;
+  todayStr: string;
+  assignee: string;
+  onUpdateClient: (id: string, patch: Partial<Client>) => void;
+  onOpenClient: (id: string) => void;
+}) {
+  if (c.prochain_appel_confirme) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm">
+        <span className="font-amounts text-neutral-500">
+          {fmtDate(c.prochain_appel_date)} {c.prochain_appel_heure}
+        </span>
+        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+          {c.prochain_appel_fuseau === "egypte" ? "Heure égyptienne" : "Heure française"}
+        </span>
+        {c.prochain_appel_plateforme && (
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+            {c.prochain_appel_plateforme}
+          </span>
+        )}
+        <span>
+          <strong>{c.nom || "Sans nom"}</strong>
+        </span>
+        {assignee && (
+          <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
+            👤 {assignee}
+          </span>
+        )}
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+          Confirmé ✓
+        </span>
+        <span className="flex-1" />
+        <button
+          onClick={() => onUpdateClient(c.id, { prochain_appel_confirme: false })}
+          className="text-xs text-neutral-500 hover:underline"
+        >
+          Annuler la confirmation
+        </button>
+        <JumpBtn onClick={() => onOpenClient(c.id)} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
+        c.prochain_appel_date === todayStr
+          ? "border-[#f5a623] bg-[#f5a623]/10"
+          : "border-neutral-200 bg-white"
+      }`}
+    >
+      <input
+        type="date"
+        value={c.prochain_appel_date ?? ""}
+        onChange={(e) => onUpdateClient(c.id, { prochain_appel_date: e.target.value || null })}
+        className="input w-36 text-xs"
+      />
+      <input
+        type="time"
+        value={c.prochain_appel_heure}
+        onChange={(e) => onUpdateClient(c.id, { prochain_appel_heure: e.target.value })}
+        className="input w-28 text-xs"
+      />
+      <select
+        value={c.prochain_appel_fuseau}
+        onChange={(e) =>
+          onUpdateClient(c.id, { prochain_appel_fuseau: e.target.value as "france" | "egypte" })
+        }
+        className="input w-32 text-xs"
+      >
+        <option value="france">Heure française</option>
+        <option value="egypte">Heure égyptienne</option>
+      </select>
+      <select
+        value={c.prochain_appel_plateforme}
+        onChange={(e) => onUpdateClient(c.id, { prochain_appel_plateforme: e.target.value })}
+        className="input w-36 text-xs"
+      >
+        <option value="">Plateforme…</option>
+        {APPEL_PLATEFORMES.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+      <span>
+        <strong>{c.nom || "Sans nom"}</strong>
+      </span>
+      {assignee && (
+        <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
+          👤 {assignee}
+        </span>
+      )}
+      <span className="flex-1" />
+      <label className="flex items-center gap-1 text-xs text-neutral-600">
+        <input
+          type="checkbox"
+          checked={c.prochain_appel_confirme}
+          onChange={(e) => onUpdateClient(c.id, { prochain_appel_confirme: e.target.checked })}
+        />
+        Confirmé
+      </label>
+      <button
+        onClick={() =>
+          onUpdateClient(c.id, {
+            prochain_appel_date: null,
+            prochain_appel_heure: "",
+            prochain_appel_fuseau: "france",
+            prochain_appel_plateforme: "",
+            prochain_appel_confirme: false,
+          })
+        }
+        className="text-xs text-red-600 hover:underline"
+      >
+        Retirer
+      </button>
+      <JumpBtn onClick={() => onOpenClient(c.id)} />
+    </div>
+  );
+}
+
 export default function SuivisView({
   sub,
   clients,
@@ -60,6 +196,8 @@ export default function SuivisView({
   resaOptions,
   resaTarifs,
   remboursements,
+  profiles,
+  planningShifts,
   onUpdateClient,
   onUpdateReservation,
   onOpenClient,
@@ -70,6 +208,8 @@ export default function SuivisView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   remboursements: Remboursement[];
+  profiles: Profile[];
+  planningShifts: PlanningShift[];
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onOpenClient: (id: string) => void;
@@ -143,9 +283,35 @@ export default function SuivisView({
 
   const billetsRows = reservations.filter((r) => r.billet_requis);
 
+  const nameForProfile = (p: Profile) => p.prenom || p.email.split("@")[0];
+
+  // Personne assignée à un appel : déduite du planning équipe (qui travaille
+  // à cette date, à cette heure), pas une saisie manuelle — plusieurs noms
+  // possibles si plusieurs personnes sont en poste au même moment.
+  const personneAssigneeAppel = (date: string | null, heure: string) => {
+    if (!date || !heure) return "";
+    const noms = planningShifts
+      .filter(
+        (s) =>
+          s.date === date &&
+          s.statut === "travail" &&
+          s.shift_debut &&
+          s.shift_fin &&
+          s.shift_debut <= heure &&
+          heure <= s.shift_fin
+      )
+      .map((s) => profiles.find((p) => p.id === s.user_id))
+      .filter((p): p is Profile => !!p)
+      .map(nameForProfile);
+    return Array.from(new Set(noms)).join(" / ");
+  };
+
   const appelsRows = clients
     .filter((c) => c.prochain_appel_date)
     .sort((a, b) => (a.prochain_appel_date || "").localeCompare(b.prochain_appel_date || ""));
+
+  const appelsDueRows = appelsRows.filter((c) => (c.prochain_appel_date || "") <= todayStr);
+  const appelsUpcomingRows = appelsRows.filter((c) => (c.prochain_appel_date || "") > todayStr);
 
   // Règle métier : le pick-up réel n'est jamais communiqué au client avant
   // J-1, et doit toujours être confirmé avant 18h la veille — jamais plus
@@ -393,10 +559,7 @@ export default function SuivisView({
       )}
 
       {sub === "appels" && (
-        <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-            Appels programmés
-          </h3>
+        <div className="space-y-6">
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-neutral-300 bg-white p-3">
             <select
               value={newAppelClientId}
@@ -421,79 +584,47 @@ export default function SuivisView({
               className="input w-40"
             />
           </div>
-          {appelsRows.length === 0 && (
-            <div className="text-sm text-neutral-400">Aucun appel programmé.</div>
-          )}
-          <div className="space-y-2">
-            {appelsRows.map((c) => (
-              <div
-                key={c.id}
-                className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
-                  c.prochain_appel_date === todayStr
-                    ? "border-[#f5a623] bg-[#f5a623]/10"
-                    : "border-neutral-200 bg-white"
-                }`}
-              >
-                <input
-                  type="date"
-                  value={c.prochain_appel_date ?? ""}
-                  onChange={(e) =>
-                    onUpdateClient(c.id, { prochain_appel_date: e.target.value || null })
-                  }
-                  className="input w-36 text-xs"
+
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+              Appels programmés
+            </h3>
+            {appelsDueRows.length === 0 && (
+              <div className="text-sm text-neutral-400">Aucun appel programmé.</div>
+            )}
+            <div className="space-y-2">
+              {appelsDueRows.map((c) => (
+                <AppelRow
+                  key={c.id}
+                  c={c}
+                  todayStr={todayStr}
+                  assignee={personneAssigneeAppel(c.prochain_appel_date, c.prochain_appel_heure)}
+                  onUpdateClient={onUpdateClient}
+                  onOpenClient={onOpenClient}
                 />
-                <input
-                  type="time"
-                  value={c.prochain_appel_heure}
-                  onChange={(e) => onUpdateClient(c.id, { prochain_appel_heure: e.target.value })}
-                  className="input w-28 text-xs"
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+              Prochains appels à venir
+            </h3>
+            {appelsUpcomingRows.length === 0 && (
+              <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
+            )}
+            <div className="space-y-2">
+              {appelsUpcomingRows.map((c) => (
+                <AppelRow
+                  key={c.id}
+                  c={c}
+                  todayStr={todayStr}
+                  assignee={personneAssigneeAppel(c.prochain_appel_date, c.prochain_appel_heure)}
+                  onUpdateClient={onUpdateClient}
+                  onOpenClient={onOpenClient}
                 />
-                <select
-                  value={c.prochain_appel_fuseau}
-                  onChange={(e) =>
-                    onUpdateClient(c.id, {
-                      prochain_appel_fuseau: e.target.value as "france" | "egypte",
-                    })
-                  }
-                  className="input w-32 text-xs"
-                >
-                  <option value="france">Heure française</option>
-                  <option value="egypte">Heure égyptienne</option>
-                </select>
-                <select
-                  value={c.prochain_appel_plateforme}
-                  onChange={(e) =>
-                    onUpdateClient(c.id, { prochain_appel_plateforme: e.target.value })
-                  }
-                  className="input w-36 text-xs"
-                >
-                  <option value="">Plateforme…</option>
-                  {APPEL_PLATEFORMES.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-                <span>
-                  <strong>{c.nom || "Sans nom"}</strong>
-                </span>
-                <span className="flex-1" />
-                <button
-                  onClick={() =>
-                    onUpdateClient(c.id, {
-                      prochain_appel_date: null,
-                      prochain_appel_heure: "",
-                      prochain_appel_fuseau: "france",
-                      prochain_appel_plateforme: "",
-                    })
-                  }
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Retirer
-                </button>
-                <JumpBtn onClick={() => onOpenClient(c.id)} />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}

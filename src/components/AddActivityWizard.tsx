@@ -814,7 +814,16 @@ export default function AddActivityWizard({
           </button>
           <button
             type="button"
-            onClick={() => onUpdateReservation(r.id, { tarif_mode: "groupe" })}
+            onClick={() =>
+              onUpdateReservation(r.id, {
+                tarif_mode: "groupe",
+                // Pré-remplit avec les participants déjà choisis à l'étape
+                // précédente — l'employée n'a pas à ressaisir des nombres
+                // qu'elle vient déjà de sélectionner.
+                participants_extra1: nbAd,
+                participants_extra_enfants: nbEnf,
+              })
+            }
             className={`rounded-full border px-3 py-1 text-xs ${
               r.tarif_mode === "groupe"
                 ? "border-[#C9973E] bg-[#C9973E] text-white"

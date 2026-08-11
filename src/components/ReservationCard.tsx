@@ -400,7 +400,15 @@ export default function ReservationCard({
         </button>
         <button
           type="button"
-          onClick={() => onUpdate({ tarif_mode: "groupe" })}
+          onClick={() =>
+            onUpdate({
+              tarif_mode: "groupe",
+              // Pré-remplit avec les participants déjà choisis plus bas —
+              // pas besoin de ressaisir des nombres déjà sélectionnés.
+              participants_extra1: nbAd,
+              participants_extra_enfants: nbEnf,
+            })
+          }
           className={`rounded-full border px-3 py-1 text-xs ${
             r.tarif_mode === "groupe"
               ? "border-[#C9973E] bg-[#C9973E] text-white"

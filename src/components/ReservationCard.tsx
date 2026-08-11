@@ -10,7 +10,13 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { BILLET_STATUTS, CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
+import {
+  BILLET_STATUTS,
+  CHAMPS_REQUIS_PRESETS,
+  CRENEAUX_ACTIVITE,
+  OPTIONS_PRESETS,
+  VILLES_VOL,
+} from "@/lib/constants";
 import {
   groupeExtraCounts,
   formatOptionLabel,
@@ -1000,6 +1006,14 @@ export default function ReservationCard({
 
         {r.billet_requis && (
           <div className="mt-3 grid grid-cols-2 gap-3">
+            <Field label="Nom complet (comme au passeport)">
+              <input
+                value={r.billet_nom_complet}
+                onChange={(e) => onUpdate({ billet_nom_complet: e.target.value })}
+                placeholder="À écrire tel quel pour Hossam / le prestataire"
+                className="input"
+              />
+            </Field>
             <Field label="Statut">
               <select
                 value={r.billet_statut}
@@ -1018,6 +1032,30 @@ export default function ReservationCard({
                 onChange={(e) => onUpdate({ billet_date: e.target.value || null })}
                 className="input"
               />
+            </Field>
+            <Field label="Ville de départ">
+              <select
+                value={r.billet_ville_depart}
+                onChange={(e) => onUpdate({ billet_ville_depart: e.target.value })}
+                className="input"
+              >
+                <option value="">—</option>
+                {VILLES_VOL.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Ville d'arrivée">
+              <select
+                value={r.billet_ville_arrivee}
+                onChange={(e) => onUpdate({ billet_ville_arrivee: e.target.value })}
+                className="input"
+              >
+                <option value="">—</option>
+                {VILLES_VOL.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Acompte billet payé">
               <select
@@ -1039,6 +1077,16 @@ export default function ReservationCard({
                 <option>Oui</option>
               </select>
             </Field>
+            <Field label="Infos envoyées à Hossam">
+              <select
+                value={r.billet_envoye_hossam ? "Oui" : "Non"}
+                onChange={(e) => onUpdate({ billet_envoye_hossam: e.target.value === "Oui" })}
+                className="input"
+              >
+                <option>Non</option>
+                <option>Oui</option>
+              </select>
+            </Field>
             <Field label="Lien billet (Drive)">
               <input
                 value={r.billet_lien}
@@ -1053,6 +1101,14 @@ export default function ReservationCard({
                 className="input"
               />
             </Field>
+            <label className="col-span-2 flex items-center gap-2 text-sm text-neutral-700">
+              <input
+                type="checkbox"
+                checked={r.billet_verifie}
+                onChange={(e) => onUpdate({ billet_verifie: e.target.checked })}
+              />
+              Dossier billet vérifié
+            </label>
           </div>
         )}
       </div>

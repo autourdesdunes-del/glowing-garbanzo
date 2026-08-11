@@ -39,6 +39,15 @@ export const MODES_PAIEMENT = [
 
 export const BILLET_STATUTS = ["En attente", "Validé", "Refusé"] as const;
 
+export const VILLES_VOL = [
+  "Hurghada",
+  "Le Caire",
+  "Marsa Alam",
+  "Louxor",
+  "Assouan",
+  "Charm el-Cheikh",
+] as const;
+
 export const ASSIGNE_A_OPTIONS = ["Bode", "Sylvie", "Autre"] as const;
 
 export const MOMENTS = ["Matin", "Après-midi", "Journée", "Plusieurs jours"] as const;

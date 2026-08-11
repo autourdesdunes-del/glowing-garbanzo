@@ -21,6 +21,7 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
+import { VILLES_VOL } from "@/lib/constants";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -49,6 +50,12 @@ function auRevoirMessage(nom: string) {
 function avisMessage(nom: string) {
   const prenom = firstNameOf(nom) || "—";
   return `Bonjour ${prenom} \n\nJ'espère que vous allez bien ☺️\n\nJe me permets de vous envoyer un message pour savoir si vous seriez d'accord pour nous laisser un avis et partager avec nos voyageurs votre expérience à nos côtés \n\nCela prend quelques petites secondes mais cela nous aide beaucoup pour nous faire connaître comme nous sommes une jeune agence \n\nJe vous laisse le lien juste ici : \n\n➡️ Google : https://g.co/kgs/jUu71x\n\n➡️ Trip Advisor : https://www.tripadvisor.fr/Attraction_Review-g297549-d26856860-Reviews-Autour_des_Dunes-Hurghada_Red_Sea_and_Sinai.html\n\nEn vous remerciant par avance 🙏`;
+}
+// Bloc copié-collé pour Hossam — le nom complet doit être recopié tel quel
+// (comme au passeport) pour éviter toute faute transmise au prestataire.
+function hossamBilletMessage(r: Reservation, client: Client, pax: string) {
+  const nom = r.billet_nom_complet.trim() || client.nom || "Nom ?";
+  return `Billet à réserver\nNom complet : ${nom}\nPassagers : ${pax}\nTrajet : ${r.billet_ville_depart || "?"} → ${r.billet_ville_arrivee || "?"}\nDate : ${r.billet_date ? fmtDate(r.billet_date) : "?"}\nActivité : ${r.nom_activite || "—"}`;
 }
 
 export const SUIVIS_SUBS = [
@@ -476,6 +483,7 @@ export default function SuivisView({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [rdvModalClientId, setRdvModalClientId] = useState<string | null>(null);
   const [rdvKanbanView, setRdvKanbanView] = useState<string>("demain");
+  const [billetsMonthFilter, setBilletsMonthFilter] = useState<string>("tous");
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
   const copyText = async (key: string, text: string) => {
     try {
@@ -566,7 +574,18 @@ export default function SuivisView({
     (b.date_probleme || "").localeCompare(a.date_probleme || "")
   );
 
-  const billetsRows = reservations.filter((r) => r.billet_requis);
+  const billetsAllRows = reservations
+    .filter((r) => r.billet_requis)
+    .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
+  const billetsMonthKeys = Array.from(
+    new Set(billetsAllRows.map((r) => (r.billet_date || "").slice(0, 7)).filter(Boolean))
+  ).sort();
+  const billetsRows =
+    billetsMonthFilter === "tous"
+      ? billetsAllRows
+      : billetsMonthFilter === "sans_date"
+        ? billetsAllRows.filter((r) => !r.billet_date)
+        : billetsAllRows.filter((r) => (r.billet_date || "").slice(0, 7) === billetsMonthFilter);
 
   // Personne assignée à un appel : déduite du planning équipe (qui travaille
   // à cette date, à cette heure), pas une saisie manuelle — plusieurs noms
@@ -1233,23 +1252,64 @@ export default function SuivisView({
           <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
             Billets d&apos;avion — pour Hossam
           </h3>
+
+          <div className="mb-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => setBilletsMonthFilter("tous")}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                billetsMonthFilter === "tous"
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-neutral-300 bg-white text-neutral-600"
+              }`}
+            >
+              Tous
+            </button>
+            {billetsMonthKeys.map((ym) => (
+              <button
+                key={ym}
+                onClick={() => setBilletsMonthFilter(ym)}
+                className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  billetsMonthFilter === ym
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 bg-white text-neutral-600"
+                }`}
+              >
+                {fmtMonthLabel(ym)}
+              </button>
+            ))}
+            <button
+              onClick={() => setBilletsMonthFilter("sans_date")}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                billetsMonthFilter === "sans_date"
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-neutral-300 bg-white text-neutral-600"
+              }`}
+            >
+              Sans date
+            </button>
+          </div>
+
           {billetsRows.length === 0 && (
             <div className="text-sm text-neutral-400">
-              Aucune activité avec billet à gérer pour l&apos;instant.
+              Aucune activité avec billet à gérer pour cette période.
             </div>
           )}
           <div className="space-y-2">
             {billetsRows.map((r) => {
               const client = clients.find((c) => c.id === r.client_id);
               if (!client) return null;
+              const { nbAd, nbEnf } = participantsFor(r, client);
+              const pax = r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`;
               const key = "billet-" + r.id;
-              const isOpen = expanded[key];
               return (
-                <div key={r.id} className="rounded-md border border-neutral-200 bg-white">
-                  <div
-                    onClick={() => toggleExpand(key)}
-                    className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
-                  >
+                <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      type="checkbox"
+                      title="Vérifié"
+                      checked={r.billet_verifie}
+                      onChange={(e) => onUpdateReservation(r.id, { billet_verifie: e.target.checked })}
+                    />
                     <span className="text-neutral-500">
                       {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
                     </span>
@@ -1257,6 +1317,10 @@ export default function SuivisView({
                       <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} /> —{" "}
                       {r.nom_activite || "Activité"}
                     </span>
+                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+                      {r.billet_statut}
+                    </span>
+                    <span className="flex-1" />
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         r.billet_acompte_paye
@@ -1273,29 +1337,72 @@ export default function SuivisView({
                           : "bg-[#f5a623]/20 text-[#666666]"
                       }`}
                     >
-                      {r.billet_envoye ? "Envoyé" : "Pas envoyé"}
-                    </span>
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-                      {r.billet_statut}
+                      Client : {r.billet_envoye ? "Envoyé" : "Pas envoyé"}
                     </span>
                   </div>
-                  {isOpen && (
-                    <div className="space-y-1 border-t border-neutral-100 p-3 text-sm text-neutral-600">
-                      {r.billet_lien && (
-                        <div>
-                          <a
-                            href={r.billet_lien}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[#171717] underline"
-                          >
-                            Voir le billet
-                          </a>
-                        </div>
-                      )}
-                      <div>Notes : {r.billet_notes || "—"}</div>
-                    </div>
-                  )}
+
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <span className="text-xs text-neutral-500">{pax} PAX</span>
+                    <select
+                      value={r.billet_ville_depart}
+                      onChange={(e) => onUpdateReservation(r.id, { billet_ville_depart: e.target.value })}
+                      className="input w-32 text-xs"
+                    >
+                      <option value="">Départ…</option>
+                      {VILLES_VOL.map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </select>
+                    <span className="text-neutral-400">→</span>
+                    <select
+                      value={r.billet_ville_arrivee}
+                      onChange={(e) => onUpdateReservation(r.id, { billet_ville_arrivee: e.target.value })}
+                      className="input w-32 text-xs"
+                    >
+                      <option value="">Arrivée…</option>
+                      {VILLES_VOL.map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="mt-2">
+                    <input
+                      value={r.billet_nom_complet}
+                      onChange={(e) => onUpdateReservation(r.id, { billet_nom_complet: e.target.value })}
+                      placeholder="Nom complet (comme au passeport)"
+                      className="input w-full text-xs"
+                    />
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+                      <input
+                        type="checkbox"
+                        checked={r.billet_envoye_hossam}
+                        onChange={(e) =>
+                          onUpdateReservation(r.id, { billet_envoye_hossam: e.target.checked })
+                        }
+                      />
+                      Envoyé à Hossam
+                    </label>
+                    <button
+                      onClick={() => copyText(key, hossamBilletMessage(r, client, pax))}
+                      className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                    >
+                      {copiedKey === key ? "Copié ✓" : "Copier la demande"}
+                    </button>
+                    {r.billet_lien && (
+                      <a
+                        href={r.billet_lien}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-[#171717] underline"
+                      >
+                        Voir le billet
+                      </a>
+                    )}
+                  </div>
                 </div>
               );
             })}

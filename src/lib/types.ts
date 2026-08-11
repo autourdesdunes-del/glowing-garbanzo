@@ -150,6 +150,11 @@ export type Reservation = {
   billet_envoye: boolean;
   billet_lien: string;
   billet_notes: string;
+  billet_verifie: boolean;
+  billet_ville_depart: string;
+  billet_ville_arrivee: string;
+  billet_nom_complet: string;
+  billet_envoye_hossam: boolean;
   avoir_utilise: number;
   enfants_monte: string[];
   created_at: string;

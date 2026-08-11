@@ -544,12 +544,17 @@ export default function SuivisView({
   const pickupsJ1Missing = pickupsJ1.filter(({ r }) => !r.pickup_reel);
   const pickupsJ1Done = pickupsJ1.filter(({ r }) => r.pickup_reel);
 
-  // Pas seulement les arrivées de demain : un client déjà sur place (par
-  // ex. arrivé il y a plusieurs jours) sans chambre enregistrée doit aussi
-  // remonter ici, sinon il passe entre les mailles du filet une fois passé
-  // le jour de son arrivée.
+  // Le numéro de chambre se demande à J-1 de la toute première activité du
+  // client (pas de son arrivée à l'hôtel) — donc calculé depuis la date la
+  // plus proche parmi ses réservations, pas depuis client.date_debut.
+  const firstActivityDateByClient = new Map<string, string>();
+  reservations.forEach((r) => {
+    if (!r.date_debut) return;
+    const current = firstActivityDateByClient.get(r.client_id);
+    if (!current || r.date_debut < current) firstActivityDateByClient.set(r.client_id, r.date_debut);
+  });
   const roomsJ1 = clients.filter(
-    (c) => !c.chambre && c.date_debut && c.date_fin && c.date_debut <= tomorrowStr && c.date_fin >= todayStr
+    (c) => !c.chambre && firstActivityDateByClient.get(c.id) === tomorrowStr
   );
 
   // Un client sans numéro de chambre à J-1 doit être signalé automatiquement

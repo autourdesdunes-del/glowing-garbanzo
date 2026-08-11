@@ -115,8 +115,6 @@ export default function AddActivityWizard({
   onFinish,
   onCancel,
   onBusEscalation,
-  canReorderCatalogue,
-  onReorderCatalogue,
 }: {
   client: Client;
   catalogue: CatalogueItem[];
@@ -138,14 +136,15 @@ export default function AddActivityWizard({
   resaTarifs: Record<string, ReservationTarif[]>;
   onFinish: () => void;
   onCancel: () => void;
-  canReorderCatalogue?: boolean;
-  onReorderCatalogue?: (draggedId: string, targetId: string) => void;
 }) {
   const [step, setStep] = useState<Step>("choix");
   const [draftId, setDraftId] = useState<string | null>(null);
   const [customName, setCustomName] = useState("");
+  // Une activité personnalisée doit être rattachée à une activité existante
+  // du catalogue pour compter dans les statistiques (marges, top des
+  // ventes…) qui se calculent par catalogue_item_id.
+  const [customLinkId, setCustomLinkId] = useState("");
   const [creating, setCreating] = useState(false);
-  const [draggedCatalogueId, setDraggedCatalogueId] = useState<string | null>(null);
   const [pendingRedirect, setPendingRedirect] = useState<{
     item: CatalogueItem;
     kind: "bus" | "safari";
@@ -207,14 +206,21 @@ export default function AddActivityWizard({
   };
 
   const startCustom = async () => {
-    if (creating || !customName.trim()) return;
+    if (creating || !customName.trim() || !customLinkId) return;
     setCreating(true);
+    const linked = catalogue.find((a) => a.id === customLinkId);
     const id = await onAddReservation();
     if (id) {
-      onUpdateReservation(id, { nom_activite: customName.trim(), transfert_inclus: !hotelHorsHurghada });
+      onUpdateReservation(id, {
+        nom_activite: customName.trim(),
+        catalogue_item_id: customLinkId,
+        transfert_inclus: !hotelHorsHurghada,
+        moment: linked && isSpeedboatFixedJournee(linked.nom) ? "Journée" : "",
+        ile_selectionnee: "",
+      });
       setDraftId(id);
       setValidationError(false);
-      setStep("date");
+      setStep(linked && (linked.champs_requis_liste || []).length > 0 ? "specifs" : "date");
     }
     setCreating(false);
   };
@@ -224,6 +230,7 @@ export default function AddActivityWizard({
     setDraftId(null);
     setStep("choix");
     setCustomName("");
+    setCustomLinkId("");
     setValidationError(false);
     onCancel();
   };
@@ -297,11 +304,6 @@ export default function AddActivityWizard({
             }}
           />
         )}
-        {canReorderCatalogue && catalogue.length > 0 && (
-          <p className="mb-2 text-xs text-neutral-400">
-            ⠿ Glisse-dépose une activité pour changer son ordre d&apos;affichage.
-          </p>
-        )}
         {catalogue.length > 0 && (
           <div className="mb-3 grid grid-cols-2 gap-2">
             {catalogue.map((a) => (
@@ -309,17 +311,6 @@ export default function AddActivityWizard({
                 key={a.id}
                 type="button"
                 disabled={creating}
-                draggable={canReorderCatalogue}
-                onDragStart={() => setDraggedCatalogueId(a.id)}
-                onDragEnd={() => setDraggedCatalogueId(null)}
-                onDragOver={(e) => canReorderCatalogue && e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (canReorderCatalogue && draggedCatalogueId && draggedCatalogueId !== a.id) {
-                    onReorderCatalogue?.(draggedCatalogueId, a.id);
-                  }
-                  setDraggedCatalogueId(null);
-                }}
                 onClick={() => {
                   if (isDiscouragedBusActivity(a.nom)) {
                     setPendingRedirect({ item: a, kind: "bus" });
@@ -329,36 +320,41 @@ export default function AddActivityWizard({
                     startFromCatalogue(a);
                   }
                 }}
-                className={`rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50 ${
-                  canReorderCatalogue ? "cursor-move" : ""
-                } ${draggedCatalogueId === a.id ? "opacity-40" : ""}`}
+                className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
               >
-                <span className="block font-medium text-[#171717]">
-                  {canReorderCatalogue && <span className="mr-1.5 text-neutral-300">⠿</span>}
-                  {a.nom}
-                </span>
+                <span className="block font-medium text-[#171717]">{a.nom}</span>
               </button>
             ))}
           </div>
         )}
-        <div className="flex items-center gap-2">
+        <div className="space-y-2">
           <input
             placeholder="Ou activité personnalisée…"
             value={customName}
             onChange={(e) => setCustomName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                startCustom();
-              }
-            }}
-            className="input flex-1"
+            className="input"
           />
+          <select
+            value={customLinkId}
+            onChange={(e) => setCustomLinkId(e.target.value)}
+            className="input"
+          >
+            <option value="">Rattachée à quelle activité du catalogue ? *</option>
+            {catalogue.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.nom}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-neutral-400">
+            Nécessaire pour que cette activité compte dans les statistiques de l&apos;activité du
+            catalogue correspondante.
+          </p>
           <button
             type="button"
-            disabled={creating || !customName.trim()}
+            disabled={creating || !customName.trim() || !customLinkId}
             onClick={startCustom}
-            className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="w-full rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
           >
             Créer
           </button>

@@ -489,6 +489,11 @@ export default function CatalogueView({
   const [newChampsRequis, setNewChampsRequis] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  // Le glisser-déposer normal se marie mal avec un clic simple sur le même
+  // élément (un léger mouvement de souris pendant le clic déclenche un
+  // drag au lieu d'ouvrir la fiche) — d'où ce mode dédié, explicite, plutôt
+  // que rendre chaque carte/ligne draggable en permanence.
+  const [reorderMode, setReorderMode] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   // Réordonner le catalogue est réservé à la Direction — l'ordre choisi
   // pilote aussi bien cet affichage que la liste de choix de l'assistant
@@ -1334,6 +1339,7 @@ export default function CatalogueView({
             onClick={() => {
               setSelectedTag(null);
               setSelectedActivityId(null);
+              setReorderMode(false);
             }}
             className="text-sm font-medium text-[#171717] hover:underline"
           >
@@ -1811,13 +1817,61 @@ export default function CatalogueView({
                 </div>
               );
             })()
+          ) : reorderMode ? (
+            <>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs text-neutral-400">
+                  ⠿ Glisse-dépose une activité pour changer son ordre d&apos;affichage, puis valide.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setReorderMode(false)}
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                >
+                  ✓ Valider l&apos;ordre
+                </button>
+              </div>
+              {filtered.length === 0 && (
+                <div className="text-sm text-neutral-400">
+                  Aucune activité dans cette catégorie pour l&apos;instant.
+                </div>
+              )}
+              <div className="space-y-2">
+                {filtered.map((a) => (
+                  <div
+                    key={a.id}
+                    draggable
+                    onDragStart={() => setDraggedId(a.id)}
+                    onDragEnd={() => setDraggedId(null)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedId && draggedId !== a.id) onReorder(draggedId, a.id);
+                      setDraggedId(null);
+                    }}
+                    className={`flex cursor-move items-center gap-2 rounded-[6px] border border-[#eaeaea] bg-white px-4 py-3 ${
+                      draggedId === a.id ? "opacity-40" : ""
+                    }`}
+                  >
+                    <span className="text-neutral-300">⠿</span>
+                    <span className="truncate text-sm font-medium text-[#171717]">
+                      {a.nom || "Sans nom"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <>
               <div className="mb-3 flex items-center justify-between">
                 {canReorder ? (
-                  <p className="text-xs text-neutral-400">
-                    ⠿ Glisse-dépose une activité pour changer son ordre d&apos;affichage.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setReorderMode(true)}
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:border-[#171717] hover:text-[#171717]"
+                  >
+                    ↕ Réordonner
+                  </button>
                 ) : (
                   <span />
                 )}
@@ -1835,40 +1889,18 @@ export default function CatalogueView({
                     : "divide-y divide-neutral-100 overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white"
                 }
               >
-                {filtered.map((a) => {
-                  const dragProps = canReorder
-                    ? {
-                        draggable: true,
-                        onDragStart: () => setDraggedId(a.id),
-                        onDragEnd: () => setDraggedId(null),
-                        onDragOver: (e: React.DragEvent) => e.preventDefault(),
-                        onDrop: (e: React.DragEvent) => {
-                          e.preventDefault();
-                          if (draggedId && draggedId !== a.id) onReorder(draggedId, a.id);
-                          setDraggedId(null);
-                        },
-                      }
-                    : {};
-                  const dragClass = canReorder
-                    ? `cursor-move ${draggedId === a.id ? "opacity-40" : ""}`
-                    : "";
-                  return !a.valide ? (
-                    <div
-                      key={a.id}
-                      {...dragProps}
-                      className={`${activityViewMode === "cards" ? "sm:col-span-2" : ""} ${dragClass}`}
-                    >
+                {filtered.map((a) =>
+                  !a.valide ? (
+                    <div key={a.id} className={activityViewMode === "cards" ? "sm:col-span-2" : ""}>
                       {renderBrouillon(a)}
                     </div>
                   ) : activityViewMode === "cards" ? (
                     <button
                       key={a.id}
-                      {...dragProps}
                       onClick={() => setSelectedActivityId(a.id)}
-                      className={`rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717] ${dragClass}`}
+                      className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]"
                     >
                       <p className="font-heading text-base font-semibold text-[#171717]">
-                        {canReorder && <span className="mr-1.5 text-neutral-300">⠿</span>}
                         {a.nom || "Sans nom"}
                       </p>
                       <p className="mt-0.5 text-xs text-neutral-400">{a.categorie}</p>
@@ -1879,13 +1911,11 @@ export default function CatalogueView({
                   ) : (
                     <button
                       key={a.id}
-                      {...dragProps}
                       onClick={() => setSelectedActivityId(a.id)}
-                      className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[#fafafa] ${dragClass}`}
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[#fafafa]"
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-[#171717]">
-                          {canReorder && <span className="mr-1.5 text-neutral-300">⠿</span>}
                           {a.nom || "Sans nom"}
                         </p>
                         <p className="text-xs text-neutral-400">{a.categorie}</p>
@@ -1894,8 +1924,8 @@ export default function CatalogueView({
                         <PriceSummary a={a} />
                       </div>
                     </button>
-                  );
-                })}
+                  )
+                )}
               </div>
             </>
           )}

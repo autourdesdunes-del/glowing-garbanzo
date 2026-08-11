@@ -675,7 +675,6 @@ export function ActivitesStep({
   onRequestAdd,
   onBusEscalation,
   busEscalations,
-  onReorderCatalogue,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -704,10 +703,6 @@ export function ActivitesStep({
   onRequestAdd?: () => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   busEscalations: BusEscalation[];
-  // Réordonner le catalogue depuis l'assistant est réservé à la Direction
-  // (voir canSeeMargins) — optionnel car non branché partout (ex. création
-  // rapide d'un nouveau client).
-  onReorderCatalogue?: (draggedId: string, targetId: string) => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
@@ -735,8 +730,6 @@ export function ActivitesStep({
         onFinish={() => setAddingNew(false)}
         onCancel={() => setAddingNew(false)}
         onBusEscalation={onBusEscalation}
-        canReorderCatalogue={canSeeMargins}
-        onReorderCatalogue={onReorderCatalogue}
       />
     );
   }

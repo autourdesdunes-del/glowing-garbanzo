@@ -87,7 +87,6 @@ export default function ClientDetail({
   catalogueTarifs,
   catalogueOptions,
   onOpenHelp,
-  onReorderCatalogue,
 }: {
   client: Client;
   allClients: Client[];
@@ -101,7 +100,6 @@ export default function ClientDetail({
   catalogueTarifs: Record<string, CatalogueTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   onOpenHelp: () => void;
-  onReorderCatalogue?: (draggedId: string, targetId: string) => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const confirm = useConfirm();
@@ -569,7 +567,6 @@ export default function ClientDetail({
         onUpdateCoutReel={updateCoutReel}
         onBusEscalation={handleBusEscalation}
         busEscalations={busEscalations}
-        onReorderCatalogue={onReorderCatalogue}
       />
 
       <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
@@ -623,7 +620,6 @@ export default function ClientDetail({
           onRequestAdd={() => setGuidedOpen(true)}
           onBusEscalation={handleBusEscalation}
           busEscalations={busEscalations}
-          onReorderCatalogue={onReorderCatalogue}
         />
       </Section>
 

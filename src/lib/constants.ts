@@ -1,4 +1,13 @@
-export const STATUTS = ["Prospect", "En négociation", "Client confirmé", "Perdu"] as const;
+// Étapes de la pipeline Prospects, calquées sur le pipeline Kommo (mêmes
+// noms d'étape) pour que les deux restent lisibles côte à côte.
+export const PROSPECT_STATUTS: string[] = [
+  "Prospect",
+  "À relancer",
+  "Programme envoyé",
+  "Demande d'infos envoyée",
+];
+export const CLIENT_STATUTS: string[] = ["Client confirmé", "Client perdu"];
+export const STATUTS: string[] = [...PROSPECT_STATUTS, ...CLIENT_STATUTS];
 export const CANAUX = ["Instagram", "WhatsApp", "TikTok", "Email", "Autre"] as const;
 export const RELATIONS = [
   "Bouche à oreille",
@@ -128,8 +137,10 @@ export const CATALOGUE_CATEGORIES = [
 ] as const;
 
 export const STATUT_COLORS: Record<string, string> = {
-  Prospect: "#666666",
-  "En négociation": "#C9973E",
+  Prospect: "#8FB8F6",
+  "À relancer": "#E8D96B",
+  "Programme envoyé": "#F0C368",
+  "Demande d'infos envoyée": "#F3B8BE",
   "Client confirmé": "#171717",
-  Perdu: "#9CA3AF",
+  "Client perdu": "#9CA3AF",
 };

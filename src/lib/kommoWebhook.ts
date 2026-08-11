@@ -36,11 +36,11 @@ export function parseKommoFormBody(body: string): Record<string, unknown> {
 export const KOMMO_STATUS_MAP: Record<number, { nom: string; statutCrm: string }> = {
       109792979: { nom: "Incoming leads", statutCrm: "Prospect" },
       109792983: { nom: "Prospect", statutCrm: "Prospect" },
-      109792987: { nom: "À relancer", statutCrm: "Prospect" },
-      109792991: { nom: "Programme envoyé", statutCrm: "En négociation" },
-      109792995: { nom: "Demande d'infos envoyée", statutCrm: "En négociation" },
+      109792987: { nom: "À relancer", statutCrm: "À relancer" },
+      109792991: { nom: "Programme envoyé", statutCrm: "Programme envoyé" },
+      109792995: { nom: "Demande d'infos envoyée", statutCrm: "Demande d'infos envoyée" },
       142: { nom: "Réservé", statutCrm: "Client confirmé" },
-      143: { nom: "Client perdu", statutCrm: "Perdu" },
+      143: { nom: "Client perdu", statutCrm: "Client perdu" },
 };
 
 export type KommoEventType =

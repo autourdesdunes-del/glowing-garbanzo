@@ -19,7 +19,7 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
-import { STATUT_COLORS } from "@/lib/constants";
+import { CLIENT_STATUTS, PROSPECT_STATUTS, STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import DashboardView from "@/components/DashboardView";
 import GlobalSearch from "@/components/GlobalSearch";
@@ -53,8 +53,15 @@ type Mode =
   | "rh"
   | "generateur";
 
-const CLIENT_STATUTS = ["Client confirmé", "Perdu"];
-const PROSPECT_STATUTS = ["Prospect", "En négociation"];
+// Sous-menu "Prospects" dans la sidebar (même principe que Suivis) : une
+// entrée par étape de la pipeline Kommo, plus "Toutes les étapes" (vue
+// kanban complète) et "Client perdu" pour surveiller les pertes.
+const PROSPECTS_SUBS = [
+  { key: "toutes", label: "Toutes les étapes" },
+  ...PROSPECT_STATUTS.map((s) => ({ key: s, label: s })),
+  { key: "Client perdu", label: "Client perdu" },
+] as const;
+type ProspectsSub = (typeof PROSPECTS_SUBS)[number]["key"];
 
 function IconHome() {
   return (
@@ -216,6 +223,7 @@ function AppShellInner({
 
   const [mode, setMode] = useState<Mode>("dashboard");
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
+  const [prospectsSub, setProspectsSub] = useState<ProspectsSub>("toutes");
   const [clients, setClients] = useState<Client[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -375,7 +383,12 @@ function AppShellInner({
     if (viewAsTeam && mode === "direction") setMode("dashboard");
   }, [viewAsTeam, mode]);
 
-  const activeStatuts = mode === "prospects" ? PROSPECT_STATUTS : CLIENT_STATUTS;
+  const activeStatuts =
+    mode === "prospects"
+      ? prospectsSub === "toutes"
+        ? PROSPECT_STATUTS
+        : [prospectsSub]
+      : CLIENT_STATUTS;
   const scoped = clients.filter((c) => activeStatuts.includes(c.statut));
   const allTags = Array.from(new Set(scoped.flatMap((c) => c.tags || []))).sort();
   const filtered = scoped
@@ -386,6 +399,7 @@ function AppShellInner({
   const openClient = (id: string) => {
     const c = clients.find((cl) => cl.id === id);
     setMode(c && PROSPECT_STATUTS.includes(c.statut) ? "prospects" : "team");
+    setProspectsSub("toutes");
     setSelectedId(id);
   };
 
@@ -868,6 +882,23 @@ function AppShellInner({
                         onClick={() => setSuivisSub(s.key)}
                         className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
                           suivisSub === s.key
+                            ? "bg-[#fafafa] text-[#171717]"
+                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {t.key === "prospects" && active && (
+                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                    {PROSPECTS_SUBS.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setProspectsSub(s.key)}
+                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                          prospectsSub === s.key
                             ? "bg-[#fafafa] text-[#171717]"
                             : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
                         }`}

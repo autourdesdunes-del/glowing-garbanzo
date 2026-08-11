@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Client, PlanningShift, Reservation, ReservationOption, ReservationTarif, UserShift } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
 import { addDays, localDateStr } from "@/lib/dates";
-import { STATUTS, STATUT_COLORS } from "@/lib/constants";
+import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
 import QuickAddClient from "@/components/QuickAddClient";
 
@@ -310,7 +310,7 @@ export default function DashboardView({
   // relancer reste marqué "à relancer" jusqu'à ce qu'il réponde.
   const staleProspects = clients.filter(
     (c) =>
-      (c.statut === "Prospect" || c.statut === "En négociation") &&
+      PROSPECT_STATUTS.includes(c.statut) &&
       c.date_debut &&
       c.date_debut >= todayStr &&
       c.date_debut <= in14Days &&

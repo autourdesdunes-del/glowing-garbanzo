@@ -45,6 +45,7 @@ export default function GuidedActivityModal({
   onUpdateCoutReel,
   onBusEscalation,
   busEscalations,
+  onReorderCatalogue,
 }: {
   open: boolean;
   onClose: () => void;
@@ -71,6 +72,7 @@ export default function GuidedActivityModal({
   onUpdateCoutReel: (id: string, value: number) => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   busEscalations: BusEscalation[];
+  onReorderCatalogue?: (draggedId: string, targetId: string) => void;
 }) {
   const [step, setStep] = useState<Step>("activites");
 
@@ -131,6 +133,7 @@ export default function GuidedActivityModal({
             onUpdateCoutReel={onUpdateCoutReel}
             onBusEscalation={onBusEscalation}
             busEscalations={busEscalations}
+            onReorderCatalogue={onReorderCatalogue}
           />
         )}
 

@@ -1081,6 +1081,7 @@ function AppShellInner({
                 catalogueTarifs={catalogueTarifs}
                 catalogueOptions={catalogueOptions}
                 onOpenHelp={() => setMode("help")}
+                onReorderCatalogue={reorderCatalogueItem}
               />
             )}
           </main>

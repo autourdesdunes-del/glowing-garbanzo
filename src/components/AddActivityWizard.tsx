@@ -97,6 +97,8 @@ export default function AddActivityWizard({
   onFinish,
   onCancel,
   onBusEscalation,
+  canReorderCatalogue,
+  onReorderCatalogue,
 }: {
   client: Client;
   catalogue: CatalogueItem[];
@@ -118,11 +120,14 @@ export default function AddActivityWizard({
   resaTarifs: Record<string, ReservationTarif[]>;
   onFinish: () => void;
   onCancel: () => void;
+  canReorderCatalogue?: boolean;
+  onReorderCatalogue?: (draggedId: string, targetId: string) => void;
 }) {
   const [step, setStep] = useState<Step>("choix");
   const [draftId, setDraftId] = useState<string | null>(null);
   const [customName, setCustomName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [draggedCatalogueId, setDraggedCatalogueId] = useState<string | null>(null);
   const [pendingRedirect, setPendingRedirect] = useState<{
     item: CatalogueItem;
     kind: "bus" | "safari";
@@ -269,6 +274,11 @@ export default function AddActivityWizard({
             }}
           />
         )}
+        {canReorderCatalogue && catalogue.length > 0 && (
+          <p className="mb-2 text-xs text-neutral-400">
+            ⠿ Glisse-dépose une activité pour changer son ordre d&apos;affichage.
+          </p>
+        )}
         {catalogue.length > 0 && (
           <div className="mb-3 grid grid-cols-2 gap-2">
             {catalogue.map((a) => (
@@ -276,6 +286,17 @@ export default function AddActivityWizard({
                 key={a.id}
                 type="button"
                 disabled={creating}
+                draggable={canReorderCatalogue}
+                onDragStart={() => setDraggedCatalogueId(a.id)}
+                onDragEnd={() => setDraggedCatalogueId(null)}
+                onDragOver={(e) => canReorderCatalogue && e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (canReorderCatalogue && draggedCatalogueId && draggedCatalogueId !== a.id) {
+                    onReorderCatalogue?.(draggedCatalogueId, a.id);
+                  }
+                  setDraggedCatalogueId(null);
+                }}
                 onClick={() => {
                   if (isDiscouragedBusActivity(a.nom)) {
                     setPendingRedirect({ item: a, kind: "bus" });
@@ -285,9 +306,14 @@ export default function AddActivityWizard({
                     startFromCatalogue(a);
                   }
                 }}
-                className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
+                className={`rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50 ${
+                  canReorderCatalogue ? "cursor-move" : ""
+                } ${draggedCatalogueId === a.id ? "opacity-40" : ""}`}
               >
-                <span className="block font-medium text-[#171717]">{a.nom}</span>
+                <span className="block font-medium text-[#171717]">
+                  {canReorderCatalogue && <span className="mr-1.5 text-neutral-300">⠿</span>}
+                  {a.nom}
+                </span>
               </button>
             ))}
           </div>

@@ -68,6 +68,19 @@ function isAdultsOnly(client: Client) {
 const SAFARI_ADULTS_TEXT =
   "Le Grand Safari Bédouin est une activité pensée pour les familles avec enfants, avec des temps d'activité très courts (30 min de quad, 15 min de buggy). Pour des adultes, nous recommandons plutôt l'excursion quad classique de 2h : vous en profiterez beaucoup plus, tout en découvrant vous aussi le village bédouin. Vous pouvez même combiner l'excursion quad avec le dîner spectacle, pour le même tarif que le Grand Safari Bédouin.";
 
+// Le titre affiché (nom_activite) se recalcule à chaque étape qui le
+// concerne (île / moment / créneau), toujours à partir du nom catalogue de
+// base — jamais en concaténant sur le titre déjà modifié, pour rester
+// idempotent si l'employée revient en arrière et change sa réponse.
+function baseTitleFor(catalogueItem: CatalogueItem, ileSelectionnee: string) {
+  const iType = speedboatIleType(catalogueItem.nom);
+  return iType && ileSelectionnee ? speedboatIleTitre(iType, ileSelectionnee) : catalogueItem.nom;
+}
+
+function titleWithSuffix(base: string, suffix: string) {
+  return suffix ? `${base} — ${suffix}` : base;
+}
+
 type Step =
   | "choix"
   | "specifs"
@@ -155,6 +168,10 @@ export default function AddActivityWizard({
   } | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
+  // Une activité personnalisée garde le titre tapé à la main — on ne le
+  // recalcule jamais automatiquement (île / moment / créneau / nb de
+  // chevaux) dans ce cas, contrairement aux activités venant du catalogue.
+  const [isCustomFlow, setIsCustomFlow] = useState(false);
 
   const r = reservations.find((x) => x.id === draftId) || null;
   const options = draftId ? resaOptions[draftId] || [] : [];
@@ -184,6 +201,7 @@ export default function AddActivityWizard({
   const startFromCatalogue = async (item: CatalogueItem): Promise<string | null> => {
     if (creating) return null;
     setCreating(true);
+    setIsCustomFlow(false);
     const id = await onAddReservation();
     if (id) {
       onUpdateReservation(id, {
@@ -218,6 +236,7 @@ export default function AddActivityWizard({
   const startCustom = async () => {
     if (creating || !customName.trim() || !customLinkId) return;
     setCreating(true);
+    setIsCustomFlow(true);
     const linked = catalogue.find((a) => a.id === customLinkId);
     const id = await onAddReservation();
     if (id) {
@@ -242,6 +261,7 @@ export default function AddActivityWizard({
     setCustomName("");
     setCustomLinkId("");
     setValidationError(false);
+    setIsCustomFlow(false);
     onCancel();
   };
 
@@ -424,7 +444,20 @@ export default function AddActivityWizard({
             <Field label="Créneau *">
               <select
                 value={r.creneau}
-                onChange={(e) => onUpdateReservation(r.id, { creneau: e.target.value })}
+                onChange={(e) => {
+                  const creneau = e.target.value;
+                  onUpdateReservation(r.id, {
+                    creneau,
+                    ...(catalogueItem && !isCustomFlow
+                      ? {
+                          nom_activite: titleWithSuffix(
+                            baseTitleFor(catalogueItem, r.ile_selectionnee),
+                            creneau
+                          ),
+                        }
+                      : {}),
+                  });
+                }}
                 className={`input ${
                   validationError && !r.creneau ? "border-red-300 focus:border-red-400" : ""
                 }`}
@@ -671,7 +704,12 @@ export default function AddActivityWizard({
               key={m}
               type="button"
               onClick={() => {
-                onUpdateReservation(r.id, { moment: m });
+                onUpdateReservation(r.id, {
+                  moment: m,
+                  ...(catalogueItem && !isCustomFlow
+                    ? { nom_activite: titleWithSuffix(baseTitleFor(catalogueItem, r.ile_selectionnee), m) }
+                    : {}),
+                });
                 setValidationError(false);
               }}
               className={`rounded-full border px-3 py-1 text-sm font-medium ${
@@ -774,7 +812,19 @@ export default function AddActivityWizard({
           </div>
         )}
         <div className="mt-3">
-          <label className="flex items-center gap-2 text-xs text-neutral-500">
+          {catalogueItem && isChevalOuChameau(catalogueItem.nom) && nbEnfantsParticipants > 0 && (
+            <p className="mb-2 text-xs font-semibold text-red-600">
+              ⚠ Conseillé : écrivez vous-même le texte affiché ci-dessous. Exemple : « 3 participants
+              à cheval, 2 passagers »
+            </p>
+          )}
+          <label
+            className={`flex items-center gap-2 text-xs ${
+              catalogueItem && isChevalOuChameau(catalogueItem.nom) && nbEnfantsParticipants > 0
+                ? "font-semibold text-red-600"
+                : "text-neutral-500"
+            }`}
+          >
             <input
               type="checkbox"
               checked={showPaxOverride}
@@ -837,12 +887,29 @@ export default function AddActivityWizard({
       // rien (le tarif accompagnateur de cette activité doit être à 0 €
       // dans le catalogue).
       const nbSeul = nbEnf - nbDerriere;
+      const nbChevaux = nbAd + nbSeul;
+      const estChameau = (catalogueItem?.nom || "").toLowerCase().includes("chameau");
+      const animalLabel = estChameau
+        ? nbChevaux > 1
+          ? "chameaux"
+          : "chameau"
+        : nbChevaux > 1
+        ? "chevaux"
+        : "cheval";
       onUpdateReservation(r.id, {
         enfants_monte: reponses,
         participants_mode: "custom",
-        participants_adultes: nbAd + nbSeul,
+        participants_adultes: nbChevaux,
         participants_enfants: 0,
         participants_accompagnateurs: nbDerriere,
+        ...(catalogueItem && !isCustomFlow
+          ? {
+              nom_activite: titleWithSuffix(
+                baseTitleFor(catalogueItem, r.ile_selectionnee),
+                `${nbChevaux} ${animalLabel}`
+              ),
+            }
+          : {}),
       });
       setStep(nextStep);
     };

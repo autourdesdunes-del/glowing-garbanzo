@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  CatalogueItem,
   Client,
   PlanningShift,
   Profile,
@@ -165,13 +166,27 @@ function pickupMissingTeamMessage(r: Reservation, client: Client) {
   }`;
 }
 
-function pickupClientMessage(r: Reservation, client: Client, montantRestant: number) {
+function pickupClientMessage(
+  r: Reservation,
+  client: Client,
+  montantRestant: number,
+  catalogue: CatalogueItem[]
+) {
   const prenom = firstNameOf(client.nom) || "—";
+  const catalogueItem = r.catalogue_item_id
+    ? catalogue.find((a) => a.id === r.catalogue_item_id)
+    : null;
+  // Ce qu'il faut prévoir vient du catalogue (liste structurée), pas du
+  // champ libre de la réservation — c'est la vraie liste tenue à jour par
+  // activité, alors que la copie sur la réservation peut être vide/périmée.
+  const aPrevoirListe = catalogueItem?.a_prevoir_liste?.length
+    ? catalogueItem.a_prevoir_liste.join(", ")
+    : catalogueItem?.a_prevoir || r.a_prevoir || "le nécessaire pour l'activité";
   const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
   const paiementLigne = soldeIci
-    ? `\nComme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros sur place demain auprès de notre représentant sur place.`
+    ? `\n\nComme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros sur place demain, auprès de notre représentant.`
     : "";
-  return `Bonjour ${prenom}, pour demain pour votre activité ${r.nom_activite || "—"} le chauffeur viendra vous récupérer à ${r.pickup_reel} devant la réception de votre hôtel, côté extérieur.\nPour cette activité n'oubliez pas ${r.a_prevoir || "le nécessaire pour l'activité"}.${paiementLigne}\nVous trouverez dans votre page client le rappel du programme de la journée de demain.☀️`;
+  return `Bonjour ${prenom} 🚐\nPour votre activité ${r.nom_activite || "—"} demain, le chauffeur passera vous chercher à ${r.pickup_reel}, devant la réception de votre hôtel, côté extérieur.\n\nÀ prévoir : ${aPrevoirListe}.${paiementLigne}\n\nVous retrouverez le programme complet de votre journée de demain sur votre page client. ☀️`;
 }
 
 // Même style de carte que la fiche client (ReservationCard, vue repliée) —
@@ -386,6 +401,7 @@ export default function SuivisView({
   remboursements,
   profiles,
   planningShifts,
+  catalogue,
   onUpdateClient,
   onUpdateReservation,
   onOpenClient,
@@ -398,6 +414,7 @@ export default function SuivisView({
   remboursements: Remboursement[];
   profiles: Profile[];
   planningShifts: PlanningShift[];
+  catalogue: CatalogueItem[];
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onOpenClient: (id: string) => void;
@@ -529,6 +546,19 @@ export default function SuivisView({
 
   const roomsJ1 = clients.filter((c) => c.date_debut === tomorrowStr);
 
+  // Un client sans numéro de chambre à J-1 doit être signalé automatiquement
+  // dans "infos manquantes" — pas besoin de le cocher à la main en plus de
+  // le voir dans cette liste.
+  useEffect(() => {
+    if (sub !== "j1") return;
+    roomsJ1.forEach((c) => {
+      if (!c.chambre && !c.infos_manquantes.includes("Room number")) {
+        onUpdateClient(c.id, { infos_manquantes: [...c.infos_manquantes, "Room number"] });
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub, clients, tomorrowStr]);
+
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
       {sub === "j1" && (
@@ -547,7 +577,7 @@ export default function SuivisView({
                 {pickupsJ1.length === 0 ? "Aucune activité prévue demain." : "Tous les pick-ups sont renseignés ✓"}
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {pickupsJ1Missing.map(({ r, client }) => {
                   const urgent = pastDeadline;
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
@@ -564,32 +594,30 @@ export default function SuivisView({
                   return (
                     <div
                       key={r.id}
-                      className={`flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start ${
+                      className={`rounded-md border p-3 ${
                         urgent ? "border-red-400 bg-red-50" : "border-[#f5a623]/40 bg-[#f5a623]/5"
                       }`}
                     >
-                      <div className="flex-1">
-                        <div className="mb-1.5 flex items-center gap-2 text-xs">
-                          <strong className="text-sm text-[#171717]">{client.nom || "Sans nom"}</strong>
-                          {urgent && (
-                            <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-medium text-white">
-                              En retard — 18h dépassé
-                            </span>
-                          )}
-                          <span className="flex-1" />
-                          <JumpBtn onClick={() => onOpenClient(client.id)} />
-                        </div>
-                        <PickupActivityCard
-                          r={r}
-                          client={client}
-                          total={total}
-                          badge={badge}
-                          paiementWarning={paiementWarning}
-                          acompteWarning={acompteWarning}
-                          onAskPickup={askPickup}
-                        />
+                      <div className="mb-1.5 flex items-center gap-2 text-xs">
+                        <strong className="text-sm text-[#171717]">{client.nom || "Sans nom"}</strong>
+                        {urgent && (
+                          <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-medium text-white">
+                            En retard — 18h dépassé
+                          </span>
+                        )}
+                        <span className="flex-1" />
+                        <JumpBtn onClick={() => onOpenClient(client.id)} />
                       </div>
-                      <div className="flex w-full flex-col gap-2 sm:w-56">
+                      <PickupActivityCard
+                        r={r}
+                        client={client}
+                        total={total}
+                        badge={badge}
+                        paiementWarning={paiementWarning}
+                        acompteWarning={acompteWarning}
+                        onAskPickup={askPickup}
+                      />
+                      <div className="mt-2 flex flex-col gap-2">
                         <input
                           type="text"
                           placeholder="Pick-up réel (heure / lieu)"
@@ -629,7 +657,7 @@ export default function SuivisView({
               <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
                 Pick-ups confirmés pour demain
               </h3>
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {pickupsJ1Done.map(({ r, client }) => {
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
                   const badge = paiementBadge(client, r);
@@ -642,39 +670,32 @@ export default function SuivisView({
                   );
                   const acompteWarning = acompteWaitingWarning(client, r, reservations);
                   const montantRestant = soldeRestantFor(client);
-                  const clientMsg = pickupClientMessage(r, client, montantRestant);
+                  const clientMsg = pickupClientMessage(r, client, montantRestant, catalogue);
                   return (
-                    <div
-                      key={r.id}
-                      className="flex flex-col gap-2 rounded-md border border-neutral-200 bg-white p-3 sm:flex-row sm:items-start"
-                    >
-                      <div className="flex-1">
-                        <div className="mb-1.5 flex items-center gap-2 text-xs">
-                          <strong className="text-sm text-[#171717]">{client.nom || "Sans nom"}</strong>
-                          <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
-                            Pick-up {r.pickup_reel}
-                          </span>
-                          <span className="flex-1" />
-                          <JumpBtn onClick={() => onOpenClient(client.id)} />
-                        </div>
-                        <PickupActivityCard
-                          r={r}
-                          client={client}
-                          total={total}
-                          badge={badge}
-                          paiementWarning={paiementWarning}
-                          acompteWarning={acompteWarning}
-                          onAskPickup={askPickup}
-                        />
+                    <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3">
+                      <div className="mb-1.5 flex items-center gap-2 text-xs">
+                        <strong className="text-sm text-[#171717]">{client.nom || "Sans nom"}</strong>
+                        <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
+                          Pick-up {r.pickup_reel}
+                        </span>
+                        <span className="flex-1" />
+                        <JumpBtn onClick={() => onOpenClient(client.id)} />
                       </div>
-                      <div className="flex w-full sm:w-56">
-                        <button
-                          onClick={() => copyText("pickup-client-" + r.id, clientMsg)}
-                          className="w-full rounded-md bg-[#171717] px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
-                        >
-                          {copiedKey === "pickup-client-" + r.id ? "Copié ✓" : "Copier message client"}
-                        </button>
-                      </div>
+                      <PickupActivityCard
+                        r={r}
+                        client={client}
+                        total={total}
+                        badge={badge}
+                        paiementWarning={paiementWarning}
+                        acompteWarning={acompteWarning}
+                        onAskPickup={askPickup}
+                      />
+                      <button
+                        onClick={() => copyText("pickup-client-" + r.id, clientMsg)}
+                        className="mt-2 w-full rounded-md bg-[#171717] px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                      >
+                        {copiedKey === "pickup-client-" + r.id ? "Copié ✓" : "Copier message client"}
+                      </button>
                     </div>
                   );
                 })}

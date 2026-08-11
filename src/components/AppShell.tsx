@@ -1210,6 +1210,7 @@ function AppShellInner({
               remboursements={allRemboursements}
               profiles={teamProfiles}
               planningShifts={teamPlanningShifts}
+              catalogue={catalogue}
               onUpdateClient={updateClientById}
               onUpdateReservation={updateReservationById}
               onOpenClient={openClient}

@@ -11,7 +11,14 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import { addDays, localDateStr } from "@/lib/dates";
-import { hideMoment, participantsFor, resaTotalMontant } from "@/lib/resa";
+import {
+  acompteWaitingWarning,
+  activitePaiementWarning,
+  hideMoment,
+  paiementBadge,
+  participantsFor,
+  resaTotalMontant,
+} from "@/lib/resa";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 
 function euros(n: number) {
@@ -170,66 +177,56 @@ function pickupClientMessage(r: Reservation, client: Client, montantRestant: num
 // Même style de carte que la fiche client (ReservationCard, vue repliée) —
 // pour reconnaître une activité au premier coup d'œil, y compris quand il y
 // en a 50 dans la journée.
+// Reprend exactement la carte repliée de l'Itinéraire (fiche client), pour
+// qu'une activité soit reconnaissable au premier coup d'œil ici aussi.
 function PickupActivityCard({
   r,
   client,
   total,
+  badge,
+  paiementWarning,
+  acompteWarning,
 }: {
   r: Reservation;
   client: Client;
   total: number;
+  badge: { label: string; className: string } | null;
+  paiementWarning: { amount: number; devise: "€" | "EGP" } | null;
+  acompteWarning: { montant: number; mode: string } | null;
 }) {
   const { nbAd, nbEnf } = participantsFor(r, client);
-  const soldeIci = client.solde_activite_id === r.id;
-  const detail = horaireDetail(r);
-  if (r.statut_resa === "Confirmée") {
-    return (
-      <div className="rounded-md border border-[#171717]/30 bg-white p-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[#171717]">✓</span>
-          <span className="font-medium text-[#171717]">
-            {r.nom_activite || "Activité sans nom"}
-            {detail ? ` (${detail})` : ""}
-          </span>
-          <span className="flex-1" />
-          <span className="font-amounts text-sm">{euros(total)} €</span>
-        </div>
-        {soldeIci && (
-          <span className="mt-2 inline-block rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
-            💰 Solde ici — {client.solde_paye ? "Payé" : "À régler"}
+  return (
+    <div className="rounded-md bg-[#fafafa]/50 px-3 py-2.5 text-sm">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="font-medium text-[#171717]">
+          {r.nom_activite || "Activité sans nom"}
+          {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+        </span>
+        {acompteWarning && (
+          <span className="text-xs font-medium text-yellow-700">
+            ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
           </span>
         )}
-        {r.info_importante && (
-          <div className="mt-2 rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
-            ⚠ {r.info_importante}
-          </div>
+        {paiementWarning && (
+          <span className="text-xs font-medium text-red-600">
+            ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+          </span>
         )}
       </div>
-    );
-  }
-  return (
-    <div className="rounded-md border border-[#C9973E]/40 bg-white p-3">
-      <p className="font-medium text-[#171717]">
-        {r.nom_activite || "Activité sans nom"}
-        {detail ? ` (${detail})` : ""}
-      </p>
-      <p className="mt-1 text-xs text-neutral-500">
+      <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
+        <span>{fmtDate(r.date_debut)}</span>
+        {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) && <span>· {r.moment}</span>}
+      </div>
+      <div className="mt-1 text-xs text-neutral-500">
         {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
-      </p>
-      {r.info_importante && (
-        <div className="mt-2 rounded-md bg-red-50 px-2 py-1 text-xs text-red-700">
-          ⚠ {r.info_importante}
-        </div>
-      )}
-      <div className="mt-2 flex items-center justify-between">
-        {soldeIci ? (
-          <span className="rounded-full bg-[#C9973E] px-2 py-0.5 text-xs text-white">
-            💰 Solde ici — {client.solde_paye ? "Payé" : "À régler"}
+      </div>
+      <div className="mt-1.5 flex items-center justify-between">
+        <span className="font-amounts text-xs font-medium text-[#171717]">{euros(total)} €</span>
+        {badge && (
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
+            {badge.label}
           </span>
-        ) : (
-          <span />
         )}
-        <span className="font-amounts text-sm">{euros(total)} €</span>
       </div>
     </div>
   );
@@ -532,6 +529,15 @@ export default function SuivisView({
                 {pickupsJ1Missing.map(({ r, client }) => {
                   const urgent = pastDeadline;
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+                  const badge = paiementBadge(client, r);
+                  const paiementWarning = activitePaiementWarning(
+                    client,
+                    r,
+                    reservations,
+                    resaOptions,
+                    resaTarifs
+                  );
+                  const acompteWarning = acompteWaitingWarning(client, r, reservations);
                   const teamMsg = pickupMissingTeamMessage(r, client);
                   return (
                     <div
@@ -551,7 +557,14 @@ export default function SuivisView({
                           <span className="flex-1" />
                           <JumpBtn onClick={() => onOpenClient(client.id)} />
                         </div>
-                        <PickupActivityCard r={r} client={client} total={total} />
+                        <PickupActivityCard
+                          r={r}
+                          client={client}
+                          total={total}
+                          badge={badge}
+                          paiementWarning={paiementWarning}
+                          acompteWarning={acompteWarning}
+                        />
                       </div>
                       <div className="flex w-full flex-col gap-2 sm:w-56">
                         <input
@@ -596,6 +609,15 @@ export default function SuivisView({
               <div className="space-y-2">
                 {pickupsJ1Done.map(({ r, client }) => {
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+                  const badge = paiementBadge(client, r);
+                  const paiementWarning = activitePaiementWarning(
+                    client,
+                    r,
+                    reservations,
+                    resaOptions,
+                    resaTarifs
+                  );
+                  const acompteWarning = acompteWaitingWarning(client, r, reservations);
                   const montantRestant = soldeRestantFor(client);
                   const clientMsg = pickupClientMessage(r, client, montantRestant);
                   return (
@@ -612,7 +634,14 @@ export default function SuivisView({
                           <span className="flex-1" />
                           <JumpBtn onClick={() => onOpenClient(client.id)} />
                         </div>
-                        <PickupActivityCard r={r} client={client} total={total} />
+                        <PickupActivityCard
+                          r={r}
+                          client={client}
+                          total={total}
+                          badge={badge}
+                          paiementWarning={paiementWarning}
+                          acompteWarning={acompteWarning}
+                        />
                       </div>
                       <div className="flex w-full sm:w-56">
                         <button

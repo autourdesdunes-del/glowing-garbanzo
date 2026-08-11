@@ -13,7 +13,7 @@ import {
 import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
 import { participantsFor, resaTotalMontant } from "@/lib/resa";
 import { Field } from "@/components/Field";
-import BusRedirectAlert from "@/components/BusRedirectAlert";
+import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -40,6 +40,24 @@ function isDiscouragedBusActivity(nom: string) {
   const n = (nom || "").toLowerCase();
   return (n.includes("caire") || n.includes("louxor")) && n.includes("bus") && !n.includes("mini");
 }
+
+const MINI_BUS_TEXT =
+  "Nous recommandons davantage la formule en mini-bus : c'est beaucoup plus confortable, avec seulement 8 à 9 personnes maximum, contre une cinquantaine de personnes pour la formule en bus. En mini-bus, l'excursion est aussi majoritairement francophone, alors qu'en bus toutes les nationalités sont mélangées. Le tarif pour la formule en mini-bus est de 85 € par personne.";
+
+// Le Grand Safari Bédouin est pensé pour les familles avec enfants — pour
+// un groupe composé uniquement d'adultes, on pousse plutôt vers le quad,
+// le buggy ou le safari mix.
+function isFamilySafariBedouin(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return n.includes("safari") && n.includes("bédouin");
+}
+
+function isAdultsOnly(client: Client) {
+  return (client.enfants || 0) === 0 && (client.bebes || 0) === 0;
+}
+
+const SAFARI_ADULTS_TEXT =
+  "Le Grand Safari Bédouin est une activité pensée pour les familles avec enfants, avec des temps d'activité très courts (30 min de quad, 15 min de buggy). Pour des adultes, nous recommandons plutôt l'excursion quad classique de 2h : vous en profiterez beaucoup plus, tout en découvrant vous aussi le village bédouin. Vous pouvez même combiner l'excursion quad avec le dîner spectacle, pour le même tarif que le Grand Safari Bédouin.";
 
 type Step = "choix" | "specifs" | "date" | "participants" | "tarifs" | "options" | "transfert";
 
@@ -105,7 +123,10 @@ export default function AddActivityWizard({
   const [draftId, setDraftId] = useState<string | null>(null);
   const [customName, setCustomName] = useState("");
   const [creating, setCreating] = useState(false);
-  const [pendingBusActivity, setPendingBusActivity] = useState<CatalogueItem | null>(null);
+  const [pendingRedirect, setPendingRedirect] = useState<{
+    item: CatalogueItem;
+    kind: "bus" | "safari";
+  } | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
 
@@ -225,13 +246,24 @@ export default function AddActivityWizard({
   if (step === "choix") {
     return wrap(
       <>
-        {pendingBusActivity && (
-          <BusRedirectAlert
-            nomActivite={pendingBusActivity.nom}
-            onCancel={() => setPendingBusActivity(null)}
+        {pendingRedirect && (
+          <ActivityRedirectAlert
+            nomActivite={pendingRedirect.item.nom}
+            warningText={
+              pendingRedirect.kind === "bus"
+                ? "Merci d'essayer de rediriger les clients vers l'excursion en mini-bus."
+                : "Cette activité est pensée pour les familles avec enfants, merci de rediriger les clients vers l'excursion quad ou l'excursion buggy ou, si possible, safari mix (minimum 3 pers.)."
+            }
+            copyText={pendingRedirect.kind === "bus" ? MINI_BUS_TEXT : SAFARI_ADULTS_TEXT}
+            proceedLabel={
+              pendingRedirect.kind === "bus"
+                ? "Les clients ne souhaitent pas la formule en mini-bus"
+                : "Les clients préfèrent quand même le Grand Safari Bédouin"
+            }
+            onCancel={() => setPendingRedirect(null)}
             onProceedAnyway={async () => {
-              const item = pendingBusActivity;
-              setPendingBusActivity(null);
+              const { item } = pendingRedirect;
+              setPendingRedirect(null);
               const newId = await startFromCatalogue(item);
               if (newId) await onBusEscalation(item.nom, newId);
             }}
@@ -244,9 +276,15 @@ export default function AddActivityWizard({
                 key={a.id}
                 type="button"
                 disabled={creating}
-                onClick={() =>
-                  isDiscouragedBusActivity(a.nom) ? setPendingBusActivity(a) : startFromCatalogue(a)
-                }
+                onClick={() => {
+                  if (isDiscouragedBusActivity(a.nom)) {
+                    setPendingRedirect({ item: a, kind: "bus" });
+                  } else if (isFamilySafariBedouin(a.nom) && isAdultsOnly(client)) {
+                    setPendingRedirect({ item: a, kind: "safari" });
+                  } else {
+                    startFromCatalogue(a);
+                  }
+                }}
                 className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
               >
                 <span className="block font-medium text-[#171717]">{a.nom}</span>

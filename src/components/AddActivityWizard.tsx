@@ -785,7 +785,17 @@ export default function AddActivityWizard({
           )}
         </div>
 
-        {navButtons(() => setStep("tarifs"), "Suivant — Tarifs")}
+        {navButtons(() => {
+          // Certaines activités du catalogue démarrent déjà en forfait
+          // groupe (tarif_mode copié depuis le catalogue) — sans ce
+          // pré-remplissage ici, le clic sur "Forfait groupe" (qui fait le
+          // même travail) n'a jamais lieu puisque le mode est déjà actif.
+          if (r.tarif_mode === "groupe") {
+            const { nbAd, nbEnf } = participantsFor(r, client);
+            onUpdateReservation(r.id, { participants_extra1: nbAd, participants_extra_enfants: nbEnf });
+          }
+          setStep("tarifs");
+        }, "Suivant — Tarifs")}
       </>
     );
   }

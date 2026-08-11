@@ -123,6 +123,11 @@ export default function ReservationCard({
   const pickFromCatalogue = (id: string) => {
     const item = catalogue.find((a) => a.id === id);
     if (!item) return;
+    // Certaines activités démarrent déjà en forfait groupe (tarif_mode
+    // copié depuis le catalogue) — sans ce pré-remplissage, le clic sur
+    // "Forfait groupe" (qui fait le même travail) n'a jamais lieu puisque
+    // le mode est déjà actif.
+    const { nbAd: nbAdActuel, nbEnf: nbEnfActuel } = participantsFor(r, client);
     onUpdate({
       nom_activite: item.nom,
       catalogue_item_id: item.id,
@@ -134,6 +139,9 @@ export default function ReservationCard({
       prix_groupe_base: item.prix_groupe_base,
       prix_groupe_extra1: item.prix_groupe_extra1,
       prix_groupe_extra_enfant: item.prix_groupe_extra_enfant,
+      ...(item.tarif_mode === "groupe"
+        ? { participants_extra1: nbAdActuel, participants_extra_enfants: nbEnfActuel }
+        : {}),
       horaire_approx: item.horaire_approx,
       inclus: (item.inclus_liste || []).join(", ") || item.inclus,
       non_inclus: item.non_inclus,

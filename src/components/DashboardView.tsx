@@ -212,6 +212,7 @@ export default function DashboardView({
   onOpenPickupsChambres,
   onCreateClient,
   onUpdateClient,
+  onDeleteClient,
 }: {
   userEmail: string;
   clients: Client[];
@@ -229,6 +230,7 @@ export default function DashboardView({
     statut: "Prospect" | "Client confirmé";
   }) => Promise<Client | null>;
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
+  onDeleteClient: (id: string) => Promise<boolean>;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
@@ -435,7 +437,13 @@ export default function DashboardView({
             )}
           </p>
         </div>
-        <QuickAddClient onCreate={onCreateClient} onUpdateClient={onUpdateClient} />
+        <QuickAddClient
+          onCreate={onCreateClient}
+          onUpdateClient={onUpdateClient}
+          clients={clients}
+          onDeleteClient={onDeleteClient}
+          onOpenClient={onOpenClient}
+        />
       </div>
 
       <div className="flex">

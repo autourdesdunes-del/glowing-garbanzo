@@ -6,6 +6,7 @@ import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { ActivitesStep, Field, PaiementsStep } from "@/components/client-steps";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
+import DuplicateClientModal from "@/components/DuplicateClientModal";
 import { CANAUX, RELATIONS } from "@/lib/constants";
 import {
   CatalogueItem,
@@ -19,6 +20,7 @@ import {
   TransfertTaxe,
 } from "@/lib/types";
 import { matchHotel } from "@/lib/hotelHelp";
+import { DuplicateMatch, findDuplicateClients } from "@/lib/duplicates";
 
 type StepId =
   | "nom"
@@ -94,6 +96,9 @@ function sectionLabel(step: StepId): string {
 export default function QuickAddClient({
   onCreate,
   onUpdateClient,
+  clients = [],
+  onDeleteClient,
+  onOpenClient,
   defaultStatut = "Prospect",
 }: {
   onCreate: (fields: {
@@ -103,6 +108,9 @@ export default function QuickAddClient({
     statut: "Prospect" | "Client confirmé";
   }) => Promise<Client | null>;
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
+  clients?: Client[];
+  onDeleteClient?: (id: string) => Promise<boolean> | void;
+  onOpenClient?: (id: string) => void;
   defaultStatut?: "Prospect" | "Client confirmé";
 }) {
   const supabase = createClient();
@@ -114,6 +122,7 @@ export default function QuickAddClient({
   const [nomDraft, setNomDraft] = useState("");
   const [clientId, setClientId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Partial<Client>>({});
+  const [dupMatches, setDupMatches] = useState<DuplicateMatch[]>([]);
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
@@ -170,6 +179,7 @@ export default function QuickAddClient({
     setReservations([]);
     setResaOptions({});
     setResaTarifs({});
+    setDupMatches([]);
   };
 
   const patch = (fields: Partial<Client>) => {
@@ -216,6 +226,7 @@ export default function QuickAddClient({
         if (!created) return;
         setClientId(created.id);
         setAnswers(created);
+        setDupMatches(findDuplicateClients({ nom: created.nom }, clients, created.id));
         setStepIdx(1);
       } catch {
         toast("Impossible de créer le client — réessaie.");
@@ -224,10 +235,24 @@ export default function QuickAddClient({
       }
       return;
     }
+    if (step === "telephone" && (answers.telephone || "").trim()) {
+      setDupMatches(findDuplicateClients({ telephone: answers.telephone }, clients, clientId));
+    }
+    if (step === "pseudo" && (answers.pseudo_contact || "").trim()) {
+      setDupMatches(findDuplicateClients({ pseudo_contact: answers.pseudo_contact }, clients, clientId));
+    }
     setStepIdx((i) => Math.min(i + 1, steps.length - 1));
   };
 
   const goBack = () => setStepIdx((i) => Math.max(i - 1, 0));
+
+  const handleDeleteDuplicate = async (id: string) => {
+    if (!onDeleteClient) return;
+    const deleted = await onDeleteClient(id);
+    if (deleted === false) return;
+    setDupMatches([]);
+    if (id === clientId) reset();
+  };
 
   const toggleInfoManquante = (opt: string) => {
     const has = (answers.infos_manquantes || []).includes(opt);
@@ -851,6 +876,19 @@ export default function QuickAddClient({
             </div>
           </div>
         </div>
+      )}
+
+      {open && clientId && dupMatches.length > 0 && (
+        <DuplicateClientModal
+          current={{ ...answers, id: clientId } as Client}
+          matches={dupMatches}
+          onOpenClient={(id) => {
+            reset();
+            onOpenClient?.(id);
+          }}
+          onDeleteClient={handleDeleteDuplicate}
+          onKeepBoth={() => setDupMatches([])}
+        />
       )}
     </>
   );

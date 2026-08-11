@@ -515,7 +515,7 @@ function AppShellInner({
     }
   };
 
-  const deleteClient = async (id: string) => {
+  const deleteClient = async (id: string): Promise<boolean> => {
     const client = clients.find((c) => c.id === id);
     const ok = await confirm({
       title: "Supprimer ce client ?",
@@ -523,12 +523,16 @@ function AppShellInner({
       confirmLabel: "Supprimer",
       danger: true,
     });
-    if (!ok) return;
+    if (!ok) return false;
     const next = clients.filter((c) => c.id !== id);
     setClients(next);
     if (selectedId === id) setSelectedId(next[0] ? next[0].id : null);
     const { error } = await supabase.from("clients").delete().eq("id", id);
-    if (error) toast("Échec de la suppression du client.");
+    if (error) {
+      toast("Échec de la suppression du client.");
+      return false;
+    }
+    return true;
   };
 
   const updateClientById = async (id: string, patch: Partial<Client>) => {
@@ -1006,6 +1010,7 @@ function AppShellInner({
               onOpenPickupsChambres={openPickupsChambres}
               onCreateClient={addClient}
               onUpdateClient={updateClientById}
+              onDeleteClient={deleteClient}
             />
           )}
         </div>
@@ -1060,6 +1065,9 @@ function AppShellInner({
               <QuickAddClient
                 onCreate={addClient}
                 onUpdateClient={updateClientById}
+                clients={clients}
+                onDeleteClient={deleteClient}
+                onOpenClient={openClient}
                 defaultStatut={mode === "prospects" ? "Prospect" : "Client confirmé"}
               />
             </div>

@@ -946,7 +946,7 @@ export default function SuivisView({
 
           <div>
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-              Appels programmés
+              Appels à passer aujourd&apos;hui
             </h3>
             {appelsDueRows.length === 0 && (
               <div className="text-sm text-neutral-400">Aucun appel programmé.</div>

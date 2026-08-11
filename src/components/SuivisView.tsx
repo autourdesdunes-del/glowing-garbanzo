@@ -25,7 +25,7 @@ function avisMessage(nom: string) {
   return `Bonjour ${prenom} \n\nJ'espère que vous allez bien ☺️\n\nJe me permets de vous envoyer un message pour savoir si vous seriez d'accord pour nous laisser un avis et partager avec nos voyageurs votre expérience à nos côtés \n\nCela prend quelques petites secondes mais cela nous aide beaucoup pour nous faire connaître comme nous sommes une jeune agence \n\nJe vous laisse le lien juste ici : \n\n➡️ Google : https://g.co/kgs/jUu71x\n\n➡️ Trip Advisor : https://www.tripadvisor.fr/Attraction_Review-g297549-d26856860-Reviews-Autour_des_Dunes-Hurghada_Red_Sea_and_Sinai.html\n\nEn vous remerciant par avance 🙏`;
 }
 
-const SUBS = [
+export const SUIVIS_SUBS = [
   { key: "j1", label: "Pick-ups & chambres (J-1)" },
   { key: "rdv", label: "RDV paiements" },
   { key: "appels", label: "Appels" },
@@ -34,6 +34,8 @@ const SUBS = [
   { key: "remb", label: "Remboursements" },
   { key: "billets", label: "Billets d'avion" },
 ] as const;
+
+export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"];
 
 function JumpBtn({ onClick }: { onClick: () => void }) {
   return (
@@ -50,6 +52,7 @@ function JumpBtn({ onClick }: { onClick: () => void }) {
 }
 
 export default function SuivisView({
+  sub,
   clients,
   reservations,
   resaOptions,
@@ -59,6 +62,7 @@ export default function SuivisView({
   onUpdateReservation,
   onOpenClient,
 }: {
+  sub: SuivisSub;
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -68,7 +72,6 @@ export default function SuivisView({
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onOpenClient: (id: string) => void;
 }) {
-  const [sub, setSub] = useState<(typeof SUBS)[number]["key"]>("j1");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [newAppelClientId, setNewAppelClientId] = useState("");
   const [pickupDrafts, setPickupDrafts] = useState<Record<string, string>>({});
@@ -155,22 +158,6 @@ export default function SuivisView({
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
-      <div className="flex flex-wrap gap-2">
-        {SUBS.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setSub(s.key)}
-            className={`rounded-full border px-3 py-1.5 text-sm ${
-              sub === s.key
-                ? "border-[#171717] bg-[#171717] text-white"
-                : "border-neutral-300 bg-white text-neutral-600"
-            }`}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
-
       {sub === "j1" && (
         <div className="space-y-6">
           <div className="rounded-md border border-[#f5a623]/30 bg-[#f5a623]/10 p-3 text-xs text-[#666666]">

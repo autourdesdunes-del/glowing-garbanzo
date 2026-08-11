@@ -25,7 +25,7 @@ import ChangePasswordButton from "@/components/ChangePasswordButton";
 import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
 import PlanningView from "@/components/PlanningView";
-import SuivisView from "@/components/SuivisView";
+import SuivisView, { SUIVIS_SUBS, SuivisSub } from "@/components/SuivisView";
 import ClientPreviewView from "@/components/ClientPreviewView";
 import DirectionView from "@/components/DirectionView";
 import HelpView from "@/components/HelpView";
@@ -206,6 +206,7 @@ function AppShellInner({
   const router = useRouter();
 
   const [mode, setMode] = useState<Mode>("dashboard");
+  const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
   const [clients, setClients] = useState<Client[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -777,21 +778,39 @@ function AppShellInner({
             const Icon = t.icon;
             const active = mode === t.key;
             return (
-              <button
-                key={t.key}
-                onClick={() => {
-                  setMode(t.key);
-                  if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
-                }}
-                className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium transition ${
-                  active
-                    ? "bg-[#fafafa] text-[#171717]"
-                    : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                }`}
-              >
-                <Icon />
-                {t.label}
-              </button>
+              <div key={t.key}>
+                <button
+                  onClick={() => {
+                    setMode(t.key);
+                    if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
+                  }}
+                  className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium transition ${
+                    active
+                      ? "bg-[#fafafa] text-[#171717]"
+                      : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                  }`}
+                >
+                  <Icon />
+                  {t.label}
+                </button>
+                {t.key === "suivis" && active && (
+                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                    {SUIVIS_SUBS.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setSuivisSub(s.key)}
+                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                          suivisSub === s.key
+                            ? "bg-[#fafafa] text-[#171717]"
+                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
@@ -1072,6 +1091,7 @@ function AppShellInner({
             <Spinner />
           ) : (
             <SuivisView
+              sub={suivisSub}
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}

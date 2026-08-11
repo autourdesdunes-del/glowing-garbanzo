@@ -226,16 +226,16 @@ export default function ItineraryView({
   };
 
   const dateless = reservations.filter((r) => !r.date_debut);
-  const days =
-    client.date_debut && client.date_fin
-      ? enumerateDays(client.date_debut, client.date_fin).filter((day) =>
-          reservations.some((r) => {
-            if (!r.date_debut) return false;
-            const end = r.date_fin || r.date_debut;
-            return day >= r.date_debut && day <= end;
-          })
-        )
-      : [];
+  // Les jours affichés viennent des dates des activités elles-mêmes, pas
+  // du séjour du client — sinon une activité datée disparaît silencieusement
+  // dès que le séjour (Contact > Séjour) n'est pas encore renseigné, ou que
+  // l'activité tombe hors de cette plage (avant l'arrivée, après le départ).
+  const daySet = new Set<string>();
+  reservations.forEach((r) => {
+    if (!r.date_debut) return;
+    enumerateDays(r.date_debut, r.date_fin || r.date_debut).forEach((d) => daySet.add(d));
+  });
+  const days = Array.from(daySet).sort();
 
   if (dateless.length === 0 && days.length === 0) {
     return <div className="text-sm text-neutral-400">Aucune activité planifiée pour l&apos;instant.</div>;

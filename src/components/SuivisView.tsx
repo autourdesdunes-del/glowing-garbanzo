@@ -184,9 +184,9 @@ function pickupClientMessage(
     : catalogueItem?.a_prevoir || r.a_prevoir || "le nécessaire pour l'activité";
   const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
   const paiementLigne = soldeIci
-    ? `\n\nComme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros sur place demain, auprès de notre représentant.`
+    ? `\n\nComme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros demain, auprès de notre représentant sur place.`
     : "";
-  return `Bonjour ${prenom} 🚐\nPour votre activité ${r.nom_activite || "—"} demain, le chauffeur passera vous chercher à ${r.pickup_reel}, devant la réception de votre hôtel, côté extérieur.\n\nÀ prévoir : ${aPrevoirListe}.${paiementLigne}\n\nVous retrouverez le programme complet de votre journée de demain sur votre page client. ☀️`;
+  return `Bonjour ${prenom},\n\nPour votre activité ${r.nom_activite || "—"} demain, le chauffeur viendra vous récupérer à ${r.pickup_reel}, devant la réception de votre hôtel, côté extérieur.\n\nÀ prévoir avec vous pour l'activité : ${aPrevoirListe}.${paiementLigne}\n\nVous retrouverez le programme complet de votre journée de demain sur votre page client. ☀️`;
 }
 
 // Même style de carte que la fiche client (ReservationCard, vue repliée) —

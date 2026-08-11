@@ -5,6 +5,10 @@
 -- puis on migre les fiches déjà sur l'ancien vocabulaire.
 
 alter table clients drop constraint if exists clients_statut_check;
+
+update clients set statut = 'À relancer' where statut = 'En négociation';
+update clients set statut = 'Client perdu' where statut = 'Perdu';
+
 alter table clients add constraint clients_statut_check
   check (statut in (
     'Prospect',
@@ -14,8 +18,5 @@ alter table clients add constraint clients_statut_check
     'Client confirmé',
     'Client perdu'
   ));
-
-update clients set statut = 'À relancer' where statut = 'En négociation';
-update clients set statut = 'Client perdu' where statut = 'Perdu';
 
 notify pgrst, 'reload schema';

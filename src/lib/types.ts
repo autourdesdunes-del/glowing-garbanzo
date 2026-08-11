@@ -106,6 +106,7 @@ export type Reservation = {
   date_fin: string | null;
   moment: string;
   horaire_souhaite: string;
+  ile_selectionnee: string;
   pu_adulte: number;
   pu_enfant: number;
   pu_accompagnateur: number;

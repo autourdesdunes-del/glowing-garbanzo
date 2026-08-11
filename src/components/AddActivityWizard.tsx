@@ -10,8 +10,17 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, MOMENTS, OPTIONS_PRESETS } from "@/lib/constants";
-import { participantsFor, resaTotalMontant } from "@/lib/resa";
+import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
+import {
+  isSpeedboatFixedJournee,
+  isSpeedboatPriveMaisonDauphins,
+  needsMomentSpeedboat,
+  participantsFor,
+  resaTotalMontant,
+  speedboatIleTitre,
+  speedboatIleType,
+  SPEEDBOAT_ILES,
+} from "@/lib/resa";
 import { Field } from "@/components/Field";
 import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
 
@@ -26,12 +35,10 @@ function isSpaMassage(nom: string) {
   return n.includes("spa") || n.includes("massage");
 }
 
-// Le speedboat sunset a déjà son horaire dans le nom — pas besoin de
-// redemander un "moment" (mais on garde "plusieurs jours" et le reste).
-function isSpeedboatSunset(nom: string) {
-  const n = (nom || "").toLowerCase();
-  return n.includes("speedboat") && n.includes("sunset");
-}
+const MOMENTS_SPEEDBOAT = ["Matin", "Après-midi"] as const;
+
+const MAISON_DAUPHINS_TEXT =
+  "Les speedboat privé maison des dauphins sont recommandés le matin pour davantage de chances de voir les dauphins.";
 
 // Le Caire/Louxor "en bus" (grand groupe, toutes nationalités mélangées) —
 // on pousse à recommander la formule mini-bus à la place avant de laisser
@@ -59,12 +66,23 @@ function isAdultsOnly(client: Client) {
 const SAFARI_ADULTS_TEXT =
   "Le Grand Safari Bédouin est une activité pensée pour les familles avec enfants, avec des temps d'activité très courts (30 min de quad, 15 min de buggy). Pour des adultes, nous recommandons plutôt l'excursion quad classique de 2h : vous en profiterez beaucoup plus, tout en découvrant vous aussi le village bédouin. Vous pouvez même combiner l'excursion quad avec le dîner spectacle, pour le même tarif que le Grand Safari Bédouin.";
 
-type Step = "choix" | "specifs" | "date" | "participants" | "tarifs" | "options" | "transfert";
+type Step =
+  | "choix"
+  | "specifs"
+  | "date"
+  | "ile"
+  | "moment"
+  | "participants"
+  | "tarifs"
+  | "options"
+  | "transfert";
 
 const STEP_TITLES: Record<Step, string> = {
   choix: "Choisir une activité",
   specifs: "Informations requises",
   date: "Date de l'activité",
+  ile: "Choix de l'île",
+  moment: "Matin ou après-midi",
   participants: "Nombre de participants",
   tarifs: "Tarifs",
   options: "Options supplémentaires",
@@ -148,7 +166,10 @@ export default function AddActivityWizard({
 
   const steps: Step[] = ["choix"];
   if (champsRequis.length > 0) steps.push("specifs");
-  steps.push("date", "participants", "tarifs", "options", "transfert");
+  steps.push("date");
+  if (catalogueItem && speedboatIleType(catalogueItem.nom)) steps.push("ile");
+  if (catalogueItem && needsMomentSpeedboat(catalogueItem.nom)) steps.push("moment");
+  steps.push("participants", "tarifs", "options", "transfert");
   const stepIndex = steps.indexOf(step);
 
   const startFromCatalogue = async (item: CatalogueItem): Promise<string | null> => {
@@ -174,6 +195,8 @@ export default function AddActivityWizard({
         point_rdv: item.point_rdv,
         photo_path: item.photo_path,
         transfert_inclus: !hotelHorsHurghada,
+        moment: isSpeedboatFixedJournee(item.nom) ? "Journée" : "",
+        ile_selectionnee: "",
       });
       setDraftId(id);
       setValidationError(false);
@@ -510,89 +533,154 @@ export default function AddActivityWizard({
 
   if (step === "date") {
     const isSpa = isSpaMassage(r.nom_activite);
-    const isSunset = isSpeedboatSunset(r.nom_activite);
-    const missingMoment = !isSpa && !isSunset && !r.moment;
     const missingHoraire = isSpa && !r.horaire_souhaite;
+    const nextStep = steps[steps.indexOf("date") + 1];
+    const nextLabel =
+      nextStep === "ile" ? "Suivant — Île" : nextStep === "moment" ? "Suivant — Matin/après-midi" : "Suivant — Participants";
 
     const goNext = () => {
-      if (missingMoment || missingHoraire) {
+      if (missingHoraire) {
         setValidationError(true);
         return;
       }
       setValidationError(false);
-      setStep("participants");
+      setStep(nextStep);
     };
 
     return wrap(
       <>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Date début">
-            <input
-              type="date"
-              value={r.date_debut ?? ""}
-              onChange={(e) => onUpdateReservation(r.id, { date_debut: e.target.value || null })}
-              className="input"
-            />
-          </Field>
-          {!isSpa && !isSunset && (
-            <div>
-              <label className="mb-1 flex items-center gap-2 text-sm font-medium text-neutral-700">
-                <input
-                  type="checkbox"
-                  checked={!!r.date_fin}
-                  onChange={(e) =>
-                    onUpdateReservation(r.id, { date_fin: e.target.checked ? r.date_debut || "" : null })
-                  }
-                />
-                Plusieurs jours
-              </label>
-              {r.date_fin && (
-                <input
-                  type="date"
-                  value={r.date_fin}
-                  onChange={(e) => onUpdateReservation(r.id, { date_fin: e.target.value || null })}
-                  className="input"
-                />
-              )}
-            </div>
-          )}
-        </div>
-        {!isSunset && (
+        <Field label="Date début">
+          <input
+            type="date"
+            value={r.date_debut ?? ""}
+            onChange={(e) => onUpdateReservation(r.id, { date_debut: e.target.value || null })}
+            className="input max-w-[220px]"
+          />
+        </Field>
+        {isSpa && (
           <div className="mt-3">
-            {isSpa ? (
-              <Field label="Horaire souhaité *">
-                <input
-                  type="time"
-                  value={r.horaire_souhaite}
-                  onChange={(e) => onUpdateReservation(r.id, { horaire_souhaite: e.target.value })}
-                  className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
-                />
-              </Field>
-            ) : (
-              <Field label="Moment *">
-                <select
-                  value={r.moment}
-                  onChange={(e) => onUpdateReservation(r.id, { moment: e.target.value })}
-                  className={`input ${missingMoment && validationError ? "border-red-300 focus:border-red-400" : ""}`}
-                >
-                  <option value="">—</option>
-                  {MOMENTS.map((m) => (
-                    <option key={m}>{m}</option>
-                  ))}
-                </select>
-              </Field>
-            )}
+            <Field label="Horaire souhaité *">
+              <input
+                type="time"
+                value={r.horaire_souhaite}
+                onChange={(e) => onUpdateReservation(r.id, { horaire_souhaite: e.target.value })}
+                className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
+              />
+            </Field>
           </div>
         )}
 
-        {validationError && missingMoment && (
-          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-            ⚠ Impossible de continuer — le moment (matin / après-midi…) est obligatoire.
-          </div>
-        )}
         {validationError && missingHoraire && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
             ⚠ Impossible de continuer — l&apos;horaire souhaité est obligatoire.
+          </div>
+        )}
+
+        {navButtons(goNext, nextLabel)}
+      </>
+    );
+  }
+
+  if (step === "ile") {
+    const iType = speedboatIleType(catalogueItem?.nom || r.nom_activite);
+    const missingIle = !r.ile_selectionnee;
+    const nextStep = steps[steps.indexOf("ile") + 1];
+    const nextLabel = nextStep === "moment" ? "Suivant — Matin/après-midi" : "Suivant — Participants";
+
+    const selectIle = (ile: string) => {
+      onUpdateReservation(r.id, {
+        ile_selectionnee: ile,
+        nom_activite: speedboatIleTitre(iType || "complete", ile),
+      });
+      setValidationError(false);
+    };
+
+    const goNext = () => {
+      if (missingIle) {
+        setValidationError(true);
+        return;
+      }
+      setStep(nextStep);
+    };
+
+    return wrap(
+      <>
+        <div className="grid grid-cols-2 gap-2">
+          {SPEEDBOAT_ILES.map((ile) => (
+            <button
+              key={ile}
+              type="button"
+              onClick={() => selectIle(ile)}
+              className={`rounded-md border px-3 py-2 text-sm font-medium ${
+                r.ile_selectionnee === ile
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-neutral-200 text-neutral-700 hover:border-[#171717]"
+              }`}
+            >
+              {ile}
+            </button>
+          ))}
+        </div>
+        {r.ile_selectionnee === "Oziréa" && (
+          <p className="mt-3 text-xs font-medium text-[#0F5C56]">
+            ℹ️ Supplément Oziréa appliqué automatiquement : +30 € par adulte, +15 € par enfant.
+          </p>
+        )}
+        {validationError && missingIle && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Impossible de continuer — merci de sélectionner une île.
+          </div>
+        )}
+
+        {navButtons(goNext, nextLabel)}
+      </>
+    );
+  }
+
+  if (step === "moment") {
+    const missingMoment = !r.moment;
+    const nextStep = steps[steps.indexOf("moment") + 1];
+    const isMaisonDauphins = isSpeedboatPriveMaisonDauphins(catalogueItem?.nom || r.nom_activite);
+
+    const goNext = () => {
+      if (missingMoment) {
+        setValidationError(true);
+        return;
+      }
+      setValidationError(false);
+      setStep(nextStep);
+    };
+
+    return wrap(
+      <>
+        {isMaisonDauphins && (
+          <div className="mb-3 flex items-start gap-2 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
+            <span>⚠</span>
+            <span>{MAISON_DAUPHINS_TEXT}</span>
+          </div>
+        )}
+        <div className="flex gap-2">
+          {MOMENTS_SPEEDBOAT.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => {
+                onUpdateReservation(r.id, { moment: m });
+                setValidationError(false);
+              }}
+              className={`rounded-full border px-3 py-1 text-sm font-medium ${
+                r.moment === m
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-neutral-300 text-neutral-600"
+              }`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        {validationError && missingMoment && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Impossible de continuer — merci de sélectionner matin ou après-midi.
           </div>
         )}
 

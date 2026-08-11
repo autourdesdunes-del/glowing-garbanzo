@@ -10,14 +10,23 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
+import { BILLET_STATUTS, CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
 import {
-  BILLET_STATUTS,
-  CHAMPS_REQUIS_PRESETS,
-  CRENEAUX_ACTIVITE,
-  MOMENTS,
-  OPTIONS_PRESETS,
-} from "@/lib/constants";
-import { hideMoment, paiementStatutKey, participantsFor, resaTotalMontant, STATUT_PAIEMENT_OPTIONS } from "@/lib/resa";
+  hideMoment,
+  isSpeedboatPriveMaisonDauphins,
+  needsMomentSpeedboat,
+  paiementStatutKey,
+  participantsFor,
+  resaTotalMontant,
+  speedboatIleTitre,
+  speedboatIleType,
+  SPEEDBOAT_ILES,
+  STATUT_PAIEMENT_OPTIONS,
+} from "@/lib/resa";
+
+const MOMENTS_SPEEDBOAT = ["Matin", "Après-midi"] as const;
+const MAISON_DAUPHINS_TEXT =
+  "Les speedboat privé maison des dauphins sont recommandés le matin pour davantage de chances de voir les dauphins.";
 import { Field } from "@/components/client-steps";
 import MissingInfoModal from "@/components/MissingInfoModal";
 
@@ -83,8 +92,12 @@ export default function ReservationCard({
   const [showMomentModal, setShowMomentModal] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
   const champsRequis = catalogueItem?.champs_requis_liste || [];
+  const nomPourDetection = catalogueItem?.nom || r.nom_activite;
+  const ileType = speedboatIleType(nomPourDetection);
+  const needsMoment = needsMomentSpeedboat(nomPourDetection);
   const missingChamps: string[] = [];
-  if (!r.moment) missingChamps.push("Moment (matin / après-midi)");
+  if (ileType && !r.ile_selectionnee) missingChamps.push("Île");
+  if (needsMoment && !r.moment) missingChamps.push("Moment (matin / après-midi)");
   if (champsRequis.includes("Pointure") && !r.pointure.trim()) missingChamps.push("Pointure");
   if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
     missingChamps.push("Créneau");
@@ -200,7 +213,7 @@ export default function ReservationCard({
         <p className="mt-1 text-xs text-neutral-500">
           {fmtDate(r.date_debut)}
           {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
-          {hideMoment(r.nom_activite, r.horaire_souhaite) ? "" : ` · ${r.moment}`}
+          {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) ? ` · ${r.moment}` : ""}
           {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
         </p>
         <p className="mt-1 text-xs text-neutral-500">
@@ -269,7 +282,7 @@ export default function ReservationCard({
           onClick={() => {
             if (missingChamps.length > 0) {
               setValidationError(true);
-              if (!r.moment) setShowMomentModal(true);
+              if (needsMoment && !r.moment) setShowMomentModal(true);
               return;
             }
             setValidationError(false);
@@ -298,12 +311,73 @@ export default function ReservationCard({
               setTimeout(() => {
                 const el = document.getElementById(`field-moment-${r.id}`);
                 el?.scrollIntoView({ behavior: "smooth", block: "center" });
-                (el as HTMLSelectElement | null)?.focus();
               }, 50);
             });
           }}
           onClose={() => setShowMomentModal(false)}
         />
+      )}
+
+      {ileType && (
+        <div className="mb-3" id={`field-ile-${r.id}`}>
+          <p className="mb-1.5 text-sm font-medium text-neutral-700">Île *</p>
+          <div className="flex flex-wrap gap-2">
+            {SPEEDBOAT_ILES.map((ile) => (
+              <button
+                key={ile}
+                type="button"
+                onClick={() =>
+                  onUpdate({ ile_selectionnee: ile, nom_activite: speedboatIleTitre(ileType, ile) })
+                }
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  r.ile_selectionnee === ile
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : validationError && !r.ile_selectionnee
+                      ? "border-red-300 text-red-600"
+                      : "border-neutral-300 text-neutral-600"
+                }`}
+              >
+                {ile}
+              </button>
+            ))}
+          </div>
+          {r.ile_selectionnee === "Oziréa" && (
+            <p className="mt-1.5 text-xs font-medium text-[#0F5C56]">
+              ℹ️ Supplément Oziréa appliqué automatiquement : +30 € par adulte, +15 € par enfant.
+            </p>
+          )}
+        </div>
+      )}
+
+      {needsMoment && isSpeedboatPriveMaisonDauphins(nomPourDetection) && (
+        <div className="mb-3 flex items-start gap-2 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
+          <span>⚠</span>
+          <span>{MAISON_DAUPHINS_TEXT}</span>
+        </div>
+      )}
+
+      {needsMoment && (
+        <div className="mb-3" id={`field-moment-${r.id}`}>
+          <p className="mb-1.5 text-sm font-medium text-neutral-700">Moment *</p>
+          <div className="flex gap-2">
+            {MOMENTS_SPEEDBOAT.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => onUpdate({ moment: m })}
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  r.moment === m
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : validationError && !r.moment
+                      ? "border-red-300 text-red-600"
+                      : "border-neutral-300 text-neutral-600"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {options.length > 0 && (
@@ -345,41 +419,6 @@ export default function ReservationCard({
             onChange={(e) => onUpdate({ date_debut: e.target.value || null })}
             className="input"
           />
-        </Field>
-        <div>
-          <label className="mb-1 flex items-center gap-2 text-sm font-medium text-neutral-700">
-            <input
-              type="checkbox"
-              checked={!!r.date_fin}
-              onChange={(e) =>
-                onUpdate({ date_fin: e.target.checked ? r.date_debut || "" : null })
-              }
-            />
-            Plusieurs jours
-          </label>
-          {r.date_fin && (
-            <input
-              type="date"
-              value={r.date_fin}
-              onChange={(e) => onUpdate({ date_fin: e.target.value || null })}
-              className="input"
-            />
-          )}
-        </div>
-        <Field label="Moment *">
-          <select
-            id={`field-moment-${r.id}`}
-            value={r.moment}
-            onChange={(e) => onUpdate({ moment: e.target.value })}
-            className={`input ${
-              validationError && !r.moment ? "border-red-300 focus:border-red-400" : ""
-            }`}
-          >
-            <option value="">—</option>
-            {MOMENTS.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
         </Field>
         {r.tarif_mode !== "groupe" ? (
           <>

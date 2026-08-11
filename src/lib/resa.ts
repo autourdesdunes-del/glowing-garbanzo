@@ -197,8 +197,67 @@ export function acompteWaitingWarning(
 // le nom de l'activité) — dans ces deux cas on ne l'affiche jamais.
 export function hideMoment(nomActivite: string, horaireSouhaite: string) {
   if (horaireSouhaite) return true;
-  const n = (nomActivite || "").toLowerCase();
-  return n.includes("speedboat") && n.includes("sunset");
+  return isSpeedboatSunset(nomActivite);
+}
+
+// Les îles proposées pour les formules speedboat privé "journée complète"
+// et "demi-journée" — le client doit en choisir une avant de continuer.
+export const SPEEDBOAT_ILES = ["Orange Bay", "Paradise", "Hula Hula", "Magawish", "Oziréa"] as const;
+
+export function isSpeedboat(nom: string) {
+  return (nom || "").toLowerCase().includes("speedboat");
+}
+
+export function isSpeedboatSunset(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return isSpeedboat(n) && n.includes("sunset");
+}
+
+// 'complete' | 'demi' | null — les deux formules speedboat où le client doit
+// choisir son île (catalogue : "... journée complète avec 1 île" / "...
+// demi-journée avec 1 île").
+export function speedboatIleType(nom: string): "complete" | "demi" | null {
+  const n = (nom || "").toLowerCase();
+  if (!isSpeedboat(n) || !n.includes("île")) return null;
+  if (n.includes("journée complète")) return "complete";
+  if (n.includes("demi-journée") || n.includes("demi journée")) return "demi";
+  return null;
+}
+
+// Le titre affiché une fois l'île choisie — remplace le nom générique du
+// catalogue ("... avec 1 île") par l'île réellement sélectionnée.
+export function speedboatIleTitre(iType: "complete" | "demi", ile: string) {
+  return iType === "demi" ? `Speedboat privé 4h avec ${ile}` : `Speedboat privé journée complète avec ${ile}`;
+}
+
+// "Journée" s'applique automatiquement, sans jamais le demander : le
+// speedboat privé journée complète avec île, et les semi-privés Magawish et
+// Oziréa n'ont qu'une seule formule horaire possible.
+export function isSpeedboatFixedJournee(nom: string) {
+  const n = (nom || "").toLowerCase();
+  if (speedboatIleType(nom) === "complete") return true;
+  return isSpeedboat(n) && n.includes("semi-privé") && (n.includes("magawish") || n.includes("oziréa"));
+}
+
+export function isSpeedboatPriveMaisonDauphins(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return isSpeedboat(n) && n.includes("maison des dauphins") && !n.includes("semi");
+}
+
+export function isSpeedboatSemiPriveMaisonDauphins(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return isSpeedboat(n) && n.includes("semi-privé") && n.includes("maison des dauphins");
+}
+
+// En dehors du sunset (horaire fixe), des formules "journée" fixes, et du
+// semi-privé Maison des dauphins, tous les speedboat doivent préciser
+// matin/après-midi.
+export function needsMomentSpeedboat(nom: string) {
+  if (!isSpeedboat(nom)) return false;
+  if (isSpeedboatSunset(nom)) return false;
+  if (isSpeedboatSemiPriveMaisonDauphins(nom)) return false;
+  if (isSpeedboatFixedJournee(nom)) return false;
+  return true;
 }
 
 export function participantsFor(r: Reservation, client: Client) {
@@ -241,5 +300,9 @@ export function resaTotalMontant(
   const optionsTotal = options.reduce((s, o) => s + (Number(o.prix) || 0), 0);
   const tarifsTotal = tarifs.reduce((s, t) => s + (Number(t.quantite) || 0) * (Number(t.pu) || 0), 0);
   const transfert = r.transfert_inclus ? 0 : Number(r.transfert_montant) || 0;
-  return base + optionsTotal + tarifsTotal + transfert;
+  // L'île Oziréa applique un supplément fixe par personne, quel que soit le
+  // mode de tarification (forfait groupe pour ces speedboat) — appliqué
+  // automatiquement dès que l'île est sélectionnée, jamais à saisir à la main.
+  const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
+  return base + optionsTotal + tarifsTotal + transfert + supplementIle;
 }

@@ -195,7 +195,7 @@ export default function ItineraryView({
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
           <span>{day ? fmtDate(day) : "Date à définir"}</span>
-          {!hideMoment(r.nom_activite, r.horaire_souhaite) && <span>· {r.moment}</span>}
+          {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) && <span>· {r.moment}</span>}
           {r.pickup_reel ? (
             <span>· Pick-up {r.pickup_reel}</span>
           ) : (

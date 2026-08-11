@@ -20,6 +20,7 @@ import PhotoUpload from "@/components/PhotoUpload";
 import CatalogueModificationRequestModal from "@/components/CatalogueModificationRequestModal";
 import { localDateStr } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
+import { isChevalOuChameau } from "@/lib/resa";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -870,6 +871,13 @@ export default function CatalogueView({
                                   placeholder="ex. accompagnant non-plongeur"
                                 />
                       </div>
+                      {isChevalOuChameau(a.nom) && (
+                        <p className="mt-1 text-xs text-[#8B4531]">
+                          💡 Cheval/chameau : un enfant qui monte seul paie le tarif adulte (prix par
+                          cheval/chameau) — mets ce tarif accompagnateur à 0 €, un enfant derrière un
+                          adulte est compté ici mais ne paie rien.
+                        </p>
+                      )}
                     </Field>
                     <Field label="PU enfant 3 ans (€)">
                       <input

@@ -831,12 +831,17 @@ export default function AddActivityWizard({
 
     const goNext = () => {
       const nbDerriere = reponses.filter((x) => x === "derriere").length;
+      // Un enfant qui monte seul loue son propre cheval/chameau — il paie
+      // donc le tarif adulte (prix par animal), pas le tarif enfant. Un
+      // enfant derrière un adulte compte comme accompagnateur mais ne paie
+      // rien (le tarif accompagnateur de cette activité doit être à 0 €
+      // dans le catalogue).
       const nbSeul = nbEnf - nbDerriere;
       onUpdateReservation(r.id, {
         enfants_monte: reponses,
         participants_mode: "custom",
-        participants_adultes: nbAd,
-        participants_enfants: nbSeul,
+        participants_adultes: nbAd + nbSeul,
+        participants_enfants: 0,
         participants_accompagnateurs: nbDerriere,
       });
       setStep(nextStep);
@@ -846,6 +851,10 @@ export default function AddActivityWizard({
       <>
         <p className="mb-3 text-sm text-neutral-500">
           Chaque enfant monte-t-il seul (son propre {catalogueItem?.nom.toLowerCase().includes("chameau") ? "chameau" : "cheval"}) ou derrière un adulte (accompagnateur) ?
+        </p>
+        <p className="mb-3 text-xs text-[#8B4531]">
+          💡 Un enfant seul paie le tarif adulte (prix par animal). Un enfant derrière un adulte
+          compte comme accompagnateur et ne paie rien.
         </p>
         <div className="space-y-2">
           {Array.from({ length: nbEnf }).map((_, i) => (

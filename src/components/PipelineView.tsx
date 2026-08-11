@@ -84,7 +84,10 @@ function ClientCard({
   onOpenClient: (id: string) => void;
   showIncompleteBadge: boolean;
 }) {
-  const incomplete = showIncompleteBadge && (c.infos_manquantes || []).length > 0;
+  const missingInfos = showIncompleteBadge
+    ? (c.infos_manquantes || []).filter((s) => s !== "Complet")
+    : [];
+  const incomplete = missingInfos.length > 0;
   return (
     <div
       draggable={draggable}
@@ -99,7 +102,7 @@ function ClientCard({
         <div className="font-medium text-[#171717]">{c.nom || "Sans nom"}</div>
         {incomplete && (
           <span
-            title="Dossier incomplet"
+            title={missingInfos.join(", ")}
             className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full bg-red-500"
           />
         )}
@@ -108,7 +111,10 @@ function ClientCard({
         <div className="font-amounts mt-1 text-xs text-neutral-400">{fmtDate(c.date_debut)}</div>
       )}
       {incomplete && (
-        <div className="mt-1 text-[11px] font-medium text-red-600">⚠ Dossier incomplet</div>
+        <div className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">
+          <span>⚠</span>
+          <span className="truncate">{missingInfos.join(", ")}</span>
+        </div>
       )}
       {(c.tags || []).length > 0 && (
         <div className="mt-1 flex flex-wrap gap-1">

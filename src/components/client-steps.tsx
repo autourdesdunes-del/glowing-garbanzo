@@ -86,6 +86,7 @@ export function ContactStep({
   const toast = useToast();
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
+  const [infoManquanteOpen, setInfoManquanteOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -234,13 +235,8 @@ export function ContactStep({
           type="email"
           value={client.email}
           onChange={(e) => onChange({ email: e.target.value })}
-          className={`input ${!client.email.trim() ? "border-red-300 focus:border-red-400" : ""}`}
+          className="input"
         />
-        {!client.email.trim() && (
-          <p className="mt-1 text-xs text-red-500">
-            Obligatoire pour passer le dossier en &quot;Client confirmé&quot;.
-          </p>
-        )}
       </Field>
 
       <PassportPhotosUpload
@@ -250,61 +246,78 @@ export function ContactStep({
 
       <div>
         <span className="mb-1 block text-sm font-medium text-neutral-700">Infos manquantes</span>
-        <div className="rounded-md border border-neutral-300 bg-white p-2">
-          <div className="max-h-48 space-y-0.5 overflow-y-auto">
-            {infoOptions.map((opt) => (
-              <label
-                key={opt}
-                className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-[#fafafa]"
+        <div className="flex flex-wrap items-center gap-1.5">
+          {client.infos_manquantes.map((s) => (
+            <span
+              key={s}
+              className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#666666]"
+            >
+              {s}
+              <button
+                type="button"
+                onClick={() => toggleInfoManquante(s)}
+                className="text-[#666666]/60 hover:text-[#666666]"
               >
-                <input
-                  type="checkbox"
-                  checked={client.infos_manquantes.includes(opt)}
-                  onChange={() => toggleInfoManquante(opt)}
-                />
-                {opt}
-              </label>
-            ))}
-          </div>
-          <div className="mt-2 flex gap-1 border-t border-neutral-100 pt-2">
-            <input
-              value={newInfoLabel}
-              onChange={(e) => setNewInfoLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addCustomInfo();
-                }
-              }}
-              placeholder="+ Nouvelle option"
-              className="input flex-1 text-sm"
-            />
+                ✕
+              </button>
+            </span>
+          ))}
+          {client.infos_manquantes.length === 0 && !infoManquanteOpen && (
+            <span className="text-sm text-neutral-400">Aucune info manquante</span>
+          )}
+          <button
+            type="button"
+            onClick={() => setInfoManquanteOpen((o) => !o)}
+            className="rounded-full border border-neutral-300 px-2 py-0.5 text-xs text-neutral-600 hover:bg-[#fafafa]"
+          >
+            {infoManquanteOpen ? "Fermer" : "+ Modifier"}
+          </button>
+        </div>
+        {infoManquanteOpen && (
+          <div className="mt-2 rounded-md border border-neutral-300 bg-white p-2">
+            <div className="max-h-48 space-y-0.5 overflow-y-auto">
+              {infoOptions.map((opt) => (
+                <label
+                  key={opt}
+                  className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-[#fafafa]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={client.infos_manquantes.includes(opt)}
+                    onChange={() => toggleInfoManquante(opt)}
+                  />
+                  {opt}
+                </label>
+              ))}
+            </div>
+            <div className="mt-2 flex gap-1 border-t border-neutral-100 pt-2">
+              <input
+                value={newInfoLabel}
+                onChange={(e) => setNewInfoLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustomInfo();
+                  }
+                }}
+                placeholder="+ Nouvelle option"
+                className="input flex-1 text-sm"
+              />
+              <button
+                type="button"
+                onClick={addCustomInfo}
+                className="rounded-md bg-[#C9973E] px-2 text-sm text-white"
+              >
+                +
+              </button>
+            </div>
             <button
               type="button"
-              onClick={addCustomInfo}
-              className="rounded-md bg-[#C9973E] px-2 text-sm text-white"
+              onClick={() => setInfoManquanteOpen(false)}
+              className="mt-2 w-full rounded-md bg-[#171717] py-1.5 text-xs font-medium text-white hover:opacity-90"
             >
-              +
+              Fermer
             </button>
-          </div>
-        </div>
-        {client.infos_manquantes.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {client.infos_manquantes.map((s) => (
-              <span
-                key={s}
-                className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#666666]"
-              >
-                {s}
-                <button
-                  type="button"
-                  onClick={() => toggleInfoManquante(s)}
-                  className="text-[#666666]/60 hover:text-[#666666]"
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
           </div>
         )}
       </div>

@@ -22,6 +22,15 @@ function fmtDate(dateStr: string | null) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
+function fmtDayColumn(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+}
+function fmtMonthLabel(ym: string) {
+  const d = new Date(ym + "-01T00:00:00");
+  const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
 function firstNameOf(nom: string) {
   return nom.trim().split(/\s+/)[0] || "";
 }
@@ -86,7 +95,7 @@ function RdvPaiementModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl"
+        className="w-full max-w-md rounded-lg border-2 border-[#0070f3] bg-white p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between">
@@ -292,6 +301,7 @@ export default function SuivisView({
   const [chambreDrafts, setChambreDrafts] = useState<Record<string, string>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [rdvModalClientId, setRdvModalClientId] = useState<string | null>(null);
+  const [rdvKanbanView, setRdvKanbanView] = useState<string>("demain");
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
   const copyText = async (key: string, text: string) => {
     try {
@@ -325,6 +335,29 @@ export default function SuivisView({
   // rappel horaire au client, et hôtel + heure + montant à la personne
   // assignée (Bodé ou Sylvie) qui récupère le règlement.
   const rdvTodayRows = rdvRows.filter((c) => c.solde_date === todayStr);
+
+  // Kanban "à venir" : une vue Demain, une vue 7 prochains jours, puis une
+  // vue par mois (calculée à partir des RDV réellement programmés, pas
+  // tous les mois du calendrier) — colonnes par jour dans chaque vue.
+  const rdvUpcomingRows = rdvRows.filter((c) => (c.solde_date || "") > todayStr);
+  const rdvMonthKeys = Array.from(
+    new Set(rdvUpcomingRows.map((c) => (c.solde_date || "").slice(0, 7)).filter(Boolean))
+  ).sort();
+  const rdvKanbanViews = [
+    { key: "demain", label: "Demain" },
+    { key: "7jours", label: "7 prochains jours" },
+    ...rdvMonthKeys.map((ym) => ({ key: ym, label: fmtMonthLabel(ym) })),
+  ];
+  const in7DaysStr = addDays(todayStr, 7);
+  const rdvKanbanRows = rdvUpcomingRows.filter((c) => {
+    const d = c.solde_date || "";
+    if (rdvKanbanView === "demain") return d === tomorrowStr;
+    if (rdvKanbanView === "7jours") return d > todayStr && d <= in7DaysStr;
+    return d.slice(0, 7) === rdvKanbanView;
+  });
+  const rdvKanbanDays = Array.from(
+    new Set(rdvKanbanRows.map((c) => c.solde_date as string))
+  ).sort();
 
   const auRevoirRows = clients
     .filter((c) => c.date_fin)
@@ -562,7 +595,7 @@ export default function SuivisView({
                     <div
                       key={c.id}
                       onClick={() => setRdvModalClientId(c.id)}
-                      className="cursor-pointer rounded-md border border-[#f5a623] bg-[#f5a623]/10 p-3 text-sm"
+                      className="cursor-pointer rounded-md border border-[#0070f3] bg-[#0070f3]/10 p-3 text-sm"
                     >
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="font-amounts text-neutral-600">{c.solde_rdv_heure}</span>
@@ -611,29 +644,51 @@ export default function SuivisView({
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
               Rendez-vous de paiement à venir
             </h3>
-            {rdvRows.length === 0 && (
-              <div className="text-sm text-neutral-400">Aucun RDV paiement enregistré.</div>
-            )}
-            <div className="space-y-2">
-              {rdvRows.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => setRdvModalClientId(c.id)}
-                  className="flex cursor-pointer flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm hover:bg-[#fafafa]"
+            <div className="mb-3 flex flex-wrap gap-2">
+              {rdvKanbanViews.map((v) => (
+                <button
+                  key={v.key}
+                  onClick={() => setRdvKanbanView(v.key)}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                    rdvKanbanView === v.key
+                      ? "border-[#171717] bg-[#171717] text-white"
+                      : "border-neutral-300 bg-white text-neutral-600"
+                  }`}
                 >
-                  <span className="font-amounts text-neutral-500">
-                    {fmtDate(c.solde_date)} {c.solde_rdv_heure}
-                  </span>
-                  <span>
-                    <strong>{c.nom || "Sans nom"}</strong> — {c.hotel || "Hôtel ?"}
-                  </span>
-                  <span className="text-neutral-500">{c.solde_rdv_lieu}</span>
-                  <span className="text-neutral-500">{c.solde_assigne_a || "Non assigné"}</span>
-                  <span className="flex-1" />
-                  <JumpBtn onClick={() => onOpenClient(c.id)} />
-                </div>
+                  {v.label}
+                </button>
               ))}
             </div>
+            {rdvKanbanDays.length === 0 ? (
+              <div className="text-sm text-neutral-400">Aucun RDV paiement sur cette période.</div>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {rdvKanbanDays.map((day) => {
+                  const dayRows = rdvKanbanRows.filter((c) => c.solde_date === day);
+                  return (
+                    <div key={day} className="w-56 flex-shrink-0 rounded-md border border-neutral-200 bg-[#fafafa] p-2">
+                      <div className="mb-2 px-1 text-xs font-semibold capitalize text-[#171717]">
+                        {fmtDayColumn(day)}
+                        <span className="ml-1 font-normal text-neutral-400">({dayRows.length})</span>
+                      </div>
+                      <div className="space-y-2">
+                        {dayRows.map((c) => (
+                          <div
+                            key={c.id}
+                            onClick={() => setRdvModalClientId(c.id)}
+                            className="cursor-pointer rounded-md border border-neutral-200 bg-white p-2.5 text-xs hover:border-[#0070f3]"
+                          >
+                            <div className="font-amounts text-neutral-500">{c.solde_rdv_heure}</div>
+                            <div className="font-medium text-[#171717]">{c.nom || "Sans nom"}</div>
+                            <div className="text-neutral-500">{c.hotel || "Hôtel ?"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

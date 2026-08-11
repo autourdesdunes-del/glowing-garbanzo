@@ -218,6 +218,14 @@ export function isSpeedboat(nom: string) {
   return (nom || "").toLowerCase().includes("speedboat");
 }
 
+// Balade à cheval / chameau — un enfant peut monter seul (son propre animal,
+// tarif enfant plein) ou derrière un adulte (tarif accompagnateur) : la
+// réponse se demande par enfant, avant l'étape des tarifs.
+export function isChevalOuChameau(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return n.includes("cheval") || n.includes("chameau");
+}
+
 export function isSpeedboatSunset(nom: string) {
   const n = (nom || "").toLowerCase();
   return isSpeedboat(n) && n.includes("sunset");

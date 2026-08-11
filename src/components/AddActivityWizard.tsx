@@ -13,6 +13,7 @@ import {
 import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
 import {
   groupeExtraCounts,
+  isChevalOuChameau,
   isSpeedboatFixedJournee,
   isSpeedboatPriveMaisonDauphins,
   needsMomentSpeedboat,
@@ -74,6 +75,7 @@ type Step =
   | "ile"
   | "moment"
   | "participants"
+  | "monte"
   | "tarifs"
   | "options"
   | "transfert";
@@ -85,6 +87,7 @@ const STEP_TITLES: Record<Step, string> = {
   ile: "Choix de l'île",
   moment: "Matin ou après-midi",
   participants: "Nombre de participants",
+  monte: "Monte des enfants",
   tarifs: "Tarifs",
   options: "Options supplémentaires",
   transfert: "Taxe de transfert",
@@ -164,12 +167,18 @@ export default function AddActivityWizard({
   const catTarifs = catalogueItem ? catalogueTarifs[catalogueItem.id] || [] : [];
   const catOptions = catalogueItem ? catalogueOptions[catalogueItem.id] || [] : [];
 
+  const nbEnfantsParticipants = r ? participantsFor(r, client).nbEnf : 0;
+  const showMonteStep =
+    !!catalogueItem && isChevalOuChameau(catalogueItem.nom) && nbEnfantsParticipants > 0;
+
   const steps: Step[] = ["choix"];
   if (champsRequis.length > 0) steps.push("specifs");
   steps.push("date");
   if (catalogueItem && speedboatIleType(catalogueItem.nom)) steps.push("ile");
   if (catalogueItem && needsMomentSpeedboat(catalogueItem.nom)) steps.push("moment");
-  steps.push("participants", "tarifs", "options", "transfert");
+  steps.push("participants");
+  if (showMonteStep) steps.push("monte");
+  steps.push("tarifs", "options", "transfert");
   const stepIndex = steps.indexOf(step);
 
   const startFromCatalogue = async (item: CatalogueItem): Promise<string | null> => {
@@ -803,8 +812,74 @@ export default function AddActivityWizard({
               participants_extra_enfants: extraEnfants,
             });
           }
-          setStep("tarifs");
-        }, "Suivant — Tarifs")}
+          setStep(steps[steps.indexOf("participants") + 1]);
+        }, showMonteStep ? "Suivant — Monte des enfants" : "Suivant — Tarifs")}
+      </>
+    );
+  }
+
+  if (step === "monte") {
+    const { nbAd, nbEnf } = participantsFor(r, client);
+    const reponses = Array.from({ length: nbEnf }, (_, i) => (r.enfants_monte || [])[i] || "seul");
+    const nextStep = steps[steps.indexOf("monte") + 1];
+
+    const setReponse = (i: number, valeur: "derriere" | "seul") => {
+      const next = [...reponses];
+      next[i] = valeur;
+      onUpdateReservation(r.id, { enfants_monte: next });
+    };
+
+    const goNext = () => {
+      const nbDerriere = reponses.filter((x) => x === "derriere").length;
+      const nbSeul = nbEnf - nbDerriere;
+      onUpdateReservation(r.id, {
+        enfants_monte: reponses,
+        participants_mode: "custom",
+        participants_adultes: nbAd,
+        participants_enfants: nbSeul,
+        participants_accompagnateurs: nbDerriere,
+      });
+      setStep(nextStep);
+    };
+
+    return wrap(
+      <>
+        <p className="mb-3 text-sm text-neutral-500">
+          Chaque enfant monte-t-il seul (son propre {catalogueItem?.nom.toLowerCase().includes("chameau") ? "chameau" : "cheval"}) ou derrière un adulte (accompagnateur) ?
+        </p>
+        <div className="space-y-2">
+          {Array.from({ length: nbEnf }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between gap-2 rounded-md border border-neutral-200 px-3 py-2">
+              <span className="text-sm font-medium text-[#171717]">Enfant {i + 1}</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReponse(i, "seul")}
+                  className={`rounded-full border px-3 py-1 text-xs ${
+                    reponses[i] === "seul"
+                      ? "border-[#171717] bg-[#171717] text-white"
+                      : "border-neutral-300 text-neutral-600"
+                  }`}
+                >
+                  Seul
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReponse(i, "derriere")}
+                  className={`rounded-full border px-3 py-1 text-xs ${
+                    reponses[i] === "derriere"
+                      ? "border-[#C9973E] bg-[#C9973E] text-white"
+                      : "border-neutral-300 text-neutral-600"
+                  }`}
+                >
+                  Derrière un adulte
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {navButtons(goNext, "Suivant — Tarifs")}
       </>
     );
   }

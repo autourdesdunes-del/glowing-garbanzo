@@ -151,6 +151,7 @@ export type Reservation = {
   billet_lien: string;
   billet_notes: string;
   avoir_utilise: number;
+  enfants_monte: string[];
   created_at: string;
   updated_at: string;
 };

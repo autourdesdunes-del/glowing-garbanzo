@@ -544,7 +544,13 @@ export default function SuivisView({
   const pickupsJ1Missing = pickupsJ1.filter(({ r }) => !r.pickup_reel);
   const pickupsJ1Done = pickupsJ1.filter(({ r }) => r.pickup_reel);
 
-  const roomsJ1 = clients.filter((c) => c.date_debut === tomorrowStr);
+  // Pas seulement les arrivées de demain : un client déjà sur place (par
+  // ex. arrivé il y a plusieurs jours) sans chambre enregistrée doit aussi
+  // remonter ici, sinon il passe entre les mailles du filet une fois passé
+  // le jour de son arrivée.
+  const roomsJ1 = clients.filter(
+    (c) => !c.chambre && c.date_debut && c.date_fin && c.date_debut <= tomorrowStr && c.date_fin >= todayStr
+  );
 
   // Un client sans numéro de chambre à J-1 doit être signalé automatiquement
   // dans "infos manquantes" — pas besoin de le cocher à la main en plus de
@@ -705,10 +711,10 @@ export default function SuivisView({
 
           <div>
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-              Numéros de chambre à demander pour demain
+              Numéros de chambre à demander
             </h3>
             {roomsJ1.length === 0 && (
-              <div className="text-sm text-neutral-400">Aucune arrivée prévue demain.</div>
+              <div className="text-sm text-neutral-400">Aucun numéro de chambre manquant.</div>
             )}
             <div className="space-y-2">
               {roomsJ1.map((c) => {

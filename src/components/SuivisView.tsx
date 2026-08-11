@@ -114,10 +114,22 @@ export default function SuivisView({
     .filter((x) => x.dateCible <= todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
 
+  const auRevoirUpcomingRows = clients
+    .filter((c) => c.date_fin)
+    .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 1) }))
+    .filter((x) => x.dateCible > todayStr)
+    .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
+
   const avisRows = clients
     .filter((c) => c.date_fin)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 7) }))
     .filter((x) => x.dateCible <= todayStr)
+    .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
+
+  const avisUpcomingRows = clients
+    .filter((c) => c.date_fin)
+    .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 7) }))
+    .filter((x) => x.dateCible > todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
 
   const remboursementRows = [...remboursements].sort((a, b) =>
@@ -510,6 +522,30 @@ export default function SuivisView({
               </div>
             ))}
           </div>
+
+          <div>
+            <h3 className="font-heading mb-2 mt-6 text-sm font-semibold text-[#171717]">
+              À venir
+            </h3>
+            {auRevoirUpcomingRows.length === 0 && (
+              <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
+            )}
+            <div className="space-y-2">
+              {auRevoirUpcomingRows.map(({ c, dateCible }) => (
+                <div
+                  key={c.id}
+                  className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
+                >
+                  <span className="font-amounts text-neutral-500">{fmtDate(dateCible)}</span>
+                  <span>
+                    <strong>{c.nom || "Sans nom"}</strong>
+                  </span>
+                  <span className="flex-1" />
+                  <JumpBtn onClick={() => onOpenClient(c.id)} />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -558,6 +594,30 @@ export default function SuivisView({
                 </div>
               </div>
             ))}
+          </div>
+
+          <div>
+            <h3 className="font-heading mb-2 mt-6 text-sm font-semibold text-[#171717]">
+              À venir
+            </h3>
+            {avisUpcomingRows.length === 0 && (
+              <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
+            )}
+            <div className="space-y-2">
+              {avisUpcomingRows.map(({ c, dateCible }) => (
+                <div
+                  key={c.id}
+                  className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
+                >
+                  <span className="font-amounts text-neutral-500">{fmtDate(dateCible)}</span>
+                  <span>
+                    <strong>{c.nom || "Sans nom"}</strong>
+                  </span>
+                  <span className="flex-1" />
+                  <JumpBtn onClick={() => onOpenClient(c.id)} />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

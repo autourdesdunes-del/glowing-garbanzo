@@ -305,7 +305,7 @@ export default function AddActivityWizard({
           />
         )}
         {catalogue.length > 0 && (
-          <div className="mb-3 grid grid-cols-2 gap-2">
+          <div className="mb-3 space-y-2">
             {catalogue.map((a) => (
               <button
                 key={a.id}
@@ -320,7 +320,7 @@ export default function AddActivityWizard({
                     startFromCatalogue(a);
                   }
                 }}
-                className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
+                className="block w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
               >
                 <span className="block font-medium text-[#171717]">{a.nom}</span>
               </button>

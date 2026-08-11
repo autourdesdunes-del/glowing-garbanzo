@@ -10,16 +10,19 @@ function isEscalationRecipient(p: Profile | undefined) {
 }
 
 // Vue Direction/Sylvie : une escalade "client ne veut pas le mini-bus" à
-// valider ou refuser. Fenêtre bloquante volontairement (pas de bouton
-// fermer) — la demande doit être traitée, pas juste vue.
+// valider ou refuser. On peut la remettre à plus tard (✕) sans la
+// résoudre — sinon un compte qui est à la fois testeur et validateur (ex.
+// Direction) se retrouve bloqué par sa propre escalade de test.
 function ActionModal({
   escalation,
   resolverName,
   onResolve,
+  onDismiss,
 }: {
   escalation: BusEscalation;
   resolverName: string;
   onResolve: (statut: "validee" | "refusee", message: string) => Promise<void>;
+  onDismiss: () => void;
 }) {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -32,9 +35,19 @@ function ActionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-lg border-2 border-red-600 bg-white p-5 shadow-xl">
-        <h2 className="font-heading text-base font-semibold text-red-600">
-          Escalade formule bus
-        </h2>
+        <div className="flex items-start justify-between">
+          <h2 className="font-heading text-base font-semibold text-red-600">
+            Escalade formule bus
+          </h2>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="text-neutral-400 hover:text-[#171717]"
+            aria-label="Plus tard"
+          >
+            ✕
+          </button>
+        </div>
         <p className="mt-2 text-sm text-[#171717]">
           <strong>{escalation.employe_nom}</strong> a indiqué que le client{" "}
           <strong>{escalation.client_nom || "Sans nom"}</strong> ne souhaite pas la formule
@@ -121,6 +134,7 @@ export default function BusEscalationCenter({
 }) {
   const [pending, setPending] = useState<BusEscalation[]>([]);
   const [myResults, setMyResults] = useState<BusEscalation[]>([]);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const myProfile = profiles.find((p) => p.id === currentUserId);
   const canResolve = isEscalationRecipient(myProfile);
@@ -175,12 +189,16 @@ export default function BusEscalationCenter({
     return !localStorage.getItem(`bus-escalation-seen-${e.id}`);
   });
 
-  if (canResolve && pending.length > 0) {
+  const visiblePending = pending.filter((e) => !dismissedIds.has(e.id));
+
+  if (canResolve && visiblePending.length > 0) {
+    const current = visiblePending[0];
     return (
       <ActionModal
-        escalation={pending[0]}
+        escalation={current}
         resolverName={resolverName}
-        onResolve={(statut, message) => resolve(pending[0], statut, message)}
+        onResolve={(statut, message) => resolve(current, statut, message)}
+        onDismiss={() => setDismissedIds((prev) => new Set(prev).add(current.id))}
       />
     );
   }

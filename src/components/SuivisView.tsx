@@ -12,6 +12,7 @@ import {
 } from "@/lib/types";
 import { addDays, localDateStr } from "@/lib/dates";
 import { resaTotalMontant } from "@/lib/resa";
+import { profileName, profilesOnShiftAt } from "@/lib/planning";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -283,28 +284,11 @@ export default function SuivisView({
 
   const billetsRows = reservations.filter((r) => r.billet_requis);
 
-  const nameForProfile = (p: Profile) => p.prenom || p.email.split("@")[0];
-
   // Personne assignée à un appel : déduite du planning équipe (qui travaille
   // à cette date, à cette heure), pas une saisie manuelle — plusieurs noms
   // possibles si plusieurs personnes sont en poste au même moment.
-  const personneAssigneeAppel = (date: string | null, heure: string) => {
-    if (!date || !heure) return "";
-    const noms = planningShifts
-      .filter(
-        (s) =>
-          s.date === date &&
-          s.statut === "travail" &&
-          s.shift_debut &&
-          s.shift_fin &&
-          s.shift_debut <= heure &&
-          heure <= s.shift_fin
-      )
-      .map((s) => profiles.find((p) => p.id === s.user_id))
-      .filter((p): p is Profile => !!p)
-      .map(nameForProfile);
-    return Array.from(new Set(noms)).join(" / ");
-  };
+  const personneAssigneeAppel = (date: string | null, heure: string) =>
+    profilesOnShiftAt(profiles, planningShifts, date, heure).map(profileName).join(" / ");
 
   const appelsRows = clients
     .filter((c) => c.prochain_appel_date)

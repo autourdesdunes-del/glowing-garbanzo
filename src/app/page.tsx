@@ -16,5 +16,5 @@ export default async function Home() {
     .eq("id", user.id)
     .single();
 
-  return <AppShell userEmail={user.email ?? ""} role={profile?.role ?? "equipe"} />;
+  return <AppShell userEmail={user.email ?? ""} userId={user.id} role={profile?.role ?? "equipe"} />;
 }

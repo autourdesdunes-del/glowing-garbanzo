@@ -191,6 +191,16 @@ export function acompteWaitingWarning(
   return { montant: client.acompte_montant, mode: client.acompte_mode };
 }
 
+// Le "moment" (matin / après-midi / journée) ne veut rien dire pour les
+// activités spa/massage (remplacé par un horaire précis, voir
+// horaire_souhaite) ni pour le speedboat sunset (l'heure est déjà fixée par
+// le nom de l'activité) — dans ces deux cas on ne l'affiche jamais.
+export function hideMoment(nomActivite: string, horaireSouhaite: string) {
+  if (horaireSouhaite) return true;
+  const n = (nomActivite || "").toLowerCase();
+  return n.includes("speedboat") && n.includes("sunset");
+}
+
 export function participantsFor(r: Reservation, client: Client) {
   const nbAd =
     r.participants_mode === "tous" ? Number(client.adultes) || 0 : Number(r.participants_adultes) || 0;

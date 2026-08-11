@@ -36,6 +36,7 @@ import GeneratorView from "@/components/GeneratorView";
 import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
+import AppelReminders from "@/components/AppelReminders";
 
 type Mode =
   | "dashboard"
@@ -173,15 +174,17 @@ function fmtDate(dateStr: string | null) {
 
 export default function AppShell({
   userEmail,
+  userId,
   role,
 }: {
   userEmail: string;
+  userId: string;
   role: "direction" | "equipe";
 }) {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <AppShellInner userEmail={userEmail} role={role} />
+        <AppShellInner userEmail={userEmail} userId={userId} role={role} />
       </ConfirmProvider>
     </ToastProvider>
   );
@@ -189,9 +192,11 @@ export default function AppShell({
 
 function AppShellInner({
   userEmail,
+  userId,
   role,
 }: {
   userEmail: string;
+  userId: string;
   role: "direction" | "equipe";
 }) {
   const isDirection = role === "direction";
@@ -239,6 +244,8 @@ function AppShellInner({
         { data: catTarifs },
         { data: catOptions },
         { data: catFaq },
+        { data: profs },
+        { data: shifts },
       ] = await Promise.all([
         supabase.from("clients").select("*").order("created_at", { ascending: false }),
         supabase
@@ -248,7 +255,11 @@ function AppShellInner({
         supabase.from("catalogue_tarifs").select("*"),
         supabase.from("catalogue_options").select("*"),
         supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
+        supabase.from("profiles").select("*"),
+        supabase.from("planning_shifts").select("*"),
       ]);
+      setTeamProfiles((profs as Profile[]) || []);
+      setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       if (!error && data) {
         setClients(data as Client[]);
         if (data.length && !selectedId) setSelectedId(data[0].id);
@@ -343,14 +354,8 @@ function AppShellInner({
       setPlanningLoaded(true);
 
       if (mode === "suivis") {
-        const [{ data: rembs }, { data: profs }, { data: shifts }] = await Promise.all([
-          supabase.from("remboursements").select("*"),
-          supabase.from("profiles").select("*"),
-          supabase.from("planning_shifts").select("*"),
-        ]);
+        const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
-        setTeamProfiles((profs as Profile[]) || []);
-        setTeamPlanningShifts((shifts as PlanningShift[]) || []);
         setSuivisLoaded(true);
       }
     })();
@@ -770,6 +775,12 @@ function AppShellInner({
 
   return (
     <div className="flex min-h-screen bg-[#fafafa]">
+      <AppelReminders
+        clients={clients}
+        profiles={teamProfiles}
+        planningShifts={teamPlanningShifts}
+        currentUserId={userId}
+      />
       <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white">
         <div className="flex items-center gap-2.5 px-4 py-5">
           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">

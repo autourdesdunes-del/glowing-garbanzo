@@ -17,7 +17,7 @@ import {
   MOMENTS,
   OPTIONS_PRESETS,
 } from "@/lib/constants";
-import { paiementStatutKey, participantsFor, resaTotalMontant, STATUT_PAIEMENT_OPTIONS } from "@/lib/resa";
+import { hideMoment, paiementStatutKey, participantsFor, resaTotalMontant, STATUT_PAIEMENT_OPTIONS } from "@/lib/resa";
 import { Field } from "@/components/client-steps";
 import MissingInfoModal from "@/components/MissingInfoModal";
 
@@ -200,7 +200,7 @@ export default function ReservationCard({
         <p className="mt-1 text-xs text-neutral-500">
           {fmtDate(r.date_debut)}
           {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
-          {r.horaire_souhaite ? "" : ` · ${r.moment}`}
+          {hideMoment(r.nom_activite, r.horaire_souhaite) ? "" : ` · ${r.moment}`}
           {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
         </p>
         <p className="mt-1 text-xs text-neutral-500">

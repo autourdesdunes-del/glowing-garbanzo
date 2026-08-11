@@ -25,6 +25,13 @@ function isSpaMassage(nom: string) {
   return n.includes("spa") || n.includes("massage");
 }
 
+// Le speedboat sunset a déjà son horaire dans le nom — pas besoin de
+// redemander un "moment" (mais on garde "plusieurs jours" et le reste).
+function isSpeedboatSunset(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return n.includes("speedboat") && n.includes("sunset");
+}
+
 type Step = "choix" | "specifs" | "date" | "participants" | "tarifs" | "options" | "transfert";
 
 const STEP_TITLES: Record<Step, string> = {
@@ -415,7 +422,8 @@ export default function AddActivityWizard({
 
   if (step === "date") {
     const isSpa = isSpaMassage(r.nom_activite);
-    const missingMoment = !isSpa && !r.moment;
+    const isSunset = isSpeedboatSunset(r.nom_activite);
+    const missingMoment = !isSpa && !isSunset && !r.moment;
     const missingHoraire = isSpa && !r.horaire_souhaite;
 
     const goNext = () => {
@@ -461,31 +469,33 @@ export default function AddActivityWizard({
             </div>
           )}
         </div>
-        <div className="mt-3">
-          {isSpa ? (
-            <Field label="Horaire souhaité *">
-              <input
-                type="time"
-                value={r.horaire_souhaite}
-                onChange={(e) => onUpdateReservation(r.id, { horaire_souhaite: e.target.value })}
-                className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
-              />
-            </Field>
-          ) : (
-            <Field label="Moment *">
-              <select
-                value={r.moment}
-                onChange={(e) => onUpdateReservation(r.id, { moment: e.target.value })}
-                className={`input ${missingMoment && validationError ? "border-red-300 focus:border-red-400" : ""}`}
-              >
-                <option value="">—</option>
-                {MOMENTS.map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </Field>
-          )}
-        </div>
+        {!isSunset && (
+          <div className="mt-3">
+            {isSpa ? (
+              <Field label="Horaire souhaité *">
+                <input
+                  type="time"
+                  value={r.horaire_souhaite}
+                  onChange={(e) => onUpdateReservation(r.id, { horaire_souhaite: e.target.value })}
+                  className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
+                />
+              </Field>
+            ) : (
+              <Field label="Moment *">
+                <select
+                  value={r.moment}
+                  onChange={(e) => onUpdateReservation(r.id, { moment: e.target.value })}
+                  className={`input ${missingMoment && validationError ? "border-red-300 focus:border-red-400" : ""}`}
+                >
+                  <option value="">—</option>
+                  {MOMENTS.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
+          </div>
+        )}
 
         {validationError && missingMoment && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">

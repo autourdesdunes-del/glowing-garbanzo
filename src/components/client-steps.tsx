@@ -30,6 +30,8 @@ import { matchHotel } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
 import ItineraryView from "@/components/ItineraryView";
+import { Field } from "@/components/Field";
+import AddActivityWizard from "@/components/AddActivityWizard";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
@@ -65,14 +67,7 @@ function fmtDateDMY(dateStr: string | null) {
   return `${d}-${m}-${y}`;
 }
 
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-neutral-700">{label}</span>
-      {children}
-    </label>
-  );
-}
+export { Field };
 
 type StepProps = {
   client: Client;
@@ -705,18 +700,44 @@ export function ActivitesStep({
   onRequestAdd?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [addingNew, setAddingNew] = useState(false);
+
+  if (addingNew) {
+    return (
+      <AddActivityWizard
+        client={client}
+        catalogue={catalogue}
+        catalogueTarifs={catalogueTarifs}
+        catalogueOptions={catalogueOptions}
+        hotelHorsHurghada={hotelHorsHurghada}
+        onAddReservation={onAddReservation}
+        onUpdateReservation={onUpdateReservation}
+        onDeleteReservation={onDeleteReservation}
+        onAddOption={onAddOption}
+        onUpdateOption={onUpdateOption}
+        onDeleteOption={onDeleteOption}
+        onAddTarif={onAddTarif}
+        onUpdateTarif={onUpdateTarif}
+        onDeleteTarif={onDeleteTarif}
+        reservations={reservations}
+        resaOptions={resaOptions}
+        resaTarifs={resaTarifs}
+        onFinish={() => setAddingNew(false)}
+        onCancel={() => setAddingNew(false)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
         <button
-          onClick={async () => {
+          onClick={() => {
             if (onRequestAdd) {
               onRequestAdd();
               return;
             }
-            const id = await onAddReservation();
-            if (id) setExpandedId(id);
+            setAddingNew(true);
           }}
           className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
         >

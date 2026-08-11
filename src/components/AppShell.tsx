@@ -408,6 +408,11 @@ function AppShellInner({
     setSuivisSub("rdv");
   };
 
+  const openPickupsChambres = () => {
+    setMode("suivis");
+    setSuivisSub("j1");
+  };
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPatch = useRef<Partial<Client>>({});
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -998,6 +1003,7 @@ function AppShellInner({
               isDirection={effectiveIsDirection}
               onOpenClient={openClient}
               onOpenRdvPaiements={openRdvPaiements}
+              onOpenPickupsChambres={openPickupsChambres}
               onCreateClient={addClient}
               onUpdateClient={updateClientById}
             />

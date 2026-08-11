@@ -209,6 +209,7 @@ export default function DashboardView({
   isDirection,
   onOpenClient,
   onOpenRdvPaiements,
+  onOpenPickupsChambres,
   onCreateClient,
   onUpdateClient,
 }: {
@@ -220,6 +221,7 @@ export default function DashboardView({
   isDirection: boolean;
   onOpenClient: (id: string) => void;
   onOpenRdvPaiements: () => void;
+  onOpenPickupsChambres: () => void;
   onCreateClient: (fields: {
     nom: string;
     telephone: string;
@@ -594,9 +596,7 @@ export default function DashboardView({
                     ? `${roomsMissingTomorrow.length} client(s) arrivant demain`
                     : "Rien à demander"
                 }
-                onClick={
-                  roomsMissingTomorrow[0] ? () => onOpenClient(roomsMissingTomorrow[0].id) : undefined
-                }
+                onClick={roomsMissingTomorrow.length > 0 ? onOpenPickupsChambres : undefined}
               />
               <ActionRow
                 icon="car"
@@ -606,11 +606,7 @@ export default function DashboardView({
                     ? `${pickupsMissingTomorrow.length} activité(s) demain`
                     : "Rien à ajouter"
                 }
-                onClick={
-                  pickupsMissingTomorrow[0]
-                    ? () => onOpenClient(pickupsMissingTomorrow[0].client_id)
-                    : undefined
-                }
+                onClick={pickupsMissingTomorrow.length > 0 ? onOpenPickupsChambres : undefined}
               />
               <ActionRow
                 icon="wallet"

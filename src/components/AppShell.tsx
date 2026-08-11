@@ -403,6 +403,11 @@ function AppShellInner({
     setSelectedId(id);
   };
 
+  const openRdvPaiements = () => {
+    setMode("suivis");
+    setSuivisSub("rdv");
+  };
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPatch = useRef<Partial<Client>>({});
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -992,6 +997,7 @@ function AppShellInner({
               resaTarifs={allResaTarifs}
               isDirection={effectiveIsDirection}
               onOpenClient={openClient}
+              onOpenRdvPaiements={openRdvPaiements}
               onCreateClient={addClient}
               onUpdateClient={updateClientById}
             />
@@ -1132,7 +1138,6 @@ function AppShellInner({
                 catalogueTarifs={catalogueTarifs}
                 catalogueOptions={catalogueOptions}
                 onOpenHelp={() => setMode("help")}
-                onReorderCatalogue={reorderCatalogueItem}
               />
             )}
           </main>

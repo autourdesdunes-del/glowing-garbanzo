@@ -62,6 +62,77 @@ function JumpBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
+function RdvPaiementModal({
+  c,
+  montant,
+  copiedKey,
+  onCopy,
+  onOpenClient,
+  onClose,
+}: {
+  c: Client;
+  montant: number;
+  copiedKey: string | null;
+  onCopy: (key: string, text: string) => void;
+  onOpenClient: (id: string) => void;
+  onClose: () => void;
+}) {
+  const clientMsg = `Bonjour ${c.nom || ""}, petit rappel pour aujourd'hui : rendez-vous à ${c.solde_rdv_heure || "l'heure convenue"} devant l'hôtel ${c.hotel || "—"} (à l'extérieur) pour le règlement du solde de ${euros(montant)} €. À tout à l'heure !`;
+  const teamMsg = `Payment appointment — ${c.nom || "No name"} — Hotel ${c.hotel || "—"} — ${c.solde_rdv_heure || "time ?"} — Amount to collect: ${euros(montant)} €`;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between">
+          <button
+            onClick={() => {
+              onOpenClient(c.id);
+              onClose();
+            }}
+            className="font-heading text-base font-semibold text-[#171717] hover:underline"
+          >
+            {c.nom || "Sans nom"}
+          </button>
+          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-[#171717]">
+            ✕
+          </button>
+        </div>
+        <div className="mt-2 space-y-1 text-sm text-[#666666]">
+          <div>
+            {fmtDate(c.solde_date)} {c.solde_rdv_heure && `— ${c.solde_rdv_heure}`}
+          </div>
+          <div>Hôtel : {c.hotel || "—"}</div>
+          {c.solde_rdv_lieu && <div>Lieu : {c.solde_rdv_lieu}</div>}
+          <div>👤 Assigné à : {c.solde_assigne_a || "Non assigné"}</div>
+          <div className="font-amounts font-medium text-[#171717]">Montant : {euros(montant)} €</div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => onCopy("modal-client-" + c.id, clientMsg)}
+            className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+          >
+            {copiedKey === "modal-client-" + c.id ? "Copié ✓" : "Copier message client"}
+          </button>
+          <button
+            onClick={() => onCopy("modal-team-" + c.id, teamMsg)}
+            className="rounded-full bg-[#666666] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+          >
+            {copiedKey === "modal-team-" + c.id
+              ? "Copié ✓"
+              : `Copier message ${c.solde_assigne_a || "équipe"}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppelRow({
   c,
   todayStr,
@@ -220,6 +291,7 @@ export default function SuivisView({
   const [pickupDrafts, setPickupDrafts] = useState<Record<string, string>>({});
   const [chambreDrafts, setChambreDrafts] = useState<Record<string, string>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [rdvModalClientId, setRdvModalClientId] = useState<string | null>(null);
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
   const copyText = async (key: string, text: string) => {
     try {
@@ -460,6 +532,22 @@ export default function SuivisView({
 
       {sub === "rdv" && (
         <div className="space-y-6">
+          {rdvModalClientId &&
+            (() => {
+              const c = clients.find((cl) => cl.id === rdvModalClientId);
+              if (!c) return null;
+              return (
+                <RdvPaiementModal
+                  c={c}
+                  montant={soldeRestantFor(c)}
+                  copiedKey={copiedKey}
+                  onCopy={copyText}
+                  onOpenClient={onOpenClient}
+                  onClose={() => setRdvModalClientId(null)}
+                />
+              );
+            })()}
+
           {rdvTodayRows.length > 0 && (
             <div>
               <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
@@ -473,7 +561,8 @@ export default function SuivisView({
                   return (
                     <div
                       key={c.id}
-                      className="rounded-md border border-[#f5a623] bg-[#f5a623]/10 p-3 text-sm"
+                      onClick={() => setRdvModalClientId(c.id)}
+                      className="cursor-pointer rounded-md border border-[#f5a623] bg-[#f5a623]/10 p-3 text-sm"
                     >
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="font-amounts text-neutral-600">{c.solde_rdv_heure}</span>
@@ -491,13 +580,19 @@ export default function SuivisView({
                       </div>
                       <div className="mt-2.5 flex flex-wrap gap-2">
                         <button
-                          onClick={() => copyText("client-" + c.id, clientMsg)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyText("client-" + c.id, clientMsg);
+                          }}
                           className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                         >
                           {copiedKey === "client-" + c.id ? "Copié ✓" : "Copier message client"}
                         </button>
                         <button
-                          onClick={() => copyText("team-" + c.id, teamMsg)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyText("team-" + c.id, teamMsg);
+                          }}
                           className="rounded-full bg-[#666666] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                         >
                           {copiedKey === "team-" + c.id
@@ -523,7 +618,8 @@ export default function SuivisView({
               {rdvRows.map((c) => (
                 <div
                   key={c.id}
-                  className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
+                  onClick={() => setRdvModalClientId(c.id)}
+                  className="flex cursor-pointer flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm hover:bg-[#fafafa]"
                 >
                   <span className="font-amounts text-neutral-500">
                     {fmtDate(c.solde_date)} {c.solde_rdv_heure}

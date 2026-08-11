@@ -208,6 +208,7 @@ export default function DashboardView({
   resaTarifs,
   isDirection,
   onOpenClient,
+  onOpenRdvPaiements,
   onCreateClient,
   onUpdateClient,
 }: {
@@ -218,6 +219,7 @@ export default function DashboardView({
   resaTarifs: Record<string, ReservationTarif[]>;
   isDirection: boolean;
   onOpenClient: (id: string) => void;
+  onOpenRdvPaiements: () => void;
   onCreateClient: (fields: {
     nom: string;
     telephone: string;
@@ -495,7 +497,11 @@ export default function DashboardView({
                   {priorityQueue.slice(0, 10).map(({ client, motifs }) => (
                     <tr
                       key={client.id}
-                      onClick={() => onOpenClient(client.id)}
+                      onClick={() =>
+                        motifs.includes("RDV paiement")
+                          ? onOpenRdvPaiements()
+                          : onOpenClient(client.id)
+                      }
                       className="cursor-pointer border-t border-[#eaeaea] hover:bg-[#fafafa]"
                     >
                       <td className="px-5 py-3">
@@ -610,7 +616,7 @@ export default function DashboardView({
                 icon="wallet"
                 title="RDV paiements aujourd'hui"
                 sub={rdvToday.length > 0 ? `${rdvToday.length} rendez-vous` : "Aucun aujourd'hui"}
-                onClick={rdvToday[0] ? () => onOpenClient(rdvToday[0].id) : undefined}
+                onClick={rdvToday.length > 0 ? onOpenRdvPaiements : undefined}
               />
               <ActionRow
                 icon="check"

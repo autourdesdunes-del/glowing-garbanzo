@@ -38,6 +38,7 @@ const MAISON_DAUPHINS_TEXT =
   "Les speedboat privé maison des dauphins sont recommandés le matin pour davantage de chances de voir les dauphins.";
 import { Field } from "@/components/client-steps";
 import MissingInfoModal from "@/components/MissingInfoModal";
+import { useToast } from "@/components/ToastProvider";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -98,6 +99,8 @@ export default function ReservationCard({
 }) {
   const [showPaxOverride, setShowPaxOverride] = useState(!!r.pax_override);
   const [validationError, setValidationError] = useState(false);
+  const [readingPassport, setReadingPassport] = useState(false);
+  const toast = useToast();
   const [showMomentModal, setShowMomentModal] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
   const champsRequis = catalogueItem?.champs_requis_liste || [];
@@ -173,6 +176,32 @@ export default function ReservationCard({
   const statutKey = paiementStatutKey(client, r);
   const badge = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === statutKey)!;
   const hasInfo = !!r.info_importante;
+
+  const readNameFromPassport = async () => {
+    const path = client.passeport_photos?.[0];
+    if (!path) {
+      toast("Ajoute d'abord une photo du passeport dans l'onglet Contact.");
+      return;
+    }
+    setReadingPassport(true);
+    try {
+      const res = await fetch("/api/extract-passport-name", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || "Échec de la lecture du passeport.");
+        return;
+      }
+      onUpdate({ billet_nom_complet: data.name });
+    } catch {
+      toast("Échec de la lecture du passeport.");
+    } finally {
+      setReadingPassport(false);
+    }
+  };
 
   if (!expanded) {
     if (r.statut_resa === "Confirmée") {
@@ -1055,12 +1084,23 @@ export default function ReservationCard({
         {r.billet_requis && (
           <div className="mt-3 grid grid-cols-2 gap-3">
             <Field label="Nom complet (comme au passeport)">
-              <input
-                value={r.billet_nom_complet}
-                onChange={(e) => onUpdate({ billet_nom_complet: e.target.value })}
-                placeholder="À écrire tel quel pour Hossam / le prestataire"
-                className="input"
-              />
+              <div className="flex gap-1.5">
+                <input
+                  value={r.billet_nom_complet}
+                  onChange={(e) => onUpdate({ billet_nom_complet: e.target.value })}
+                  placeholder="À écrire tel quel pour Hossam / le prestataire"
+                  className="input"
+                />
+                <button
+                  type="button"
+                  onClick={readNameFromPassport}
+                  disabled={readingPassport}
+                  title="Lire le nom sur la photo du passeport"
+                  className="shrink-0 rounded-md border border-[#666666]/30 px-2 text-xs text-neutral-600 hover:bg-[#fafafa] disabled:opacity-50"
+                >
+                  {readingPassport ? "…" : "📷 Lire"}
+                </button>
+              </div>
             </Field>
             <Field label="Statut">
               <select

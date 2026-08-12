@@ -16,6 +16,7 @@ import {
   isChevalOuChameau,
   isDeuxiemeIleOption,
   isSafariQuadBase,
+  isQuad,
   isSpeedboatFixedJournee,
   isSpeedboatPriveMaisonDauphins,
   needsCreneauSafariBuggy,
@@ -195,6 +196,10 @@ export default function AddActivityWizard({
   const nbEnfantsParticipants = r ? participantsFor(r, client).nbEnf : 0;
   const showMonteStep =
     !!catalogueItem && isChevalOuChameau(catalogueItem.nom) && nbEnfantsParticipants > 0;
+  const showChevalPaxHint = showMonteStep;
+  const showQuadPaxHint =
+    !!catalogueItem && isQuad(catalogueItem.nom) && (nbEnfantsParticipants > 0 || client.ados_presents);
+  const showPaxHint = showChevalPaxHint || showQuadPaxHint;
 
   const steps: Step[] = ["choix"];
   if (champsRequis.length > 0) steps.push("specifs");
@@ -883,17 +888,15 @@ export default function AddActivityWizard({
           </div>
         )}
         <div className="mt-3">
-          {catalogueItem && isChevalOuChameau(catalogueItem.nom) && nbEnfantsParticipants > 0 && (
+          {showPaxHint && (
             <p className="mb-2 text-xs font-semibold text-red-600">
-              ⚠ Conseillé : écrivez vous-même le texte affiché ci-dessous. Exemple : « 3 participants
-              à cheval, 2 passagers »
+              ⚠ Conseillé : écrivez vous-même le texte affiché ci-dessous. Exemple : «{" "}
+              {showQuadPaxHint ? "2 conducteurs, 3 passagers" : "3 participants à cheval, 2 passagers"} »
             </p>
           )}
           <label
             className={`flex items-center gap-2 text-xs ${
-              catalogueItem && isChevalOuChameau(catalogueItem.nom) && nbEnfantsParticipants > 0
-                ? "font-semibold text-red-600"
-                : "text-neutral-500"
+              showPaxHint ? "font-semibold text-red-600" : "text-neutral-500"
             }`}
           >
             <input

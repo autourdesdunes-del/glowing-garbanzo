@@ -244,6 +244,14 @@ export function isChevalOuChameau(nom: string) {
   return n.includes("cheval") || n.includes("chameau");
 }
 
+// Quad (Safari quad, Safari quad & dîner spectacle, au coucher du soleil…) —
+// même logique que cheval/chameau : avec des enfants ou des ados, un quad
+// par participant n'est pas automatique (ex. enfant en passager derrière un
+// conducteur), donc on recommande d'écrire le texte affiché à la main.
+export function isQuad(nom: string) {
+  return (nom || "").toLowerCase().includes("quad");
+}
+
 // Nombre d'animaux à réserver, affiché en anglais à côté du titre (équipe
 // côté Égypte) avec une icône "important" — calculé à l'affichage plutôt
 // que figé dans le titre au moment de la création, pour rester juste même

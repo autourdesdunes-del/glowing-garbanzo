@@ -32,6 +32,11 @@ function fmtDate(dateStr: string | null) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
+function daysBetween(laterStr: string, earlierStr: string) {
+  const a = new Date(laterStr + "T00:00:00");
+  const b = new Date(earlierStr + "T00:00:00");
+  return Math.round((a.getTime() - b.getTime()) / 86400000);
+}
 function VoirRibLink({ path }: { path: string }) {
   const [loading, setLoading] = useState(false);
   return (
@@ -1267,63 +1272,95 @@ export default function SuivisView({
       )}
 
       {sub === "avis" && (
-        <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-            Demandes d&apos;avis à envoyer (J+7)
-          </h3>
-          {avisRows.length === 0 && (
-            <div className="text-sm text-neutral-400">Rien à envoyer pour l&apos;instant.</div>
-          )}
-          <div className="space-y-2">
-            {avisRows.map(({ c, dateCible }) => (
-              <div
-                key={c.id}
-                className={`rounded-md border p-3 text-sm ${
-                  dateCible === todayStr
-                    ? "border-[#f5a623] bg-[#f5a623]/10"
-                    : "border-neutral-200 bg-white"
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-neutral-500">
-                    {fmtDate(dateCible)}
-                    {dateCible === todayStr ? " — aujourd'hui" : ""}
-                  </span>
-                  <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-                  <button
-                    onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
-                    className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+        <div className="space-y-8">
+          <div>
+            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">
+              Demandes d&apos;avis à envoyer (J+7)
+            </h3>
+            {avisRows.length === 0 && (
+              <div className="text-sm text-neutral-400">Rien à envoyer pour l&apos;instant.</div>
+            )}
+            <div className="space-y-3">
+              {avisRows.map(({ c, dateCible }) => {
+                const lateDays = daysBetween(todayStr, dateCible);
+                const enRetard = lateDays > 2;
+                return (
+                  <div
+                    key={c.id}
+                    className={`overflow-hidden rounded-lg border p-4 shadow-sm ${
+                      enRetard
+                        ? "border-red-300 bg-red-50"
+                        : dateCible === todayStr
+                        ? "border-[#f5a623] bg-[#f5a623]/10"
+                        : "border-neutral-200 bg-white"
+                    }`}
                   >
-                    {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier le message"}
-                  </button>
-                  <AvisStatutSelector
-                    value={c.avis_statut}
-                    onChange={(v) => onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })}
-                  />
-                </div>
-              </div>
-            ))}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-xs font-medium text-neutral-500">
+                        {fmtDate(dateCible)}
+                        {dateCible === todayStr ? " — aujourd'hui" : ""}
+                      </span>
+                      <ClientNameLink
+                        nom={c.nom}
+                        onClick={() => onOpenClient(c.id)}
+                        className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                      />
+                      <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                    </div>
+                    {enRetard && (
+                      <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+                        ⚠️ En retard — cette demande aurait dû être envoyée il y a {lateDays} jour
+                        {lateDays > 1 ? "s" : ""}
+                      </div>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
+                        className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                      >
+                        {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier le message"}
+                      </button>
+                      <AvisStatutSelector
+                        value={c.avis_statut}
+                        onChange={(v) =>
+                          onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })
+                        }
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div>
-            <h3 className="font-heading mb-2 mt-6 text-sm font-semibold text-[#171717]">
-              À venir
-            </h3>
+            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">À venir</h3>
             {avisUpcomingRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
             )}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {avisUpcomingRows.map(({ c, dateCible }) => (
                 <div
                   key={c.id}
-                  className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
+                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
                 >
-                  <span className="text-neutral-500">{fmtDate(dateCible)}</span>
-                  <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-                  <AvisStatutSelector
-                    value={c.avis_statut}
-                    onChange={(v) => onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })}
-                  />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
+                    <ClientNameLink
+                      nom={c.nom}
+                      onClick={() => onOpenClient(c.id)}
+                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                    />
+                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                  </div>
+                  <div className="mt-3">
+                    <AvisStatutSelector
+                      value={c.avis_statut}
+                      onChange={(v) =>
+                        onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })
+                      }
+                    />
+                  </div>
                 </div>
               ))}
             </div>

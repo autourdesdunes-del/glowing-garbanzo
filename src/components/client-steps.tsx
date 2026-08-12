@@ -1703,137 +1703,195 @@ export function SuiviStep({
         {remboursements.length === 0 && (
           <div className="text-sm text-neutral-400">Aucun remboursement.</div>
         )}
-        <div className="space-y-3">
-          {remboursements.map((r) => (
-            <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3">
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Montant (€)">
-                  <input
-                    type="number"
-                    value={r.montant}
-                    onChange={(e) =>
-                      updateRemboursement(r.id, { montant: Number(e.target.value) })
-                    }
-                    className="input"
-                  />
-                </Field>
-                <Field label="Raison">
-                  <select
-                    value={r.raison}
-                    onChange={(e) => updateRemboursement(r.id, { raison: e.target.value })}
-                    className="input"
-                  >
-                    {RAISONS_REMBOURSEMENT.map((x) => (
-                      <option key={x}>{x}</option>
-                    ))}
-                  </select>
-                </Field>
-                {r.raison === "Autre" && (
-                  <Field label="Préciser la raison">
-                    <input
-                      value={r.raison_autre}
-                      onChange={(e) =>
-                        updateRemboursement(r.id, { raison_autre: e.target.value })
-                      }
-                      className="input"
-                    />
-                  </Field>
-                )}
-                <Field label="Activité liée">
-                  <select
-                    value={r.activite_id ?? ""}
-                    onChange={(e) =>
-                      updateRemboursement(r.id, { activite_id: e.target.value || null })
-                    }
-                    className="input"
-                  >
-                    <option value="">Non liée</option>
-                    {reservations.map((res) => (
-                      <option key={res.id} value={res.id}>
-                        {res.nom_activite || "Activité sans nom"}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Date du problème">
-                  <input
-                    type="date"
-                    value={r.date_probleme ?? ""}
-                    onChange={(e) =>
-                      updateRemboursement(r.id, { date_probleme: e.target.value || null })
-                    }
-                    className="input"
-                  />
-                </Field>
-                <Field label="Mode de remboursement">
-                  <select
-                    value={r.mode}
-                    onChange={(e) => updateRemboursement(r.id, { mode: e.target.value })}
-                    className="input"
-                  >
-                    {MODES_PAIEMENT.map((m) => (
-                      <option key={m}>{m}</option>
-                    ))}
-                  </select>
-                </Field>
-                {r.mode === "PayPal" && (
-                  <Field label="Adresse PayPal du client">
-                    <input
-                      value={r.paypal_email}
-                      onChange={(e) => updateRemboursement(r.id, { paypal_email: e.target.value })}
-                      placeholder="prenom.nom@email.com"
-                      className="input"
-                    />
-                  </Field>
-                )}
-                {r.mode === "Virement bancaire" && (
-                  <Field label="RIB">
-                    <RibScreenshotUpload
-                      path={r.rib_photo_path}
-                      onChange={(path) => updateRemboursement(r.id, { rib_photo_path: path })}
-                    />
-                  </Field>
-                )}
-                <Field label="Fait par">
-                  <input
-                    value={r.par}
-                    onChange={(e) => updateRemboursement(r.id, { par: e.target.value })}
-                    className="input"
-                  />
-                </Field>
-                <Field label="Date du remboursement">
-                  <input
-                    type="date"
-                    value={r.date_remboursement ?? ""}
-                    onChange={(e) =>
-                      updateRemboursement(r.id, { date_remboursement: e.target.value || null })
-                    }
-                    className="input"
-                  />
-                </Field>
-                <Field label="Statut">
-                  <select
-                    value={r.statut}
-                    onChange={(e) =>
-                      updateRemboursement(r.id, {
-                        statut: e.target.value as Remboursement["statut"],
-                      })
-                    }
-                    className="input"
-                  >
-                    <option>En attente</option>
-                    <option>Effectué</option>
-                  </select>
-                </Field>
-              </div>
-              <button
-                onClick={() => deleteRemboursement(r.id)}
-                className="mt-2 text-xs text-red-600 hover:underline"
+        <div className="space-y-4">
+          {remboursements.map((r) => {
+            const activiteLiee = reservations.find((res) => res.id === r.activite_id);
+            return (
+              <div
+                key={r.id}
+                className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm"
               >
-                Retirer
-              </button>
-            </div>
-          ))}
+                <div
+                  className={`flex items-center justify-between gap-3 px-4 py-3 ${
+                    r.statut === "Effectué" ? "bg-green-50" : "bg-[#f5a623]/10"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="font-heading text-xl font-semibold text-[#171717]">
+                      {euros(r.montant)} €
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        r.statut === "Effectué"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-[#f5a623]/20 text-[#8B4531]"
+                      }`}
+                    >
+                      {r.statut}
+                    </span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-neutral-500">
+                      {r.mode}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => deleteRemboursement(r.id)}
+                    className="text-xs text-red-500 hover:underline"
+                  >
+                    Retirer
+                  </button>
+                </div>
+
+                <div className="space-y-4 p-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Montant (€)">
+                      <input
+                        type="number"
+                        value={r.montant}
+                        onChange={(e) =>
+                          updateRemboursement(r.id, { montant: Number(e.target.value) })
+                        }
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Statut">
+                      <select
+                        value={r.statut}
+                        onChange={(e) =>
+                          updateRemboursement(r.id, {
+                            statut: e.target.value as Remboursement["statut"],
+                          })
+                        }
+                        className="input"
+                      >
+                        <option>En attente</option>
+                        <option>Effectué</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Raison">
+                      <select
+                        value={r.raison}
+                        onChange={(e) => updateRemboursement(r.id, { raison: e.target.value })}
+                        className="input"
+                      >
+                        {RAISONS_REMBOURSEMENT.map((x) => (
+                          <option key={x}>{x}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    {r.raison === "Autre" && (
+                      <Field label="Préciser la raison">
+                        <input
+                          value={r.raison_autre}
+                          onChange={(e) =>
+                            updateRemboursement(r.id, { raison_autre: e.target.value })
+                          }
+                          className="input"
+                        />
+                      </Field>
+                    )}
+                  </div>
+
+                  <Field label="Détails — pourquoi ce remboursement ?">
+                    <textarea
+                      value={r.details}
+                      onChange={(e) => updateRemboursement(r.id, { details: e.target.value })}
+                      placeholder="Explique en détail ce qui s'est passé et ce qui justifie le remboursement…"
+                      rows={3}
+                      className="input"
+                    />
+                  </Field>
+
+                  <div className="grid grid-cols-2 gap-3 rounded-md bg-[#fafafa] p-3">
+                    <Field label="Activité concernée">
+                      <select
+                        value={r.activite_id ?? ""}
+                        onChange={(e) =>
+                          updateRemboursement(r.id, { activite_id: e.target.value || null })
+                        }
+                        className="input"
+                      >
+                        <option value="">Non liée</option>
+                        {reservations.map((res) => (
+                          <option key={res.id} value={res.id}>
+                            {res.nom_activite || "Activité sans nom"}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Date de l'activité">
+                      <div className="input flex items-center bg-neutral-100 text-neutral-500">
+                        {activiteLiee?.date_debut ? fmtDate(activiteLiee.date_debut) : "—"}
+                      </div>
+                    </Field>
+                    <Field label="Date de l'annulation">
+                      <input
+                        type="date"
+                        value={r.date_probleme ?? ""}
+                        onChange={(e) =>
+                          updateRemboursement(r.id, { date_probleme: e.target.value || null })
+                        }
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Date du remboursement">
+                      <input
+                        type="date"
+                        value={r.date_remboursement ?? ""}
+                        onChange={(e) =>
+                          updateRemboursement(r.id, { date_remboursement: e.target.value || null })
+                        }
+                        className="input"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Mode de remboursement">
+                      <select
+                        value={r.mode}
+                        onChange={(e) => updateRemboursement(r.id, { mode: e.target.value })}
+                        className="input"
+                      >
+                        {MODES_PAIEMENT.map((m) => (
+                          <option key={m}>{m}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Fait par">
+                      <input
+                        value={r.par}
+                        onChange={(e) => updateRemboursement(r.id, { par: e.target.value })}
+                        className="input"
+                      />
+                    </Field>
+                    {r.mode === "PayPal" && (
+                      <Field label="Adresse PayPal du client">
+                        <input
+                          value={r.paypal_email}
+                          onChange={(e) =>
+                            updateRemboursement(r.id, { paypal_email: e.target.value })
+                          }
+                          placeholder="prenom.nom@email.com"
+                          className="input"
+                        />
+                      </Field>
+                    )}
+                    {r.mode === "Virement bancaire" && (
+                      <Field label="RIB">
+                        <RibScreenshotUpload
+                          path={r.rib_photo_path}
+                          onChange={(path) => updateRemboursement(r.id, { rib_photo_path: path })}
+                        />
+                      </Field>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

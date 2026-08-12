@@ -168,6 +168,7 @@ export type Remboursement = {
   montant: number;
   raison: string;
   raison_autre: string;
+  details: string;
   activite_id: string | null;
   date_probleme: string | null;
   mode: string;

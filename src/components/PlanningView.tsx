@@ -227,20 +227,51 @@ function ActivityDetailModal({
   // dans le suivi qui doit se voir, sous peine de finir sans jamais être
   // encaissé.
   const soldeSansActivite = !soldeIci && !client.solde_paye && !client.solde_activite_id;
+  const [showSoldeSansActiviteAlert, setShowSoldeSansActiviteAlert] = useState(soldeSansActivite);
   const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-heading text-lg font-semibold text-[#171717]">
-              {r.nom_activite || "Activité sans nom"}
-              {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+    <>
+      {showSoldeSansActiviteAlert && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-red-300 bg-white p-5 shadow-xl">
+            <p className="text-sm font-medium text-red-700">
+              ⚠️ Solde du séjour en attente — pas encore rattaché à une activité de collecte, à
+              surveiller. Souhaitez-vous définir un paiement pour cette activité/ce client ?
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenClient(client.id);
+                  onClose();
+                }}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Oui, définir un paiement
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSoldeSansActiviteAlert(false)}
+                className="rounded-md px-3 py-2 text-sm text-neutral-500 hover:underline"
+              >
+                Plus tard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+        <div
+          className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-heading text-lg font-semibold text-[#171717]">
+                {r.nom_activite || "Activité sans nom"}
+                {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
             </h3>
             {momentBadge(r) && (
               <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
@@ -409,8 +440,9 @@ function ActivityDetailModal({
             ⚠ {r.info_importante}
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -713,6 +745,7 @@ export default function PlanningView({
 
       {activeActivity && (
         <ActivityDetailModal
+          key={activeActivity.r.id}
           client={activeActivity.client}
           r={activeActivity.r}
           reservations={reservations}

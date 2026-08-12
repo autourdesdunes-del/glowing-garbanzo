@@ -672,7 +672,7 @@ export default function SuivisView({
     setRdvModalClientId(initialRdvModalClientId);
   }
   const [rdvKanbanView, setRdvKanbanView] = useState<string>("demain");
-  const [billetsMonthFilter, setBilletsMonthFilter] = useState<string>("tous");
+  const [billetsMonthFilter, setBilletsMonthFilter] = useState<string>("a_venir");
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
   const copyText = async (key: string, text: string) => {
     try {
@@ -818,11 +818,9 @@ export default function SuivisView({
     new Set(billetsAllRows.map((r) => (r.billet_date || "").slice(0, 7)).filter(Boolean))
   ).sort();
   const billetsRows =
-    billetsMonthFilter === "tous"
+    billetsMonthFilter === "a_venir"
       ? billetsAllRows
-      : billetsMonthFilter === "sans_date"
-        ? billetsAllRows.filter((r) => !r.billet_date)
-        : billetsAllRows.filter((r) => (r.billet_date || "").slice(0, 7) === billetsMonthFilter);
+      : billetsAllRows.filter((r) => (r.billet_date || "").slice(0, 7) === billetsMonthFilter);
 
   // Personne assignée à un appel : déduite du planning équipe (qui travaille
   // à cette date, à cette heure), pas une saisie manuelle — plusieurs noms
@@ -1706,14 +1704,14 @@ export default function SuivisView({
 
           <div className="mb-3 flex flex-wrap gap-2">
             <button
-              onClick={() => setBilletsMonthFilter("tous")}
+              onClick={() => setBilletsMonthFilter("a_venir")}
               className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                billetsMonthFilter === "tous"
+                billetsMonthFilter === "a_venir"
                   ? "border-[#171717] bg-[#171717] text-white"
                   : "border-neutral-300 bg-white text-neutral-600"
               }`}
             >
-              Tous
+              À venir
             </button>
             {billetsMonthKeys.map((ym) => (
               <button
@@ -1728,16 +1726,6 @@ export default function SuivisView({
                 {fmtMonthLabel(ym)}
               </button>
             ))}
-            <button
-              onClick={() => setBilletsMonthFilter("sans_date")}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                billetsMonthFilter === "sans_date"
-                  ? "border-[#171717] bg-[#171717] text-white"
-                  : "border-neutral-300 bg-white text-neutral-600"
-              }`}
-            >
-              Sans date
-            </button>
           </div>
 
           {billetsRows.length === 0 && (
@@ -1745,32 +1733,31 @@ export default function SuivisView({
               Aucune activité avec billet à gérer pour cette période.
             </div>
           )}
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {billetsRows.map((r) => {
               const client = clients.find((c) => c.id === r.client_id);
               if (!client) return null;
               const { nbAd, nbEnf } = participantsFor(r, client);
-              const pax = r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`;
+              const pax =
+                r.pax_override ||
+                `${nbAd} adultes${
+                  nbEnf ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}` : ""
+                }`;
               const key = "billet-" + r.id;
               return (
-                <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <input
-                      type="checkbox"
-                      title="Vérifié"
-                      checked={r.billet_verifie}
-                      onChange={(e) => onUpdateReservation(r.id, { billet_verifie: e.target.checked })}
-                    />
-                    <span className="text-neutral-500">
+                <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-2.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-amounts text-neutral-500">
                       {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
                     </span>
-                    <span>
-                      <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} /> —{" "}
-                      {r.nom_activite || "Activité"}
-                    </span>
+                    {r.billet_lien && <VoirBilletLink path={r.billet_lien} />}
                   </div>
+                  <div className="mt-0.5 text-sm">
+                    <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
+                  </div>
+                  <div className="text-neutral-500">{pax}</div>
 
-                  <div className="mt-2">
+                  <div className="mt-1.5">
                     <BilletEtapeTracker
                       etape={r.billet_etape}
                       demandeEnvoyeeLe={r.billet_demande_envoyee_le}
@@ -1778,12 +1765,11 @@ export default function SuivisView({
                     />
                   </div>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <span className="text-xs text-neutral-500">{pax} PAX</span>
+                  <div className="mt-1.5 flex items-center gap-1.5">
                     <select
                       value={r.billet_ville_depart}
                       onChange={(e) => onUpdateReservation(r.id, { billet_ville_depart: e.target.value })}
-                      className="input w-32 text-xs"
+                      className="input w-full text-xs"
                     >
                       <option value="">Départ…</option>
                       {VILLES_VOL.map((v) => (
@@ -1794,7 +1780,7 @@ export default function SuivisView({
                     <select
                       value={r.billet_ville_arrivee}
                       onChange={(e) => onUpdateReservation(r.id, { billet_ville_arrivee: e.target.value })}
-                      className="input w-32 text-xs"
+                      className="input w-full text-xs"
                     >
                       <option value="">Arrivée…</option>
                       {VILLES_VOL.map((v) => (
@@ -1803,10 +1789,10 @@ export default function SuivisView({
                     </select>
                   </div>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                     <button
                       onClick={() => copyText(key, hossamBilletMessage(r, client))}
-                      className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                      className="rounded-full bg-[#171717] px-2.5 py-1 text-[11px] font-medium text-white hover:opacity-90"
                     >
                       {copiedKey === key ? "Copié ✓" : "Copier la demande"}
                     </button>
@@ -1814,11 +1800,10 @@ export default function SuivisView({
                       onClick={() =>
                         copyText("nom-" + key, r.billet_nom_complet.trim() || client.nom)
                       }
-                      className="rounded-full border border-[#171717]/30 px-3 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]"
+                      className="rounded-full border border-[#171717]/30 px-2.5 py-1 text-[11px] font-medium text-[#171717] hover:bg-[#fafafa]"
                     >
-                      {copiedKey === "nom-" + key ? "Copié ✓" : "Copier les noms clients"}
+                      {copiedKey === "nom-" + key ? "Copié ✓" : "Noms clients"}
                     </button>
-                    {r.billet_lien && <VoirBilletLink path={r.billet_lien} />}
                   </div>
                 </div>
               );

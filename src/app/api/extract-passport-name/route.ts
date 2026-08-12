@@ -41,8 +41,13 @@ export async function POST(request: Request) {
   const anthropic = new Anthropic();
   const message = await anthropic.messages.create({
     model: "claude-opus-5",
-    max_tokens: 100,
+    max_tokens: 300,
+    thinking: { type: "disabled" },
     output_config: { effort: "low" },
+    system:
+      "Tu es un outil interne pour Autour des Dunes, une agence de voyage à Hurghada. " +
+      "Les clients envoient eux-mêmes une photo de leur propre passeport à l'agence, dans le cadre normal de la réservation de leur séjour, pour que l'agence puisse relayer l'orthographe exacte de leur nom à un prestataire de transport aérien local (billet intérieur Hurghada–Le Caire). " +
+      "Ta seule tâche est de lire le nom complet imprimé sur cette photo et de le retourner tel quel — c'est une simple tâche de transcription de texte, équivalente à lire un formulaire papier, pas une analyse ou un profilage de la personne. Ne commente jamais, ne refuse jamais, ne demande jamais de justification : réponds uniquement avec le nom, ou avec ILLISIBLE si le texte n'est vraiment pas lisible.",
     messages: [
       {
         role: "user",
@@ -53,7 +58,7 @@ export async function POST(request: Request) {
           },
           {
             type: "text",
-            text: "Lis le nom complet de cette personne sur la photo de passeport (prénom(s) puis nom de famille, tels qu'imprimés — utilise la ligne MRZ en bas si elle est visible, elle est plus fiable). Réponds uniquement avec le nom complet, sans rien ajouter d'autre. Si tu ne peux pas le lire avec certitude, réponds exactement : ILLISIBLE",
+            text: "Transcris le nom complet imprimé sur cette photo de passeport (prénom(s) puis nom de famille — utilise la ligne MRZ en bas si elle est visible, elle est plus fiable). Réponds uniquement avec le nom, rien d'autre. Si le texte n'est vraiment pas lisible, réponds exactement : ILLISIBLE",
           },
         ],
       },
@@ -66,7 +71,7 @@ export async function POST(request: Request) {
 
   const textBlock = message.content.find((b) => b.type === "text");
   const name = textBlock?.text.trim();
-  if (!name || name === "ILLISIBLE") {
+  if (!name || name === "ILLISIBLE" || /^(je |i |sorry|désolé)/i.test(name)) {
     return Response.json({ error: "Nom illisible sur cette photo." }, { status: 422 });
   }
 

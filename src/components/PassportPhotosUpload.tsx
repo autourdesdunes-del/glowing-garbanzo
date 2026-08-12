@@ -34,25 +34,33 @@ export default function PassportPhotosUpload({
     })();
   }, [paths]);
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
     e.target.value = "";
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast("Choisis un fichier image.");
+    if (files.length === 0) return;
+    const nonImages = files.filter((f) => !f.type.startsWith("image/"));
+    if (nonImages.length > 0) {
+      toast("Choisis uniquement des fichiers image.");
       return;
     }
     setUploading(true);
     const supabase = createClient();
-    const ext = file.name.split(".").pop();
-    const newPath = `${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(newPath, file);
-    setUploading(false);
-    if (error) {
-      toast("Échec de l'envoi de la photo.");
-      return;
+    const uploaded: string[] = [];
+    for (const file of files) {
+      const ext = file.name.split(".").pop();
+      const newPath = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(newPath, file);
+      if (!error) uploaded.push(newPath);
     }
-    onChange([...paths, newPath]);
+    setUploading(false);
+    if (uploaded.length < files.length) {
+      toast(
+        uploaded.length === 0
+          ? "Échec de l'envoi des photos."
+          : `${files.length - uploaded.length} photo(s) sur ${files.length} n'ont pas pu être envoyées.`
+      );
+    }
+    if (uploaded.length > 0) onChange([...paths, ...uploaded]);
   }
 
   async function handleRemove(path: string) {
@@ -86,7 +94,13 @@ export default function PassportPhotosUpload({
         ))}
         <label className="flex h-20 w-28 cursor-pointer items-center justify-center rounded-md border border-dashed border-neutral-300 text-center text-xs text-neutral-500 hover:border-[#171717]">
           {uploading ? "Envoi…" : "+ Ajouter"}
-          <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFiles}
+            className="hidden"
+          />
         </label>
       </div>
     </div>

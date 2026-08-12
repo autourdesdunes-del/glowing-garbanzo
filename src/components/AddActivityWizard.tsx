@@ -18,7 +18,6 @@ import {
   isLeCaireEnAvion,
   isSafariQuadBase,
   isQuad,
-  isSpeedboatFixedJournee,
   isSpeedboatPriveMaisonDauphins,
   needsMomentSpeedboat,
   participantsFor,
@@ -248,7 +247,13 @@ export default function AddActivityWizard({
         point_rdv: item.point_rdv,
         photo_path: item.photo_path,
         transfert_inclus: !hotelHorsHurghada,
-        moment: isSpeedboatFixedJournee(item.nom) ? "Journée" : "",
+        // La colonne "moment" est NOT NULL avec une contrainte CHECK
+        // ('Matin'/'Après-midi'/'Journée'/'Plusieurs jours') — jamais de
+        // chaîne vide, sinon la sauvegarde échoue silencieusement (l'écran
+        // reste optimiste mais rien ne persiste). "Journée" sert de valeur
+        // neutre pour les activités qui n'ont pas de moment à choisir ; la
+        // validation de l'étape "moment" la traite comme "pas encore choisi".
+        moment: "Journée",
         ile_selectionnee: "",
         ile_selectionnee_2: "",
       });
@@ -271,7 +276,8 @@ export default function AddActivityWizard({
         nom_activite: customName.trim(),
         catalogue_item_id: customLinkId,
         transfert_inclus: !hotelHorsHurghada,
-        moment: linked && isSpeedboatFixedJournee(linked.nom) ? "Journée" : "",
+        // Voir le commentaire équivalent dans startFromCatalogue.
+        moment: "Journée",
         ile_selectionnee: "",
         ile_selectionnee_2: "",
       });
@@ -770,7 +776,11 @@ export default function AddActivityWizard({
   }
 
   if (step === "moment") {
-    const missingMoment = !r.moment;
+    // "Journée" est la valeur neutre posée à la création (voir
+    // startFromCatalogue/startCustom) — sur cette étape elle vaut "pas
+    // encore choisi", jamais une vraie option (les boutons ne proposent que
+    // Matin/Après-midi).
+    const missingMoment = !r.moment || r.moment === "Journée";
     const nextStep = steps[steps.indexOf("moment") + 1];
     const isMaisonDauphins = isSpeedboatPriveMaisonDauphins(catalogueItem?.nom || r.nom_activite);
 

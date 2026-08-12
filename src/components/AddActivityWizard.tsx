@@ -86,6 +86,16 @@ function titleWithSuffix(base: string, suffix: string) {
   return suffix ? `${base} — ${suffix}` : base;
 }
 
+// Le nombre de chevaux/chameaux à réserver doit sauter aux yeux dans le
+// titre — en anglais (équipe côté Égypte) avec une icône "important". Que
+// des adultes ou des enfants (via l'étape "monte"), le nombre d'animaux
+// correspond toujours au nombre d'adultes retenu sur la réservation.
+function chevalChameauSuffix(nomCatalogue: string, nbChevaux: number) {
+  const estChameau = (nomCatalogue || "").toLowerCase().includes("chameau");
+  const animalLabel = estChameau ? `camel${nbChevaux > 1 ? "s" : ""}` : `horse${nbChevaux > 1 ? "s" : ""}`;
+  return `❗ ${nbChevaux} ${animalLabel}`;
+}
+
 type Step =
   | "choix"
   | "specifs"
@@ -932,6 +942,18 @@ export default function AddActivityWizard({
               participants_extra_enfants: extraEnfants,
             });
           }
+          // Cheval/chameau sans enfant : l'étape "monte" (seule à poser le
+          // titre "❗ N horses/camels") ne se déclenche jamais — il faut donc
+          // déjà le faire ici, avec le nombre d'adultes tel quel.
+          if (catalogueItem && !isCustomFlow && !showMonteStep && isChevalOuChameau(catalogueItem.nom)) {
+            const { nbAd } = participantsFor(r, client);
+            onUpdateReservation(r.id, {
+              nom_activite: titleWithSuffix(
+                baseTitleFor(catalogueItem, r.ile_selectionnee, r.ile_selectionnee_2),
+                chevalChameauSuffix(catalogueItem.nom, nbAd)
+              ),
+            });
+          }
           setStep(steps[steps.indexOf("participants") + 1]);
         }, showMonteStep ? "Suivant — Monte des enfants" : "Suivant — Tarifs")}
       </>
@@ -958,12 +980,6 @@ export default function AddActivityWizard({
       // dans le catalogue).
       const nbSeul = nbEnf - nbDerriere;
       const nbChevaux = nbAd + nbSeul;
-      const estChameau = (catalogueItem?.nom || "").toLowerCase().includes("chameau");
-      // Le nombre de chevaux/chameaux à réserver doit sauter aux yeux dans
-      // le titre — en anglais (équipe côté Égypte) avec une icône "important".
-      const animalLabel = estChameau
-        ? `camel${nbChevaux > 1 ? "s" : ""}`
-        : `horse${nbChevaux > 1 ? "s" : ""}`;
       onUpdateReservation(r.id, {
         enfants_monte: reponses,
         participants_mode: "custom",
@@ -974,7 +990,7 @@ export default function AddActivityWizard({
           ? {
               nom_activite: titleWithSuffix(
                 baseTitleFor(catalogueItem, r.ile_selectionnee, r.ile_selectionnee_2),
-                `❗ ${nbChevaux} ${animalLabel}`
+                chevalChameauSuffix(catalogueItem.nom, nbChevaux)
               ),
             }
           : {}),

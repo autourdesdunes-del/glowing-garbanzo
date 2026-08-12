@@ -146,9 +146,7 @@ function RemboursementCard({
     <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
       <div
         onClick={onToggle}
-        className={`flex cursor-pointer flex-wrap items-center gap-3 px-4 py-3 ${
-          r.statut === "Effectué" ? "bg-green-50" : "bg-[#f5a623]/10"
-        }`}
+        className="flex cursor-pointer flex-wrap items-center gap-2 bg-white px-4 py-3"
       >
         <span className="font-heading text-lg font-semibold text-[#171717]">
           {euros(r.montant)} €
@@ -160,7 +158,7 @@ function RemboursementCard({
         >
           {r.statut}
         </span>
-        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-neutral-500">{r.mode}</span>
+        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">{r.mode}</span>
         <span className="flex-1" />
         <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
       </div>
@@ -495,7 +493,7 @@ function AppelRow({
 }) {
   if (c.prochain_appel_confirme) {
     return (
-      <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
+      <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 text-sm shadow-sm">
         <div className="flex items-start justify-between gap-2">
           <ClientNameLink
             nom={c.nom}
@@ -538,12 +536,15 @@ function AppelRow({
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
-        c.prochain_appel_date === todayStr
-          ? "border-[#f5a623] bg-[#f5a623]/10"
-          : "border-neutral-200 bg-white"
+      className={`flex flex-wrap items-center gap-3 overflow-hidden rounded-lg border bg-white p-4 text-sm shadow-sm ${
+        c.prochain_appel_date === todayStr ? "border-[#f5a623]" : "border-neutral-200"
       }`}
     >
+      {c.prochain_appel_date === todayStr && (
+        <span className="rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+          Aujourd&apos;hui
+        </span>
+      )}
       <input
         type="date"
         value={c.prochain_appel_date ?? ""}
@@ -1033,17 +1034,19 @@ export default function SuivisView({
                 return (
                   <div
                     key={c.id}
-                    className={`flex flex-wrap items-center gap-3 rounded-md border p-3 text-sm ${
-                      urgent ? "border-[#0F5C56] bg-[#0F5C56]/15" : "border-[#0F5C56]/40 bg-[#0F5C56]/5"
+                    className={`flex flex-wrap items-center gap-3 overflow-hidden rounded-lg border bg-white p-4 text-sm shadow-sm ${
+                      urgent ? "border-[#0F5C56]" : "border-neutral-200"
                     }`}
                   >
                     <button
                       onClick={() => onOpenClient(c.id)}
-                      className="text-sm font-semibold text-[#171717] hover:underline"
+                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
                     >
                       {c.nom || "Sans nom"}
                     </button>
-                    <span className="text-neutral-500">{c.hotel || "Hôtel ?"}</span>
+                    <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs text-[#0F5C56]">
+                      {c.hotel || "Hôtel ?"}
+                    </span>
                     {urgent && (
                       <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white">
                         En retard — 18h dépassé
@@ -1292,12 +1295,12 @@ export default function SuivisView({
                 return (
                   <div
                     key={c.id}
-                    className={`overflow-hidden rounded-lg border p-4 shadow-sm ${
+                    className={`overflow-hidden rounded-lg border bg-white p-4 shadow-sm ${
                       enRetard
-                        ? "border-red-300 bg-red-50"
+                        ? "border-red-300"
                         : dateCible === todayStr
-                        ? "border-[#f5a623] bg-[#f5a623]/10"
-                        : "border-neutral-200 bg-white"
+                        ? "border-[#f5a623]"
+                        : "border-neutral-200"
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-3">
@@ -1356,7 +1359,7 @@ export default function SuivisView({
               {auRevoirEnvoyesRecemment.map((c) => (
                 <div
                   key={c.id}
-                  className="overflow-hidden rounded-lg border border-green-200 bg-green-50 p-4 shadow-sm"
+                  className="overflow-hidden rounded-lg border border-green-200 bg-white p-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-xs font-medium text-neutral-500">
@@ -1433,12 +1436,12 @@ export default function SuivisView({
                 return (
                   <div
                     key={c.id}
-                    className={`overflow-hidden rounded-lg border p-4 shadow-sm ${
+                    className={`overflow-hidden rounded-lg border bg-white p-4 shadow-sm ${
                       enRetard
-                        ? "border-red-300 bg-red-50"
+                        ? "border-red-300"
                         : dateCible === todayStr
-                        ? "border-[#f5a623] bg-[#f5a623]/10"
-                        : "border-neutral-200 bg-white"
+                        ? "border-[#f5a623]"
+                        : "border-neutral-200"
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-3">
@@ -1501,7 +1504,7 @@ export default function SuivisView({
               {avisEnvoyesRecemment.map((c) => (
                 <div
                   key={c.id}
-                  className="overflow-hidden rounded-lg border border-green-200 bg-green-50 p-4 shadow-sm"
+                  className="overflow-hidden rounded-lg border border-green-200 bg-white p-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-xs font-medium text-neutral-500">

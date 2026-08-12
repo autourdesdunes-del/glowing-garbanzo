@@ -144,40 +144,42 @@ function RemboursementCard({
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-      <div onClick={onToggle} className="cursor-pointer px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div onClick={onToggle} className="cursor-pointer px-3 py-2.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <ClientNameLink
             nom={client.nom}
             onClick={() => onOpenClient(client.id)}
-            className="font-heading text-base font-semibold text-[#171717] hover:underline"
+            className="font-heading text-sm font-semibold text-[#171717] hover:underline"
           />
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-              r.statut === "Effectué" ? "bg-green-100 text-green-700" : "bg-[#f5a623]/20 text-[#8B4531]"
-            }`}
-          >
-            {r.statut}
-          </span>
-          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">
-            {r.mode}
+          <span className="ml-auto flex shrink-0 items-center gap-1.5">
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium ${
+                r.statut === "Effectué" ? "bg-green-100 text-green-700" : "bg-[#f5a623]/20 text-[#8B4531]"
+              }`}
+            >
+              {r.statut}
+            </span>
+            <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-500">
+              {r.mode}
+            </span>
           </span>
         </div>
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-xs text-neutral-500">
           <strong className="text-[#171717]">
             {r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison}
           </strong>
           {" — "}
           {activite ? activite.nom_activite : "Aucune activité liée"}
         </p>
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="font-heading text-lg font-semibold text-[#171717]">
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <span className="font-heading text-sm font-semibold text-[#171717]">
             {euros(r.montant)} €
           </span>
         </div>
       </div>
 
       {isOpen && (
-        <div className="space-y-2 border-t border-neutral-100 px-4 py-3 text-sm text-neutral-600">
+        <div className="space-y-2 border-t border-neutral-100 px-3 py-2.5 text-xs text-neutral-600">
           {r.details && <div className="rounded-md bg-[#fafafa] p-3 text-[#171717]">{r.details}</div>}
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -290,7 +292,7 @@ function AvisStatutSelector({
 
 function DateRangeBadge({ debut, fin }: { debut: string | null; fin: string | null }) {
   return (
-    <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#F2E6D2] px-3 py-1 text-xs text-[#8B4531]">
+    <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F2E6D2] px-2 py-0.5 text-[11px] text-[#8B4531]">
       <span>{debut ? fmtDate(debut) : "?"}</span>
       <span className="text-[#C9973E]">→</span>
       <span>{fin ? fmtDate(fin) : "?"}</span>
@@ -498,12 +500,12 @@ function AppelRow({
 }) {
   if (c.prochain_appel_confirme) {
     return (
-      <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 text-sm shadow-sm">
+      <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-sm">
         <div className="flex items-start justify-between gap-2">
           <ClientNameLink
             nom={c.nom}
             onClick={() => onOpenClient(c.id)}
-            className="font-heading text-base font-semibold text-[#171717] hover:underline"
+            className="font-heading text-sm font-semibold text-[#171717] hover:underline"
           />
           <button
             onClick={() => onUpdateClient(c.id, { prochain_appel_confirme: false })}
@@ -512,26 +514,26 @@ function AppelRow({
             Annuler la confirmation
           </button>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-neutral-500">
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
           <span>
             {fmtDate(c.prochain_appel_date)} {c.prochain_appel_heure}
           </span>
-          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+          <span className="rounded-full bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">
             {c.prochain_appel_fuseau === "egypte" ? "Heure égyptienne" : "Heure française"}
           </span>
           {c.prochain_appel_plateforme && (
-            <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
+            <span className="rounded-full bg-[#0F5C56]/10 px-1.5 py-0.5 text-[11px] font-medium text-[#0F5C56]">
               {c.prochain_appel_plateforme}
             </span>
           )}
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {assignee && (
-            <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
+            <span className="rounded-full bg-[#171717]/10 px-1.5 py-0.5 text-[11px] text-[#171717]">
               👤 {assignee}
             </span>
           )}
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] text-emerald-700">
             Confirmé ✓
           </span>
         </div>
@@ -541,28 +543,28 @@ function AppelRow({
 
   return (
     <div
-      className={`overflow-hidden rounded-lg border bg-white p-4 text-sm shadow-sm ${
+      className={`overflow-hidden rounded-lg border bg-white p-3 text-sm shadow-sm ${
         c.prochain_appel_date === todayStr ? "border-[#f5a623]" : "border-neutral-200"
       }`}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1.5">
         <ClientNameLink
           nom={c.nom}
           onClick={() => onOpenClient(c.id)}
-          className="font-heading text-base font-semibold text-[#171717] hover:underline"
+          className="font-heading text-sm font-semibold text-[#171717] hover:underline"
         />
         {c.prochain_appel_date === todayStr && (
-          <span className="rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+          <span className="rounded-full bg-[#f5a623]/20 px-1.5 py-0.5 text-[11px] font-medium text-[#8B4531]">
             Aujourd&apos;hui
           </span>
         )}
         {assignee && (
-          <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
+          <span className="rounded-full bg-[#171717]/10 px-1.5 py-0.5 text-[11px] text-[#171717]">
             👤 {assignee}
           </span>
         )}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         <input
           type="date"
           value={c.prochain_appel_date ?? ""}
@@ -598,7 +600,7 @@ function AppelRow({
           ))}
         </select>
       </div>
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="mt-2 flex items-center justify-between gap-2">
         <label className="flex items-center gap-1 text-xs text-neutral-600">
           <input
             type="checkbox"
@@ -1042,39 +1044,39 @@ export default function SuivisView({
             {roomsJ1.length === 0 && (
               <div className="text-sm text-neutral-400">Aucun numéro de chambre manquant.</div>
             )}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {roomsJ1.map((c) => {
                 const urgent = pastDeadline;
                 return (
                   <div
                     key={c.id}
-                    className={`overflow-hidden rounded-lg border bg-white p-4 text-sm shadow-sm ${
+                    className={`overflow-hidden rounded-lg border bg-white p-3 text-sm shadow-sm ${
                       urgent ? "border-[#0F5C56]" : "border-neutral-200"
                     }`}
                   >
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
                         onClick={() => onOpenClient(c.id)}
-                        className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                        className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                       >
                         {c.nom || "Sans nom"}
                       </button>
-                      <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs text-[#0F5C56]">
+                      <span className="rounded-full bg-[#0F5C56]/10 px-1.5 py-0.5 text-[11px] text-[#0F5C56]">
                         {c.hotel || "Hôtel ?"}
                       </span>
                       {urgent && (
-                        <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white">
+                        <span className="rounded-full bg-[#0F5C56] px-1.5 py-0.5 text-[11px] font-medium text-white">
                           En retard — 18h dépassé
                         </span>
                       )}
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       <input
                         type="text"
                         placeholder="N° de chambre"
                         value={chambreDrafts[c.id] ?? ""}
                         onChange={(e) => setChambreDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
-                        className="input w-32 text-xs"
+                        className="input w-28 text-xs"
                       />
                       <button
                         onClick={() => {
@@ -1313,7 +1315,7 @@ export default function SuivisView({
                 return (
                   <div
                     key={c.id}
-                    className={`overflow-hidden rounded-lg border bg-white p-4 shadow-sm ${
+                    className={`overflow-hidden rounded-lg border bg-white p-3 shadow-sm ${
                       enRetard
                         ? "border-red-300"
                         : dateCible === todayStr
@@ -1321,7 +1323,7 @@ export default function SuivisView({
                         : "border-neutral-200"
                     }`}
                   >
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-xs font-medium text-neutral-500">
                         {fmtDate(dateCible)}
                         {dateCible === todayStr ? " — aujourd'hui" : ""}
@@ -1329,7 +1331,7 @@ export default function SuivisView({
                       <ClientNameLink
                         nom={c.nom}
                         onClick={() => onOpenClient(c.id)}
-                        className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                        className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                       />
                       <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                     </div>
@@ -1339,7 +1341,7 @@ export default function SuivisView({
                         {lateDays > 1 ? "s" : ""}
                       </div>
                     )}
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => copyText("aurevoir-" + c.id, auRevoirMessage(c.nom))}
                         className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
@@ -1377,19 +1379,19 @@ export default function SuivisView({
               {auRevoirEnvoyesRecemment.map((c) => (
                 <div
                   key={c.id}
-                  className="overflow-hidden rounded-lg border border-green-200 bg-white p-4 shadow-sm"
+                  className="overflow-hidden rounded-lg border border-green-200 bg-white p-3 shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs font-medium text-neutral-500">
                       Envoyé le {fmtDate(c.au_revoir_envoye_le)}
                     </span>
                     <ClientNameLink
                       nom={c.nom}
                       onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                     />
                     <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
-                    <span className="ml-auto rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                    <span className="ml-auto rounded-full bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700">
                       Envoyé ✓
                     </span>
                   </div>
@@ -1420,14 +1422,14 @@ export default function SuivisView({
               {auRevoirUpcomingRows.map(({ c, dateCible }) => (
                 <div
                   key={c.id}
-                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
+                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
                     <ClientNameLink
                       nom={c.nom}
                       onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                     />
                     <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                   </div>
@@ -1454,7 +1456,7 @@ export default function SuivisView({
                 return (
                   <div
                     key={c.id}
-                    className={`overflow-hidden rounded-lg border bg-white p-4 shadow-sm ${
+                    className={`overflow-hidden rounded-lg border bg-white p-3 shadow-sm ${
                       enRetard
                         ? "border-red-300"
                         : dateCible === todayStr
@@ -1462,7 +1464,7 @@ export default function SuivisView({
                         : "border-neutral-200"
                     }`}
                   >
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-xs font-medium text-neutral-500">
                         {fmtDate(dateCible)}
                         {dateCible === todayStr ? " — aujourd'hui" : ""}
@@ -1470,7 +1472,7 @@ export default function SuivisView({
                       <ClientNameLink
                         nom={c.nom}
                         onClick={() => onOpenClient(c.id)}
-                        className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                        className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                       />
                       <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                     </div>
@@ -1480,7 +1482,7 @@ export default function SuivisView({
                         {lateDays > 1 ? "s" : ""}
                       </div>
                     )}
-                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
                         className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
@@ -1522,23 +1524,23 @@ export default function SuivisView({
               {avisEnvoyesRecemment.map((c) => (
                 <div
                   key={c.id}
-                  className="overflow-hidden rounded-lg border border-green-200 bg-white p-4 shadow-sm"
+                  className="overflow-hidden rounded-lg border border-green-200 bg-white p-3 shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs font-medium text-neutral-500">
                       Envoyé le {fmtDate(c.avis_envoye_le)}
                     </span>
                     <ClientNameLink
                       nom={c.nom}
                       onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                     />
                     <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
-                    <span className="ml-auto rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                    <span className="ml-auto rounded-full bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700">
                       Envoyé ✓
                     </span>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <label className="flex items-center gap-1.5 text-xs text-neutral-600">
                       <input
                         type="checkbox"
@@ -1571,14 +1573,14 @@ export default function SuivisView({
               {avisUpcomingRows.map(({ c, dateCible }) => (
                 <div
                   key={c.id}
-                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
+                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
                     <ClientNameLink
                       nom={c.nom}
                       onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                     />
                     <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                   </div>

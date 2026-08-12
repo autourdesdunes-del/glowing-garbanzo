@@ -959,13 +959,11 @@ export default function AddActivityWizard({
       const nbSeul = nbEnf - nbDerriere;
       const nbChevaux = nbAd + nbSeul;
       const estChameau = (catalogueItem?.nom || "").toLowerCase().includes("chameau");
+      // Le nombre de chevaux/chameaux à réserver doit sauter aux yeux dans
+      // le titre — en anglais (équipe côté Égypte) avec une icône "important".
       const animalLabel = estChameau
-        ? nbChevaux > 1
-          ? "chameaux"
-          : "chameau"
-        : nbChevaux > 1
-        ? "chevaux"
-        : "cheval";
+        ? `camel${nbChevaux > 1 ? "s" : ""}`
+        : `horse${nbChevaux > 1 ? "s" : ""}`;
       onUpdateReservation(r.id, {
         enfants_monte: reponses,
         participants_mode: "custom",
@@ -976,7 +974,7 @@ export default function AddActivityWizard({
           ? {
               nom_activite: titleWithSuffix(
                 baseTitleFor(catalogueItem, r.ile_selectionnee, r.ile_selectionnee_2),
-                `${nbChevaux} ${animalLabel}`
+                `❗ ${nbChevaux} ${animalLabel}`
               ),
             }
           : {}),

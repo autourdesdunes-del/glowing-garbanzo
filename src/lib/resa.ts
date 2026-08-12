@@ -355,14 +355,6 @@ export function needsMomentSpeedboat(nom: string) {
   return true;
 }
 
-// Safari quad et Buggy (formules "classiques", pas "au coucher du soleil"
-// ni "& dîner spectacle" qui ont déjà un horaire fixe implicite) doivent
-// toujours préciser matin / après-midi / coucher de soleil.
-export function needsCreneauSafariBuggy(nom: string) {
-  const n = (nom || "").toLowerCase().trim();
-  return n === "safari quad" || n === "buggy";
-}
-
 // Choisir "Coucher de soleil" sur un Safari quad classique le transforme en
 // la formule dédiée du catalogue — pas de simple suffixe sur le titre.
 export function isSafariQuadBase(nom: string) {

@@ -20,7 +20,6 @@ import {
   isSafariQuadBase,
   isSpeedboatPriveMaisonDauphins,
   momentBadge,
-  needsCreneauSafariBuggy,
   needsMomentSpeedboat,
   paiementStatutKey,
   participantsFor,
@@ -106,13 +105,9 @@ export default function ReservationCard({
   const nomPourDetection = catalogueItem?.nom || r.nom_activite;
   const ileType = speedboatIleType(nomPourDetection);
   const needsMoment = needsMomentSpeedboat(nomPourDetection);
-  const needsCreneauSafariBuggyField = needsCreneauSafariBuggy(nomPourDetection);
   const missingChamps: string[] = [];
   if (ileType && !r.ile_selectionnee) missingChamps.push("Île");
   if (needsMoment && !r.moment) missingChamps.push("Moment (matin / après-midi)");
-  if (needsCreneauSafariBuggyField && !r.creneau) {
-    missingChamps.push("Créneau (matin / après-midi / coucher de soleil)");
-  }
   if (champsRequis.includes("Pointure") && !r.pointure.trim()) missingChamps.push("Pointure");
   if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
     missingChamps.push("Créneau");
@@ -486,36 +481,6 @@ export default function ReservationCard({
         </div>
       )}
 
-      {needsCreneauSafariBuggyField && (
-        <div className="mb-3" id={`field-creneau-${r.id}`}>
-          <p className="mb-1.5 text-sm font-medium text-neutral-700">Créneau *</p>
-          <div className="flex gap-2">
-            {CRENEAUX_ACTIVITE.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() =>
-                  onUpdate({
-                    creneau: c,
-                    ...(isSafariQuadBase(nomPourDetection)
-                      ? { nom_activite: c === "Coucher de soleil" ? "Safari quad au coucher du soleil" : nomPourDetection }
-                      : {}),
-                  })
-                }
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                  r.creneau === c
-                    ? "border-[#171717] bg-[#171717] text-white"
-                    : validationError && !r.creneau
-                      ? "border-red-300 text-red-600"
-                      : "border-neutral-300 text-neutral-600"
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {options.length > 0 && (
         <div className="mb-3 rounded-md bg-[#C9973E]/10 px-3 py-2 text-xs text-[#666666]">
@@ -839,7 +804,18 @@ export default function ReservationCard({
               <Field label="Créneau *">
                 <select
                   value={r.creneau}
-                  onChange={(e) => onUpdate({ creneau: e.target.value })}
+                  onChange={(e) => {
+                    const creneau = e.target.value;
+                    onUpdate({
+                      creneau,
+                      ...(isSafariQuadBase(nomPourDetection)
+                        ? {
+                            nom_activite:
+                              creneau === "Coucher de soleil" ? "Safari quad au coucher du soleil" : nomPourDetection,
+                          }
+                        : {}),
+                    });
+                  }}
                   className={`input ${
                     validationError && !r.creneau ? "border-red-300 focus:border-red-400" : ""
                   }`}

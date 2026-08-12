@@ -5,6 +5,7 @@ import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
+  chevalChameauBadge,
   momentBadge,
   paiementBadge,
   participantsFor,
@@ -129,6 +130,11 @@ function ReservationSummaryCard({
         {momentBadge(r) && (
           <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
             {momentBadge(r)}
+          </span>
+        )}
+        {chevalChameauBadge(r, client) && (
+          <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-xs font-semibold text-white">
+            {chevalChameauBadge(r, client)}
           </span>
         )}
         {paiementWarning && (
@@ -276,6 +282,11 @@ function ActivityDetailModal({
             {momentBadge(r) && (
               <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
                 {momentBadge(r)}
+              </span>
+            )}
+            {chevalChameauBadge(r, client) && (
+              <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-xs font-semibold text-white">
+                {chevalChameauBadge(r, client)}
               </span>
             )}
           </div>

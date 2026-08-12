@@ -244,6 +244,19 @@ export function isChevalOuChameau(nom: string) {
   return n.includes("cheval") || n.includes("chameau");
 }
 
+// Nombre d'animaux à réserver, affiché en anglais à côté du titre (équipe
+// côté Égypte) avec une icône "important" — calculé à l'affichage plutôt
+// que figé dans le titre au moment de la création, pour rester juste même
+// si les participants sont modifiés ensuite depuis la fiche complète.
+export function chevalChameauBadge(r: Reservation, client: Client) {
+  if (!isChevalOuChameau(r.nom_activite)) return "";
+  const { nbAd } = participantsFor(r, client);
+  if (nbAd <= 0) return "";
+  const estChameau = r.nom_activite.toLowerCase().includes("chameau");
+  const animalLabel = estChameau ? `camel${nbAd > 1 ? "s" : ""}` : `horse${nbAd > 1 ? "s" : ""}`;
+  return `❗ ${nbAd} ${animalLabel}`;
+}
+
 export function isSpeedboatSunset(nom: string) {
   const n = (nom || "").toLowerCase();
   return isSpeedboat(n) && n.includes("sunset");

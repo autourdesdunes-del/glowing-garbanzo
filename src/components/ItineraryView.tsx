@@ -13,6 +13,7 @@ import {
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
+  chevalChameauBadge,
   formatOptionLabel,
   isDeuxiemeIleOption,
   momentBadge,
@@ -174,6 +175,11 @@ export default function ItineraryView({
           {momentBadge(r) && (
             <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
               {momentBadge(r)}
+            </span>
+          )}
+          {chevalChameauBadge(r, client) && (
+            <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-[11px] font-semibold text-white">
+              {chevalChameauBadge(r, client)}
             </span>
           )}
           {(resaOptions[r.id] || [])

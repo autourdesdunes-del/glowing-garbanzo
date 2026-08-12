@@ -257,6 +257,14 @@ export function billetEtapeShortLabel(etape: string) {
   return BILLET_ETAPE_SHORT_LABELS[etape] || etape;
 }
 
+// Message prêt à coller dans le groupe WhatsApp "only flight ticket" avec
+// Hossam — dateLabel est déjà formatée par l'appelant (chaque écran a sa
+// propre fonction de format de date locale).
+export function hossamBilletMessage(r: Reservation, client: Client, pax: string, dateLabel: string) {
+  const nom = r.billet_nom_complet.trim() || client.nom || "Nom ?";
+  return `Billet à réserver\nNom complet : ${nom}\nPassagers : ${pax}\nTrajet : ${r.billet_ville_depart || "?"} → ${r.billet_ville_arrivee || "?"}\nDate : ${dateLabel}\nActivité : ${r.nom_activite || "—"}`;
+}
+
 // Balade à cheval / chameau — un enfant peut monter seul (son propre animal,
 // tarif enfant plein) ou derrière un adulte (tarif accompagnateur) : la
 // réponse se demande par enfant, avant l'étape des tarifs.

@@ -141,6 +141,7 @@ export default function GuidedActivityModal({
             reservations={reservations}
             resaOptions={resaOptions}
             resaTarifs={resaTarifs}
+            onUpdateReservation={onUpdateReservation}
           />
         )}
 

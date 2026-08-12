@@ -15,6 +15,7 @@ import {
   groupeExtraCounts,
   isChevalOuChameau,
   isDeuxiemeIleOption,
+  isLeCaireEnAvion,
   isSafariQuadBase,
   isQuad,
   isSpeedboatFixedJournee,
@@ -27,8 +28,14 @@ import {
   speedboatIleType,
   SPEEDBOAT_ILES,
 } from "@/lib/resa";
+import { todayStr } from "@/lib/dates";
 import { Field } from "@/components/Field";
 import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
+
+function joursAvant(dateStr: string | null) {
+  if (!dateStr) return null;
+  return Math.floor((Date.parse(dateStr + "T00:00:00") - Date.parse(todayStr() + "T00:00:00")) / 86400000);
+}
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -177,6 +184,15 @@ export default function AddActivityWizard({
   } | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
+  // Deux relances Hossam distinctes pour "Le Caire en avion" : une première
+  // fois quand la date est saisie (pour vérifier la dispo avant de
+  // continuer), une seconde au moment de finaliser l'activité (filet de
+  // sécurité si la première a été zappée). Chacune ne se déclenche qu'une
+  // fois par ouverture du wizard.
+  const [hossamPopup, setHossamPopup] = useState<null | "premiere" | "finale">(null);
+  const [hossamAskedPremiere, setHossamAskedPremiere] = useState(false);
+  const [hossamAskedFinale, setHossamAskedFinale] = useState(false);
+  const [hossamUrgentAlert, setHossamUrgentAlert] = useState(false);
   // Une activité personnalisée garde le titre tapé à la main — on ne le
   // recalcule jamais automatiquement (île / moment / créneau / nb de
   // chevaux) dans ce cas, contrairement aux activités venant du catalogue.
@@ -605,6 +621,10 @@ export default function AddActivityWizard({
         return;
       }
       setValidationError(false);
+      if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedPremiere) {
+        setHossamPopup("premiere");
+        return;
+      }
       setStep(nextStep);
     };
 
@@ -618,6 +638,58 @@ export default function AddActivityWizard({
             className="input max-w-[220px]"
           />
         </Field>
+
+        {hossamPopup === "premiere" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+            <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+              <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+                ✈ Billet d&apos;avion — Le Caire
+              </h2>
+              <p className="mb-4 text-sm text-neutral-600">
+                Avez-vous prévenu Hossam ? Cette date est-elle bien disponible pour le billet
+                d&apos;avion ?
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateReservation(r.id, {
+                      billet_requis: true,
+                      billet_ville_depart: "Hurghada",
+                      billet_ville_arrivee: "Le Caire",
+                      billet_date: r.date_debut,
+                      billet_etape: "attente_hossam",
+                      billet_demande_envoyee_le: todayStr(),
+                    });
+                    setHossamAskedPremiere(true);
+                    setHossamPopup(null);
+                    setStep(nextStep);
+                  }}
+                  className="rounded-md bg-[#171717] px-3 py-2 text-left text-sm font-medium text-white hover:opacity-90"
+                >
+                  Oui, j&apos;ai prévenu Hossam — on attend l&apos;acompte du client pour valider
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateReservation(r.id, {
+                      billet_requis: true,
+                      billet_ville_depart: "Hurghada",
+                      billet_ville_arrivee: "Le Caire",
+                      billet_date: r.date_debut,
+                    });
+                    setHossamAskedPremiere(true);
+                    setHossamPopup(null);
+                    setStep(nextStep);
+                  }}
+                  className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+                >
+                  Je n&apos;ai pas encore prévenu Hossam
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {isSpa && (
           <div className="mt-3">
             <Field label="Horaire souhaité *">
@@ -1374,6 +1446,34 @@ export default function AddActivityWizard({
 
   // step === "transfert"
   const total = resaTotalMontant(r, client, options, tarifs);
+
+  const finishClick = () => {
+    if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedFinale) {
+      setHossamPopup("finale");
+      return;
+    }
+    onFinish();
+  };
+
+  const finaliserHossam = (etape: "attente_hossam" | "a_envoyer_hossam" | null) => {
+    if (etape) {
+      onUpdateReservation(r.id, {
+        billet_etape: etape,
+        ...(etape === "attente_hossam" && !r.billet_demande_envoyee_le
+          ? { billet_demande_envoyee_le: todayStr() }
+          : {}),
+      });
+    }
+    setHossamPopup(null);
+    setHossamAskedFinale(true);
+    const jours = joursAvant(r.date_debut);
+    if (jours !== null && jours < 15) {
+      setHossamUrgentAlert(true);
+    } else {
+      onFinish();
+    }
+  };
+
   return wrap(
     <>
       <div className="flex gap-2">
@@ -1447,12 +1547,72 @@ export default function AddActivityWizard({
         </button>
         <button
           type="button"
-          onClick={onFinish}
+          onClick={finishClick}
           className="flex-1 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
         >
           Ajouter l&apos;activité
         </button>
       </div>
+
+      {hossamPopup === "finale" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              ✈ Billet d&apos;avion — Le Caire
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Avez-vous prévenu Hossam pour le billet d&apos;avion ?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => finaliserHossam("attente_hossam")}
+                className="rounded-md bg-[#171717] px-3 py-2 text-left text-sm font-medium text-white hover:opacity-90"
+              >
+                Oui c&apos;est fait, nous attendons l&apos;acompte du client
+              </button>
+              <button
+                type="button"
+                onClick={() => finaliserHossam("a_envoyer_hossam")}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Je m&apos;en occupe de suite
+              </button>
+              <button
+                type="button"
+                onClick={() => finaliserHossam(null)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Ce n&apos;est pas nécessaire pour cette date
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hossamUrgentAlert && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-red-700">
+              ⚠ Date à moins de 15 jours
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Pour les billets d&apos;avion de moins de 15 jours, vous devez prévenir Hossam pour
+              qu&apos;il bloque le billet à l&apos;avance, même avant l&apos;acompte.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setHossamUrgentAlert(false);
+                onFinish();
+              }}
+              className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -723,6 +723,7 @@ export default function ClientDetail({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
+          onUpdateReservation={updateReservation}
         />
       </Section>
 

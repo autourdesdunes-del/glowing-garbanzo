@@ -16,6 +16,7 @@ import {
   acompteWaitingWarning,
   activitePaiementWarning,
   hideMoment,
+  hossamBilletMessage,
   paiementBadge,
   participantsFor,
   resaTotalMontant,
@@ -219,11 +220,6 @@ function avisMessage(nom: string) {
 }
 // Bloc copié-collé pour Hossam — le nom complet doit être recopié tel quel
 // (comme au passeport) pour éviter toute faute transmise au prestataire.
-function hossamBilletMessage(r: Reservation, client: Client, pax: string) {
-  const nom = r.billet_nom_complet.trim() || client.nom || "Nom ?";
-  return `Billet à réserver\nNom complet : ${nom}\nPassagers : ${pax}\nTrajet : ${r.billet_ville_depart || "?"} → ${r.billet_ville_arrivee || "?"}\nDate : ${r.billet_date ? fmtDate(r.billet_date) : "?"}\nActivité : ${r.nom_activite || "—"}`;
-}
-
 export const SUIVIS_SUBS = [
   { key: "j1", label: "Pick-ups (J-1)" },
   { key: "chambres", label: "Numéros de chambre" },
@@ -1774,18 +1770,11 @@ export default function SuivisView({
                     </select>
                   </div>
 
-                  <div className="mt-2">
-                    <input
-                      value={r.billet_nom_complet}
-                      onChange={(e) => onUpdateReservation(r.id, { billet_nom_complet: e.target.value })}
-                      placeholder="Nom complet (comme au passeport)"
-                      className="input w-full text-xs"
-                    />
-                  </div>
-
                   <div className="mt-2 flex flex-wrap items-center gap-3">
                     <button
-                      onClick={() => copyText(key, hossamBilletMessage(r, client, pax))}
+                      onClick={() =>
+                        copyText(key, hossamBilletMessage(r, client, pax, fmtDate(r.billet_date)))
+                      }
                       className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                     >
                       {copiedKey === key ? "Copié ✓" : "Copier la demande"}
@@ -1796,7 +1785,7 @@ export default function SuivisView({
                       }
                       className="rounded-full border border-[#171717]/30 px-3 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]"
                     >
-                      {copiedKey === "nom-" + key ? "Copié ✓" : "Copier le nom"}
+                      {copiedKey === "nom-" + key ? "Copié ✓" : "Copier les noms clients"}
                     </button>
                     {r.billet_lien && <VoirBilletLink path={r.billet_lien} />}
                   </div>

@@ -829,6 +829,7 @@ export default function QuickAddClient({
                   reservations={reservations}
                   resaOptions={resaOptions}
                   resaTarifs={resaTarifs}
+                  onUpdateReservation={updateReservation}
                 />
               )}
 

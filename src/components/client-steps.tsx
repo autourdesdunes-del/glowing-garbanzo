@@ -27,7 +27,7 @@ import {
   RELATIONS,
   STATUTS,
 } from "@/lib/constants";
-import { resaTotalMontant } from "@/lib/resa";
+import { hossamBilletMessage, participantsFor, resaTotalMontant } from "@/lib/resa";
 import { matchHotel } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
@@ -1294,16 +1294,31 @@ export function PaiementsStep({
   reservations,
   resaOptions,
   resaTarifs,
+  onUpdateReservation,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
   const [acompteDateModal, setAcompteDateModal] = useState<{ step: "choix" | "date"; date: string } | null>(
     null
   );
+  const [billetHossamReminder, setBilletHossamReminder] = useState<Reservation | null>(null);
+  const [copiedHossamReminder, setCopiedHossamReminder] = useState(false);
+
+  // Après avoir marqué l'acompte encaissé, si un billet d'avion attend
+  // encore d'être signalé à Hossam, on le rappelle tout de suite — c'est
+  // exactement le moment où l'équipe doit relancer Hossam pour qu'il
+  // réserve, et l'endroit le plus fréquent où cet oubli se produit.
+  const checkBilletHossamReminder = () => {
+    const pending = reservations.find(
+      (r) => r.billet_requis && (r.billet_etape === "attente_acompte" || r.billet_etape === "a_envoyer_hossam")
+    );
+    if (pending) setBilletHossamReminder(pending);
+  };
 
   const totalSejour = reservations.reduce(
     (sum, r) => sum + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
@@ -1499,6 +1514,7 @@ export function PaiementsStep({
                         acompte_date_encaissement: todayStr(),
                       });
                       setAcompteDateModal(null);
+                      checkBilletHossamReminder();
                     }}
                     className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                   >
@@ -1529,6 +1545,7 @@ export function PaiementsStep({
                     onClick={() => {
                       onChange({ acompte_paye: true, acompte_date_encaissement: acompteDateModal.date });
                       setAcompteDateModal(null);
+                      checkBilletHossamReminder();
                     }}
                     className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
                   >
@@ -1543,6 +1560,59 @@ export function PaiementsStep({
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {billetHossamReminder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              ✈ Billet d&apos;avion à traiter
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Ce client a un billet d&apos;avion : prévenez Hossam que l&apos;acompte a été payé
+              et qu&apos;il peut réserver le billet d&apos;avion.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={async () => {
+                  const r = billetHossamReminder;
+                  const { nbAd, nbEnf } = participantsFor(r, client);
+                  const pax = r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`;
+                  try {
+                    await navigator.clipboard.writeText(
+                      hossamBilletMessage(r, client, pax, fmtDate(r.billet_date))
+                    );
+                    setCopiedHossamReminder(true);
+                    setTimeout(() => setCopiedHossamReminder(false), 1500);
+                  } catch {
+                    // clipboard indisponible, ignorer
+                  }
+                  onUpdateReservation(r.id, {
+                    billet_etape: "attente_hossam",
+                    billet_demande_envoyee_le: r.billet_demande_envoyee_le || todayStr(),
+                  });
+                  setBilletHossamReminder(null);
+                }}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                {copiedHossamReminder ? "Copié ✓" : "Copier la demande pour Hossam"}
+              </button>
+              <button
+                onClick={() => {
+                  const r = billetHossamReminder;
+                  onUpdateReservation(r.id, {
+                    billet_etape: "attente_hossam",
+                    billet_demande_envoyee_le: r.billet_demande_envoyee_le || todayStr(),
+                  });
+                  setBilletHossamReminder(null);
+                }}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                C&apos;est déjà fait
+              </button>
+            </div>
           </div>
         </div>
       )}

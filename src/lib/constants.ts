@@ -65,7 +65,7 @@ export const ASSIGNE_A_OPTIONS = ["Bode", "Sylvie", "Autre"] as const;
 // "achetez le billet") de ceux que reçoit le reste de l'équipe (en
 // français, "relancez Hossam"). À corriger une fois son compte créé si
 // l'adresse réelle diffère.
-export const HOSSAM_EMAIL = "hossam@autourdesdunes.com";
+export const HOSSAM_EMAIL = "neno_hossam@yahoo.com";
 
 export const MOMENTS = ["Matin", "Après-midi", "Journée", "Plusieurs jours"] as const;
 export const OPTIONS_PRESETS = ["Guide francophone", "Privatif", "Parachute", "2ème île", "Autre"] as const;

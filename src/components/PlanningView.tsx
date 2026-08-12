@@ -258,6 +258,7 @@ function ActivityDetailModal({
   resaTarifs,
   onOpenClient,
   onOpenActivity,
+  onOpenRdvPaiement,
   onClose,
 }: {
   client: Client;
@@ -267,6 +268,7 @@ function ActivityDetailModal({
   resaTarifs: Record<string, ReservationTarif[]>;
   onOpenClient: (clientId: string) => void;
   onOpenActivity: (r: Reservation) => void;
+  onOpenRdvPaiement: (clientId: string) => void;
   onClose: () => void;
 }) {
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
@@ -558,26 +560,42 @@ function ActivityDetailModal({
         )}
 
         {rdvPlanifie && (
-          <div className="mt-3 rounded-md border border-blue-300 bg-blue-50 p-3 text-sm text-blue-700">
-            <p className="font-medium">📅 RDV paiement planifié</p>
-            <p className="mt-1">
-              {client.solde_date ? fmtDate(client.solde_date) : "Date à définir"}
-              {client.solde_rdv_heure ? ` — ${client.solde_rdv_heure}` : ""}
-              {client.solde_rdv_lieu ? ` — ${client.solde_rdv_lieu}` : ""}
-            </p>
-            <p className="mt-1 font-semibold">Montant : {euros(montantRdv)} €</p>
+          <div className="mt-3 overflow-hidden rounded-md border border-blue-300 bg-blue-50 text-blue-700">
+            <button
+              type="button"
+              onClick={() => {
+                onOpenRdvPaiement(client.id);
+                onClose();
+              }}
+              className="w-full p-3 text-left hover:bg-blue-100"
+            >
+              <p className="text-sm font-medium">📅 RDV paiement planifié</p>
+              <p className="mt-1 text-xs">
+                {client.solde_date ? fmtDate(client.solde_date) : "Date à définir"}
+                {client.solde_rdv_heure ? ` — ${client.solde_rdv_heure}` : ""}
+                {client.solde_rdv_lieu ? ` — ${client.solde_rdv_lieu}` : ""}
+              </p>
+              <p className="mt-1 whitespace-nowrap text-xs font-semibold">
+                Montant : {euros(montantRdv)} €
+              </p>
+            </button>
             {clientReservations.length > 0 && (
-              <div className="mt-2 space-y-1 border-t border-blue-200 pt-2 text-xs">
+              <div className="space-y-1 border-t border-blue-200 px-3 py-2 text-xs">
                 {clientReservations.map((rr) => (
-                  <div key={rr.id} className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    key={rr.id}
+                    onClick={() => onOpenActivity(rr)}
+                    className="flex w-full items-center justify-between gap-2 text-left hover:underline"
+                  >
                     <span>
                       {cleanActivityTitle(rr.nom_activite) || "Activité"}
                       {rr.date_debut ? ` (${fmtDate(rr.date_debut)})` : ""}
                     </span>
-                    <span>
+                    <span className="whitespace-nowrap">
                       {euros(resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []))} €
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -774,12 +792,14 @@ export default function PlanningView({
   resaOptions,
   resaTarifs,
   onOpenClient,
+  onOpenRdvPaiement,
 }: {
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onOpenClient: (clientId: string) => void;
+  onOpenRdvPaiement: (clientId: string) => void;
 }) {
   const [vue, setVue] = useState<"liste" | "calendrier">("calendrier");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("aujourdhui");
@@ -947,6 +967,7 @@ export default function PlanningView({
           resaTarifs={resaTarifs}
           onOpenClient={onOpenClient}
           onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
+          onOpenRdvPaiement={onOpenRdvPaiement}
           onClose={() => setActiveActivity(null)}
         />
       )}

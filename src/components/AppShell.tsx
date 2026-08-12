@@ -223,6 +223,7 @@ function AppShellInner({
 
   const [mode, setMode] = useState<Mode>("dashboard");
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
+  const [rdvAutoOpenClientId, setRdvAutoOpenClientId] = useState<string | null>(null);
   const [prospectsSub, setProspectsSub] = useState<ProspectsSub>("toutes");
   const [clients, setClients] = useState<Client[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
@@ -414,9 +415,10 @@ function AppShellInner({
     setSelectedId(id);
   };
 
-  const openRdvPaiements = () => {
+  const openRdvPaiements = (clientId?: string) => {
     setMode("suivis");
     setSuivisSub("rdv");
+    if (clientId) setRdvAutoOpenClientId(clientId);
   };
 
   const openPickupsChambres = () => {
@@ -1216,6 +1218,7 @@ function AppShellInner({
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
               onOpenClient={openClient}
+              onOpenRdvPaiement={openRdvPaiements}
             />
           )}
         </div>
@@ -1239,6 +1242,7 @@ function AppShellInner({
               onUpdateClient={updateClientById}
               onUpdateReservation={updateReservationById}
               onOpenClient={openClient}
+              initialRdvModalClientId={rdvAutoOpenClientId}
             />
           )}
         </div>

@@ -624,6 +624,7 @@ export default function SuivisView({
   onUpdateClient,
   onUpdateReservation,
   onOpenClient,
+  initialRdvModalClientId,
 }: {
   sub: SuivisSub;
   clients: Client[];
@@ -637,6 +638,7 @@ export default function SuivisView({
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onOpenClient: (id: string) => void;
+  initialRdvModalClientId?: string | null;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [newAppelClientId, setNewAppelClientId] = useState("");
@@ -644,6 +646,14 @@ export default function SuivisView({
   const [chambreDrafts, setChambreDrafts] = useState<Record<string, string>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [rdvModalClientId, setRdvModalClientId] = useState<string | null>(null);
+  // Synchronisation depuis un prop externe (clic "RDV paiement planifié"
+  // dans le calendrier) — comparaison au rendu plutôt qu'un useEffect, pour
+  // ne déclencher qu'une fois par nouvelle valeur sans cascade de rendus.
+  const [lastConsumedRdvId, setLastConsumedRdvId] = useState<string | null | undefined>(undefined);
+  if (initialRdvModalClientId && initialRdvModalClientId !== lastConsumedRdvId) {
+    setLastConsumedRdvId(initialRdvModalClientId);
+    setRdvModalClientId(initialRdvModalClientId);
+  }
   const [rdvKanbanView, setRdvKanbanView] = useState<string>("demain");
   const [billetsMonthFilter, setBilletsMonthFilter] = useState<string>("tous");
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));

@@ -72,6 +72,77 @@ function VoirBilletLink({ path }: { path: string }) {
   );
 }
 
+function RemboursementCard({
+  r,
+  client,
+  activite,
+  isOpen,
+  onToggle,
+  onOpenClient,
+}: {
+  r: Remboursement;
+  client: Client;
+  activite: Reservation | undefined;
+  isOpen: boolean;
+  onToggle: () => void;
+  onOpenClient: (id: string) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+      <div
+        onClick={onToggle}
+        className={`flex cursor-pointer flex-wrap items-center gap-3 px-4 py-3 ${
+          r.statut === "Effectué" ? "bg-green-50" : "bg-[#f5a623]/10"
+        }`}
+      >
+        <span className="font-heading text-lg font-semibold text-[#171717]">
+          {euros(r.montant)} €
+        </span>
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+            r.statut === "Effectué" ? "bg-green-100 text-green-700" : "bg-[#f5a623]/20 text-[#8B4531]"
+          }`}
+        >
+          {r.statut}
+        </span>
+        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-neutral-500">{r.mode}</span>
+        <span className="flex-1" />
+        <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
+      </div>
+
+      <div className="px-4 py-2 text-sm text-neutral-600">
+        <strong className="text-[#171717]">
+          {r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison}
+        </strong>
+        {" — "}
+        {activite ? activite.nom_activite : "Aucune activité liée"}
+      </div>
+
+      {isOpen && (
+        <div className="space-y-2 border-t border-neutral-100 px-4 py-3 text-sm text-neutral-600">
+          {r.details && <div className="rounded-md bg-[#fafafa] p-3 text-[#171717]">{r.details}</div>}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              Date de l&apos;activité : {activite?.date_debut ? fmtDate(activite.date_debut) : "—"}
+            </div>
+            <div>Date de l&apos;annulation : {fmtDate(r.date_probleme)}</div>
+            <div>Fait par : {r.par || "—"}</div>
+            <div>
+              Date du remboursement : {r.date_remboursement ? fmtDate(r.date_remboursement) : "—"}
+            </div>
+          </div>
+          {r.mode === "PayPal" && r.paypal_email && <div>Adresse PayPal : {r.paypal_email}</div>}
+          {r.mode === "Virement bancaire" && r.rib_photo_path && (
+            <div>
+              <VoirRibLink path={r.rib_photo_path} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function fmtDayColumn(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
@@ -611,8 +682,39 @@ export default function SuivisView({
     .filter((x) => x.dateCible > todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
 
-  const remboursementRows = [...remboursements].sort((a, b) =>
-    (b.date_probleme || "").localeCompare(a.date_probleme || "")
+  const remboursementsEnAttente = remboursements
+    .filter((r) => r.statut !== "Effectué")
+    .sort((a, b) => (a.date_probleme || "").localeCompare(b.date_probleme || ""));
+
+  // "Effectués" se trie par semaine puis par mois — date de référence : le
+  // jour où l'argent est réellement parti, sinon la date du problème.
+  const remboursementDateRef = (r: Remboursement) => r.date_remboursement || r.date_probleme || "";
+  const remboursementWeekStart = (dateStr: string) => {
+    const d = new Date(dateStr + "T00:00:00");
+    const offset = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - offset);
+    return localDateStr(d);
+  };
+  const remboursementsEffectuesParMoisSemaine = (() => {
+    const withDate = remboursements
+      .filter((r) => r.statut === "Effectué" && remboursementDateRef(r))
+      .sort((a, b) => remboursementDateRef(b).localeCompare(remboursementDateRef(a)));
+    const parMois = new Map<string, Map<string, Remboursement[]>>();
+    withDate.forEach((r) => {
+      const date = remboursementDateRef(r);
+      const moisKey = date.slice(0, 7);
+      const semaineKey = remboursementWeekStart(date);
+      if (!parMois.has(moisKey)) parMois.set(moisKey, new Map());
+      const parSemaine = parMois.get(moisKey)!;
+      parSemaine.set(semaineKey, [...(parSemaine.get(semaineKey) || []), r]);
+    });
+    return Array.from(parMois.entries()).map(([mois, semaines]) => ({
+      mois,
+      semaines: Array.from(semaines.entries()).sort((a, b) => b[0].localeCompare(a[0])),
+    }));
+  })();
+  const remboursementsSansDate = remboursements.filter(
+    (r) => r.statut === "Effectué" && !remboursementDateRef(r)
   );
 
   const billetsAllRows = reservations
@@ -1230,88 +1332,102 @@ export default function SuivisView({
       )}
 
       {sub === "remb" && (
-        <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-            Remboursements
-          </h3>
-          {remboursementRows.length === 0 && (
-            <div className="text-sm text-neutral-400">Aucun remboursement enregistré.</div>
-          )}
-          <div className="space-y-3">
-            {remboursementRows.map((r) => {
-              const client = clients.find((c) => c.id === r.client_id);
-              if (!client) return null;
-              const activite = reservations.find((res) => res.id === r.activite_id);
-              const key = "remb-" + r.id;
-              const isOpen = expanded[key];
-              return (
-                <div
-                  key={r.id}
-                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm"
-                >
-                  <div
-                    onClick={() => toggleExpand(key)}
-                    className={`flex cursor-pointer flex-wrap items-center gap-3 px-4 py-3 ${
-                      r.statut === "Effectué" ? "bg-green-50" : "bg-[#f5a623]/10"
-                    }`}
-                  >
-                    <span className="font-heading text-lg font-semibold text-[#171717]">
-                      {euros(r.montant)} €
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        r.statut === "Effectué"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-[#f5a623]/20 text-[#8B4531]"
-                      }`}
-                    >
-                      {r.statut}
-                    </span>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-neutral-500">
-                      {r.mode}
-                    </span>
-                    <span className="flex-1" />
-                    <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
-                  </div>
+        <div className="space-y-8">
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+              À faire ({remboursementsEnAttente.length})
+            </h3>
+            {remboursementsEnAttente.length === 0 && (
+              <div className="text-sm text-neutral-400">Rien en attente.</div>
+            )}
+            <div className="space-y-3">
+              {remboursementsEnAttente.map((r) => {
+                const client = clients.find((c) => c.id === r.client_id);
+                if (!client) return null;
+                const activite = reservations.find((res) => res.id === r.activite_id);
+                const key = "remb-" + r.id;
+                return (
+                  <RemboursementCard
+                    key={r.id}
+                    r={r}
+                    client={client}
+                    activite={activite}
+                    isOpen={!!expanded[key]}
+                    onToggle={() => toggleExpand(key)}
+                    onOpenClient={onOpenClient}
+                  />
+                );
+              })}
+            </div>
+          </div>
 
-                  <div className="px-4 py-2 text-sm text-neutral-600">
-                    <strong className="text-[#171717]">
-                      {r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison}
-                    </strong>
-                    {" — "}
-                    {activite ? activite.nom_activite : "Aucune activité liée"}
-                  </div>
-
-                  {isOpen && (
-                    <div className="space-y-2 border-t border-neutral-100 px-4 py-3 text-sm text-neutral-600">
-                      {r.details && (
-                        <div className="rounded-md bg-[#fafafa] p-3 text-[#171717]">{r.details}</div>
-                      )}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          Date de l&apos;activité :{" "}
-                          {activite?.date_debut ? fmtDate(activite.date_debut) : "—"}
-                        </div>
-                        <div>Date de l&apos;annulation : {fmtDate(r.date_probleme)}</div>
-                        <div>Fait par : {r.par || "—"}</div>
-                        <div>
-                          Date du remboursement :{" "}
-                          {r.date_remboursement ? fmtDate(r.date_remboursement) : "—"}
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">Effectués</h3>
+            {remboursementsEffectuesParMoisSemaine.length === 0 &&
+              remboursementsSansDate.length === 0 && (
+                <div className="text-sm text-neutral-400">Aucun remboursement effectué.</div>
+              )}
+            <div className="space-y-6">
+              {remboursementsEffectuesParMoisSemaine.map(({ mois, semaines }) => (
+                <div key={mois}>
+                  <h4 className="mb-2 text-sm font-semibold capitalize text-[#8B4531]">
+                    {fmtMonthLabel(mois)}
+                  </h4>
+                  <div className="space-y-4">
+                    {semaines.map(([semaine, rows]) => (
+                      <div key={semaine}>
+                        <p className="mb-2 text-xs font-medium text-neutral-400">
+                          Semaine du {fmtDate(semaine)}
+                        </p>
+                        <div className="space-y-3">
+                          {rows.map((r) => {
+                            const client = clients.find((c) => c.id === r.client_id);
+                            if (!client) return null;
+                            const activite = reservations.find((res) => res.id === r.activite_id);
+                            const key = "remb-" + r.id;
+                            return (
+                              <RemboursementCard
+                                key={r.id}
+                                r={r}
+                                client={client}
+                                activite={activite}
+                                isOpen={!!expanded[key]}
+                                onToggle={() => toggleExpand(key)}
+                                onOpenClient={onOpenClient}
+                              />
+                            );
+                          })}
                         </div>
                       </div>
-                      {r.mode === "PayPal" && r.paypal_email && (
-                        <div>Adresse PayPal : {r.paypal_email}</div>
-                      )}
-                      {r.mode === "Virement bancaire" && r.rib_photo_path && (
-                        <div>
-                          <VoirRibLink path={r.rib_photo_path} />
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              );
-            })}
+              ))}
+              {remboursementsSansDate.length > 0 && (
+                <div>
+                  <h4 className="mb-2 text-sm font-semibold text-neutral-400">Date inconnue</h4>
+                  <div className="space-y-3">
+                    {remboursementsSansDate.map((r) => {
+                      const client = clients.find((c) => c.id === r.client_id);
+                      if (!client) return null;
+                      const activite = reservations.find((res) => res.id === r.activite_id);
+                      const key = "remb-" + r.id;
+                      return (
+                        <RemboursementCard
+                          key={r.id}
+                          r={r}
+                          client={client}
+                          activite={activite}
+                          isOpen={!!expanded[key]}
+                          onToggle={() => toggleExpand(key)}
+                          onOpenClient={onOpenClient}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

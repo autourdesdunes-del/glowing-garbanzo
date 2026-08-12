@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
@@ -796,11 +796,139 @@ function CalendarMonthView({
   );
 }
 
+// Regroupe toutes les activités à venir par catégorie (ex. tous les "Louxor
+// en mini-bus", toutes les "Tortues"...) puis par date — pour repérer d'un
+// coup d'œil les jours où grouper plusieurs clients sur la même sortie.
+function ByActivityView({
+  clients,
+  reservations,
+  resaOptions,
+  resaTarifs,
+  catalogue,
+  onOpenActivity,
+  onOpenClient,
+}: {
+  clients: Client[];
+  reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
+  catalogue: CatalogueItem[];
+  onOpenActivity: (row: Row) => void;
+  onOpenClient: (clientId: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
+  const todayStr = toStr(new Date());
+
+  const categoryLabel = (r: Reservation) => {
+    if (r.catalogue_item_id) {
+      const item = catalogue.find((c) => c.id === r.catalogue_item_id);
+      if (item) return item.nom;
+    }
+    return baseActivityName(r.nom_activite) || "Sans nom";
+  };
+
+  const categories = useMemo(() => {
+    const byCategory = new Map<string, { label: string; byDate: Map<string, Row[]> }>();
+    reservations.forEach((r) => {
+      if (!r.date_debut || r.date_debut < todayStr) return;
+      const client = clients.find((c) => c.id === r.client_id);
+      if (!client) return;
+      const label = categoryLabel(r);
+      const key = r.catalogue_item_id || `custom:${label}`;
+      if (!byCategory.has(key)) byCategory.set(key, { label, byDate: new Map() });
+      const cat = byCategory.get(key)!;
+      cat.byDate.set(r.date_debut, [...(cat.byDate.get(r.date_debut) || []), { client, r }]);
+    });
+    return Array.from(byCategory.values())
+      .map((cat) => ({
+        label: cat.label,
+        total: Array.from(cat.byDate.values()).reduce((s, rows) => s + rows.length, 0),
+        dates: Array.from(cat.byDate.entries()).sort((a, b) => a[0].localeCompare(b[0])),
+      }))
+      .filter((cat) => cat.label.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients, reservations, catalogue, query, todayStr]);
+
+  return (
+    <div className="space-y-3">
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Filtrer par activité (ex. Louxor, Tortues, dauphins…)"
+        className="input"
+      />
+
+      {categories.length === 0 && (
+        <div className="text-sm text-neutral-400">Aucune activité à venir.</div>
+      )}
+
+      {categories.map((cat) => {
+        const isOpen = !!openCategories[cat.label];
+        return (
+          <div key={cat.label} className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+            <button
+              type="button"
+              onClick={() => setOpenCategories((prev) => ({ ...prev, [cat.label]: !prev[cat.label] }))}
+              className="flex w-full items-center justify-between gap-3 p-4 text-left hover:bg-[#fafafa]"
+            >
+              <span className="font-heading text-sm font-semibold text-[#171717]">{cat.label}</span>
+              <span className="flex items-center gap-2">
+                <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+                  {cat.total} à venir
+                </span>
+                <span className={`text-neutral-400 transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                  ⌄
+                </span>
+              </span>
+            </button>
+            {isOpen && (
+              <div className="space-y-4 border-t border-neutral-100 p-4">
+                {cat.dates.map(([date, rows]) => {
+                  const pax = rows.reduce((s, row) => {
+                    const { nbAd, nbEnf } = participantsFor(row.r, row.client);
+                    return s + nbAd + nbEnf;
+                  }, 0);
+                  return (
+                    <div key={date}>
+                      <h4 className="mb-2 text-xs font-semibold text-neutral-500">
+                        {fmtDate(date)}
+                        {date === todayStr ? " — aujourd'hui" : ""} · {rows.length} réservation
+                        {rows.length > 1 ? "s" : ""}, {pax} pers.
+                      </h4>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {rows.map((row) => (
+                          <ReservationSummaryCard
+                            key={row.r.id}
+                            client={row.client}
+                            r={row.r}
+                            reservations={reservations}
+                            resaOptions={resaOptions}
+                            resaTarifs={resaTarifs}
+                            onClick={() => onOpenActivity(row)}
+                            onOpenClient={onOpenClient}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PlanningView({
   clients,
   reservations,
   resaOptions,
   resaTarifs,
+  catalogue,
   onOpenClient,
   onOpenRdvPaiement,
 }: {
@@ -808,10 +936,11 @@ export default function PlanningView({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  catalogue: CatalogueItem[];
   onOpenClient: (clientId: string) => void;
   onOpenRdvPaiement: (clientId: string) => void;
 }) {
-  const [vue, setVue] = useState<"liste" | "calendrier">("calendrier");
+  const [vue, setVue] = useState<"liste" | "calendrier" | "par_activite">("calendrier");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("aujourdhui");
   const [activeActivity, setActiveActivity] = useState<Row | null>(null);
   const [moisChoisi, setMoisChoisi] = useState(() => monthStartOf(toStr(new Date())));
@@ -886,6 +1015,14 @@ export default function PlanningView({
           >
             Calendrier
           </button>
+          <button
+            onClick={() => setVue("par_activite")}
+            className={`rounded-full px-3 py-1 text-sm ${
+              vue === "par_activite" ? "bg-[#171717] text-white" : "text-neutral-600"
+            }`}
+          >
+            Par activité
+          </button>
         </div>
       </div>
 
@@ -895,6 +1032,16 @@ export default function PlanningView({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
+          onOpenActivity={setActiveActivity}
+          onOpenClient={onOpenClient}
+        />
+      ) : vue === "par_activite" ? (
+        <ByActivityView
+          clients={clients}
+          reservations={reservations}
+          resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
+          catalogue={catalogue}
           onOpenActivity={setActiveActivity}
           onOpenClient={onOpenClient}
         />

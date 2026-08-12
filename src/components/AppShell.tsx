@@ -1217,6 +1217,7 @@ function AppShellInner({
               reservations={allReservations}
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
+              catalogue={catalogue}
               onOpenClient={openClient}
               onOpenRdvPaiement={openRdvPaiements}
             />

@@ -168,7 +168,7 @@ function Metric({
   return (
     <div className={`flex-1 px-5 ${first ? "pl-0" : "border-l border-[#eaeaea]"}`}>
       <p className="text-[11px] font-medium text-[#666666]">{label}</p>
-      <p className={`font-amounts mt-1.5 text-[28px] font-bold leading-none ${valueClass}`}>{value}</p>
+      <p className={`mt-1.5 text-[28px] font-bold leading-none ${valueClass}`}>{value}</p>
       {sub && <p className="mt-1.5 text-xs text-[#666666]">{sub}</p>}
     </div>
   );
@@ -216,6 +216,10 @@ export default function DashboardView({
   onOpenClient,
   onOpenRdvPaiements,
   onOpenPickupsChambres,
+  onOpenNumerosChambre,
+  onOpenAuRevoir,
+  onOpenAvisClients,
+  onOpenProspectsARelancer,
   onOpenBilletsAvion,
   onCreateClient,
   onUpdateClient,
@@ -230,6 +234,10 @@ export default function DashboardView({
   onOpenClient: (id: string) => void;
   onOpenRdvPaiements: () => void;
   onOpenPickupsChambres: () => void;
+  onOpenNumerosChambre: () => void;
+  onOpenAuRevoir: () => void;
+  onOpenAvisClients: () => void;
+  onOpenProspectsARelancer: () => void;
   onOpenBilletsAvion: () => void;
   onCreateClient: (fields: {
     nom: string;
@@ -643,7 +651,7 @@ export default function DashboardView({
                     ? `${roomsMissingTomorrow.length} client(s) arrivant demain`
                     : "Rien à demander"
                 }
-                onClick={roomsMissingTomorrow.length > 0 ? onOpenPickupsChambres : undefined}
+                onClick={roomsMissingTomorrow.length > 0 ? onOpenNumerosChambre : undefined}
               />
               <ActionRow
                 icon="car"
@@ -689,13 +697,13 @@ export default function DashboardView({
                 icon="wave"
                 title="Messages au revoir"
                 sub={auRevoirToday.length > 0 ? `${auRevoirToday.length} à envoyer` : "Rien à envoyer"}
-                onClick={auRevoirToday[0] ? () => onOpenClient(auRevoirToday[0].id) : undefined}
+                onClick={auRevoirToday.length > 0 ? onOpenAuRevoir : undefined}
               />
               <ActionRow
                 icon="star"
                 title="Demandes d'avis"
                 sub={avisToday.length > 0 ? `${avisToday.length} à envoyer` : "Rien à envoyer"}
-                onClick={avisToday[0] ? () => onOpenClient(avisToday[0].id) : undefined}
+                onClick={avisToday.length > 0 ? onOpenAvisClients : undefined}
               />
               <ActionRow
                 icon="refresh"
@@ -703,7 +711,7 @@ export default function DashboardView({
                 sub={
                   staleProspects.length > 0 ? `${staleProspects.length} à relancer` : "Rien à relancer"
                 }
-                onClick={staleProspects[0] ? () => onOpenClient(staleProspects[0].id) : undefined}
+                onClick={staleProspects.length > 0 ? onOpenProspectsARelancer : undefined}
               />
             </div>
           </div>

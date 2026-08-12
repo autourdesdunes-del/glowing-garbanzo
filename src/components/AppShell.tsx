@@ -501,6 +501,26 @@ function AppShellInner({
     setSuivisSub("j1");
   };
 
+  const openNumerosChambre = () => {
+    setMode("suivis");
+    setSuivisSub("chambres");
+  };
+
+  const openAuRevoir = () => {
+    setMode("suivis");
+    setSuivisSub("aurevoir");
+  };
+
+  const openAvisClients = () => {
+    setMode("suivis");
+    setSuivisSub("avis");
+  };
+
+  const openProspectsARelancer = () => {
+    setMode("prospects");
+    setProspectsSub("toutes");
+  };
+
   const openBilletsAvion = () => {
     setMode("suivis");
     setSuivisSub("billets");
@@ -1217,6 +1237,10 @@ function AppShellInner({
               onOpenClient={openClient}
               onOpenRdvPaiements={openRdvPaiements}
               onOpenPickupsChambres={openPickupsChambres}
+              onOpenNumerosChambre={openNumerosChambre}
+              onOpenAuRevoir={openAuRevoir}
+              onOpenAvisClients={openAvisClients}
+              onOpenProspectsARelancer={openProspectsARelancer}
               onOpenBilletsAvion={openBilletsAvion}
               onCreateClient={addClient}
               onUpdateClient={updateClientById}

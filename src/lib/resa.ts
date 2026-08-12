@@ -260,9 +260,23 @@ export function billetEtapeShortLabel(etape: string) {
 // Message prêt à coller dans le groupe WhatsApp "only flight ticket" avec
 // Hossam — dateLabel est déjà formatée par l'appelant (chaque écran a sa
 // propre fonction de format de date locale).
-export function hossamBilletMessage(r: Reservation, client: Client, pax: string, dateLabel: string) {
-  const nom = r.billet_nom_complet.trim() || client.nom || "Nom ?";
-  return `Billet à réserver\nNom complet : ${nom}\nPassagers : ${pax}\nTrajet : ${r.billet_ville_depart || "?"} → ${r.billet_ville_arrivee || "?"}\nDate : ${dateLabel}\nActivité : ${r.nom_activite || "—"}`;
+// Message prêt à coller tel quel dans le groupe WhatsApp "only flight
+// ticket" avec Hossam — un nom par ligne (extraits des passeports dans
+// billet_nom_complet, séparés par une virgule ou un retour à la ligne selon
+// comment l'employée les a saisis), format jj/mm sans année.
+export function hossamBilletMessage(r: Reservation, client: Client) {
+  const dateLabel = r.billet_date
+    ? (() => {
+        const d = new Date(r.billet_date + "T00:00:00");
+        return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+      })()
+    : "?";
+  const noms = (r.billet_nom_complet || "")
+    .split(/[\n,]+/)
+    .map((n) => n.trim())
+    .filter(Boolean);
+  const listeNoms = (noms.length > 0 ? noms : [client.nom || "Nom ?"]).map((n) => `- ${n}`).join("\n");
+  return `Can you please book Cairo plane tickets for ${dateLabel} :\n${listeNoms}\nThey sent deposit ✅`;
 }
 
 // Balade à cheval / chameau — un enfant peut monter seul (son propre animal,

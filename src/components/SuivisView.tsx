@@ -1782,9 +1782,7 @@ export default function SuivisView({
 
                   <div className="mt-2 flex flex-wrap items-center gap-3">
                     <button
-                      onClick={() =>
-                        copyText(key, hossamBilletMessage(r, client, pax, fmtDate(r.billet_date)))
-                      }
+                      onClick={() => copyText(key, hossamBilletMessage(r, client))}
                       className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                     >
                       {copiedKey === key ? "Copié ✓" : "Copier la demande"}

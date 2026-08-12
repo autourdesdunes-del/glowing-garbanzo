@@ -27,7 +27,7 @@ import {
   RELATIONS,
   STATUTS,
 } from "@/lib/constants";
-import { hossamBilletMessage, participantsFor, resaTotalMontant } from "@/lib/resa";
+import { hossamBilletMessage, resaTotalMontant } from "@/lib/resa";
 import { matchHotel } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
@@ -1577,12 +1577,8 @@ export function PaiementsStep({
               <button
                 onClick={async () => {
                   const r = billetHossamReminder;
-                  const { nbAd, nbEnf } = participantsFor(r, client);
-                  const pax = r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`;
                   try {
-                    await navigator.clipboard.writeText(
-                      hossamBilletMessage(r, client, pax, fmtDate(r.billet_date))
-                    );
+                    await navigator.clipboard.writeText(hossamBilletMessage(r, client));
                     setCopiedHossamReminder(true);
                     setTimeout(() => setCopiedHossamReminder(false), 1500);
                   } catch {

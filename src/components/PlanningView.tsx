@@ -223,6 +223,10 @@ function ActivityDetailModal({
     !soldeIci && !client.solde_paye && client.solde_activite_id
       ? clientReservations.find((rr) => rr.id === client.solde_activite_id) || null
       : null;
+  // Solde en attente sans aucune activité de collecte identifiée — un trou
+  // dans le suivi qui doit se voir, sous peine de finir sans jamais être
+  // encaissé.
+  const soldeSansActivite = !soldeIci && !client.solde_paye && !client.solde_activite_id;
   const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
 
@@ -391,6 +395,12 @@ function ActivityDetailModal({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {soldeSansActivite && (
+          <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-700">
+            ⚠️ Solde du séjour en attente — pas encore rattaché à une activité de collecte, à surveiller.
           </div>
         )}
 

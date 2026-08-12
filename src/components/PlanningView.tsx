@@ -7,6 +7,7 @@ import {
   activitePaiementWarning,
   chevalChameauBadge,
   cleanActivityTitle,
+  formatOptionLabel,
   momentBadge,
   paiementBadge,
   participantsFor,
@@ -30,6 +31,60 @@ function fmtDateLong(dateStr: string) {
 function toStr(d: Date) {
   return localDateStr(d);
 }
+function fmtDDMM(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+// Traduction "au mieux" du vocabulaire métier récurrent (bloc équipe Égypte,
+// anglophone) — pas un moteur de traduction, juste les mots qui reviennent
+// tout le temps dans les noms d'activités/options. Le reste (noms propres,
+// lieux) reste tel quel.
+const FR_EN_DICT: [RegExp, string][] = [
+  [/coucher de soleil/gi, "sunset"],
+  [/demi[- ]journée/gi, "half day"],
+  [/journée complète/gi, "full day"],
+  [/journée/gi, "day"],
+  [/semi-privé/gi, "semi-private"],
+  [/privé/gi, "private"],
+  [/après-midi/gi, "afternoon"],
+  [/matin/gi, "morning"],
+  [/chevaux/gi, "horses"],
+  [/cheval/gi, "horse"],
+  [/chameaux/gi, "camels"],
+  [/chameau/gi, "camel"],
+  [/plongée/gi, "diving"],
+  [/randonnée/gi, "hike"],
+  [/désert/gi, "desert"],
+  [/île/gi, "island"],
+  [/maison des dauphins/gi, "dolphin house"],
+  [/dauphins/gi, "dolphins"],
+  [/tortues/gi, "turtles"],
+  [/visites/gi, "visits"],
+  [/guide francophone/gi, "French-speaking guide"],
+  [/guide anglophone/gi, "English-speaking guide"],
+  [/ avec /gi, " with "],
+];
+function translateFr(text: string) {
+  let out = text;
+  FR_EN_DICT.forEach(([re, repl]) => {
+    out = out.replace(re, repl);
+  });
+  return out;
+}
+// Le titre stocké peut porter un suffixe " — ..." (île / moment / créneau,
+// posé par l'assistant d'ajout) — on ne veut que le nom de base ici, le
+// moment/créneau est déjà ajouté séparément par momentBadge.
+function baseActivityName(nom: string) {
+  const idx = nom.indexOf(" — ");
+  return idx === -1 ? nom : nom.slice(0, idx);
+}
+const PAYMENT_MODE_EN: Record<string, string> = {
+  "Espèces EUR": "cash",
+  "Espèces EGP": "cash",
+  "Carte bleue": "card",
+  "Virement bancaire": "bank transfer",
+  PayPal: "PayPal",
+};
 function resaActiveOn(r: Reservation, dateStr: string) {
   if (!r.date_debut) return false;
   const end = r.date_fin || r.date_debut;
@@ -215,18 +270,6 @@ function ActivityDetailModal({
 }) {
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
-  const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
-    client.hotel || "—"
-  }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
-  const copyEgyptBlock = async () => {
-    try {
-      await navigator.clipboard.writeText(egyptBlock);
-      setCopiedEgypt(true);
-      setTimeout(() => setCopiedEgypt(false), 1500);
-    } catch {
-      // clipboard indisponible, ignorer
-    }
-  };
   const options = resaOptions[r.id] || [];
   const tarifs = resaTarifs[r.id] || [];
   const total = resaTotalMontant(r, client, options, tarifs);
@@ -251,6 +294,40 @@ function ActivityDetailModal({
   const [showSoldeSansActiviteAlert, setShowSoldeSansActiviteAlert] = useState(soldeSansActivite);
   const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
+
+  // Bloc équipe Égypte : la traduction reste "au mieux" (dictionnaire de
+  // vocabulaire métier récurrent), pas un vrai moteur de traduction.
+  const activiteLines: string[] = [fmtDDMM(r.date_debut || ""), translateFr(baseActivityName(r.nom_activite))];
+  options.forEach((o) => activiteLines.push(translateFr(formatOptionLabel(o))));
+  const momentEn = momentBadge(r);
+  if (momentEn) activiteLines.push(translateFr(momentEn));
+  const chevalBadge = chevalChameauBadge(r, client);
+  if (chevalBadge) activiteLines.push(chevalBadge);
+  if (r.nb_conducteurs != null) activiteLines.push(`Drivers : ${r.nb_conducteurs}`);
+  if (r.nb_passagers != null) activiteLines.push(`Passengers : ${r.nb_passagers}`);
+  if (r.pointure) activiteLines.push(`Shoe size : ${r.pointure}`);
+
+  const paymentLine = paiementWarning
+    ? `Payment : ${euros(paiementWarning.amount)} ${paiementWarning.devise === "EGP" ? "EGP" : "euros"} ${
+        PAYMENT_MODE_EN[client.solde_mode] || client.solde_mode
+      } ⚠️⚠️`
+    : "";
+
+  const egyptBlock = `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${buildPaxEnglish(
+    client
+  )}\n\nHotel : ${client.hotel || "—"}\nRoom Number : ${client.chambre || "—"}\n\nWhat's app : ${
+    client.telephone || "—"
+  }${paymentLine ? `\n\n${paymentLine}` : ""}`;
+
+  const copyEgyptBlock = async () => {
+    try {
+      await navigator.clipboard.writeText(egyptBlock);
+      setCopiedEgypt(true);
+      setTimeout(() => setCopiedEgypt(false), 1500);
+    } catch {
+      // clipboard indisponible, ignorer
+    }
+  };
 
   return (
     <>

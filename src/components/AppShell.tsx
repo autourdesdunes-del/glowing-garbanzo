@@ -25,6 +25,7 @@ import ClientDetail from "@/components/ClientDetail";
 import DashboardView from "@/components/DashboardView";
 import GlobalSearch from "@/components/GlobalSearch";
 import PipelineView from "@/components/PipelineView";
+import ProspectSummaryModal from "@/components/ProspectSummaryModal";
 import ChangePasswordButton from "@/components/ChangePasswordButton";
 import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
@@ -40,6 +41,7 @@ import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
 import AppelReminders from "@/components/AppelReminders";
 import BilletRappels from "@/components/BilletRappels";
+import BilletEnvoiRappels from "@/components/BilletEnvoiRappels";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 
 type Mode =
@@ -235,11 +237,14 @@ function AppShellInner({
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
   const [planningSub, setPlanningSub] = useState<PlanningSub>("aujourdhui");
   const [rdvAutoOpenClientId, setRdvAutoOpenClientId] = useState<string | null>(null);
+  const [focusReservationId, setFocusReservationId] = useState<string | null>(null);
+  const [billetAutoOpenId, setBilletAutoOpenId] = useState<string | null>(null);
   const [prospectsSub, setProspectsSub] = useState<ProspectsSub>("toutes");
   const [clients, setClients] = useState<Client[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [prospectSummaryId, setProspectSummaryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   // Liste/Pipeline est un toggle par onglet : Clients démarre en Liste,
@@ -499,6 +504,24 @@ function AppShellInner({
   const openBilletsAvion = () => {
     setMode("suivis");
     setSuivisSub("billets");
+  };
+
+  // Depuis la fiche détail d'un billet (Suivis > Billets d'avion), ouvre
+  // l'activité liée dans Réservations > Calendrier par activité, avec un
+  // "Retour" qui ramène pile sur cette même fiche billet (pas juste sur la
+  // liste) — voir ActivityDetailModal (PlanningView.tsx).
+  const openReservationFromBillet = (reservationId: string) => {
+    setFocusReservationId(reservationId);
+    setPlanningSub("par_activite");
+    setMode("planning");
+  };
+
+  const backFromReservationFocus = () => {
+    const id = focusReservationId;
+    setFocusReservationId(null);
+    setMode("suivis");
+    setSuivisSub("billets");
+    setBilletAutoOpenId(id);
   };
 
   // Gardés par client (id -> ...) et non par un seul ref partagé : sinon,
@@ -950,6 +973,27 @@ function AppShellInner({
       />
       <BusEscalationCenter profiles={teamProfiles} currentUserId={userId} />
       <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />
+      <BilletEnvoiRappels
+        reservations={allReservations}
+        clients={clients}
+        onUpdateReservation={updateReservationById}
+      />
+      {prospectSummaryId &&
+        (() => {
+          const c = clients.find((cl) => cl.id === prospectSummaryId);
+          if (!c) return null;
+          return (
+            <ProspectSummaryModal
+              client={c}
+              onClose={() => setProspectSummaryId(null)}
+              onOpenFullFile={() => {
+                setSelectedId(c.id);
+                setTeamView("liste");
+                setProspectSummaryId(null);
+              }}
+            />
+          );
+        })()}
       {showSharedAlertPopup && sharedAlerts.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl">
@@ -1228,6 +1272,10 @@ function AppShellInner({
               groupBy={mode === "team" ? "timing" : "statut"}
               onUpdateStatut={(id, statut) => updateClientById(id, { statut })}
               onOpenClient={(id) => {
+                if (mode === "prospects") {
+                  setProspectSummaryId(id);
+                  return;
+                }
                 setSelectedId(id);
                 setTeamView("liste");
               }}
@@ -1382,6 +1430,8 @@ function AppShellInner({
               catalogue={catalogue}
               onOpenClient={openClient}
               onOpenRdvPaiement={openRdvPaiements}
+              focusReservationId={focusReservationId}
+              onBackToBillet={focusReservationId ? backFromReservationFocus : undefined}
             />
           )}
         </div>
@@ -1406,6 +1456,8 @@ function AppShellInner({
               onUpdateReservation={updateReservationById}
               onOpenClient={openClient}
               initialRdvModalClientId={rdvAutoOpenClientId}
+              initialBilletId={billetAutoOpenId}
+              onOpenReservationActivity={openReservationFromBillet}
             />
           )}
         </div>

@@ -152,6 +152,7 @@ export type Reservation = {
   billet_lien: string;
   billet_notes: string;
   billet_verifie: boolean;
+  billet_recu_le: string | null;
   billet_ville_depart: string;
   billet_ville_arrivee: string;
   billet_nom_complet: string;
@@ -278,6 +279,15 @@ export type Client = {
   kommo_last_team_reply_at: string | null;
   kommo_last_team_reply_par: string;
   kommo_synced_at: string | null;
+  kommo_resume: string;
+  kommo_sejour_debut_estime: string | null;
+  kommo_sejour_fin_estime: string | null;
+  kommo_hotel_estime: string;
+  kommo_nb_adultes_estime: number | null;
+  kommo_nb_enfants_estime: number | null;
+  kommo_ages_enfants_estime: string;
+  kommo_activites_interet: string;
+  kommo_extraction_updated_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -347,6 +357,15 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   kommo_last_team_reply_at: null,
   kommo_last_team_reply_par: "",
   kommo_synced_at: null,
+  kommo_resume: "",
+  kommo_sejour_debut_estime: null,
+  kommo_sejour_fin_estime: null,
+  kommo_hotel_estime: "",
+  kommo_nb_adultes_estime: null,
+  kommo_nb_enfants_estime: null,
+  kommo_ages_enfants_estime: "",
+  kommo_activites_interet: "",
+  kommo_extraction_updated_at: null,
 };
 
 export type UserShift = {

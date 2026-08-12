@@ -1392,6 +1392,14 @@ export default function SuivisView({
                     >
                       {copiedKey === key ? "Copié ✓" : "Copier la demande"}
                     </button>
+                    <button
+                      onClick={() =>
+                        copyText("nom-" + key, r.billet_nom_complet.trim() || client.nom)
+                      }
+                      className="rounded-full border border-[#171717]/30 px-3 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]"
+                    >
+                      {copiedKey === "nom-" + key ? "Copié ✓" : "Copier le nom"}
+                    </button>
                     {r.billet_lien && (
                       <a
                         href={r.billet_lien}

@@ -144,31 +144,36 @@ function RemboursementCard({
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-      <div
-        onClick={onToggle}
-        className="flex cursor-pointer flex-wrap items-center gap-2 bg-white px-4 py-3"
-      >
-        <span className="font-heading text-lg font-semibold text-[#171717]">
-          {euros(r.montant)} €
-        </span>
-        <span
-          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-            r.statut === "Effectué" ? "bg-green-100 text-green-700" : "bg-[#f5a623]/20 text-[#8B4531]"
-          }`}
-        >
-          {r.statut}
-        </span>
-        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">{r.mode}</span>
-        <span className="flex-1" />
-        <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
-      </div>
-
-      <div className="px-4 py-2 text-sm text-neutral-600">
-        <strong className="text-[#171717]">
-          {r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison}
-        </strong>
-        {" — "}
-        {activite ? activite.nom_activite : "Aucune activité liée"}
+      <div onClick={onToggle} className="cursor-pointer px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <ClientNameLink
+            nom={client.nom}
+            onClick={() => onOpenClient(client.id)}
+            className="font-heading text-base font-semibold text-[#171717] hover:underline"
+          />
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+              r.statut === "Effectué" ? "bg-green-100 text-green-700" : "bg-[#f5a623]/20 text-[#8B4531]"
+            }`}
+          >
+            {r.statut}
+          </span>
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-500">
+            {r.mode}
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-neutral-500">
+          <strong className="text-[#171717]">
+            {r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison}
+          </strong>
+          {" — "}
+          {activite ? activite.nom_activite : "Aucune activité liée"}
+        </p>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <span className="font-heading text-lg font-semibold text-[#171717]">
+            {euros(r.montant)} €
+          </span>
+        </div>
       </div>
 
       {isOpen && (
@@ -536,78 +541,87 @@ function AppelRow({
 
   return (
     <div
-      className={`flex flex-wrap items-center gap-3 overflow-hidden rounded-lg border bg-white p-4 text-sm shadow-sm ${
+      className={`overflow-hidden rounded-lg border bg-white p-4 text-sm shadow-sm ${
         c.prochain_appel_date === todayStr ? "border-[#f5a623]" : "border-neutral-200"
       }`}
     >
-      {c.prochain_appel_date === todayStr && (
-        <span className="rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
-          Aujourd&apos;hui
-        </span>
-      )}
-      <input
-        type="date"
-        value={c.prochain_appel_date ?? ""}
-        onChange={(e) => onUpdateClient(c.id, { prochain_appel_date: e.target.value || null })}
-        className="input w-36 text-xs"
-      />
-      <input
-        type="time"
-        value={c.prochain_appel_heure}
-        onChange={(e) => onUpdateClient(c.id, { prochain_appel_heure: e.target.value })}
-        className="input w-28 text-xs"
-      />
-      <select
-        value={c.prochain_appel_fuseau}
-        onChange={(e) =>
-          onUpdateClient(c.id, { prochain_appel_fuseau: e.target.value as "france" | "egypte" })
-        }
-        className="input w-32 text-xs"
-      >
-        <option value="france">Heure française</option>
-        <option value="egypte">Heure égyptienne</option>
-      </select>
-      <select
-        value={c.prochain_appel_plateforme}
-        onChange={(e) => onUpdateClient(c.id, { prochain_appel_plateforme: e.target.value })}
-        className="input w-36 text-xs"
-      >
-        <option value="">Plateforme…</option>
-        {APPEL_PLATEFORMES.map((p) => (
-          <option key={p} value={p}>
-            {p}
-          </option>
-        ))}
-      </select>
-      <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-      {assignee && (
-        <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
-          👤 {assignee}
-        </span>
-      )}
-      <span className="flex-1" />
-      <label className="flex items-center gap-1 text-xs text-neutral-600">
-        <input
-          type="checkbox"
-          checked={c.prochain_appel_confirme}
-          onChange={(e) => onUpdateClient(c.id, { prochain_appel_confirme: e.target.checked })}
+      <div className="flex flex-wrap items-center gap-2">
+        <ClientNameLink
+          nom={c.nom}
+          onClick={() => onOpenClient(c.id)}
+          className="font-heading text-base font-semibold text-[#171717] hover:underline"
         />
-        Confirmé
-      </label>
-      <button
-        onClick={() =>
-          onUpdateClient(c.id, {
-            prochain_appel_date: null,
-            prochain_appel_heure: "",
-            prochain_appel_fuseau: "france",
-            prochain_appel_plateforme: "",
-            prochain_appel_confirme: false,
-          })
-        }
-        className="text-xs text-red-600 hover:underline"
-      >
-        Retirer
-      </button>
+        {c.prochain_appel_date === todayStr && (
+          <span className="rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+            Aujourd&apos;hui
+          </span>
+        )}
+        {assignee && (
+          <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-xs text-[#171717]">
+            👤 {assignee}
+          </span>
+        )}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input
+          type="date"
+          value={c.prochain_appel_date ?? ""}
+          onChange={(e) => onUpdateClient(c.id, { prochain_appel_date: e.target.value || null })}
+          className="input w-36 text-xs"
+        />
+        <input
+          type="time"
+          value={c.prochain_appel_heure}
+          onChange={(e) => onUpdateClient(c.id, { prochain_appel_heure: e.target.value })}
+          className="input w-28 text-xs"
+        />
+        <select
+          value={c.prochain_appel_fuseau}
+          onChange={(e) =>
+            onUpdateClient(c.id, { prochain_appel_fuseau: e.target.value as "france" | "egypte" })
+          }
+          className="input w-32 text-xs"
+        >
+          <option value="france">Heure française</option>
+          <option value="egypte">Heure égyptienne</option>
+        </select>
+        <select
+          value={c.prochain_appel_plateforme}
+          onChange={(e) => onUpdateClient(c.id, { prochain_appel_plateforme: e.target.value })}
+          className="input w-36 text-xs"
+        >
+          <option value="">Plateforme…</option>
+          {APPEL_PLATEFORMES.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <label className="flex items-center gap-1 text-xs text-neutral-600">
+          <input
+            type="checkbox"
+            checked={c.prochain_appel_confirme}
+            onChange={(e) => onUpdateClient(c.id, { prochain_appel_confirme: e.target.checked })}
+          />
+          Confirmé
+        </label>
+        <button
+          onClick={() =>
+            onUpdateClient(c.id, {
+              prochain_appel_date: null,
+              prochain_appel_heure: "",
+              prochain_appel_fuseau: "france",
+              prochain_appel_plateforme: "",
+              prochain_appel_confirme: false,
+            })
+          }
+          className="text-xs text-red-600 hover:underline"
+        >
+          Retirer
+        </button>
+      </div>
     </div>
   );
 }
@@ -796,7 +810,7 @@ export default function SuivisView({
   );
 
   const billetsAllRows = reservations
-    .filter((r) => r.billet_requis)
+    .filter((r) => r.billet_requis && (!r.billet_date || r.billet_date >= todayStr))
     .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
   const billetsMonthKeys = Array.from(
     new Set(billetsAllRows.map((r) => (r.billet_date || "").slice(0, 7)).filter(Boolean))
@@ -1034,42 +1048,46 @@ export default function SuivisView({
                 return (
                   <div
                     key={c.id}
-                    className={`flex flex-wrap items-center gap-3 overflow-hidden rounded-lg border bg-white p-4 text-sm shadow-sm ${
+                    className={`overflow-hidden rounded-lg border bg-white p-4 text-sm shadow-sm ${
                       urgent ? "border-[#0F5C56]" : "border-neutral-200"
                     }`}
                   >
-                    <button
-                      onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
-                    >
-                      {c.nom || "Sans nom"}
-                    </button>
-                    <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs text-[#0F5C56]">
-                      {c.hotel || "Hôtel ?"}
-                    </span>
-                    {urgent && (
-                      <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white">
-                        En retard — 18h dépassé
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => onOpenClient(c.id)}
+                        className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                      >
+                        {c.nom || "Sans nom"}
+                      </button>
+                      <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs text-[#0F5C56]">
+                        {c.hotel || "Hôtel ?"}
                       </span>
-                    )}
-                    <input
-                      type="text"
-                      placeholder="N° de chambre"
-                      value={chambreDrafts[c.id] ?? ""}
-                      onChange={(e) => setChambreDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
-                      className="input w-32 text-xs"
-                    />
-                    <button
-                      onClick={() => {
-                        const val = (chambreDrafts[c.id] || "").trim();
-                        if (!val) return;
-                        onUpdateClient(c.id, { chambre: val });
-                        setChambreDrafts((d) => ({ ...d, [c.id]: "" }));
-                      }}
-                      className="rounded-md bg-[#171717] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
-                    >
-                      Confirmer
-                    </button>
+                      {urgent && (
+                        <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white">
+                          En retard — 18h dépassé
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="N° de chambre"
+                        value={chambreDrafts[c.id] ?? ""}
+                        onChange={(e) => setChambreDrafts((d) => ({ ...d, [c.id]: e.target.value }))}
+                        className="input w-32 text-xs"
+                      />
+                      <button
+                        onClick={() => {
+                          const val = (chambreDrafts[c.id] || "").trim();
+                          if (!val) return;
+                          onUpdateClient(c.id, { chambre: val });
+                          setChambreDrafts((d) => ({ ...d, [c.id]: "" }));
+                        }}
+                        className="rounded-md bg-[#171717] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                      >
+                        Confirmer
+                      </button>
+                    </div>
                   </div>
                 );
               })}

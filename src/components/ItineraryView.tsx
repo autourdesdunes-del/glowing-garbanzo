@@ -14,6 +14,7 @@ import {
   acompteWaitingWarning,
   activitePaiementWarning,
   chevalChameauBadge,
+  cleanActivityTitle,
   formatOptionLabel,
   isDeuxiemeIleOption,
   momentBadge,
@@ -169,7 +170,7 @@ export default function ItineraryView({
       >
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="font-medium text-[#171717]">
-            {r.nom_activite || "Activité sans nom"}
+            {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </span>
           {momentBadge(r) && (

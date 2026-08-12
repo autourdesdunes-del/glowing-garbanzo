@@ -257,6 +257,13 @@ export function chevalChameauBadge(r: Reservation, client: Client) {
   return `❗ ${nbAd} ${animalLabel}`;
 }
 
+// D'anciennes activités ont pu se retrouver avec ce même texte figé "en
+// dur" dans le titre (avant que ça devienne un badge calculé à part) — on
+// le retire à l'affichage pour ne jamais le montrer en double.
+export function cleanActivityTitle(nom: string) {
+  return (nom || "").replace(/\s*—\s*❗\s*\d+\s*(horses?|camels?)\s*$/i, "");
+}
+
 export function isSpeedboatSunset(nom: string) {
   const n = (nom || "").toLowerCase();
   return isSpeedboat(n) && n.includes("sunset");

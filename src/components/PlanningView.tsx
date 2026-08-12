@@ -6,6 +6,7 @@ import {
   acompteWaitingWarning,
   activitePaiementWarning,
   chevalChameauBadge,
+  cleanActivityTitle,
   momentBadge,
   paiementBadge,
   participantsFor,
@@ -124,7 +125,7 @@ function ReservationSummaryCard({
     >
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-medium text-[#171717]">
-          {r.nom_activite || "Activité"}
+          {cleanActivityTitle(r.nom_activite) || "Activité"}
           {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
         </p>
         {momentBadge(r) && (
@@ -276,7 +277,7 @@ function ActivityDetailModal({
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-heading text-lg font-semibold text-[#171717]">
-                {r.nom_activite || "Activité sans nom"}
+                {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
                 {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
             </h3>
             {momentBadge(r) && (
@@ -375,7 +376,7 @@ function ActivityDetailModal({
                       }}
                       className="underline hover:no-underline"
                     >
-                      {soldeActiviteAilleurs!.nom_activite || "Activité"}
+                      {cleanActivityTitle(soldeActiviteAilleurs!.nom_activite) || "Activité"}
                       {soldeActiviteAilleurs!.date_debut
                         ? ` (${fmtDate(soldeActiviteAilleurs!.date_debut)})`
                         : ""}
@@ -414,7 +415,7 @@ function ActivityDetailModal({
                     className="flex w-full items-center justify-between gap-2 text-left hover:underline"
                   >
                     <span>
-                      {rr.nom_activite || "Activité"}
+                      {cleanActivityTitle(rr.nom_activite) || "Activité"}
                       {rr.date_debut ? ` (${fmtDate(rr.date_debut)})` : ""}
                     </span>
                     <span>
@@ -744,7 +745,7 @@ export default function PlanningView({
                     reservations={reservations}
                     resaOptions={resaOptions}
                     resaTarifs={resaTarifs}
-                    onClick={() => onOpenClient(row.client.id)}
+                    onClick={() => setActiveActivity(row)}
                     onOpenClient={onOpenClient}
                   />
                 ))}

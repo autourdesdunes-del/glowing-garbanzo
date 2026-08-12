@@ -1263,30 +1263,97 @@ export default function SuivisView({
       )}
 
       {sub === "aurevoir" && (
-        <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-            Messages de bon retour à envoyer (J+1)
-          </h3>
-          {auRevoirRows.length === 0 && (
-            <div className="text-sm text-neutral-400">Rien à envoyer pour l&apos;instant.</div>
-          )}
-          <div className="space-y-2">
-            {auRevoirRows.map(({ c, dateCible }) => (
-              <div
-                key={c.id}
-                className={`rounded-md border p-3 text-sm ${
-                  dateCible === todayStr
-                    ? "border-[#f5a623] bg-[#f5a623]/10"
-                    : "border-neutral-200 bg-white"
-                }`}
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-neutral-500">
-                    {fmtDate(dateCible)}
-                    {dateCible === todayStr ? " — aujourd'hui" : ""}
-                  </span>
-                  <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-                  <label className="flex items-center gap-1 text-xs text-neutral-600">
+        <div className="space-y-8">
+          <div>
+            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">
+              Messages de bon retour à envoyer (J+1)
+            </h3>
+            {auRevoirRows.length === 0 && (
+              <div className="text-sm text-neutral-400">Rien à envoyer pour l&apos;instant.</div>
+            )}
+            <div className="space-y-3">
+              {auRevoirRows.map(({ c, dateCible }) => {
+                const lateDays = daysBetween(todayStr, dateCible);
+                const enRetard = lateDays > 1;
+                return (
+                  <div
+                    key={c.id}
+                    className={`overflow-hidden rounded-lg border p-4 shadow-sm ${
+                      enRetard
+                        ? "border-red-300 bg-red-50"
+                        : dateCible === todayStr
+                        ? "border-[#f5a623] bg-[#f5a623]/10"
+                        : "border-neutral-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-xs font-medium text-neutral-500">
+                        {fmtDate(dateCible)}
+                        {dateCible === todayStr ? " — aujourd'hui" : ""}
+                      </span>
+                      <ClientNameLink
+                        nom={c.nom}
+                        onClick={() => onOpenClient(c.id)}
+                        className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                      />
+                      <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                    </div>
+                    {enRetard && (
+                      <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+                        ⚠️ En retard — ce message aurait dû être envoyé il y a {lateDays} jour
+                        {lateDays > 1 ? "s" : ""}
+                      </div>
+                    )}
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      <button
+                        onClick={() => copyText("aurevoir-" + c.id, auRevoirMessage(c.nom))}
+                        className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                      >
+                        {copiedKey === "aurevoir-" + c.id ? "Copié ✓" : "Copier le message"}
+                      </button>
+                      <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+                        <input
+                          type="checkbox"
+                          checked={c.au_revoir_envoye}
+                          onChange={(e) =>
+                            onUpdateClient(c.id, { au_revoir_envoye: e.target.checked })
+                          }
+                        />
+                        Envoyé
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">
+              Envoyés récemment (3 derniers jours)
+            </h3>
+            {auRevoirEnvoyesRecemment.length === 0 && (
+              <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
+            )}
+            <div className="space-y-3">
+              {auRevoirEnvoyesRecemment.map(({ c, dateCible }) => (
+                <div
+                  key={c.id}
+                  className="overflow-hidden rounded-lg border border-green-200 bg-green-50 p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
+                    <ClientNameLink
+                      nom={c.nom}
+                      onClick={() => onOpenClient(c.id)}
+                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                    />
+                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                    <span className="ml-auto rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      Envoyé ✓
+                    </span>
+                  </div>
+                  <label className="mt-3 flex items-center gap-1.5 text-xs text-neutral-600">
                     <input
                       type="checkbox"
                       checked={c.au_revoir_envoye}
@@ -1294,34 +1361,31 @@ export default function SuivisView({
                     />
                     Envoyé
                   </label>
-                  <button
-                    onClick={() => copyText("aurevoir-" + c.id, auRevoirMessage(c.nom))}
-                    className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
-                  >
-                    {copiedKey === "aurevoir-" + c.id ? "Copié ✓" : "Copier le message"}
-                  </button>
-                  <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           <div>
-            <h3 className="font-heading mb-2 mt-6 text-sm font-semibold text-[#171717]">
-              À venir
-            </h3>
+            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">À venir</h3>
             {auRevoirUpcomingRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
             )}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {auRevoirUpcomingRows.map(({ c, dateCible }) => (
                 <div
                   key={c.id}
-                  className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3 text-sm"
+                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
                 >
-                  <span className="text-neutral-500">{fmtDate(dateCible)}</span>
-                  <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} />
-                  <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
+                    <ClientNameLink
+                      nom={c.nom}
+                      onClick={() => onOpenClient(c.id)}
+                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                    />
+                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                  </div>
                 </div>
               ))}
             </div>

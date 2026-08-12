@@ -15,6 +15,7 @@ import { addDays, localDateStr, todayStr } from "@/lib/dates";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
+  billetEtapeShortLabel,
   hideMoment,
   hossamBilletMessage,
   paiementBadge,
@@ -97,10 +98,12 @@ function BilletEtapeTracker({
           />
         ))}
       </div>
-      <span className="text-xs font-medium text-[#171717]">{BILLET_ETAPES[currentIdx].label}</span>
+      <span className="whitespace-nowrap text-xs font-medium text-[#171717]">
+        {billetEtapeShortLabel(etape)}
+      </span>
       {joursAttente !== null && joursAttente >= 2 && (
-        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-          ⏱ En attente depuis {joursAttente} j
+        <span className="whitespace-nowrap rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+          ⏱ {joursAttente} j
         </span>
       )}
     </div>
@@ -1733,82 +1736,115 @@ export default function SuivisView({
               Aucune activité avec billet à gérer pour cette période.
             </div>
           )}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {billetsRows.map((r) => {
-              const client = clients.find((c) => c.id === r.client_id);
-              if (!client) return null;
-              const { nbAd, nbEnf } = participantsFor(r, client);
-              const pax =
-                r.pax_override ||
-                `${nbAd} adultes${
-                  nbEnf ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}` : ""
-                }`;
-              const key = "billet-" + r.id;
-              return (
-                <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-2.5 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-amounts text-neutral-500">
-                      {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
-                    </span>
-                    {r.billet_lien && <VoirBilletLink path={r.billet_lien} />}
-                  </div>
-                  <div className="mt-0.5 text-sm">
-                    <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
-                  </div>
-                  <div className="text-neutral-500">{pax}</div>
-
-                  <div className="mt-1.5">
-                    <BilletEtapeTracker
-                      etape={r.billet_etape}
-                      demandeEnvoyeeLe={r.billet_demande_envoyee_le}
-                      onChange={(patch) => onUpdateReservation(r.id, patch)}
-                    />
-                  </div>
-
-                  <div className="mt-1.5 flex items-center gap-1.5">
-                    <select
-                      value={r.billet_ville_depart}
-                      onChange={(e) => onUpdateReservation(r.id, { billet_ville_depart: e.target.value })}
-                      className="input w-full text-xs"
-                    >
-                      <option value="">Départ…</option>
-                      {VILLES_VOL.map((v) => (
-                        <option key={v}>{v}</option>
-                      ))}
-                    </select>
-                    <span className="text-neutral-400">→</span>
-                    <select
-                      value={r.billet_ville_arrivee}
-                      onChange={(e) => onUpdateReservation(r.id, { billet_ville_arrivee: e.target.value })}
-                      className="input w-full text-xs"
-                    >
-                      <option value="">Arrivée…</option>
-                      {VILLES_VOL.map((v) => (
-                        <option key={v}>{v}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <button
-                      onClick={() => copyText(key, hossamBilletMessage(r, client))}
-                      className="rounded-full bg-[#171717] px-2.5 py-1 text-[11px] font-medium text-white hover:opacity-90"
-                    >
-                      {copiedKey === key ? "Copié ✓" : "Copier la demande"}
-                    </button>
-                    <button
-                      onClick={() =>
-                        copyText("nom-" + key, r.billet_nom_complet.trim() || client.nom)
-                      }
-                      className="rounded-full border border-[#171717]/30 px-2.5 py-1 text-[11px] font-medium text-[#171717] hover:bg-[#fafafa]"
-                    >
-                      {copiedKey === "nom-" + key ? "Copié ✓" : "Noms clients"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          {billetsRows.length > 0 && (
+            <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
+                    <th className="px-3 pb-2 pt-3 font-medium">Date</th>
+                    <th className="px-3 pb-2 pt-3 font-medium">Client</th>
+                    <th className="px-3 pb-2 pt-3 font-medium">PAX</th>
+                    <th className="px-3 pb-2 pt-3 font-medium">Étape</th>
+                    <th className="px-3 pb-2 pt-3 font-medium">Vol</th>
+                    <th className="px-3 pb-2 pt-3 font-medium" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {billetsRows.map((r, i) => {
+                    const client = clients.find((c) => c.id === r.client_id);
+                    if (!client) return null;
+                    const { nbAd, nbEnf } = participantsFor(r, client);
+                    const pax =
+                      r.pax_override ||
+                      `${nbAd} adultes${
+                        nbEnf
+                          ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}`
+                          : ""
+                      }`;
+                    const key = "billet-" + r.id;
+                    const sameDateAsPrev = i > 0 && billetsRows[i - 1].billet_date === r.billet_date;
+                    return (
+                      <tr
+                        key={r.id}
+                        className={`${sameDateAsPrev ? "border-t border-dashed border-[#eaeaea]" : "border-t-2 border-[#eaeaea]"}`}
+                      >
+                        <td className="whitespace-nowrap px-3 py-2 align-top">
+                          {!sameDateAsPrev && (
+                            <span className="font-amounts text-[#171717]">
+                              {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
+                          {r.billet_lien && (
+                            <div className="mt-0.5">
+                              <VoirBilletLink path={r.billet_lien} />
+                            </div>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 align-top text-neutral-500">{pax}</td>
+                        <td className="px-3 py-2 align-top">
+                          <BilletEtapeTracker
+                            etape={r.billet_etape}
+                            demandeEnvoyeeLe={r.billet_demande_envoyee_le}
+                            onChange={(patch) => onUpdateReservation(r.id, patch)}
+                          />
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={r.billet_ville_depart}
+                              onChange={(e) =>
+                                onUpdateReservation(r.id, { billet_ville_depart: e.target.value })
+                              }
+                              className="input w-28 text-xs"
+                            >
+                              <option value="">Départ…</option>
+                              {VILLES_VOL.map((v) => (
+                                <option key={v}>{v}</option>
+                              ))}
+                            </select>
+                            <span className="text-neutral-400">→</span>
+                            <select
+                              value={r.billet_ville_arrivee}
+                              onChange={(e) =>
+                                onUpdateReservation(r.id, { billet_ville_arrivee: e.target.value })
+                              }
+                              className="input w-28 text-xs"
+                            >
+                              <option value="">Arrivée…</option>
+                              {VILLES_VOL.map((v) => (
+                                <option key={v}>{v}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              onClick={() => copyText(key, hossamBilletMessage(r, client))}
+                              className="whitespace-nowrap rounded-full bg-[#171717] px-2.5 py-1 text-[11px] font-medium text-white hover:opacity-90"
+                            >
+                              {copiedKey === key ? "Copié ✓" : "Copier la demande"}
+                            </button>
+                            <button
+                              onClick={() =>
+                                copyText("nom-" + key, r.billet_nom_complet.trim() || client.nom)
+                              }
+                              className="whitespace-nowrap rounded-full border border-[#171717]/30 px-2.5 py-1 text-[11px] font-medium text-[#171717] hover:bg-[#fafafa]"
+                            >
+                              {copiedKey === "nom-" + key ? "Copié ✓" : "Noms clients"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

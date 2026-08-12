@@ -187,14 +187,16 @@ export default function ReservationCard({
               {r.nom_activite || "Activité sans nom"}
               {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
             </span>
-            {options.map((o) => (
-              <span
-                key={o.id}
-                className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white"
-              >
-                ⚙ {formatOptionLabel(o)}
-              </span>
-            ))}
+            {options
+              .filter((o) => !isDeuxiemeIleOption(o.nom))
+              .map((o) => (
+                <span
+                  key={o.id}
+                  className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white"
+                >
+                  ⚙ {formatOptionLabel(o)}
+                </span>
+              ))}
             <span className="flex-1" />
             <span className="font-amounts text-sm">{euros(total)} €</span>
           </div>
@@ -237,14 +239,16 @@ export default function ReservationCard({
               <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
             )}
           </p>
-          {options.map((o) => (
-            <span
-              key={o.id}
-              className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white"
-            >
-              ⚙ {formatOptionLabel(o)}
-            </span>
-          ))}
+          {options
+            .filter((o) => !isDeuxiemeIleOption(o.nom))
+            .map((o) => (
+              <span
+                key={o.id}
+                className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white"
+              >
+                ⚙ {formatOptionLabel(o)}
+              </span>
+            ))}
         </div>
         <p className="mt-1 text-xs text-neutral-500">
           {fmtDate(r.date_debut)}

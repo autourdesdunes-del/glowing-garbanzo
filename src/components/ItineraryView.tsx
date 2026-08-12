@@ -15,6 +15,7 @@ import {
   activitePaiementWarning,
   formatOptionLabel,
   hideMoment,
+  isDeuxiemeIleOption,
   paiementBadge,
   participantsFor,
   resaTotalMontant,
@@ -170,14 +171,16 @@ export default function ItineraryView({
             {r.nom_activite || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </span>
-          {(resaOptions[r.id] || []).map((o) => (
-            <span
-              key={o.id}
-              className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white"
-            >
-              ⚙ {formatOptionLabel(o)}
-            </span>
-          ))}
+          {(resaOptions[r.id] || [])
+            .filter((o) => !isDeuxiemeIleOption(o.nom))
+            .map((o) => (
+              <span
+                key={o.id}
+                className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white"
+              >
+                ⚙ {formatOptionLabel(o)}
+              </span>
+            ))}
           {busEscalation && (
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${

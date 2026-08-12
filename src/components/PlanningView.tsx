@@ -14,6 +14,7 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
+import { buildPaxEnglish } from "@/components/client-steps";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -213,6 +214,19 @@ function ActivityDetailModal({
   onClose: () => void;
 }) {
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
+  const [copiedEgypt, setCopiedEgypt] = useState(false);
+  const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
+    client.hotel || "—"
+  }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
+  const copyEgyptBlock = async () => {
+    try {
+      await navigator.clipboard.writeText(egyptBlock);
+      setCopiedEgypt(true);
+      setTimeout(() => setCopiedEgypt(false), 1500);
+    } catch {
+      // clipboard indisponible, ignorer
+    }
+  };
   const options = resaOptions[r.id] || [];
   const tarifs = resaTarifs[r.id] || [];
   const total = resaTotalMontant(r, client, options, tarifs);
@@ -452,6 +466,25 @@ function ActivityDetailModal({
             ⚠ {r.info_importante}
           </div>
         )}
+
+        <div className="mt-3 rounded-md border border-[#666666]/20 bg-white p-4">
+          <h3 className="font-heading text-sm font-semibold text-[#171717]">
+            Bloc pour l&apos;équipe Égypte
+          </h3>
+          <p className="mt-1 text-xs text-neutral-500">
+            La date et le détail de l&apos;activité restent à taper à la main — ce bloc ne
+            couvre que la partie client.
+          </p>
+          <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
+            {egyptBlock}
+          </pre>
+          <button
+            onClick={copyEgyptBlock}
+            className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            {copiedEgypt ? "Copié ✓" : "Copier"}
+          </button>
+        </div>
         </div>
       </div>
     </>

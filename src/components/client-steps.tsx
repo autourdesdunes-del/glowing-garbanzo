@@ -39,15 +39,15 @@ import RibScreenshotUpload from "@/components/RibScreenshotUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 
-function extractAges(text: string | null | undefined): string[] {
+export function extractAges(text: string | null | undefined): string[] {
   return (text || "").match(/\d+/g) || [];
 }
-function joinAnd(nums: string[]) {
+export function joinAnd(nums: string[]) {
   if (nums.length === 0) return "";
   if (nums.length === 1) return nums[0];
   return `${nums.slice(0, -1).join(", ")} and ${nums[nums.length - 1]}`;
 }
-function buildPaxEnglish(client: Client) {
+export function buildPaxEnglish(client: Client) {
   const parts = [`${client.adultes || 0} adults`];
   if (client.enfants > 0) {
     const ages = extractAges(client.ages_enfants);

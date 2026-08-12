@@ -310,24 +310,41 @@ function ActivityDetailModal({
 
         {(soldeIci || soldeActiviteAilleurs) && (
           <div className="mt-3 rounded-md bg-[#C9973E]/10 p-3 text-sm">
-            <button
-              type="button"
-              onClick={() => setShowSoldeDetail((v) => !v)}
-              className="flex w-full items-center justify-between gap-2 text-left font-medium text-[#8B4531]"
-            >
-              <span>
-                {soldeIci
-                  ? `💰 Solde du séjour collecté ici — ${client.solde_paye ? "Payé" : "À régler"}`
-                  : `💰 Solde du séjour collecté ultérieurement — ${
-                      soldeActiviteAilleurs!.nom_activite || "Activité"
-                    }${
-                      soldeActiviteAilleurs!.date_debut
+            <div className="flex w-full items-center justify-between gap-2 font-medium text-[#8B4531]">
+              <button
+                type="button"
+                onClick={() => setShowSoldeDetail((v) => !v)}
+                className="flex-1 text-left"
+              >
+                {soldeIci ? (
+                  `💰 Solde du séjour collecté ici — ${client.solde_paye ? "Payé" : "À régler"}`
+                ) : (
+                  <>
+                    💰 Solde du séjour collecté ultérieurement —{" "}
+                    <span
+                      role="link"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenActivity(soldeActiviteAilleurs!);
+                      }}
+                      className="underline hover:no-underline"
+                    >
+                      {soldeActiviteAilleurs!.nom_activite || "Activité"}
+                      {soldeActiviteAilleurs!.date_debut
                         ? ` (${fmtDate(soldeActiviteAilleurs!.date_debut)})`
-                        : ""
-                    }`}
-              </span>
-              <span className="text-xs">{showSoldeDetail ? "▲" : "▼"}</span>
-            </button>
+                        : ""}
+                    </span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSoldeDetail((v) => !v)}
+                className="shrink-0 text-xs"
+              >
+                {showSoldeDetail ? "▲" : "▼"}
+              </button>
+            </div>
             {showSoldeDetail && (
               <div className="mt-2 space-y-1 border-t border-[#C9973E]/30 pt-2 text-xs text-[#8B4531]">
                 {client.paiement_type === "acompte" && client.acompte_valide && (

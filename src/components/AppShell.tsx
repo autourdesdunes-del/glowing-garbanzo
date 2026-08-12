@@ -241,6 +241,7 @@ function AppShellInner({
     CatalogueModificationRequest[]
   >([]);
   const [suivisLoaded, setSuivisLoaded] = useState(false);
+  const [modifsLoaded, setModifsLoaded] = useState(false);
   const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -311,73 +312,83 @@ function AppShellInner({
     // browser for team members who don't have the Direction role.
     if (mode === "direction" && !isDirection) return;
     (async () => {
-      const { data: resas } = await supabase.from("reservations").select("*");
-      const list = (resas as Reservation[]) || [];
-      setAllReservations(list);
-      if (list.length) {
-        const [{ data: opts }, { data: tarifs }] = await Promise.all([
-          supabase
-            .from("reservation_options")
+      // Chaque bloc a son propre drapeau "déjà chargé" — sans ça, revenir
+      // sur Réservations/Suivis/Direction/Dashboard/Catalogue relançait la
+      // requête sur TOUTE la table reservations (+ options/tarifs) à chaque
+      // fois, ce qui rendait la navigation de plus en plus lente à mesure
+      // que le nombre de réservations grandissait. Les mutations passent
+      // déjà par les setters locaux (updateReservationById etc.), donc les
+      // données restent à jour sans refetch.
+      if (!planningLoaded) {
+        const { data: resas } = await supabase.from("reservations").select("*");
+        const list = (resas as Reservation[]) || [];
+        setAllReservations(list);
+        if (list.length) {
+          const [{ data: opts }, { data: tarifs }] = await Promise.all([
+            supabase
+              .from("reservation_options")
+              .select("*")
+              .in(
+                "reservation_id",
+                list.map((r) => r.id)
+              ),
+            supabase
+              .from("reservation_tarifs")
+              .select("*")
+              .in(
+                "reservation_id",
+                list.map((r) => r.id)
+              ),
+          ]);
+          const grouped: Record<string, ReservationOption[]> = {};
+          ((opts as ReservationOption[]) || []).forEach((o) => {
+            grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
+          });
+          setAllResaOptions(grouped);
+          const groupedTarifs: Record<string, ReservationTarif[]> = {};
+          ((tarifs as ReservationTarif[]) || []).forEach((t) => {
+            groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
+          });
+          setAllResaTarifs(groupedTarifs);
+        } else {
+          setAllResaOptions({});
+          setAllResaTarifs({});
+        }
+
+        // Coûts réels : réservés à la Direction en base (table à part + RLS),
+        // jamais fetchés dans le navigateur d'un compte équipe.
+        if (isDirection && list.length) {
+          const { data: couts } = await supabase
+            .from("reservation_couts")
             .select("*")
             .in(
               "reservation_id",
               list.map((r) => r.id)
-            ),
-          supabase
-            .from("reservation_tarifs")
-            .select("*")
-            .in(
-              "reservation_id",
-              list.map((r) => r.id)
-            ),
-        ]);
-        const grouped: Record<string, ReservationOption[]> = {};
-        ((opts as ReservationOption[]) || []).forEach((o) => {
-          grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
-        });
-        setAllResaOptions(grouped);
-        const groupedTarifs: Record<string, ReservationTarif[]> = {};
-        ((tarifs as ReservationTarif[]) || []).forEach((t) => {
-          groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
-        });
-        setAllResaTarifs(groupedTarifs);
-      } else {
-        setAllResaOptions({});
-        setAllResaTarifs({});
+            );
+          const map: Record<string, number> = {};
+          ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
+            map[c.reservation_id] = c.cout_reel;
+          });
+          setAllCoutsMap(map);
+        } else {
+          setAllCoutsMap({});
+        }
+        setPlanningLoaded(true);
       }
 
-      // Coûts réels : réservés à la Direction en base (table à part + RLS),
-      // jamais fetchés dans le navigateur d'un compte équipe.
-      if (isDirection && list.length) {
-        const { data: couts } = await supabase
-          .from("reservation_couts")
-          .select("*")
-          .in(
-            "reservation_id",
-            list.map((r) => r.id)
-          );
-        const map: Record<string, number> = {};
-        ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
-          map[c.reservation_id] = c.cout_reel;
-        });
-        setAllCoutsMap(map);
-      } else {
-        setAllCoutsMap({});
-      }
-      setPlanningLoaded(true);
-
-      if (mode === "suivis") {
+      if (mode === "suivis" && !suivisLoaded) {
         const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
         setSuivisLoaded(true);
       }
 
-      if (mode === "suivis" || mode === "direction") {
+      if ((mode === "suivis" || mode === "direction") && !modifsLoaded) {
         const { data: modifs } = await supabase.from("catalogue_modification_requests").select("*");
         setCatalogueModificationRequests((modifs as CatalogueModificationRequest[]) || []);
+        setModifsLoaded(true);
       }
     })();
-  }, [mode, supabase, isDirection]);
+  }, [mode, supabase, isDirection, planningLoaded, suivisLoaded, modifsLoaded]);
 
   useEffect(() => {
     if (viewAsTeam && mode === "direction") setMode("dashboard");

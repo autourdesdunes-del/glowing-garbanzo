@@ -2,7 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { activitePaiementWarning, paiementBadge, participantsFor, resaTotalMontant } from "@/lib/resa";
+import {
+  activitePaiementWarning,
+  hideMoment,
+  paiementBadge,
+  participantsFor,
+  resaTotalMontant,
+} from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 
 function euros(n: number) {
@@ -86,6 +92,7 @@ function ReservationSummaryCard({
   resaOptions,
   resaTarifs,
   onClick,
+  onOpenClient,
 }: {
   client: Client;
   r: Reservation;
@@ -93,6 +100,7 @@ function ReservationSummaryCard({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onClick: () => void;
+  onOpenClient: (clientId: string) => void;
 }) {
   const options = resaOptions[r.id] || [];
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
@@ -112,8 +120,11 @@ function ReservationSummaryCard({
       className="cursor-pointer rounded-md border border-[#666666]/20 bg-white p-3"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <p className="font-medium text-[#171717]">{r.nom_activite || "Activité"}</p>
-        {r.moment && (
+        <p className="font-medium text-[#171717]">
+          {r.nom_activite || "Activité"}
+          {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+        </p>
+        {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) && (
           <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-semibold text-white">
             {r.moment}
           </span>
@@ -129,7 +140,16 @@ function ReservationSummaryCard({
         {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
         {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
       </p>
-      <p className="text-sm font-medium text-[#171717]">{client.nom || "Sans nom"}</p>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenClient(client.id);
+        }}
+        className="text-sm font-medium text-[#171717] hover:underline"
+      >
+        {client.nom || "Sans nom"}
+      </button>
       <p className="mt-1 text-xs text-neutral-500">
         {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
         {nbEnf > 0 && client.ages_enfants ? ` (âges : ${client.ages_enfants})` : ""}
@@ -249,12 +269,14 @@ function CalendarMonthView({
   resaOptions,
   resaTarifs,
   onOpenActivity,
+  onOpenClient,
 }: {
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onOpenActivity: (row: Row) => void;
+  onOpenClient: (clientId: string) => void;
 }) {
   const todayStr = toStr(new Date());
   const [monthCursor, setMonthCursor] = useState(() => monthStartOf(todayStr));
@@ -385,6 +407,7 @@ function CalendarMonthView({
                   resaOptions={resaOptions}
                   resaTarifs={resaTarifs}
                   onClick={() => onOpenActivity(row)}
+                  onOpenClient={onOpenClient}
                 />
               ))}
             </div>
@@ -488,6 +511,7 @@ export default function PlanningView({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           onOpenActivity={setActiveActivity}
+          onOpenClient={onOpenClient}
         />
       ) : (
         <>
@@ -527,6 +551,7 @@ export default function PlanningView({
                     resaOptions={resaOptions}
                     resaTarifs={resaTarifs}
                     onClick={() => onOpenClient(row.client.id)}
+                    onOpenClient={onOpenClient}
                   />
                 ))}
               </div>

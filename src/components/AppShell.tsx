@@ -308,6 +308,14 @@ function AppShellInner({
   // fetch complet de "reservations", inutile de charger toute la table
   // juste pour ce contrôle qui peut se déclencher avant même que l'onglet
   // Réservations ait été ouvert).
+  // Une seule "dernière fois affiché" en localStorage (pas un créneau
+  // matin/après-midi fixe) — le popup revient à l'ouverture de session
+  // (rien affiché encore → réaffiche tout de suite), puis à nouveau environ
+  // 2h30 après la dernière fois qu'il a été refermé, qu'importe l'heure
+  // exacte à laquelle l'employée a commencé son shift.
+  const SHARED_ALERT_KEY = "adr_shared_alert_last_shown";
+  const SHARED_ALERT_GAP_MS = 2.5 * 60 * 60 * 1000;
+
   const fetchSharedAlerts = useCallback(async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -322,37 +330,24 @@ function AppShellInner({
       .lte("date_debut", endStr);
     const alerts = sharedActivityAlerts(clients, (data as Reservation[]) || [], todayStr, endStr);
     setSharedAlerts(alerts);
-    if (alerts.length > 0) {
-      const now = new Date();
-      const slot = now.getHours() < 13 ? "am" : "pm";
-      const key = `adr_shared_alert_${localDateStr(now)}_${slot}`;
-      if (!window.localStorage.getItem(key)) setShowSharedAlertPopup(true);
-    }
+    if (alerts.length > 0) setShowSharedAlertPopup(true);
   }, [supabase, clients]);
 
-  // Rappel deux fois par jour (créneau matin / après-midi) tant qu'il reste
-  // un groupe entamé à remplir — un drapeau par jour+créneau dans
-  // localStorage, posé seulement quand l'employée ferme le popup, jamais à
-  // la simple vérification.
   useEffect(() => {
     if (!loaded) return;
-    const checkSlot = () => {
-      const now = new Date();
-      const slot = now.getHours() < 13 ? "am" : "pm";
-      const key = `adr_shared_alert_${localDateStr(now)}_${slot}`;
-      if (window.localStorage.getItem(key)) return;
+    const checkDue = () => {
+      const lastShown = Number(window.localStorage.getItem(SHARED_ALERT_KEY) || 0);
+      if (Date.now() - lastShown < SHARED_ALERT_GAP_MS) return;
       fetchSharedAlerts();
     };
-    checkSlot();
-    const id = setInterval(checkSlot, 30 * 60 * 1000);
+    checkDue();
+    const id = setInterval(checkDue, 15 * 60 * 1000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, fetchSharedAlerts]);
 
   const dismissSharedAlertPopup = () => {
-    const now = new Date();
-    const slot = now.getHours() < 13 ? "am" : "pm";
-    const key = `adr_shared_alert_${localDateStr(now)}_${slot}`;
-    window.localStorage.setItem(key, "1");
+    window.localStorage.setItem(SHARED_ALERT_KEY, String(Date.now()));
     setShowSharedAlertPopup(false);
   };
 

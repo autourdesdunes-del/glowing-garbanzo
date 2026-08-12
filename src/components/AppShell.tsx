@@ -162,6 +162,14 @@ function IconHelp() {
   );
 }
 
+const PLANNING_SUBS = [
+  { key: "aujourdhui", label: "Aujourd'hui" },
+  { key: "demain", label: "Demain" },
+  { key: "calendrier", label: "Calendrier" },
+  { key: "par_activite", label: "Calendrier par activité" },
+] as const;
+type PlanningSub = (typeof PLANNING_SUBS)[number]["key"];
+
 const TABS: { key: Mode; label: string; icon: () => React.ReactElement }[] = [
   { key: "dashboard", label: "Tableau de bord", icon: IconHome },
   { key: "team", label: "Clients", icon: IconUsers },
@@ -224,6 +232,7 @@ function AppShellInner({
 
   const [mode, setMode] = useState<Mode>("dashboard");
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
+  const [planningSub, setPlanningSub] = useState<PlanningSub>("aujourdhui");
   const [rdvAutoOpenClientId, setRdvAutoOpenClientId] = useState<string | null>(null);
   const [prospectsSub, setProspectsSub] = useState<ProspectsSub>("toutes");
   const [clients, setClients] = useState<Client[]>([]);
@@ -1028,6 +1037,23 @@ function AppShellInner({
                     ))}
                   </div>
                 )}
+                {t.key === "planning" && active && (
+                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                    {PLANNING_SUBS.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setPlanningSub(s.key)}
+                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                          planningSub === s.key
+                            ? "bg-[#fafafa] text-[#171717]"
+                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {t.key === "prospects" && active && (
                   <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
                     {PROSPECTS_SUBS.map((s) => (
@@ -1317,6 +1343,7 @@ function AppShellInner({
             <Spinner />
           ) : (
             <PlanningView
+              sub={planningSub}
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}

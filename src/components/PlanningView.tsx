@@ -154,6 +154,7 @@ function ReservationSummaryCard({
   resaTarifs,
   onClick,
   onOpenClient,
+  compact = false,
 }: {
   client: Client;
   r: Reservation;
@@ -162,6 +163,7 @@ function ReservationSummaryCard({
   resaTarifs: Record<string, ReservationTarif[]>;
   onClick: () => void;
   onOpenClient: (clientId: string) => void;
+  compact?: boolean;
 }) {
   const options = resaOptions[r.id] || [];
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
@@ -174,6 +176,53 @@ function ReservationSummaryCard({
   const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const infoComplet = !client.infos_manquantes.length || client.infos_manquantes.includes("Complet");
   const infoStatut = infoComplet ? null : client.infos_manquantes[0];
+
+  if (compact) {
+    return (
+      <div
+        onClick={onClick}
+        className="cursor-pointer rounded-md border border-[#666666]/20 bg-white p-2"
+      >
+        <div className="flex flex-wrap items-center gap-1">
+          <p className="text-xs font-medium leading-tight text-[#171717]">
+            {cleanActivityTitle(r.nom_activite) || "Activité"}
+            {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+          </p>
+          {chevalChameauBadge(r, client) && (
+            <span className="rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              {chevalChameauBadge(r, client)}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenClient(client.id);
+          }}
+          className="mt-0.5 text-xs font-medium text-[#171717] hover:underline"
+        >
+          {client.nom || "Sans nom"}
+        </button>
+        <p className="mt-0.5 text-[10px] text-neutral-500">
+          {r.pax_override || `${nbAd} ad.${nbEnf ? ` + ${nbEnf} enf.` : ""}`}
+        </p>
+        <div className="mt-1 flex items-center justify-between gap-1">
+          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badge.className}`}>
+            {badge.label}
+          </span>
+          <span className="text-xs font-semibold text-[#171717]">{euros(total)} €</span>
+        </div>
+        {(paiementWarning || (!infoComplet && infoStatut)) && (
+          <p className="mt-1 text-[10px] font-medium text-red-600">
+            {paiementWarning
+              ? `⚠️ ${euros(paiementWarning.amount)} ${paiementWarning.devise}`
+              : `⚠️ ${infoStatut}`}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -897,7 +946,7 @@ function ByActivityView({
                         {date === todayStr ? " — aujourd'hui" : ""} · {rows.length} réservation
                         {rows.length > 1 ? "s" : ""}, {pax} pers.
                       </h4>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                         {rows.map((row) => (
                           <ReservationSummaryCard
                             key={row.r.id}
@@ -908,6 +957,7 @@ function ByActivityView({
                             resaTarifs={resaTarifs}
                             onClick={() => onOpenActivity(row)}
                             onOpenClient={onOpenClient}
+                            compact
                           />
                         ))}
                       </div>
@@ -923,7 +973,16 @@ function ByActivityView({
   );
 }
 
+type PlanningSub = "aujourdhui" | "demain" | "calendrier" | "par_activite";
+
+function subToVue(sub: PlanningSub): "liste" | "calendrier" | "par_activite" {
+  if (sub === "calendrier") return "calendrier";
+  if (sub === "par_activite") return "par_activite";
+  return "liste";
+}
+
 export default function PlanningView({
+  sub,
   clients,
   reservations,
   resaOptions,
@@ -932,6 +991,7 @@ export default function PlanningView({
   onOpenClient,
   onOpenRdvPaiement,
 }: {
+  sub: PlanningSub;
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -940,10 +1000,22 @@ export default function PlanningView({
   onOpenClient: (clientId: string) => void;
   onOpenRdvPaiement: (clientId: string) => void;
 }) {
-  const [vue, setVue] = useState<"liste" | "calendrier" | "par_activite">("calendrier");
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("aujourdhui");
+  const [vue, setVue] = useState<"liste" | "calendrier" | "par_activite">(subToVue(sub));
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>(
+    sub === "demain" ? "demain" : "aujourdhui"
+  );
   const [activeActivity, setActiveActivity] = useState<Row | null>(null);
   const [moisChoisi, setMoisChoisi] = useState(() => monthStartOf(toStr(new Date())));
+
+  // Sync depuis le sous-menu de gauche : comparaison en render (pas de
+  // useEffect) pour éviter react-hooks/set-state-in-effect, cf. pattern déjà
+  // utilisé pour lastConsumedRdvId dans SuivisView.tsx.
+  const [lastSub, setLastSub] = useState(sub);
+  if (sub !== lastSub) {
+    setLastSub(sub);
+    setVue(subToVue(sub));
+    if (sub === "aujourdhui" || sub === "demain") setFilter(sub);
+  }
 
   const grouped = useMemo(() => {
     const today = new Date();
@@ -997,35 +1069,6 @@ export default function PlanningView({
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-full border border-neutral-200 bg-white p-1">
-          <button
-            onClick={() => setVue("liste")}
-            className={`rounded-full px-3 py-1 text-sm ${
-              vue === "liste" ? "bg-[#171717] text-white" : "text-neutral-600"
-            }`}
-          >
-            Liste
-          </button>
-          <button
-            onClick={() => setVue("calendrier")}
-            className={`rounded-full px-3 py-1 text-sm ${
-              vue === "calendrier" ? "bg-[#171717] text-white" : "text-neutral-600"
-            }`}
-          >
-            Calendrier
-          </button>
-          <button
-            onClick={() => setVue("par_activite")}
-            className={`rounded-full px-3 py-1 text-sm ${
-              vue === "par_activite" ? "bg-[#171717] text-white" : "text-neutral-600"
-            }`}
-          >
-            Par activité
-          </button>
-        </div>
-      </div>
-
       {vue === "calendrier" ? (
         <CalendarMonthView
           clients={clients}

@@ -374,6 +374,132 @@ function RdvPaiementModal({
   );
 }
 
+function PropertyRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-[#eaeaea] py-2.5 first:border-t-0">
+      <span className="shrink-0 text-xs text-neutral-500">{label}</span>
+      <span className="text-right text-sm text-[#171717]">{children}</span>
+    </div>
+  );
+}
+
+// Fiche détail d'un billet, ouverte au clic sur une ligne du tableau
+// Suivis > Billets d'avion — une liste de propriétés plutôt qu'un
+// formulaire, pour rester lisible même avec un billet par ligne dans le
+// tableau (voir en dessous).
+function BilletDetailModal({
+  r,
+  client,
+  copiedKey,
+  onCopy,
+  onOpenClient,
+  onUpdateReservation,
+  onClose,
+}: {
+  r: Reservation;
+  client: Client;
+  copiedKey: string | null;
+  onCopy: (key: string, text: string) => void;
+  onOpenClient: (id: string) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onClose: () => void;
+}) {
+  const { nbAd, nbEnf } = participantsFor(r, client);
+  const pax =
+    r.pax_override ||
+    `${nbAd} adultes${
+      nbEnf ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}` : ""
+    }`;
+  const isCaire = (r.nom_activite || "").toLowerCase().includes("caire");
+  const key = "billet-" + r.id;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between">
+          <button
+            onClick={() => {
+              onOpenClient(client.id);
+              onClose();
+            }}
+            className="font-heading text-base font-semibold text-[#171717] hover:underline"
+          >
+            {client.nom || "Sans nom"}
+          </button>
+          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-[#171717]">
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-2">
+          <PropertyRow label="Date">
+            {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
+          </PropertyRow>
+          <PropertyRow label="Trajet">
+            <div className="flex items-center gap-1.5">
+              <select
+                value={r.billet_ville_depart}
+                onChange={(e) => onUpdateReservation(r.id, { billet_ville_depart: e.target.value })}
+                className="input text-xs"
+              >
+                <option value="">Départ…</option>
+                {VILLES_VOL.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+              <span className="text-neutral-400">{isCaire ? "⇄" : "→"}</span>
+              <select
+                value={r.billet_ville_arrivee}
+                onChange={(e) => onUpdateReservation(r.id, { billet_ville_arrivee: e.target.value })}
+                className="input text-xs"
+              >
+                <option value="">Arrivée…</option>
+                {VILLES_VOL.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+          </PropertyRow>
+          <PropertyRow label="PAX">{pax}</PropertyRow>
+          <PropertyRow label="Étape">
+            <BilletEtapeTracker
+              etape={r.billet_etape}
+              demandeEnvoyeeLe={r.billet_demande_envoyee_le}
+              onChange={(patch) => onUpdateReservation(r.id, patch)}
+            />
+          </PropertyRow>
+          {r.billet_lien && (
+            <PropertyRow label="Billet">
+              <VoirBilletLink path={r.billet_lien} />
+            </PropertyRow>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => onCopy(key, hossamBilletMessage(r, client))}
+            className="rounded-full bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+          >
+            {copiedKey === key ? "Copié ✓" : "Copier la demande"}
+          </button>
+          <button
+            onClick={() => onCopy("nom-" + key, r.billet_nom_complet.trim() || client.nom)}
+            className="rounded-full border border-[#171717]/30 px-3 py-1.5 text-xs font-medium text-[#171717] hover:bg-[#fafafa]"
+          >
+            {copiedKey === "nom-" + key ? "Copié ✓" : "Copier les noms clients"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Détail d'horaire à citer dans les messages pick-up : l'heure précise si
 // elle a été choisie, sinon le moment (sauf quand hideMoment dit que ça ne
 // veut rien dire pour cette activité, ex. speedboat sunset déjà dans le nom).
@@ -676,6 +802,7 @@ export default function SuivisView({
   }
   const [rdvKanbanView, setRdvKanbanView] = useState<string>("demain");
   const [billetsMonthFilter, setBilletsMonthFilter] = useState<string>("a_venir");
+  const [selectedBilletId, setSelectedBilletId] = useState<string | null>(null);
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
   const copyText = async (key: string, text: string) => {
     try {
@@ -1737,7 +1864,7 @@ export default function SuivisView({
             </div>
           )}
           {billetsRows.length > 0 && (
-            <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+            <div className="overflow-x-auto rounded-[6px] border border-[#eaeaea] bg-white">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
@@ -1745,8 +1872,7 @@ export default function SuivisView({
                     <th className="px-3 pb-2 pt-3 font-medium">Client</th>
                     <th className="px-3 pb-2 pt-3 font-medium">PAX</th>
                     <th className="px-3 pb-2 pt-3 font-medium">Étape</th>
-                    <th className="px-3 pb-2 pt-3 font-medium">Vol</th>
-                    <th className="px-3 pb-2 pt-3 font-medium" />
+                    <th className="px-3 pb-2 pt-3 font-medium">Trajet</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1761,82 +1887,38 @@ export default function SuivisView({
                           ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}`
                           : ""
                       }`;
-                    const key = "billet-" + r.id;
+                    const isCaire = (r.nom_activite || "").toLowerCase().includes("caire");
                     const sameDateAsPrev = i > 0 && billetsRows[i - 1].billet_date === r.billet_date;
                     return (
                       <tr
                         key={r.id}
-                        className={`${sameDateAsPrev ? "border-t border-dashed border-[#eaeaea]" : "border-t-2 border-[#eaeaea]"}`}
+                        onClick={() => setSelectedBilletId(r.id)}
+                        className={`cursor-pointer hover:bg-[#fafafa] ${sameDateAsPrev ? "border-t border-dashed border-[#eaeaea]" : "border-t-2 border-[#eaeaea]"}`}
                       >
-                        <td className="whitespace-nowrap px-3 py-2 align-top">
-                          {!sameDateAsPrev && (
-                            <span className="font-amounts text-[#171717]">
-                              {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
-                            </span>
-                          )}
+                        <td className="whitespace-nowrap px-3 py-2.5 align-top text-[#666666]">
+                          {!sameDateAsPrev && (r.billet_date ? fmtDate(r.billet_date) : "Date ?")}
                         </td>
-                        <td className="px-3 py-2 align-top">
-                          <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
+                        <td className="px-3 py-2.5 align-top">
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenClient(client.id);
+                            }}
+                            className="cursor-pointer font-medium text-[#171717] hover:underline"
+                          >
+                            {client.nom || "Sans nom"}
+                          </span>
                           {r.billet_lien && (
-                            <div className="mt-0.5">
-                              <VoirBilletLink path={r.billet_lien} />
-                            </div>
+                            <span className="ml-1.5 text-xs text-[#0F5C56]">✓ billet reçu</span>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-2 align-top text-neutral-500">{pax}</td>
-                        <td className="px-3 py-2 align-top">
-                          <BilletEtapeTracker
-                            etape={r.billet_etape}
-                            demandeEnvoyeeLe={r.billet_demande_envoyee_le}
-                            onChange={(patch) => onUpdateReservation(r.id, patch)}
-                          />
+                        <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-500">{pax}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-600">
+                          {billetEtapeShortLabel(r.billet_etape)}
                         </td>
-                        <td className="px-3 py-2 align-top">
-                          <div className="flex items-center gap-1">
-                            <select
-                              value={r.billet_ville_depart}
-                              onChange={(e) =>
-                                onUpdateReservation(r.id, { billet_ville_depart: e.target.value })
-                              }
-                              className="input w-28 text-xs"
-                            >
-                              <option value="">Départ…</option>
-                              {VILLES_VOL.map((v) => (
-                                <option key={v}>{v}</option>
-                              ))}
-                            </select>
-                            <span className="text-neutral-400">→</span>
-                            <select
-                              value={r.billet_ville_arrivee}
-                              onChange={(e) =>
-                                onUpdateReservation(r.id, { billet_ville_arrivee: e.target.value })
-                              }
-                              className="input w-28 text-xs"
-                            >
-                              <option value="">Arrivée…</option>
-                              {VILLES_VOL.map((v) => (
-                                <option key={v}>{v}</option>
-                              ))}
-                            </select>
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 align-top">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <button
-                              onClick={() => copyText(key, hossamBilletMessage(r, client))}
-                              className="whitespace-nowrap rounded-full bg-[#171717] px-2.5 py-1 text-[11px] font-medium text-white hover:opacity-90"
-                            >
-                              {copiedKey === key ? "Copié ✓" : "Copier la demande"}
-                            </button>
-                            <button
-                              onClick={() =>
-                                copyText("nom-" + key, r.billet_nom_complet.trim() || client.nom)
-                              }
-                              className="whitespace-nowrap rounded-full border border-[#171717]/30 px-2.5 py-1 text-[11px] font-medium text-[#171717] hover:bg-[#fafafa]"
-                            >
-                              {copiedKey === "nom-" + key ? "Copié ✓" : "Noms clients"}
-                            </button>
-                          </div>
+                        <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-500">
+                          {r.billet_ville_depart || "?"} {isCaire ? "⇄" : "→"}{" "}
+                          {r.billet_ville_arrivee || "?"}
                         </td>
                       </tr>
                     );
@@ -1845,6 +1927,24 @@ export default function SuivisView({
               </table>
             </div>
           )}
+
+          {selectedBilletId &&
+            (() => {
+              const r = billetsRows.find((row) => row.id === selectedBilletId);
+              const client = r && clients.find((c) => c.id === r.client_id);
+              if (!r || !client) return null;
+              return (
+                <BilletDetailModal
+                  r={r}
+                  client={client}
+                  copiedKey={copiedKey}
+                  onCopy={copyText}
+                  onOpenClient={onOpenClient}
+                  onUpdateReservation={onUpdateReservation}
+                  onClose={() => setSelectedBilletId(null)}
+                />
+              );
+            })()}
         </div>
       )}
     </div>

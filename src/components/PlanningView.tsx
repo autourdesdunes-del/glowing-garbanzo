@@ -138,7 +138,7 @@ function ReservationSummaryCard({
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
           {badge.label}
         </span>
-        <span className="font-amounts text-sm font-medium text-[#171717]">{euros(total)} €</span>
+        <span className="text-base font-semibold text-[#171717]">{euros(total)} €</span>
       </div>
       {infoComplet ? (
         <p className="mt-2 text-[10px] text-neutral-400">dossier complet ✔️</p>

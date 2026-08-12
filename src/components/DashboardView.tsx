@@ -325,15 +325,19 @@ export default function DashboardView({
 
   // "À relancer" se base sur le dernier contact réel (dernier_contact_date),
   // pas sur l'ancienneté de la fiche — sinon un prospect qu'on vient de
-  // relancer reste marqué "à relancer" jusqu'à ce qu'il réponde.
-  const staleProspects = clients.filter(
-    (c) =>
-      PROSPECT_STATUTS.includes(c.statut) &&
-      c.date_debut &&
-      c.date_debut >= todayStr &&
-      c.date_debut <= in14Days &&
-      daysSince(c.dernier_contact_date || c.created_at) >= 2
-  );
+  // relancer reste marqué "à relancer" jusqu'à ce qu'il réponde. Le délai
+  // avant relance dépend de la proximité du séjour : un prospect qui arrive
+  // cette semaine se relance vite (2j sans contact), un prospect qui arrive
+  // dans plusieurs mois n'a pas besoin d'être harcelé tous les 2 jours.
+  const joursAvantArrivee = (dateStr: string) =>
+    Math.round((Date.parse(dateStr) - Date.parse(todayStr)) / 86400000);
+  const staleProspects = clients.filter((c) => {
+    if (!PROSPECT_STATUTS.includes(c.statut)) return false;
+    if (!c.date_debut || c.date_debut < todayStr) return false;
+    const avant = joursAvantArrivee(c.date_debut);
+    const seuilRelance = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
+    return daysSince(c.dernier_contact_date || c.created_at) >= seuilRelance;
+  });
 
   const marquerRelance = (c: Client) => {
     onUpdateClient(c.id, {
@@ -352,8 +356,31 @@ export default function DashboardView({
       !(c.infos_manquantes.length === 1 && c.infos_manquantes[0] === "Complet")
   );
 
+  // Billet d'avion pas encore reçu (étape avant "reçu — à envoyer au
+  // client") alors que le vol est dans 15 jours ou moins.
+  const billetsUrgents = reservations.filter(
+    (r) =>
+      r.billet_requis &&
+      r.billet_etape !== "a_envoyer_client" &&
+      r.billet_etape !== "termine" &&
+      r.billet_date &&
+      r.billet_date >= todayStr &&
+      r.billet_date <= addDays(todayStr, 15)
+  );
+  // Acompte non réglé (quel que soit le mode) alors que l'activité est dans
+  // 4 jours ou moins.
+  const acomptesUrgents = clients.filter(
+    (c) =>
+      c.paiement_type === "acompte" &&
+      c.acompte_valide &&
+      !c.acompte_paye &&
+      c.date_debut &&
+      c.date_debut >= todayStr &&
+      c.date_debut <= addDays(todayStr, 4)
+  );
+
   const urgentCount =
-    rdvToday.length + pickupsMissingTomorrow.length + auRevoirToday.length + avisToday.length;
+    rdvToday.length + pickupsMissingTomorrow.length + billetsUrgents.length + acomptesUrgents.length;
 
   // -- Priority queue: every client needing attention soon, ranked by departure date.
   type QueueRow = { client: Client; motifs: string[] };
@@ -463,7 +490,7 @@ export default function DashboardView({
         <Metric
           label="Cas urgents"
           value={String(urgentCount)}
-          sub={urgentCount > 0 ? "aujourd'hui" : "rien pour l'instant"}
+          sub={urgentCount > 0 ? "à traiter" : "rien pour l'instant"}
           tone={urgentCount > 0 ? "error" : "default"}
         />
         <Metric

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { paiementBadge, participantsFor, resaTotalMontant } from "@/lib/resa";
+import { activitePaiementWarning, paiementBadge, participantsFor, resaTotalMontant } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 
 function euros(n: number) {
@@ -82,12 +82,14 @@ type Row = { client: Client; r: Reservation };
 function ReservationSummaryCard({
   client,
   r,
+  reservations,
   resaOptions,
   resaTarifs,
   onClick,
 }: {
   client: Client;
   r: Reservation;
+  reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onClick: () => void;
@@ -95,8 +97,12 @@ function ReservationSummaryCard({
   const options = resaOptions[r.id] || [];
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
   const { nbAd, nbEnf } = participantsFor(r, client);
-  const soldeIci = client.solde_activite_id === r.id;
   const badge = paiementBadge(client, r);
+  // Le calcul du montant restant a besoin des réservations de CE client
+  // uniquement — jamais du tableau global toutes activités confondues, sous
+  // peine de sommer les montants de plusieurs clients (bug déjà rencontré).
+  const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
+  const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const infoComplet = !client.infos_manquantes.length || client.infos_manquantes.includes("Complet");
   const infoStatut = infoComplet ? null : client.infos_manquantes[0];
 
@@ -112,8 +118,10 @@ function ReservationSummaryCard({
             {r.moment}
           </span>
         )}
-        {soldeIci && !client.solde_paye && (
-          <span className="text-xs text-red-600">⚠️ solde à régler ici</span>
+        {paiementWarning && (
+          <span className="text-xs font-medium text-red-600">
+            ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+          </span>
         )}
       </div>
       <p className="mt-1 text-xs text-neutral-500">
@@ -130,7 +138,7 @@ function ReservationSummaryCard({
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
           {badge.label}
         </span>
-        <span className="font-amounts text-sm">{euros(total)} €</span>
+        <span className="font-amounts text-sm font-medium text-[#171717]">{euros(total)} €</span>
       </div>
       {infoComplet ? (
         <p className="mt-2 text-[10px] text-neutral-400">dossier complet ✔️</p>
@@ -373,6 +381,7 @@ function CalendarMonthView({
                   key={row.r.id}
                   client={row.client}
                   r={row.r}
+                  reservations={reservations}
                   resaOptions={resaOptions}
                   resaTarifs={resaTarifs}
                   onClick={() => onOpenActivity(row)}
@@ -514,6 +523,7 @@ export default function PlanningView({
                     key={row.r.id}
                     client={row.client}
                     r={row.r}
+                    reservations={reservations}
                     resaOptions={resaOptions}
                     resaTarifs={resaTarifs}
                     onClick={() => onOpenClient(row.client.id)}

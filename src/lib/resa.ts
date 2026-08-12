@@ -216,9 +216,16 @@ export function hideMoment(nomActivite: string, horaireSouhaite: string) {
 export function momentBadge(r: Reservation) {
   // "Journée" est une formule fixe (jamais un vrai choix laissé à
   // l'employée) — inutile de l'afficher, ça n'apporte aucune info.
-  if (r.creneau && r.creneau !== "Journée") return r.creneau;
-  if (r.moment && r.moment !== "Journée" && !hideMoment(r.nom_activite, r.horaire_souhaite)) return r.moment;
-  return "";
+  const value =
+    r.creneau && r.creneau !== "Journée"
+      ? r.creneau
+      : r.moment && r.moment !== "Journée" && !hideMoment(r.nom_activite, r.horaire_souhaite)
+        ? r.moment
+        : "";
+  // Déjà répété dans le titre (ex. "Safari quad au coucher du soleil") —
+  // pas besoin du badge en plus.
+  if (value && (r.nom_activite || "").toLowerCase().includes(value.toLowerCase())) return "";
+  return value;
 }
 
 // Les îles proposées pour les formules speedboat privé "journée complète"

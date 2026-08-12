@@ -29,18 +29,22 @@ export function parseKommoFormBody(body: string): Record<string, unknown> {
   return root;
 }
 
+function capitalize(word: string): string {
+    return word ? word[0].toUpperCase() + word.slice(1).toLowerCase() : word;
+}
+
 // Les employées ajoutent parfois un ✅ (ou variante) devant le nom dans
 // Kommo pour se signaler à elles-mêmes qu'une fiche a été vérifiée — utile
-// sur Kommo, mais ça ne doit jamais apparaître côté CRM. On retire aussi le
-// nom de famille en majuscules (convention "Prénom NOM"), le prénom gardant
-// la casse telle que saisie.
+// sur Kommo, mais ça ne doit jamais apparaître côté CRM. On applique aussi
+// la convention "Prénom NOM" : prénom avec une majuscule initiale, nom de
+// famille tout en majuscules — quelle que soit la casse saisie sur Kommo.
 export function cleanKommoName(raw: string): string {
     const name = raw.replace(/[✅✔️✔☑️☑]/g, "").trim().replace(/\s+/g, " ");
     if (!name) return name;
     const parts = name.split(" ");
-    if (parts.length < 2) return name;
+    if (parts.length < 2) return capitalize(parts[0]);
     const [prenom, ...reste] = parts;
-    return `${prenom} ${reste.join(" ").toUpperCase()}`;
+    return `${capitalize(prenom)} ${reste.join(" ").toUpperCase()}`;
 }
 
 // Correspondance entre les étapes du pipeline Kommo (compte

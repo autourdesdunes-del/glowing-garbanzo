@@ -14,8 +14,10 @@ import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS, SITES_CAIRE 
 import {
   groupeExtraCounts,
   billetEtapeShortLabel,
+  billetUploadPatch,
   formatOptionLabel,
   isDeuxiemeIleOption,
+  isGrandEgyptianMuseum,
   isLeCaireEnAvion,
   isQuad,
   isSafariQuadBase,
@@ -920,6 +922,12 @@ export default function ReservationCard({
               </Field>
             )}
           </div>
+          {isGrandEgyptianMuseum(r.site_caire) && (
+            <p className="mt-3 text-xs font-medium text-[#0F5C56]">
+              ℹ️ Supplément Grand Egyptian Museum appliqué automatiquement : +20 € par adulte, +10
+              € par enfant (gratuit ≤ 3 ans).
+            </p>
+          )}
           {champsRequisPersonnalises.length > 0 && (
             <div className="mt-3 space-y-2">
               {champsRequisPersonnalises.map((c) => {
@@ -1170,16 +1178,7 @@ export default function ReservationCard({
           <div className="mt-3">
             <BilletAvionUpload
               path={r.billet_lien || null}
-              onChange={(path) => {
-                const patch: Partial<Reservation> = { billet_lien: path || "" };
-                // Le billet est là : on avance l'étape tout seul, ce qui
-                // coupe aussi les rappels à Hossam/équipe (BilletRappels ne
-                // relance que sur "attente_hossam").
-                if (path && (r.billet_etape === "attente_hossam" || r.billet_etape === "a_envoyer_hossam")) {
-                  patch.billet_etape = "a_envoyer_client";
-                }
-                onUpdate(patch);
-              }}
+              onChange={(path) => onUpdate(billetUploadPatch(r, path))}
             />
           </div>
         </div>
@@ -1189,6 +1188,11 @@ export default function ReservationCard({
         {r.avoir_utilise > 0 && (
           <div className="mb-2 inline-block rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
             Avoir de {euros(r.avoir_utilise)} € utilisé sur cette activité
+          </div>
+        )}
+        {isGrandEgyptianMuseum(r.site_caire) && (
+          <div className="mb-1 text-xs text-neutral-500">
+            dont {euros(nbAd * 20 + nbEnf * 10)} € de supplément Grand Egyptian Museum
           </div>
         )}
         <div className="flex items-center justify-between gap-3">

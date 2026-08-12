@@ -15,6 +15,7 @@ import {
   groupeExtraCounts,
   isChevalOuChameau,
   isDeuxiemeIleOption,
+  isGrandEgyptianMuseum,
   isLeCaireEnAvion,
   isSafariQuadBase,
   isQuad,
@@ -593,6 +594,12 @@ export default function AddActivityWizard({
             </Field>
           )}
         </div>
+        {isGrandEgyptianMuseum(r.site_caire) && (
+          <p className="mt-3 text-xs font-medium text-[#0F5C56]">
+            ℹ️ Supplément Grand Egyptian Museum appliqué automatiquement : +20 € par adulte, +10 €
+            par enfant (gratuit ≤ 3 ans).
+          </p>
+        )}
         {champsRequisPersonnalises.length > 0 && (
           <div className="mt-3 space-y-2">
             {champsRequisPersonnalises.map((c) => {
@@ -1301,7 +1308,12 @@ export default function AddActivityWizard({
           </button>
         </div>
 
-        <div className="mt-4 flex items-center justify-between border-t border-[#666666]/10 pt-3 text-sm">
+        <div className="mt-4 border-t border-[#666666]/10 pt-3 text-sm">
+          {isGrandEgyptianMuseum(r.site_caire) && (
+            <div className="mb-1 text-xs text-neutral-500">
+              dont {euros(nbAd * 20 + nbEnf * 10)} € de supplément Grand Egyptian Museum
+            </div>
+          )}
           <span>
             Total activité : <strong>{euros(total)} €</strong>
           </span>
@@ -1435,6 +1447,7 @@ export default function AddActivityWizard({
 
   // step === "transfert"
   const total = resaTotalMontant(r, client, options, tarifs);
+  const { nbAd: nbAdTransfert, nbEnf: nbEnfTransfert } = participantsFor(r, client);
 
   const finishClick = () => {
     if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedFinale) {
@@ -1520,10 +1533,18 @@ export default function AddActivityWizard({
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between border-t border-[#666666]/10 pt-3 text-sm">
-        <span>
-          Total activité : <strong>{euros(total)} €</strong>
-        </span>
+      <div className="mt-4 border-t border-[#666666]/10 pt-3 text-sm">
+        {isGrandEgyptianMuseum(r.site_caire) && (
+          <div className="mb-1 text-xs text-neutral-500">
+            dont {euros(nbAdTransfert * 20 + nbEnfTransfert * 10)} € de supplément Grand Egyptian
+            Museum
+          </div>
+        )}
+        <div className="flex items-center justify-between">
+          <span>
+            Total activité : <strong>{euros(total)} €</strong>
+          </span>
+        </div>
       </div>
 
       <div className="mt-4 flex gap-2">

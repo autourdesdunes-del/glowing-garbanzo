@@ -1308,7 +1308,7 @@ export default function SuivisView({
             {auRevoirRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à envoyer pour l&apos;instant.</div>
             )}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {auRevoirRows.map(({ c, dateCible }) => {
                 const lateDays = daysBetween(todayStr, dateCible);
                 const enRetard = lateDays > 1;
@@ -1375,7 +1375,7 @@ export default function SuivisView({
             {auRevoirEnvoyesRecemment.length === 0 && (
               <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
             )}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {auRevoirEnvoyesRecemment.map((c) => (
                 <div
                   key={c.id}
@@ -1418,7 +1418,7 @@ export default function SuivisView({
             {auRevoirUpcomingRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
             )}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {auRevoirUpcomingRows.map(({ c, dateCible }) => (
                 <div
                   key={c.id}
@@ -1449,7 +1449,7 @@ export default function SuivisView({
             {avisRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à envoyer pour l&apos;instant.</div>
             )}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {avisRows.map(({ c, dateCible }) => {
                 const lateDays = daysBetween(todayStr, dateCible);
                 const enRetard = lateDays > 2;
@@ -1520,7 +1520,7 @@ export default function SuivisView({
             {avisEnvoyesRecemment.length === 0 && (
               <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
             )}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {avisEnvoyesRecemment.map((c) => (
                 <div
                   key={c.id}
@@ -1569,7 +1569,7 @@ export default function SuivisView({
             {avisUpcomingRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
             )}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {avisUpcomingRows.map(({ c, dateCible }) => (
                 <div
                   key={c.id}

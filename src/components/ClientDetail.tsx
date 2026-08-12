@@ -23,7 +23,7 @@ import AvoirUseModal from "@/components/AvoirUseModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
-import { resaTotalMontant, avoirUtiliseTotal } from "@/lib/resa";
+import { resaTotalMontant, avoirUtiliseTotal, findMomentConflict } from "@/lib/resa";
 import {
   ActivitesStep,
   ContactStep,
@@ -122,6 +122,9 @@ export default function ClientDetail({
     section: (typeof SECTIONS)[number];
   } | null>(null);
   const [busEscalations, setBusEscalations] = useState<BusEscalation[]>([]);
+  const [momentConflict, setMomentConflict] = useState<{ current: Reservation; other: Reservation } | null>(
+    null
+  );
 
   useEffect(() => {
     setOpen(CLOSED_SECTIONS);
@@ -411,6 +414,28 @@ export default function ClientDetail({
     reservationPendingPatch.current[id] = { ...reservationPendingPatch.current[id], ...patch };
     if (reservationRetryTimers.current[id]) clearTimeout(reservationRetryTimers.current[id]);
     flushReservation(id);
+    // Alerte immédiate si ce changement fait tomber cette activité sur la
+    // même date + même moment de la journée qu'une autre activité du client.
+    if ("date_debut" in patch || "moment" in patch || "creneau" in patch) {
+      const merged = reservations.map((r) => (r.id === id ? { ...r, ...patch } : r));
+      const conflict = findMomentConflict(merged, id);
+      if (conflict) {
+        const current = merged.find((r) => r.id === id);
+        if (current) setMomentConflict({ current, other: conflict });
+      }
+    }
+  };
+
+  const goToMomentConflict = () => {
+    if (!momentConflict) return;
+    const id = momentConflict.current.id;
+    setMomentConflict(null);
+    setOpen((prev) => ({ ...prev, Activités: true }));
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document.getElementById(`reservation-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+    });
   };
 
   const deleteReservation = async (id: string) => {
@@ -818,6 +843,35 @@ export default function ClientDetail({
             >
               Aller aux Paiements
             </button>
+          </div>
+        </div>
+      )}
+
+      {momentConflict && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-md bg-white p-5">
+            <p className="mb-4 text-sm font-medium text-[#171717]">
+              ⚠ Attention, vous avez sélectionné deux activités sur la même date au même moment
+              de la journée : «{" "}
+              {momentConflict.current.nom_activite || "Activité sans nom"} » et «{" "}
+              {momentConflict.other.nom_activite || "Activité sans nom"} ».
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMomentConflict(null)}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Fermer
+              </button>
+              <button
+                type="button"
+                onClick={goToMomentConflict}
+                className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Je corrige
+              </button>
+            </div>
           </div>
         </div>
       )}

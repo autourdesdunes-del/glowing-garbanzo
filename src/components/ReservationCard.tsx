@@ -17,6 +17,7 @@ import {
   formatOptionLabel,
   isDeuxiemeIleOption,
   isLeCaireEnAvion,
+  isQuad,
   isSafariQuadBase,
   isSpeedboatPriveMaisonDauphins,
   momentBadge,
@@ -103,6 +104,7 @@ export default function ReservationCard({
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
   const champsRequis = catalogueItem?.champs_requis_liste || [];
   const nomPourDetection = catalogueItem?.nom || r.nom_activite;
+  const quadPourDetection = isQuad(nomPourDetection);
   const ileType = speedboatIleType(nomPourDetection);
   const needsMoment = needsMomentSpeedboat(nomPourDetection);
   const missingChamps: string[] = [];
@@ -347,7 +349,7 @@ export default function ReservationCard({
   }
 
   return (
-    <div className="rounded-md border border-[#666666]/20 bg-white p-4">
+    <div id={`reservation-${r.id}`} className="rounded-md border border-[#666666]/20 bg-white p-4">
       {catalogue.length > 0 && (
         <select
           defaultValue=""
@@ -769,8 +771,8 @@ export default function ReservationCard({
           </label>
           <p className="mb-1 text-xs text-neutral-400">
             Par défaut le nombre de participants ci-dessus est calculé automatiquement. Coche
-            cette case seulement si tu veux le remplacer par un texte libre (ex. « 2
-            participants, 1 accompagnateur »).
+            cette case seulement si tu veux le remplacer par un texte libre (ex. «{" "}
+            {quadPourDetection ? "2 conducteurs, 3 passagers" : "2 participants, 1 accompagnateur"} »).
           </p>
           {showPaxOverride && (
             <input

@@ -934,7 +934,8 @@ export default function AddActivityWizard({
                 if (!e.target.checked) onUpdateReservation(r.id, { pax_override: "" });
               }}
             />
-            Écrire moi-même le texte affiché (ex. « 2 participants, 1 accompagnateur »)
+            Écrire moi-même le texte affiché (ex. «{" "}
+            {showQuadPaxHint ? "2 conducteurs, 3 passagers" : "2 participants, 1 accompagnateur"} »)
           </label>
           {showPaxOverride && (
             <input

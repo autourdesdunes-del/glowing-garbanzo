@@ -611,6 +611,7 @@ export default function AddActivityWizard({
 
   if (step === "date") {
     const isSpa = isSpaMassage(r.nom_activite);
+    const missingDate = !r.date_debut;
     const missingHoraire = isSpa && !r.horaire_souhaite;
     const nextStep = steps[steps.indexOf("date") + 1];
     const nextLabel =
@@ -621,7 +622,7 @@ export default function AddActivityWizard({
           : "Suivant — Participants";
 
     const goNext = () => {
-      if (missingHoraire) {
+      if (missingDate || missingHoraire) {
         setValidationError(true);
         return;
       }
@@ -640,9 +641,17 @@ export default function AddActivityWizard({
             type="date"
             value={r.date_debut ?? ""}
             onChange={(e) => onUpdateReservation(r.id, { date_debut: e.target.value || null })}
-            className="input max-w-[220px]"
+            className={`input max-w-[220px] ${
+              validationError && missingDate ? "border-red-300 focus:border-red-400" : ""
+            }`}
           />
         </Field>
+
+        {validationError && missingDate && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Impossible de continuer — la date de l&apos;activité est obligatoire.
+          </div>
+        )}
 
         {hossamPopup === "premiere" && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">

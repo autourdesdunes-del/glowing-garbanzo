@@ -245,6 +245,18 @@ export function isLeCaireEnAvion(nom: string) {
   return (nom || "").trim().toLowerCase() === "le caire en avion";
 }
 
+const BILLET_ETAPE_SHORT_LABELS: Record<string, string> = {
+  attente_acompte: "Acompte en attente",
+  a_envoyer_hossam: "À envoyer à Hossam",
+  attente_hossam: "En attente du billet",
+  a_envoyer_client: "Reçu — à envoyer au client",
+  termine: "Envoyé au client",
+};
+
+export function billetEtapeShortLabel(etape: string) {
+  return BILLET_ETAPE_SHORT_LABELS[etape] || etape;
+}
+
 // Balade à cheval / chameau — un enfant peut monter seul (son propre animal,
 // tarif enfant plein) ou derrière un adulte (tarif accompagnateur) : la
 // réponse se demande par enfant, avant l'étape des tarifs.

@@ -37,7 +37,17 @@ export const MODES_PAIEMENT = [
   "Virement bancaire",
 ] as const;
 
-export const BILLET_STATUTS = ["En attente", "Validé", "Refusé"] as const;
+// Progression du billet d'avion, dans l'ordre réel du processus avec
+// Hossam : acompte en attente -> acompte payé, demande à envoyer -> demande
+// envoyée, en attente du billet -> billet reçu, à envoyer au client ->
+// terminé. Une seule étape à la fois, jamais de cases indépendantes.
+export const BILLET_ETAPES = [
+  { key: "attente_acompte", label: "① Acompte en attente" },
+  { key: "a_envoyer_hossam", label: "② Acompte payé — à envoyer à Hossam" },
+  { key: "attente_hossam", label: "③ Envoyé à Hossam — en attente du billet" },
+  { key: "a_envoyer_client", label: "④ Billet reçu — à envoyer au client" },
+  { key: "termine", label: "⑤ Envoyé au client" },
+] as const;
 
 export const VILLES_VOL = [
   "Hurghada",

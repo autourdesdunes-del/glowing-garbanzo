@@ -11,7 +11,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { addDays, localDateStr } from "@/lib/dates";
+import { addDays, localDateStr, todayStr } from "@/lib/dates";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
@@ -21,7 +21,7 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
-import { VILLES_VOL } from "@/lib/constants";
+import { BILLET_ETAPES, VILLES_VOL } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 
 function euros(n: number) {
@@ -54,6 +54,55 @@ function VoirRibLink({ path }: { path: string }) {
     >
       {loading ? "Ouverture…" : "Voir le RIB"}
     </button>
+  );
+}
+
+function BilletEtapeTracker({
+  etape,
+  demandeEnvoyeeLe,
+  onChange,
+}: {
+  etape: string;
+  demandeEnvoyeeLe: string | null;
+  onChange: (patch: { billet_etape: string; billet_demande_envoyee_le?: string }) => void;
+}) {
+  const currentIdx = Math.max(
+    0,
+    BILLET_ETAPES.findIndex((e) => e.key === etape)
+  );
+  const joursAttente =
+    etape === "attente_hossam" && demandeEnvoyeeLe
+      ? Math.floor((Date.parse(todayStr()) - Date.parse(demandeEnvoyeeLe)) / 86400000)
+      : null;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-1">
+        {BILLET_ETAPES.map((e, i) => (
+          <button
+            key={e.key}
+            type="button"
+            title={e.label}
+            onClick={() =>
+              onChange({
+                billet_etape: e.key,
+                ...(e.key === "attente_hossam" && !demandeEnvoyeeLe
+                  ? { billet_demande_envoyee_le: todayStr() }
+                  : {}),
+              })
+            }
+            className={`h-2.5 w-7 rounded-full transition-colors ${
+              i <= currentIdx ? "bg-[#0F5C56]" : "bg-neutral-200"
+            } ${i === currentIdx ? "ring-2 ring-[#0F5C56]/40" : ""}`}
+          />
+        ))}
+      </div>
+      <span className="text-xs font-medium text-[#171717]">{BILLET_ETAPES[currentIdx].label}</span>
+      {joursAttente !== null && joursAttente >= 2 && (
+        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+          ⏱ En attente depuis {joursAttente} j
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -663,14 +712,23 @@ export default function SuivisView({
     new Set(rdvKanbanRows.map((c) => c.solde_date as string))
   ).sort();
 
+  // Une fois "Envoyé" coché, le client sort de la liste "à envoyer" — sinon
+  // il y restait pour toujours (coché mais jamais retiré), ce qui donnait
+  // l'impression que ça ne menait nulle part.
   const auRevoirRows = clients
-    .filter((c) => c.date_fin)
+    .filter((c) => c.date_fin && !c.au_revoir_envoye)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 1) }))
     .filter((x) => x.dateCible <= todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
 
+  const auRevoirEnvoyesRecemment = clients
+    .filter((c) => c.date_fin && c.au_revoir_envoye)
+    .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 1) }))
+    .filter((x) => daysBetween(todayStr, x.dateCible) <= 3)
+    .sort((a, b) => b.dateCible.localeCompare(a.dateCible));
+
   const auRevoirUpcomingRows = clients
-    .filter((c) => c.date_fin)
+    .filter((c) => c.date_fin && !c.au_revoir_envoye)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 1) }))
     .filter((x) => x.dateCible > todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
@@ -1539,28 +1597,14 @@ export default function SuivisView({
                       <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} /> —{" "}
                       {r.nom_activite || "Activité"}
                     </span>
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-                      {r.billet_statut}
-                    </span>
-                    <span className="flex-1" />
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        r.billet_acompte_paye
-                          ? "bg-[#171717]/10 text-[#171717]"
-                          : "bg-[#f5a623]/20 text-[#666666]"
-                      }`}
-                    >
-                      Acompte {r.billet_acompte_paye ? "payé" : "en attente"}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        r.billet_envoye
-                          ? "bg-[#171717]/10 text-[#171717]"
-                          : "bg-[#f5a623]/20 text-[#666666]"
-                      }`}
-                    >
-                      Client : {r.billet_envoye ? "Envoyé" : "Pas envoyé"}
-                    </span>
+                  </div>
+
+                  <div className="mt-2">
+                    <BilletEtapeTracker
+                      etape={r.billet_etape}
+                      demandeEnvoyeeLe={r.billet_demande_envoyee_le}
+                      onChange={(patch) => onUpdateReservation(r.id, patch)}
+                    />
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -1598,16 +1642,6 @@ export default function SuivisView({
                   </div>
 
                   <div className="mt-2 flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-1.5 text-xs text-neutral-600">
-                      <input
-                        type="checkbox"
-                        checked={r.billet_envoye_hossam}
-                        onChange={(e) =>
-                          onUpdateReservation(r.id, { billet_envoye_hossam: e.target.checked })
-                        }
-                      />
-                      Envoyé à Hossam
-                    </label>
                     <button
                       onClick={() => copyText(key, hossamBilletMessage(r, client, pax))}
                       className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"

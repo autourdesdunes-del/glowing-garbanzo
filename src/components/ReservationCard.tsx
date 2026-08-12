@@ -13,6 +13,7 @@ import {
 import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
 import {
   groupeExtraCounts,
+  billetEtapeShortLabel,
   formatOptionLabel,
   isDeuxiemeIleOption,
   isLeCaireEnAvion,
@@ -276,7 +277,7 @@ export default function ReservationCard({
               )}
               {r.billet_requis && (
                 <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-                  ✈ Billet — {r.billet_statut}
+                  ✈ Billet — {billetEtapeShortLabel(r.billet_etape)}
                 </span>
               )}
             </div>
@@ -343,7 +344,7 @@ export default function ReservationCard({
         </div>
         {r.billet_requis && (
           <span className="mt-1 block text-xs text-neutral-500">
-            ✈ Billet — {r.billet_statut}
+            ✈ Billet — {billetEtapeShortLabel(r.billet_etape)}
           </span>
         )}
       </div>

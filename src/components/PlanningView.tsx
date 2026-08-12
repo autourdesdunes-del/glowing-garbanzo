@@ -221,14 +221,18 @@ function ReservationSummaryCard({
         <p className="mt-1 text-xs text-neutral-500">
           {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
         </p>
-        <div className="mt-2 flex items-center justify-between gap-2">
-          <span className={`whitespace-nowrap rounded-full px-1.5 py-0.5 text-xs font-medium ${badge.className}`}>
+        <div className="mt-2 flex items-start justify-between gap-2">
+          <span
+            className={`min-w-0 flex-1 rounded-full px-1.5 py-0.5 text-xs font-medium leading-tight ${badge.className}`}
+          >
             {badge.label}
           </span>
-          <span className="whitespace-nowrap text-sm font-semibold text-[#171717]">{euros(total)} €</span>
+          <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-[#171717]">
+            {euros(total)} €
+          </span>
         </div>
         {(paiementWarning || (!infoComplet && infoStatut)) && (
-          <p className="mt-1.5 whitespace-nowrap text-xs font-medium text-red-600">
+          <p className="mt-1.5 text-xs font-medium leading-tight text-red-600">
             {paiementWarning
               ? `⚠️ ${euros(paiementWarning.amount)} ${paiementWarning.devise} to pay`
               : `⚠️ ${infoStatut}`}
@@ -268,11 +272,15 @@ function ReservationSummaryCard({
         <p className="mt-0.5 text-[10px] text-neutral-500">
           {r.pax_override || `${nbAd} ad.${nbEnf ? ` + ${nbEnf} enf.` : ""}`}
         </p>
-        <div className="mt-1 flex items-center justify-between gap-1">
-          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${badge.className}`}>
+        <div className="mt-1 flex items-start justify-between gap-1">
+          <span
+            className={`min-w-0 flex-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-tight ${badge.className}`}
+          >
             {badge.label}
           </span>
-          <span className="text-xs font-semibold text-[#171717]">{euros(total)} €</span>
+          <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-[#171717]">
+            {euros(total)} €
+          </span>
         </div>
         {(paiementWarning || (!infoComplet && infoStatut)) && (
           <p className="mt-1 text-[10px] font-medium text-red-600">

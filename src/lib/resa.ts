@@ -236,6 +236,15 @@ export function isSpeedboat(nom: string) {
   return (nom || "").toLowerCase().includes("speedboat");
 }
 
+// Seule activité du catalogue avec un billet d'avion intérieur à gérer pour
+// l'instant (aller-retour Hurghada ↔ Le Caire, même jour) — le billet_requis
+// et les villes se déduisent automatiquement de ce nom, plus besoin de case
+// à cocher manuelle. Les circuits et achats de billet secs ne sont pas
+// encore dans le catalogue (à activer ici quand ils y seront).
+export function isLeCaireEnAvion(nom: string) {
+  return (nom || "").trim().toLowerCase() === "le caire en avion";
+}
+
 // Balade à cheval / chameau — un enfant peut monter seul (son propre animal,
 // tarif enfant plein) ou derrière un adulte (tarif accompagnateur) : la
 // réponse se demande par enfant, avant l'étape des tarifs.

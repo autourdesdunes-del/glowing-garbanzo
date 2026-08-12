@@ -52,6 +52,26 @@ function VoirRibLink({ path }: { path: string }) {
   );
 }
 
+function VoirBilletLink({ path }: { path: string }) {
+  const [loading, setLoading] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async (e) => {
+        e.stopPropagation();
+        setLoading(true);
+        const supabase = createClient();
+        const { data } = await supabase.storage.from("billets-avion").createSignedUrl(path, 3600);
+        setLoading(false);
+        if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+      }}
+      className="text-xs font-medium text-[#171717] underline hover:no-underline"
+    >
+      {loading ? "Ouverture…" : "Voir le billet"}
+    </button>
+  );
+}
+
 function fmtDayColumn(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
@@ -1449,16 +1469,7 @@ export default function SuivisView({
                     >
                       {copiedKey === "nom-" + key ? "Copié ✓" : "Copier le nom"}
                     </button>
-                    {r.billet_lien && (
-                      <a
-                        href={r.billet_lien}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-[#171717] underline"
-                      >
-                        Voir le billet
-                      </a>
-                    )}
+                    {r.billet_lien && <VoirBilletLink path={r.billet_lien} />}
                   </div>
                 </div>
               );

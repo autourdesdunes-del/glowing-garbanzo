@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CatalogueItem,
   CatalogueOption,
@@ -10,17 +10,12 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import {
-  BILLET_STATUTS,
-  CHAMPS_REQUIS_PRESETS,
-  CRENEAUX_ACTIVITE,
-  OPTIONS_PRESETS,
-  VILLES_VOL,
-} from "@/lib/constants";
+import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
 import {
   groupeExtraCounts,
   formatOptionLabel,
   isDeuxiemeIleOption,
+  isLeCaireEnAvion,
   isSafariQuadBase,
   isSpeedboatPriveMaisonDauphins,
   momentBadge,
@@ -41,6 +36,7 @@ const MAISON_DAUPHINS_TEXT =
 import { Field } from "@/components/client-steps";
 import MissingInfoModal from "@/components/MissingInfoModal";
 import { useToast } from "@/components/ToastProvider";
+import BilletAvionUpload from "@/components/BilletAvionUpload";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -182,6 +178,33 @@ export default function ReservationCard({
   const statutKey = paiementStatutKey(client, r);
   const badge = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === statutKey)!;
   const hasInfo = !!r.info_importante;
+  const leCaireEnAvion = isLeCaireEnAvion(nomPourDetection);
+
+  // "Le Caire en avion" est pour l'instant la seule activité du catalogue
+  // avec un billet d'avion intérieur à gérer — plus de case à cocher
+  // manuelle, tout se déduit du nom de l'activité (villes fixes, date
+  // synchronisée avec l'activité). Circuits et achats de billet secs pas
+  // encore dans le catalogue, à ajouter ici quand ils y seront.
+  useEffect(() => {
+    if (leCaireEnAvion) {
+      const patch: Partial<Reservation> = {};
+      if (!r.billet_requis) patch.billet_requis = true;
+      if (r.billet_ville_depart !== "Hurghada") patch.billet_ville_depart = "Hurghada";
+      if (r.billet_ville_arrivee !== "Le Caire") patch.billet_ville_arrivee = "Le Caire";
+      if (r.billet_date !== r.date_debut) patch.billet_date = r.date_debut;
+      if (Object.keys(patch).length > 0) onUpdate(patch);
+    } else if (r.billet_requis) {
+      onUpdate({ billet_requis: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    leCaireEnAvion,
+    r.billet_requis,
+    r.billet_ville_depart,
+    r.billet_ville_arrivee,
+    r.billet_date,
+    r.date_debut,
+  ]);
 
   const readNameFromPassport = async () => {
     const path = client.passeport_photos?.[0];
@@ -1108,135 +1131,45 @@ export default function ReservationCard({
         </Field>
       </div>
 
-      <div className="mt-4 rounded-md border border-[#666666]/15 p-3">
-        <label className="flex items-center gap-2 text-sm text-neutral-700">
-          <input
-            type="checkbox"
-            checked={r.billet_requis}
-            onChange={(e) => onUpdate({ billet_requis: e.target.checked })}
-          />
-          Cette activité inclut un billet d&apos;avion à gérer
-        </label>
-
-        {r.billet_requis && (
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <Field label="Nom complet (comme au passeport)">
-              <div className="flex gap-1.5">
+      {leCaireEnAvion && (
+        <div className="mt-4 rounded-md border border-[#666666]/15 p-3">
+          <p className="text-sm font-medium text-neutral-700">
+            ✈ Billet d&apos;avion Hurghada ↔ Le Caire
+          </p>
+          <p className="mt-1 text-xs text-neutral-500">
+            Le statut, les infos passagers et l&apos;envoi à Hossam se gèrent désormais dans
+            Suivis → Billets d&apos;avion. Ici, tu peux juste uploader le billet reçu pour le
+            suivi du dossier.
+          </p>
+          <div className="mt-3 flex gap-1.5">
+            <div className="flex-1">
+              <Field label="Nom complet (comme au passeport)">
                 <input
                   value={r.billet_nom_complet}
                   onChange={(e) => onUpdate({ billet_nom_complet: e.target.value })}
                   placeholder="À écrire tel quel pour Hossam / le prestataire"
                   className="input"
                 />
-                <button
-                  type="button"
-                  onClick={readNameFromPassport}
-                  disabled={readingPassport}
-                  title="Lire le nom sur la photo du passeport"
-                  className="shrink-0 rounded-md border border-[#666666]/30 px-2 text-xs text-neutral-600 hover:bg-[#fafafa] disabled:opacity-50"
-                >
-                  {readingPassport ? "…" : "📷 Lire"}
-                </button>
-              </div>
-            </Field>
-            <Field label="Statut">
-              <select
-                value={r.billet_statut}
-                onChange={(e) => onUpdate({ billet_statut: e.target.value })}
-                className="input"
-              >
-                {BILLET_STATUTS.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Date du billet">
-              <input
-                type="date"
-                value={r.billet_date ?? ""}
-                onChange={(e) => onUpdate({ billet_date: e.target.value || null })}
-                className="input"
-              />
-            </Field>
-            <Field label="Ville de départ">
-              <select
-                value={r.billet_ville_depart}
-                onChange={(e) => onUpdate({ billet_ville_depart: e.target.value })}
-                className="input"
-              >
-                <option value="">—</option>
-                {VILLES_VOL.map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Ville d'arrivée">
-              <select
-                value={r.billet_ville_arrivee}
-                onChange={(e) => onUpdate({ billet_ville_arrivee: e.target.value })}
-                className="input"
-              >
-                <option value="">—</option>
-                {VILLES_VOL.map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Acompte billet payé">
-              <select
-                value={r.billet_acompte_paye ? "Oui" : "Non"}
-                onChange={(e) => onUpdate({ billet_acompte_paye: e.target.value === "Oui" })}
-                className="input"
-              >
-                <option>Non</option>
-                <option>Oui</option>
-              </select>
-            </Field>
-            <Field label="Billet envoyé au client">
-              <select
-                value={r.billet_envoye ? "Oui" : "Non"}
-                onChange={(e) => onUpdate({ billet_envoye: e.target.value === "Oui" })}
-                className="input"
-              >
-                <option>Non</option>
-                <option>Oui</option>
-              </select>
-            </Field>
-            <Field label="Infos envoyées à Hossam">
-              <select
-                value={r.billet_envoye_hossam ? "Oui" : "Non"}
-                onChange={(e) => onUpdate({ billet_envoye_hossam: e.target.value === "Oui" })}
-                className="input"
-              >
-                <option>Non</option>
-                <option>Oui</option>
-              </select>
-            </Field>
-            <Field label="Lien billet (Drive)">
-              <input
-                value={r.billet_lien}
-                onChange={(e) => onUpdate({ billet_lien: e.target.value })}
-                className="input"
-              />
-            </Field>
-            <Field label="Notes pour Hossam">
-              <input
-                value={r.billet_notes}
-                onChange={(e) => onUpdate({ billet_notes: e.target.value })}
-                className="input"
-              />
-            </Field>
-            <label className="col-span-2 flex items-center gap-2 text-sm text-neutral-700">
-              <input
-                type="checkbox"
-                checked={r.billet_verifie}
-                onChange={(e) => onUpdate({ billet_verifie: e.target.checked })}
-              />
-              Dossier billet vérifié
-            </label>
+              </Field>
+            </div>
+            <button
+              type="button"
+              onClick={readNameFromPassport}
+              disabled={readingPassport}
+              title="Lire le nom sur la photo du passeport"
+              className="mt-6 h-fit shrink-0 rounded-md border border-[#666666]/30 px-2 py-1.5 text-xs text-neutral-600 hover:bg-[#fafafa] disabled:opacity-50"
+            >
+              {readingPassport ? "…" : "📷 Lire"}
+            </button>
           </div>
-        )}
-      </div>
+          <div className="mt-3">
+            <BilletAvionUpload
+              path={r.billet_lien || null}
+              onChange={(path) => onUpdate({ billet_lien: path || "" })}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 border-t border-[#666666]/10 pt-3 text-sm">
         {r.avoir_utilise > 0 && (

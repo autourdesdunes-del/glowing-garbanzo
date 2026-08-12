@@ -46,7 +46,7 @@ const FILTERS = [
   { key: "demain", label: "Demain" },
   { key: "prochainement", label: "Prochainement" },
   { key: "mois", label: "Ce mois-ci" },
-  { key: "tout", label: "Tout" },
+  { key: "mois_choisi", label: "Choisir un mois" },
 ] as const;
 
 const WEEKDAY_LABELS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
@@ -629,6 +629,7 @@ export default function PlanningView({
   const [vue, setVue] = useState<"liste" | "calendrier">("calendrier");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("aujourdhui");
   const [activeActivity, setActiveActivity] = useState<Row | null>(null);
+  const [moisChoisi, setMoisChoisi] = useState(() => monthStartOf(toStr(new Date())));
 
   const grouped = useMemo(() => {
     const today = new Date();
@@ -644,6 +645,8 @@ export default function PlanningView({
     prochainEnd.setDate(today.getDate() + 8);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const moisChoisiDebut = new Date(moisChoisi + "T00:00:00");
+    const moisChoisiFin = new Date(moisChoisiDebut.getFullYear(), moisChoisiDebut.getMonth() + 1, 0);
 
     const rows: Row[] = [];
     reservations.forEach((r) => {
@@ -659,6 +662,8 @@ export default function PlanningView({
         include = rangesOverlap(r.date_debut, r.date_fin, toStr(prochainStart), toStr(prochainEnd));
       else if (filter === "mois")
         include = rangesOverlap(r.date_debut, r.date_fin, toStr(monthStart), toStr(monthEnd));
+      else if (filter === "mois_choisi")
+        include = rangesOverlap(r.date_debut, r.date_fin, toStr(moisChoisiDebut), toStr(moisChoisiFin));
       if (!include) return;
 
       rows.push({ client, r });
@@ -672,7 +677,7 @@ export default function PlanningView({
       byDate[key] = [...(byDate[key] || []), row];
     });
     return { byDate, todayStr };
-  }, [clients, reservations, filter]);
+  }, [clients, reservations, filter, moisChoisi]);
 
   const dateKeys = Object.keys(grouped.byDate).sort();
 
@@ -725,6 +730,28 @@ export default function PlanningView({
               </button>
             ))}
           </div>
+
+          {filter === "mois_choisi" && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMoisChoisi((m) => addMonths(m, -1))}
+                className="rounded-md border border-neutral-200 px-2 py-1 text-sm text-[#666666] hover:bg-[#fafafa]"
+              >
+                ‹
+              </button>
+              <span className="font-heading text-sm font-semibold capitalize text-[#171717]">
+                {monthLabel(moisChoisi)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMoisChoisi((m) => addMonths(m, 1))}
+                className="rounded-md border border-neutral-200 px-2 py-1 text-sm text-[#666666] hover:bg-[#fafafa]"
+              >
+                ›
+              </button>
+            </div>
+          )}
 
           {dateKeys.length === 0 && (
             <div className="text-sm text-neutral-400">Aucune activité sur cette période.</div>

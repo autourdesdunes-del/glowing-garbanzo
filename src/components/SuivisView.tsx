@@ -22,6 +22,7 @@ import {
 } from "@/lib/resa";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { VILLES_VOL } from "@/lib/constants";
+import { createClient } from "@/lib/supabase/client";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -31,6 +32,26 @@ function fmtDate(dateStr: string | null) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
+function VoirRibLink({ path }: { path: string }) {
+  const [loading, setLoading] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async (e) => {
+        e.stopPropagation();
+        setLoading(true);
+        const supabase = createClient();
+        const { data } = await supabase.storage.from("rib-screenshots").createSignedUrl(path, 3600);
+        setLoading(false);
+        if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+      }}
+      className="text-xs font-medium text-[#171717] underline hover:no-underline"
+    >
+      {loading ? "Ouverture…" : "Voir le RIB"}
+    </button>
+  );
+}
+
 function fmtDayColumn(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
@@ -1196,7 +1217,7 @@ export default function SuivisView({
           {remboursementRows.length === 0 && (
             <div className="text-sm text-neutral-400">Aucun remboursement enregistré.</div>
           )}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {remboursementRows.map((r) => {
               const client = clients.find((c) => c.id === r.client_id);
               if (!client) return null;
@@ -1204,40 +1225,68 @@ export default function SuivisView({
               const key = "remb-" + r.id;
               const isOpen = expanded[key];
               return (
-                <div key={r.id} className="rounded-md border border-neutral-200 bg-white">
+                <div
+                  key={r.id}
+                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm"
+                >
                   <div
                     onClick={() => toggleExpand(key)}
-                    className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
+                    className={`flex cursor-pointer flex-wrap items-center gap-3 px-4 py-3 ${
+                      r.statut === "Effectué" ? "bg-green-50" : "bg-[#f5a623]/10"
+                    }`}
                   >
-                    <span className="text-neutral-500">
-                      {fmtDate(r.date_probleme)}
+                    <span className="font-heading text-lg font-semibold text-[#171717]">
+                      {euros(r.montant)} €
                     </span>
-                    <span>
-                      <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} /> —{" "}
-                      {r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison}
-                    </span>
-                    <span className="text-neutral-500">
-                      {activite ? activite.nom_activite : "Non liée"}
-                    </span>
-                    <span>{euros(r.montant)} €</span>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                         r.statut === "Effectué"
-                          ? "bg-[#171717]/10 text-[#171717]"
-                          : "bg-[#f5a623]/20 text-[#666666]"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-[#f5a623]/20 text-[#8B4531]"
                       }`}
                     >
                       {r.statut}
                     </span>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-neutral-500">
+                      {r.mode}
+                    </span>
+                    <span className="flex-1" />
+                    <ClientNameLink nom={client.nom} onClick={() => onOpenClient(client.id)} />
                   </div>
+
+                  <div className="px-4 py-2 text-sm text-neutral-600">
+                    <strong className="text-[#171717]">
+                      {r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison}
+                    </strong>
+                    {" — "}
+                    {activite ? activite.nom_activite : "Aucune activité liée"}
+                  </div>
+
                   {isOpen && (
-                    <div className="space-y-1 border-t border-neutral-100 p-3 text-sm text-neutral-600">
-                      <div>Mode : {r.mode || "—"}</div>
-                      <div>Fait par : {r.par || "—"}</div>
-                      <div>
-                        Date du remboursement :{" "}
-                        {r.date_remboursement ? fmtDate(r.date_remboursement) : "—"}
+                    <div className="space-y-2 border-t border-neutral-100 px-4 py-3 text-sm text-neutral-600">
+                      {r.details && (
+                        <div className="rounded-md bg-[#fafafa] p-3 text-[#171717]">{r.details}</div>
+                      )}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          Date de l&apos;activité :{" "}
+                          {activite?.date_debut ? fmtDate(activite.date_debut) : "—"}
+                        </div>
+                        <div>Date de l&apos;annulation : {fmtDate(r.date_probleme)}</div>
+                        <div>Fait par : {r.par || "—"}</div>
+                        <div>
+                          Date du remboursement :{" "}
+                          {r.date_remboursement ? fmtDate(r.date_remboursement) : "—"}
+                        </div>
                       </div>
+                      {r.mode === "PayPal" && r.paypal_email && (
+                        <div>Adresse PayPal : {r.paypal_email}</div>
+                      )}
+                      {r.mode === "Virement bancaire" && r.rib_photo_path && (
+                        <div>
+                          <VoirRibLink path={r.rib_photo_path} />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

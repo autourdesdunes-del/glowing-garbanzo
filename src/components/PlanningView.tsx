@@ -214,6 +214,13 @@ function ActivityDetailModal({
   // Le calcul du restant à payer a besoin des réservations de CE client
   // uniquement — jamais du tableau global toutes activités confondues.
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
+  // Le solde peut être en attente de règlement sur une AUTRE activité déjà
+  // identifiée (solde_activite_id pointe ailleurs) — dans ce cas on
+  // renseigne où et quand, plutôt que de ne rien dire du tout.
+  const soldeActiviteAilleurs =
+    !soldeIci && !client.solde_paye && client.solde_activite_id
+      ? clientReservations.find((rr) => rr.id === client.solde_activite_id) || null
+      : null;
   const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
 
@@ -299,14 +306,24 @@ function ActivityDetailModal({
           </div>
         )}
 
-        {soldeIci && (
+        {(soldeIci || soldeActiviteAilleurs) && (
           <div className="mt-3 rounded-md bg-[#C9973E]/10 p-3 text-sm">
             <button
               type="button"
               onClick={() => setShowSoldeDetail((v) => !v)}
               className="flex w-full items-center justify-between gap-2 text-left font-medium text-[#8B4531]"
             >
-              <span>💰 Solde du séjour collecté ici — {client.solde_paye ? "Payé" : "À régler"}</span>
+              <span>
+                {soldeIci
+                  ? `💰 Solde du séjour collecté ici — ${client.solde_paye ? "Payé" : "À régler"}`
+                  : `💰 Solde du séjour collecté ultérieurement — ${
+                      soldeActiviteAilleurs!.nom_activite || "Activité"
+                    }${
+                      soldeActiviteAilleurs!.date_debut
+                        ? ` (${fmtDate(soldeActiviteAilleurs!.date_debut)})`
+                        : ""
+                    }`}
+              </span>
               <span className="text-xs">{showSoldeDetail ? "▲" : "▼"}</span>
             </button>
             {showSoldeDetail && (

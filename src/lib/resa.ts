@@ -291,6 +291,15 @@ export function groupeExtraCounts(nbAd: number, nbEnf: number, basePax: number) 
   };
 }
 
+// Détecte l'intention "2ème île" sur le nom d'une option de manière souple
+// (pas une égalité stricte avec le preset "2ème île") — certains catalogues
+// ont déjà leur propre libellé pour cette option (ex. "Ajout d'une 2è île
+// (=2 pax)"), créé avant l'ajout du preset ou reformulé à la main.
+export function isDeuxiemeIleOption(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return n.includes("île") && (n.includes("2") || n.includes("deux"));
+}
+
 // Affichage d'une option sur les cartes — les options vendues par
 // participant (ex. Parachute, quantite > 1) doivent montrer le nombre
 // dessus ("+5 participants Parachute"), les autres restent un simple nom.

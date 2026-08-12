@@ -20,6 +20,7 @@ import {
 import {
   groupeExtraCounts,
   formatOptionLabel,
+  isDeuxiemeIleOption,
   hideMoment,
   isSpeedboatPriveMaisonDauphins,
   needsMomentSpeedboat,
@@ -847,7 +848,7 @@ export default function ReservationCard({
         <p className="mb-1 text-sm font-medium text-neutral-700">Options</p>
         {options.map((o) => {
           const isParachute = o.nom === "Parachute";
-          const is2emeIle = o.nom === "2ème île";
+          const is2emeIle = isDeuxiemeIleOption(o.nom);
           return (
             <div key={o.id} className="mb-2 flex flex-wrap items-center gap-2">
               <select

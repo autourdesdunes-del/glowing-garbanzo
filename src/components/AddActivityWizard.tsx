@@ -14,6 +14,7 @@ import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib
 import {
   groupeExtraCounts,
   isChevalOuChameau,
+  isDeuxiemeIleOption,
   isSpeedboatFixedJournee,
   isSpeedboatPriveMaisonDauphins,
   needsMomentSpeedboat,
@@ -1209,7 +1210,7 @@ export default function AddActivityWizard({
       <>
         {options.map((o) => {
           const isParachute = o.nom === "Parachute";
-          const is2emeIle = o.nom === "2ème île";
+          const is2emeIle = isDeuxiemeIleOption(o.nom);
           return (
             <div key={o.id} className="mb-2 flex flex-wrap items-center gap-2">
               <select

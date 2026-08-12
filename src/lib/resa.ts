@@ -281,6 +281,39 @@ export function isQuad(nom: string) {
   return (nom || "").toLowerCase().includes("quad");
 }
 
+// Moment de la journée effectif d'une réservation, tous champs confondus —
+// "creneau" (cheval/quad) et "moment" (speedboat…) désignent la même notion
+// sous deux noms différents selon le type d'activité. "Journée" et "Plusieurs
+// jours" ne sont pas un moment précis, donc ignorés pour la détection de
+// chevauchement ci-dessous.
+export function momentDeLaJournee(r: Reservation) {
+  if (r.creneau) return r.creneau;
+  if (r.moment && r.moment !== "Journée" && r.moment !== "Plusieurs jours") return r.moment;
+  return "";
+}
+
+// Deux activités du même client à la même date et au même moment de la
+// journée sont probablement une erreur de saisie (l'équipe ne peut pas être
+// à deux endroits en même temps) — on renvoie la première réservation en
+// conflit avec celle qui vient d'être modifiée, pour prévenir tout de suite.
+export function findMomentConflict(
+  reservations: Reservation[],
+  reservationId: string
+): Reservation | null {
+  const current = reservations.find((r) => r.id === reservationId);
+  if (!current || !current.date_debut) return null;
+  const moment = momentDeLaJournee(current);
+  if (!moment) return null;
+  return (
+    reservations.find(
+      (r) =>
+        r.id !== reservationId &&
+        r.date_debut === current.date_debut &&
+        momentDeLaJournee(r).toLowerCase() === moment.toLowerCase()
+    ) || null
+  );
+}
+
 // Nombre d'animaux à réserver, affiché en anglais à côté du titre (équipe
 // côté Égypte) avec une icône "important" — calculé à l'affichage plutôt
 // que figé dans le titre au moment de la création, pour rester juste même
@@ -403,6 +436,76 @@ export function participantsFor(r: Reservation, client: Client) {
   // total d'enfants du séjour.
   const nbEnf3 = r.participants_mode === "tous" ? 0 : Number(r.participants_enfants_3ans) || 0;
   return { nbAd, nbEnf, nbAcc, nbEnf3 };
+}
+
+// Activités "partagées" (un même véhicule/bateau pour plusieurs clients) où
+// on veut pousser les ventes pour remplir un groupe plutôt que d'en ouvrir
+// un second à moitié vide. La capacité sert à calculer le reste (voir
+// sharedActivityAlerts) — jamais à comparer le total brut au seuil, sinon
+// un groupe qui dépasse la capacité (nouveau véhicule entamé) arrête d'être
+// signalé alors qu'il a justement besoin d'être rempli à son tour.
+export type SharedActivityInfo = { label: string; capacite: number };
+
+export function sharedActivityCapacity(nom: string): SharedActivityInfo | null {
+  const n = (nom || "").toLowerCase();
+  if (n.includes("speedboat") && n.includes("semi") && n.includes("dauphins")) {
+    return { label: "Speedboat semi-privé maison des dauphins", capacite: 6 };
+  }
+  if (n.includes("speedboat") && n.includes("semi") && n.includes("oziréa")) {
+    return { label: "Speedboat semi-privé Oziréa", capacite: 6 };
+  }
+  if (n.includes("speedboat") && n.includes("semi") && n.includes("magawish")) {
+    return { label: "Speedboat semi-privé Magawish", capacite: 6 };
+  }
+  if (n.includes("caire") && n.includes("mini-bus") && n.includes("vip")) {
+    return { label: "Le Caire en mini-bus VIP", capacite: 8 };
+  }
+  if (n.includes("caire") && n.includes("mini-bus")) {
+    return { label: "Le Caire en mini-bus", capacite: 8 };
+  }
+  if (n.includes("louxor") && n.includes("mini-bus")) {
+    return { label: "Louxor en mini-bus", capacite: 8 };
+  }
+  return null;
+}
+
+export type SharedActivityAlert = {
+  label: string;
+  date: string;
+  capacite: number;
+  reste: number;
+};
+
+// Une alerte par (activité, date) dès qu'un groupe est entamé mais pas
+// complet — le reste de la division par la capacité, pas le seuil brut :
+// 2 pers. → reste 2 (à remplir) ; 6 pers. (bateau plein) → reste 0, silence ;
+// 8 pers. → reste 2, un DEUXIÈME bateau vient de s'ouvrir avec 2 personnes,
+// l'alerte revient donc automatiquement au lieu de rester éteinte.
+export function sharedActivityAlerts(
+  clients: Client[],
+  reservations: Reservation[],
+  todayStr: string,
+  endStr: string
+): SharedActivityAlert[] {
+  const totals = new Map<string, number>();
+  reservations.forEach((r) => {
+    if (!r.date_debut || r.date_debut < todayStr || r.date_debut > endStr) return;
+    const info = sharedActivityCapacity(r.nom_activite);
+    if (!info) return;
+    const client = clients.find((c) => c.id === r.client_id);
+    if (!client) return;
+    const { nbAd, nbEnf } = participantsFor(r, client);
+    const key = `${info.label}|${r.date_debut}|${info.capacite}`;
+    totals.set(key, (totals.get(key) || 0) + nbAd + nbEnf);
+  });
+  const alerts: SharedActivityAlert[] = [];
+  totals.forEach((total, key) => {
+    const [label, date, capaciteStr] = key.split("|");
+    const capacite = Number(capaciteStr);
+    const reste = total % capacite;
+    if (reste > 0) alerts.push({ label, date, capacite, reste });
+  });
+  return alerts.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function resaTotalMontant(

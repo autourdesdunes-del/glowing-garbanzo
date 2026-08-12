@@ -18,7 +18,8 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { resaTotalMontant } from "@/lib/resa";
+import { resaTotalMontant, sharedActivityAlerts, SharedActivityAlert } from "@/lib/resa";
+import { localDateStr } from "@/lib/dates";
 import { CLIENT_STATUTS, PROSPECT_STATUTS, STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import DashboardView from "@/components/DashboardView";
@@ -250,6 +251,8 @@ function AppShellInner({
   const [catalogueOptions, setCatalogueOptions] = useState<Record<string, CatalogueOption[]>>({});
   const [catalogueFaq, setCatalogueFaq] = useState<Record<string, CatalogueFaq[]>>({});
   const [allResaTarifs, setAllResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
+  const [sharedAlerts, setSharedAlerts] = useState<SharedActivityAlert[]>([]);
+  const [showSharedAlertPopup, setShowSharedAlertPopup] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -299,6 +302,59 @@ function AppShellInner({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Activités partagées (speedboat semi-privé, mini-bus) pas encore
+  // remplies dans les 7 prochains jours — requête dédiée et légère (pas le
+  // fetch complet de "reservations", inutile de charger toute la table
+  // juste pour ce contrôle qui peut se déclencher avant même que l'onglet
+  // Réservations ait été ouvert).
+  const fetchSharedAlerts = useCallback(async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = localDateStr(today);
+    const end = new Date(today);
+    end.setDate(end.getDate() + 7);
+    const endStr = localDateStr(end);
+    const { data } = await supabase
+      .from("reservations")
+      .select("*")
+      .gte("date_debut", todayStr)
+      .lte("date_debut", endStr);
+    const alerts = sharedActivityAlerts(clients, (data as Reservation[]) || [], todayStr, endStr);
+    setSharedAlerts(alerts);
+    if (alerts.length > 0) {
+      const now = new Date();
+      const slot = now.getHours() < 13 ? "am" : "pm";
+      const key = `adr_shared_alert_${localDateStr(now)}_${slot}`;
+      if (!window.localStorage.getItem(key)) setShowSharedAlertPopup(true);
+    }
+  }, [supabase, clients]);
+
+  // Rappel deux fois par jour (créneau matin / après-midi) tant qu'il reste
+  // un groupe entamé à remplir — un drapeau par jour+créneau dans
+  // localStorage, posé seulement quand l'employée ferme le popup, jamais à
+  // la simple vérification.
+  useEffect(() => {
+    if (!loaded) return;
+    const checkSlot = () => {
+      const now = new Date();
+      const slot = now.getHours() < 13 ? "am" : "pm";
+      const key = `adr_shared_alert_${localDateStr(now)}_${slot}`;
+      if (window.localStorage.getItem(key)) return;
+      fetchSharedAlerts();
+    };
+    checkSlot();
+    const id = setInterval(checkSlot, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [loaded, fetchSharedAlerts]);
+
+  const dismissSharedAlertPopup = () => {
+    const now = new Date();
+    const slot = now.getHours() < 13 ? "am" : "pm";
+    const key = `adr_shared_alert_${localDateStr(now)}_${slot}`;
+    window.localStorage.setItem(key, "1");
+    setShowSharedAlertPopup(false);
+  };
 
   useEffect(() => {
     if (
@@ -874,6 +930,59 @@ function AppShellInner({
         currentUserId={userId}
       />
       <BusEscalationCenter profiles={teamProfiles} currentUserId={userId} />
+      {showSharedAlertPopup && sharedAlerts.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📣</span>
+              <p className="font-heading text-base font-semibold text-[#171717]">
+                À remplir en priorité cette semaine
+              </p>
+            </div>
+            <p className="mt-1 text-xs text-neutral-500">
+              {sharedAlerts.length} sortie{sharedAlerts.length > 1 ? "s" : ""} partagée
+              {sharedAlerts.length > 1 ? "s" : ""} {sharedAlerts.length > 1 ? "ont" : "a"} encore des
+              places libres. Poussez-les dans vos ventes.
+            </p>
+            <div className="mt-4 space-y-2">
+              {sharedAlerts.map((a) => {
+                const d = new Date(a.date + "T00:00:00");
+                const dateLabel = d.toLocaleDateString("fr-FR", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                });
+                const rempli = a.capacite - a.reste;
+                return (
+                  <div key={`${a.label}-${a.date}`} className="rounded-md border border-[#eaeaea] p-3">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-sm font-medium text-[#171717]">{a.label}</p>
+                      <span className="whitespace-nowrap text-xs text-neutral-500">{dateLabel}</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#f5a623]/20">
+                        <div
+                          className="h-full rounded-full bg-[#C9973E]"
+                          style={{ width: `${Math.round((rempli / a.capacite) * 100)}%` }}
+                        />
+                      </div>
+                      <span className="whitespace-nowrap text-xs font-medium text-[#8B4531]">
+                        {rempli} / {a.capacite} places
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              onClick={dismissSharedAlertPopup}
+              className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              J&apos;ai compris
+            </button>
+          </div>
+        </div>
+      )}
       <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white">
         <div className="flex items-center gap-2.5 px-4 py-5">
           <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">

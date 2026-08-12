@@ -257,7 +257,9 @@ export type Client = {
   acompte_paye: boolean;
   acompte_date_encaissement: string | null;
   au_revoir_envoye: boolean;
+  au_revoir_envoye_le: string | null;
   avis_envoye: boolean;
+  avis_envoye_le: string | null;
   avis_statut: "À demander" | "À ne pas demander" | "Déjà publié";
   tags: string[];
   prochain_appel_date: string | null;
@@ -324,7 +326,9 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   acompte_paye: false,
   acompte_date_encaissement: null,
   au_revoir_envoye: false,
+  au_revoir_envoye_le: null,
   avis_envoye: false,
+  avis_envoye_le: null,
   avis_statut: "À demander",
   tags: [],
   prochain_appel_date: null,

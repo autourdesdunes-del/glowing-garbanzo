@@ -721,11 +721,14 @@ export default function SuivisView({
     .filter((x) => x.dateCible <= todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
 
+  // "Récemment" se base sur la date RÉELLE où l'employée a coché "Envoyé"
+  // (au_revoir_envoye_le), pas sur la date cible théorique — sinon un
+  // message envoyé en retard (coché aujourd'hui, dû il y a 6 jours)
+  // disparaîtrait immédiatement au lieu d'apparaître comme envoyé aujourd'hui.
   const auRevoirEnvoyesRecemment = clients
-    .filter((c) => c.date_fin && c.au_revoir_envoye)
-    .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 1) }))
-    .filter((x) => daysBetween(todayStr, x.dateCible) <= 3)
-    .sort((a, b) => b.dateCible.localeCompare(a.dateCible));
+    .filter((c) => c.au_revoir_envoye && c.au_revoir_envoye_le)
+    .filter((c) => daysBetween(todayStr, c.au_revoir_envoye_le as string) <= 3)
+    .sort((a, b) => (b.au_revoir_envoye_le as string).localeCompare(a.au_revoir_envoye_le as string));
 
   const auRevoirUpcomingRows = clients
     .filter((c) => c.date_fin && !c.au_revoir_envoye)
@@ -734,13 +737,18 @@ export default function SuivisView({
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
 
   const avisRows = clients
-    .filter((c) => c.date_fin)
+    .filter((c) => c.date_fin && !c.avis_envoye)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 7) }))
     .filter((x) => x.dateCible <= todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
 
+  const avisEnvoyesRecemment = clients
+    .filter((c) => c.avis_envoye && c.avis_envoye_le)
+    .filter((c) => daysBetween(todayStr, c.avis_envoye_le as string) <= 3)
+    .sort((a, b) => (b.avis_envoye_le as string).localeCompare(a.avis_envoye_le as string));
+
   const avisUpcomingRows = clients
-    .filter((c) => c.date_fin)
+    .filter((c) => c.date_fin && !c.avis_envoye)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 7) }))
     .filter((x) => x.dateCible > todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
@@ -1316,7 +1324,10 @@ export default function SuivisView({
                           type="checkbox"
                           checked={c.au_revoir_envoye}
                           onChange={(e) =>
-                            onUpdateClient(c.id, { au_revoir_envoye: e.target.checked })
+                            onUpdateClient(c.id, {
+                              au_revoir_envoye: e.target.checked,
+                              au_revoir_envoye_le: e.target.checked ? todayStr : null,
+                            })
                           }
                         />
                         Envoyé
@@ -1336,13 +1347,15 @@ export default function SuivisView({
               <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
             )}
             <div className="space-y-3">
-              {auRevoirEnvoyesRecemment.map(({ c, dateCible }) => (
+              {auRevoirEnvoyesRecemment.map((c) => (
                 <div
                   key={c.id}
                   className="overflow-hidden rounded-lg border border-green-200 bg-green-50 p-4 shadow-sm"
                 >
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
+                    <span className="text-xs font-medium text-neutral-500">
+                      Envoyé le {fmtDate(c.au_revoir_envoye_le)}
+                    </span>
                     <ClientNameLink
                       nom={c.nom}
                       onClick={() => onOpenClient(c.id)}
@@ -1357,7 +1370,12 @@ export default function SuivisView({
                     <input
                       type="checkbox"
                       checked={c.au_revoir_envoye}
-                      onChange={(e) => onUpdateClient(c.id, { au_revoir_envoye: e.target.checked })}
+                      onChange={(e) =>
+                        onUpdateClient(c.id, {
+                          au_revoir_envoye: e.target.checked,
+                          au_revoir_envoye_le: e.target.checked ? todayStr : null,
+                        })
+                      }
                     />
                     Envoyé
                   </label>
@@ -1435,23 +1453,85 @@ export default function SuivisView({
                         {lateDays > 1 ? "s" : ""}
                       </div>
                     )}
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
                       <button
                         onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
                         className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                       >
                         {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier le message"}
                       </button>
+                      <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+                        <input
+                          type="checkbox"
+                          checked={c.avis_envoye}
+                          onChange={(e) =>
+                            onUpdateClient(c.id, {
+                              avis_envoye: e.target.checked,
+                              avis_envoye_le: e.target.checked ? todayStr : null,
+                            })
+                          }
+                        />
+                        Envoyé
+                      </label>
                       <AvisStatutSelector
                         value={c.avis_statut}
-                        onChange={(v) =>
-                          onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })
-                        }
+                        onChange={(v) => onUpdateClient(c.id, { avis_statut: v })}
                       />
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">
+              Envoyés récemment (3 derniers jours)
+            </h3>
+            {avisEnvoyesRecemment.length === 0 && (
+              <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
+            )}
+            <div className="space-y-3">
+              {avisEnvoyesRecemment.map((c) => (
+                <div
+                  key={c.id}
+                  className="overflow-hidden rounded-lg border border-green-200 bg-green-50 p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-medium text-neutral-500">
+                      Envoyé le {fmtDate(c.avis_envoye_le)}
+                    </span>
+                    <ClientNameLink
+                      nom={c.nom}
+                      onClick={() => onOpenClient(c.id)}
+                      className="font-heading text-base font-semibold text-[#171717] hover:underline"
+                    />
+                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                    <span className="ml-auto rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      Envoyé ✓
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+                      <input
+                        type="checkbox"
+                        checked={c.avis_envoye}
+                        onChange={(e) =>
+                          onUpdateClient(c.id, {
+                            avis_envoye: e.target.checked,
+                            avis_envoye_le: e.target.checked ? todayStr : null,
+                          })
+                        }
+                      />
+                      Envoyé
+                    </label>
+                    <AvisStatutSelector
+                      value={c.avis_statut}
+                      onChange={(v) => onUpdateClient(c.id, { avis_statut: v })}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -1478,9 +1558,7 @@ export default function SuivisView({
                   <div className="mt-3">
                     <AvisStatutSelector
                       value={c.avis_statut}
-                      onChange={(v) =>
-                        onUpdateClient(c.id, { avis_statut: v, avis_envoye: v === "Déjà publié" })
-                      }
+                      onChange={(v) => onUpdateClient(c.id, { avis_statut: v })}
                     />
                   </div>
                 </div>

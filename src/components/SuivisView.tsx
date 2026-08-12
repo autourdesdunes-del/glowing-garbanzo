@@ -1606,7 +1606,7 @@ export default function SuivisView({
             {remboursementsEnAttente.length === 0 && (
               <div className="text-sm text-neutral-400">Rien en attente.</div>
             )}
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {remboursementsEnAttente.map((r) => {
                 const client = clients.find((c) => c.id === r.client_id);
                 if (!client) return null;
@@ -1645,7 +1645,7 @@ export default function SuivisView({
                         <p className="mb-2 text-xs font-medium text-neutral-400">
                           Semaine du {fmtDate(semaine)}
                         </p>
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           {rows.map((r) => {
                             const client = clients.find((c) => c.id === r.client_id);
                             if (!client) return null;
@@ -1672,7 +1672,7 @@ export default function SuivisView({
               {remboursementsSansDate.length > 0 && (
                 <div>
                   <h4 className="mb-2 text-sm font-semibold text-neutral-400">Date inconnue</h4>
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {remboursementsSansDate.map((r) => {
                       const client = clients.find((c) => c.id === r.client_id);
                       if (!client) return null;

@@ -96,49 +96,49 @@ function ReservationSummaryCard({
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
   const { nbAd, nbEnf } = participantsFor(r, client);
   const soldeIci = client.solde_activite_id === r.id;
-  const statutPaiement = soldeIci ? (client.solde_paye ? "Payé" : "À régler") : null;
-  const infoStatut =
-    client.infos_manquantes.length && !client.infos_manquantes.includes("Complet")
-      ? client.infos_manquantes[0]
-      : "Complet";
+  const badge = paiementBadge(client, r);
+  const infoComplet = !client.infos_manquantes.length || client.infos_manquantes.includes("Complet");
+  const infoStatut = infoComplet ? null : client.infos_manquantes[0];
 
   return (
     <div
       onClick={onClick}
       className="cursor-pointer rounded-md border border-[#666666]/20 bg-white p-3"
     >
-      <p className="font-medium text-[#171717]">
-        {r.nom_activite || "Activité"}
-        {soldeIci && !client.solde_paye && (
-          <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-medium text-[#171717]">{r.nom_activite || "Activité"}</p>
+        {r.moment && (
+          <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-semibold text-white">
+            {r.moment}
+          </span>
         )}
-      </p>
+        {soldeIci && !client.solde_paye && (
+          <span className="text-xs text-red-600">⚠️ solde à régler ici</span>
+        )}
+      </div>
       <p className="mt-1 text-xs text-neutral-500">
         {fmtDate(r.date_debut as string)}
-        {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""} · {r.moment}
+        {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
         {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
       </p>
       <p className="text-sm font-medium text-[#171717]">{client.nom || "Sans nom"}</p>
       <p className="mt-1 text-xs text-neutral-500">
         {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
+        {nbEnf > 0 && client.ages_enfants ? ` (âges : ${client.ages_enfants})` : ""}
       </p>
-      <div className="mt-2 flex items-center justify-between">
-        {soldeIci ? (
-          <span className="rounded-full bg-[#f5a623] px-2 py-0.5 text-xs text-white">
-            💰 Solde — {statutPaiement}
-          </span>
-        ) : (
-          <span />
-        )}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
+          {badge.label}
+        </span>
         <span className="font-amounts text-sm">{euros(total)} €</span>
       </div>
-      <span
-        className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs ${
-          infoStatut === "Complet" ? "bg-[#171717]/10 text-[#171717]" : "bg-red-50 text-red-600"
-        }`}
-      >
-        {infoStatut}
-      </span>
+      {infoComplet ? (
+        <p className="mt-2 text-[10px] text-neutral-400">dossier complet ✔️</p>
+      ) : (
+        <span className="mt-2 inline-block rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">
+          {infoStatut}
+        </span>
+      )}
     </div>
   );
 }
@@ -399,7 +399,7 @@ export default function PlanningView({
   resaTarifs: Record<string, ReservationTarif[]>;
   onOpenClient: (clientId: string) => void;
 }) {
-  const [vue, setVue] = useState<"liste" | "calendrier">("liste");
+  const [vue, setVue] = useState<"liste" | "calendrier">("calendrier");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("aujourdhui");
   const [activeActivity, setActiveActivity] = useState<Row | null>(null);
 

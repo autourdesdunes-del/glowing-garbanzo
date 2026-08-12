@@ -242,7 +242,16 @@ function AppShellInner({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [teamView, setTeamView] = useState<"liste" | "pipeline">("liste");
+  // Liste/Pipeline est un toggle par onglet : Clients démarre en Liste,
+  // Prospects démarre en Pipeline (vue Kommo par défaut) — chacun garde son
+  // propre choix ensuite si l'utilisateur bascule.
+  const [teamViewByMode, setTeamViewByMode] = useState<{
+    team: "liste" | "pipeline";
+    prospects: "liste" | "pipeline";
+  }>({ team: "liste", prospects: "pipeline" });
+  const teamView = mode === "prospects" ? teamViewByMode.prospects : teamViewByMode.team;
+  const setTeamView = (v: "liste" | "pipeline") =>
+    setTeamViewByMode((prev) => ({ ...prev, [mode === "prospects" ? "prospects" : "team"]: v }));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [allReservations, setAllReservations] = useState<Reservation[]>([]);
   const [allCoutsMap, setAllCoutsMap] = useState<Record<string, number>>({});
@@ -1175,7 +1184,20 @@ function AppShellInner({
 
       {(mode === "team" || mode === "prospects") && (
         <div className="flex flex-1 flex-col">
-          <div className="flex justify-end gap-1 border-b border-[#666666]/10 bg-white px-3 py-1.5">
+          <div className="flex items-center justify-between gap-2 border-b border-[#666666]/10 bg-white px-3 py-1.5">
+            {mode === "prospects" && teamView === "pipeline" ? (
+              <QuickAddClient
+                onCreate={addClient}
+                onUpdateClient={updateClientById}
+                clients={clients}
+                onDeleteClient={deleteClient}
+                onOpenClient={openClient}
+                defaultStatut="Prospect"
+              />
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-1">
             <button
               onClick={() => setTeamView("liste")}
               className={`rounded-md px-2.5 py-1 text-xs font-medium ${
@@ -1196,6 +1218,7 @@ function AppShellInner({
             >
               Pipeline
             </button>
+            </div>
           </div>
 
           {teamView === "pipeline" ? (

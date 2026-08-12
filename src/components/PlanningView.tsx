@@ -5,6 +5,7 @@ import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
+  avoirUtiliseTotal,
   chevalChameauBadge,
   cleanActivityTitle,
   formatOptionLabel,
@@ -287,11 +288,28 @@ function ActivityDetailModal({
     !soldeIci && !client.solde_paye && client.solde_activite_id
       ? clientReservations.find((rr) => rr.id === client.solde_activite_id) || null
       : null;
-  // Solde en attente sans aucune activité de collecte identifiée — un trou
-  // dans le suivi qui doit se voir, sous peine de finir sans jamais être
-  // encaissé.
-  const soldeSansActivite = !soldeIci && !client.solde_paye && !client.solde_activite_id;
+  // Un RDV paiement déjà planifié (à l'hôtel) est un cas normal, pas un trou
+  // dans le suivi — le solde n'est simplement pas rattaché à une activité
+  // puisqu'il se règle ailleurs. Ne jamais le confondre avec un solde
+  // vraiment orphelin (aucune activité ET aucun RDV).
+  const rdvPlanifie =
+    !soldeIci &&
+    !client.solde_paye &&
+    !client.solde_activite_id &&
+    !!(client.solde_rdv_heure || client.solde_rdv_lieu);
+  // Solde en attente sans aucune activité de collecte NI RDV planifié — un
+  // vrai trou dans le suivi qui doit se voir, sous peine de finir sans
+  // jamais être encaissé.
+  const soldeSansActivite =
+    !soldeIci && !client.solde_paye && !client.solde_activite_id && !rdvPlanifie;
   const [showSoldeSansActiviteAlert, setShowSoldeSansActiviteAlert] = useState(soldeSansActivite);
+  const totalSejourClient = clientReservations.reduce(
+    (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
+    0
+  );
+  const acompteClient =
+    client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
+  const montantRdv = Math.max(totalSejourClient - acompteClient - avoirUtiliseTotal(clientReservations), 0);
   const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
 
@@ -536,6 +554,33 @@ function ActivityDetailModal({
         {soldeSansActivite && (
           <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-700">
             ⚠️ Solde du séjour en attente — pas encore rattaché à une activité de collecte, à surveiller.
+          </div>
+        )}
+
+        {rdvPlanifie && (
+          <div className="mt-3 rounded-md border border-blue-300 bg-blue-50 p-3 text-sm text-blue-700">
+            <p className="font-medium">📅 RDV paiement planifié</p>
+            <p className="mt-1">
+              {client.solde_date ? fmtDate(client.solde_date) : "Date à définir"}
+              {client.solde_rdv_heure ? ` — ${client.solde_rdv_heure}` : ""}
+              {client.solde_rdv_lieu ? ` — ${client.solde_rdv_lieu}` : ""}
+            </p>
+            <p className="mt-1 font-semibold">Montant : {euros(montantRdv)} €</p>
+            {clientReservations.length > 0 && (
+              <div className="mt-2 space-y-1 border-t border-blue-200 pt-2 text-xs">
+                {clientReservations.map((rr) => (
+                  <div key={rr.id} className="flex items-center justify-between gap-2">
+                    <span>
+                      {cleanActivityTitle(rr.nom_activite) || "Activité"}
+                      {rr.date_debut ? ` (${fmtDate(rr.date_debut)})` : ""}
+                    </span>
+                    <span>
+                      {euros(resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []))} €
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

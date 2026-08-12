@@ -15,8 +15,10 @@ import {
   groupeExtraCounts,
   isChevalOuChameau,
   isDeuxiemeIleOption,
+  isSafariQuadBase,
   isSpeedboatFixedJournee,
   isSpeedboatPriveMaisonDauphins,
+  needsCreneauSafariBuggy,
   needsMomentSpeedboat,
   participantsFor,
   resaTotalMontant,
@@ -90,6 +92,7 @@ type Step =
   | "date"
   | "ile"
   | "moment"
+  | "creneau"
   | "participants"
   | "monte"
   | "tarifs"
@@ -102,6 +105,7 @@ const STEP_TITLES: Record<Step, string> = {
   date: "Date de l'activité",
   ile: "Choix de l'île",
   moment: "Matin ou après-midi",
+  creneau: "Matin, après-midi ou coucher de soleil",
   participants: "Nombre de participants",
   monte: "Monte des enfants",
   tarifs: "Tarifs",
@@ -196,6 +200,7 @@ export default function AddActivityWizard({
   steps.push("date");
   if (catalogueItem && speedboatIleType(catalogueItem.nom)) steps.push("ile");
   if (catalogueItem && needsMomentSpeedboat(catalogueItem.nom)) steps.push("moment");
+  if (catalogueItem && needsCreneauSafariBuggy(catalogueItem.nom)) steps.push("creneau");
   steps.push("participants");
   if (showMonteStep) steps.push("monte");
   steps.push("tarifs", "options", "transfert");
@@ -580,7 +585,13 @@ export default function AddActivityWizard({
     const missingHoraire = isSpa && !r.horaire_souhaite;
     const nextStep = steps[steps.indexOf("date") + 1];
     const nextLabel =
-      nextStep === "ile" ? "Suivant — Île" : nextStep === "moment" ? "Suivant — Matin/après-midi" : "Suivant — Participants";
+      nextStep === "ile"
+        ? "Suivant — Île"
+        : nextStep === "moment"
+          ? "Suivant — Matin/après-midi"
+          : nextStep === "creneau"
+            ? "Suivant — Créneau"
+            : "Suivant — Participants";
 
     const goNext = () => {
       if (missingHoraire) {
@@ -629,7 +640,12 @@ export default function AddActivityWizard({
     const iType = speedboatIleType(catalogueItem?.nom || r.nom_activite);
     const missingIle = !r.ile_selectionnee;
     const nextStep = steps[steps.indexOf("ile") + 1];
-    const nextLabel = nextStep === "moment" ? "Suivant — Matin/après-midi" : "Suivant — Participants";
+    const nextLabel =
+      nextStep === "moment"
+        ? "Suivant — Matin/après-midi"
+        : nextStep === "creneau"
+          ? "Suivant — Créneau"
+          : "Suivant — Participants";
 
     const selectIle = (ile: string) => {
       onUpdateReservation(r.id, {
@@ -730,6 +746,55 @@ export default function AddActivityWizard({
         {validationError && missingMoment && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
             ⚠ Impossible de continuer — merci de sélectionner matin ou après-midi.
+          </div>
+        )}
+
+        {navButtons(goNext, "Suivant — Participants")}
+      </>
+    );
+  }
+
+  if (step === "creneau") {
+    const missingCreneau = !r.creneau;
+    const selectCreneau = (c: string) => {
+      onUpdateReservation(r.id, {
+        creneau: c,
+        ...(catalogueItem && !isCustomFlow && isSafariQuadBase(catalogueItem.nom)
+          ? { nom_activite: c === "Coucher de soleil" ? "Safari quad au coucher du soleil" : catalogueItem.nom }
+          : {}),
+      });
+      setValidationError(false);
+    };
+
+    const goNext = () => {
+      if (missingCreneau) {
+        setValidationError(true);
+        return;
+      }
+      setStep(steps[steps.indexOf("creneau") + 1]);
+    };
+
+    return wrap(
+      <>
+        <div className="flex gap-2">
+          {CRENEAUX_ACTIVITE.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => selectCreneau(c)}
+              className={`rounded-full border px-3 py-1 text-sm font-medium ${
+                r.creneau === c
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-neutral-300 text-neutral-600"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        {validationError && missingCreneau && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Impossible de continuer — merci de sélectionner un créneau.
           </div>
         )}
 

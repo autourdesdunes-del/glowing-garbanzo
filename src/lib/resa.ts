@@ -214,8 +214,10 @@ export function hideMoment(nomActivite: string, horaireSouhaite: string) {
 // moment (matin / après-midi, speedboat...) affiché à côté du titre de la
 // carte — un seul des deux est jamais renseigné selon le type d'activité.
 export function momentBadge(r: Reservation) {
-  if (r.creneau) return r.creneau;
-  if (r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite)) return r.moment;
+  // "Journée" est une formule fixe (jamais un vrai choix laissé à
+  // l'employée) — inutile de l'afficher, ça n'apporte aucune info.
+  if (r.creneau && r.creneau !== "Journée") return r.creneau;
+  if (r.moment && r.moment !== "Journée" && !hideMoment(r.nom_activite, r.horaire_souhaite)) return r.moment;
   return "";
 }
 
@@ -287,6 +289,20 @@ export function needsMomentSpeedboat(nom: string) {
   if (isSpeedboatSemiPriveMaisonDauphins(nom)) return false;
   if (isSpeedboatFixedJournee(nom)) return false;
   return true;
+}
+
+// Safari quad et Buggy (formules "classiques", pas "au coucher du soleil"
+// ni "& dîner spectacle" qui ont déjà un horaire fixe implicite) doivent
+// toujours préciser matin / après-midi / coucher de soleil.
+export function needsCreneauSafariBuggy(nom: string) {
+  const n = (nom || "").toLowerCase().trim();
+  return n === "safari quad" || n === "buggy";
+}
+
+// Choisir "Coucher de soleil" sur un Safari quad classique le transforme en
+// la formule dédiée du catalogue — pas de simple suffixe sur le titre.
+export function isSafariQuadBase(nom: string) {
+  return (nom || "").toLowerCase().trim() === "safari quad";
 }
 
 // Pré-remplissage du forfait groupe : le forfait de base couvre déjà

@@ -138,6 +138,7 @@ export type Reservation = {
   photo_path: string;
   pointure: string;
   creneau: string;
+  site_caire: string;
   nb_conducteurs: number | null;
   nb_passagers: number | null;
   numero_vol: string;

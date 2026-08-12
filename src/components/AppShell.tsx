@@ -39,6 +39,7 @@ import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
 import AppelReminders from "@/components/AppelReminders";
+import BilletRappels from "@/components/BilletRappels";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 
 type Mode =
@@ -484,6 +485,11 @@ function AppShellInner({
   const openPickupsChambres = () => {
     setMode("suivis");
     setSuivisSub("j1");
+  };
+
+  const openBilletsAvion = () => {
+    setMode("suivis");
+    setSuivisSub("billets");
   };
 
   // Gardés par client (id -> ...) et non par un seul ref partagé : sinon,
@@ -934,6 +940,7 @@ function AppShellInner({
         currentUserId={userId}
       />
       <BusEscalationCenter profiles={teamProfiles} currentUserId={userId} />
+      <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />
       {showSharedAlertPopup && sharedAlerts.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl">
@@ -1157,6 +1164,7 @@ function AppShellInner({
               onOpenClient={openClient}
               onOpenRdvPaiements={openRdvPaiements}
               onOpenPickupsChambres={openPickupsChambres}
+              onOpenBilletsAvion={openBilletsAvion}
               onCreateClient={addClient}
               onUpdateClient={updateClientById}
               onDeleteClient={deleteClient}

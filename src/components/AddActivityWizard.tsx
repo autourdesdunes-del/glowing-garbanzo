@@ -10,7 +10,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
+import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS, SITES_CAIRE } from "@/lib/constants";
 import {
   groupeExtraCounts,
   isChevalOuChameau,
@@ -447,6 +447,12 @@ export default function AddActivityWizard({
     if (champsRequis.includes("Vol & horaire") && (!r.numero_vol.trim() || !r.horaire_vol.trim())) {
       missing.push("Vol & horaire");
     }
+    if (
+      champsRequis.includes("Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)") &&
+      !r.site_caire
+    ) {
+      missing.push("Site visité");
+    }
     champsRequisPersonnalises.forEach((c) => {
       if (!(r.champs_requis_coches || []).includes(c)) missing.push(c);
     });
@@ -567,6 +573,24 @@ export default function AddActivityWizard({
                 />
               </Field>
             </>
+          )}
+          {champsRequis.includes(
+            "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)"
+          ) && (
+            <Field label="Site visité *">
+              <select
+                value={r.site_caire}
+                onChange={(e) => onUpdateReservation(r.id, { site_caire: e.target.value })}
+                className={`input ${
+                  validationError && !r.site_caire ? "border-red-300 focus:border-red-400" : ""
+                }`}
+              >
+                <option value="">—</option>
+                {SITES_CAIRE.map((s) => (
+                  <option key={s}>{s}</option>
+                ))}
+              </select>
+            </Field>
           )}
         </div>
         {champsRequisPersonnalises.length > 0 && (

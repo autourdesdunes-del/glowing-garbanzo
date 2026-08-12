@@ -131,6 +131,12 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M4 16v-3.5h3.5" strokeLinecap="round" strokeLinejoin="round" />
     </>
   ),
+  plane: (
+    <path
+      d="M2.5 11.5 17 6l.9 1.6-6.4 4.3.9 5-1.8.6-2-4.5-3.5 2.4.2 2-1.4.4-.9-2.8-2.8-.9.4-1.4 2-.2 2.4-3.5-4.5-2Z"
+      strokeLinejoin="round"
+    />
+  ),
   phone: (
     <path
       d="M4.5 3.5h2.7l1 3.3-1.7 1.4a10 10 0 0 0 4.3 4.3l1.4-1.7 3.3 1v2.7c0 .8-.7 1.4-1.5 1.3C8.6 15.2 4.8 11.4 4 5.9c-.1-.8.5-1.4 1.3-1.4Z"
@@ -210,6 +216,7 @@ export default function DashboardView({
   onOpenClient,
   onOpenRdvPaiements,
   onOpenPickupsChambres,
+  onOpenBilletsAvion,
   onCreateClient,
   onUpdateClient,
   onDeleteClient,
@@ -223,6 +230,7 @@ export default function DashboardView({
   onOpenClient: (id: string) => void;
   onOpenRdvPaiements: () => void;
   onOpenPickupsChambres: () => void;
+  onOpenBilletsAvion: () => void;
   onCreateClient: (fields: {
     nom: string;
     telephone: string;
@@ -303,6 +311,10 @@ export default function DashboardView({
   const roomsMissingTomorrow = clientsArrivingTomorrow.filter(
     (c) => !c.chambre || c.infos_manquantes.includes("Room number")
   );
+
+  const billetsEnAttente = reservations
+    .filter((r) => r.billet_requis && r.billet_etape !== "termine" && (!r.billet_date || r.billet_date >= todayStr))
+    .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
 
   const auRevoirToday = clients.filter(
     (c) => c.date_fin && addDays(c.date_fin, 1) === todayStr && !c.au_revoir_envoye
@@ -621,6 +633,22 @@ export default function DashboardView({
                 title="RDV paiements aujourd'hui"
                 sub={rdvToday.length > 0 ? `${rdvToday.length} rendez-vous` : "Aucun aujourd'hui"}
                 onClick={rdvToday.length > 0 ? onOpenRdvPaiements : undefined}
+              />
+              <ActionRow
+                icon="plane"
+                title="Billets d'avion en attente"
+                sub={
+                  billetsEnAttente.length > 0
+                    ? billetsEnAttente
+                        .slice(0, 3)
+                        .map((r) => {
+                          const c = clients.find((cl) => cl.id === r.client_id);
+                          return `${c?.nom || "?"} — ${fmtDate(r.billet_date)}`;
+                        })
+                        .join(" · ") + (billetsEnAttente.length > 3 ? "…" : "")
+                    : "Aucun en attente"
+                }
+                onClick={billetsEnAttente.length > 0 ? onOpenBilletsAvion : undefined}
               />
               <ActionRow
                 icon="check"

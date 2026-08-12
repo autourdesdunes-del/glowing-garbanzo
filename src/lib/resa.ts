@@ -553,7 +553,16 @@ export function resaTotalMontant(
   // mode de tarification (forfait groupe pour ces speedboat) — appliqué
   // automatiquement dès que l'île est sélectionnée, jamais à saisir à la main.
   const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
-  return base + optionsTotal + tarifsTotal + transfert + supplementIle;
+  const supplementGEM = isGrandEgyptianMuseum(r.site_caire) ? nbAd * 20 + nbEnf * 10 : 0;
+  return base + optionsTotal + tarifsTotal + transfert + supplementIle + supplementGEM;
+}
+
+// Le Grand Egyptian Museum (nouveau musée) est en supplément par rapport aux
+// autres sites du Caire — appliqué automatiquement dès qu'il est choisi comme
+// site visité, jamais à saisir à la main. Gratuit pour les moins de 3 ans
+// (déjà exclus de nbEnf, voir participantsFor).
+export function isGrandEgyptianMuseum(siteCaire: string) {
+  return siteCaire === "Grand Egyptian Museum (nouveau musée)";
 }
 
 function fmtEuros(n: number) {
@@ -641,6 +650,14 @@ export function resaBreakdown(
     lines.push({
       label: `Supplément Oziréa (30 € x ${nbAd} ad. + 15 € x ${nbEnf} enf.)`,
       amount: supplementIle,
+    });
+  }
+
+  const supplementGEM = isGrandEgyptianMuseum(r.site_caire) ? nbAd * 20 + nbEnf * 10 : 0;
+  if (supplementGEM) {
+    lines.push({
+      label: `Supplément Grand Egyptian Museum (20 € x ${nbAd} ad. + 10 € x ${nbEnf} enf.)`,
+      amount: supplementGEM,
     });
   }
 

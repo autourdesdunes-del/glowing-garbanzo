@@ -10,7 +10,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS } from "@/lib/constants";
+import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS, SITES_CAIRE } from "@/lib/constants";
 import {
   groupeExtraCounts,
   billetEtapeShortLabel,
@@ -125,6 +125,14 @@ export default function ReservationCard({
     (!r.numero_vol.trim() || !r.horaire_vol.trim())
   ) {
     missingChamps.push("Vol & horaire");
+  }
+  if (
+    champsRequis.includes(
+      "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)"
+    ) &&
+    !r.site_caire
+  ) {
+    missingChamps.push("Site visité");
   }
   const champsRequisPersonnalises = champsRequis.filter(
     (c) => !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c)
@@ -893,6 +901,24 @@ export default function ReservationCard({
                 </Field>
               </>
             )}
+            {champsRequis.includes(
+              "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)"
+            ) && (
+              <Field label="Site visité *">
+                <select
+                  value={r.site_caire}
+                  onChange={(e) => onUpdate({ site_caire: e.target.value })}
+                  className={`input ${
+                    validationError && !r.site_caire ? "border-red-300 focus:border-red-400" : ""
+                  }`}
+                >
+                  <option value="">—</option>
+                  {SITES_CAIRE.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </Field>
+            )}
           </div>
           {champsRequisPersonnalises.length > 0 && (
             <div className="mt-3 space-y-2">
@@ -1144,7 +1170,16 @@ export default function ReservationCard({
           <div className="mt-3">
             <BilletAvionUpload
               path={r.billet_lien || null}
-              onChange={(path) => onUpdate({ billet_lien: path || "" })}
+              onChange={(path) => {
+                const patch: Partial<Reservation> = { billet_lien: path || "" };
+                // Le billet est là : on avance l'étape tout seul, ce qui
+                // coupe aussi les rappels à Hossam/équipe (BilletRappels ne
+                // relance que sur "attente_hossam").
+                if (path && (r.billet_etape === "attente_hossam" || r.billet_etape === "a_envoyer_hossam")) {
+                  patch.billet_etape = "a_envoyer_client";
+                }
+                onUpdate(patch);
+              }}
             />
           </div>
         </div>

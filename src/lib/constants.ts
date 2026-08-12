@@ -60,6 +60,13 @@ export const VILLES_VOL = [
 
 export const ASSIGNE_A_OPTIONS = ["Bode", "Sylvie", "Autre"] as const;
 
+// Email du compte Hossam (rôle Direction) — sert à distinguer, dans
+// BilletRappels, les rappels billet d'avion qu'il reçoit (en anglais,
+// "achetez le billet") de ceux que reçoit le reste de l'équipe (en
+// français, "relancez Hossam"). À corriger une fois son compte créé si
+// l'adresse réelle diffère.
+export const HOSSAM_EMAIL = "hossam@autourdesdunes.com";
+
 export const MOMENTS = ["Matin", "Après-midi", "Journée", "Plusieurs jours"] as const;
 export const OPTIONS_PRESETS = ["Guide francophone", "Privatif", "Parachute", "2ème île", "Autre"] as const;
 export const RAISONS_REMBOURSEMENT = [
@@ -144,9 +151,20 @@ export const CHAMPS_REQUIS_PRESETS = [
   "Créneau (matin / après-midi / coucher de soleil)",
   "Conducteurs & passagers",
   "Vol & horaire",
+  "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)",
 ] as const;
 
 export const CRENEAUX_ACTIVITE = ["Matin", "Après-midi", "Coucher de soleil"] as const;
+
+// Choix impératif du site visité pour les activités Le Caire (musée,
+// Saqqarah, citadelle, ou le nouveau Grand Egyptian Museum, qui applique un
+// supplément — voir GRAND_EGYPTIAN_MUSEUM_SUPPLEMENT dans resa.ts).
+export const SITES_CAIRE = [
+  "Musée du Caire (ancien musée)",
+  "Saqqarah",
+  "Citadelle Mohamed Ali",
+  "Grand Egyptian Museum (nouveau musée)",
+] as const;
 
 export const CATALOGUE_CATEGORIES = [
   "Excursion",

@@ -29,6 +29,20 @@ export function parseKommoFormBody(body: string): Record<string, unknown> {
   return root;
 }
 
+// Les employées ajoutent parfois un ✅ (ou variante) devant le nom dans
+// Kommo pour se signaler à elles-mêmes qu'une fiche a été vérifiée — utile
+// sur Kommo, mais ça ne doit jamais apparaître côté CRM. On retire aussi le
+// nom de famille en majuscules (convention "Prénom NOM"), le prénom gardant
+// la casse telle que saisie.
+export function cleanKommoName(raw: string): string {
+    const name = raw.replace(/[✅✔️✔☑️☑]/g, "").trim().replace(/\s+/g, " ");
+    if (!name) return name;
+    const parts = name.split(" ");
+    if (parts.length < 2) return name;
+    const [prenom, ...reste] = parts;
+    return `${prenom} ${reste.join(" ").toUpperCase()}`;
+}
+
 // Correspondance entre les étapes du pipeline Kommo (compte
 // autourdesdunes, pipeline "Pipeline" id 14220187) et le statut CRM.
 // Ids récupérés via GET /api/v4/leads/pipelines le 2026-08-08 — à mettre

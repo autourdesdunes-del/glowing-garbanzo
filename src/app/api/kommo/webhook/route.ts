@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchKommoLeadContactInfo } from "@/lib/kommoApi";
 import {
+    cleanKommoName,
     detectKommoEventType,
     extractContactEntries,
     extractCustomFieldValue,
@@ -116,15 +117,17 @@ async function processLeadEvent(
                                     kommo_synced_at: new Date().toISOString(),
                         };
                         if (mapped) patch.statut = mapped.statutCrm;
-                  
-                        const isPlaceholder = !existing.nom || existing.nom.startsWith("Lead Kommo #");
-                        if (isPlaceholder) {
-                                    const info = await fetchKommoLeadContactInfo(leadId);
-                                    if (info?.nom) patch.nom = info.nom;
-                                    if (info?.telephone && !existing.telephone) patch.telephone = info.telephone;
-                                    if (info?.email && !existing.email) patch.email = info.email;
-                        }
-                  
+
+                        // Le nom se resynchronise à chaque webhook (écrase une éventuelle
+                        // saisie manuelle) — demande explicite : c'est Kommo qui fait foi
+                        // pour le nom, et ça nettoie au passage le ✅ que les employées
+                        // ajoutent parfois devant le nom sur Kommo.
+                        const info = await fetchKommoLeadContactInfo(leadId);
+                        const cleanedNom = cleanKommoName(info?.nom || "");
+                        if (cleanedNom) patch.nom = cleanedNom;
+                        if (info?.telephone && !existing.telephone) patch.telephone = info.telephone;
+                        if (info?.email && !existing.email) patch.email = info.email;
+
                         await admin.from("clients").update(patch).eq("id", existing.id);
                         lastClientId = existing.id;
                         continue;
@@ -141,13 +144,14 @@ async function processLeadEvent(
                                     email = info.email;
                         }
               }
-          
+              nom = cleanKommoName(nom);
+
               let matchedId: string | null = null;
               if (telephone) {
                         const { data } = await admin.from("clients").select("id").eq("telephone", telephone).maybeSingle();
                         matchedId = data?.id ?? null;
               }
-          
+
               if (matchedId) {
                         await admin
                                     .from("clients")
@@ -157,6 +161,7 @@ async function processLeadEvent(
                                                   kommo_pipeline_status_nom: statusNom,
                                                   kommo_synced_at: new Date().toISOString(),
                                                   ...(mapped ? { statut: mapped.statutCrm } : {}),
+                                                  ...(nom ? { nom } : {}),
                                     })
                                     .eq("id", matchedId);
                         lastClientId = matchedId;
@@ -195,7 +200,7 @@ async function processContactEvent(
 
       const phone = extractCustomFieldValue(entry, "PHONE");
         const email = extractCustomFieldValue(entry, "EMAIL");
-        const nom = typeof entry.name === "string" ? entry.name : "";
+        const nom = cleanKommoName(typeof entry.name === "string" ? entry.name : "");
 
       const { data: existing } = await admin
           .from("clients")
@@ -205,9 +210,11 @@ async function processContactEvent(
 
       if (existing) {
               const patch: Record<string, unknown> = { kommo_synced_at: new Date().toISOString() };
-              // On ne remplace jamais une donnée déjà saisie par l'équipe, on ne
-          // comble que les champs vides.
-          if (!existing.nom && nom) patch.nom = nom;
+              // Le nom se resynchronise à chaque webhook (écrase une éventuelle
+              // saisie manuelle) — demande explicite, et ça nettoie au passage le
+              // ✅ ajouté parfois devant le nom côté Kommo. Téléphone/email ne se
+              // comblent eux que s'ils sont vides.
+          if (nom) patch.nom = nom;
               if (!existing.telephone && phone) patch.telephone = phone;
               if (!existing.email && email) patch.email = email;
               await admin.from("clients").update(patch).eq("id", existing.id);
@@ -230,7 +237,11 @@ async function processContactEvent(
       if (matchedId) {
               await admin
                 .from("clients")
-                .update({ kommo_contact_id: contactId, kommo_synced_at: new Date().toISOString() })
+                .update({
+                            kommo_contact_id: contactId,
+                            kommo_synced_at: new Date().toISOString(),
+                            ...(nom ? { nom } : {}),
+                })
                 .eq("id", matchedId);
               lastClientId = matchedId;
       } else {

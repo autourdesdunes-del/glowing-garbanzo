@@ -257,6 +257,21 @@ export function billetEtapeShortLabel(etape: string) {
   return BILLET_ETAPE_SHORT_LABELS[etape] || etape;
 }
 
+// Patch à appliquer quand la photo/le fichier du billet est ajouté (ou
+// retiré) à la réservation — factorisé pour que ReservationCard et la fiche
+// détail de Suivis > Billets d'avion avancent l'étape et horodatent la
+// réception exactement de la même façon (nécessaire pour que les rappels
+// "pensez à l'envoyer au client" démarrent au bon moment, peu importe où le
+// fichier a été déposé).
+export function billetUploadPatch(r: Reservation, path: string | null): Partial<Reservation> {
+  const patch: Partial<Reservation> = { billet_lien: path || "" };
+  if (path && (r.billet_etape === "attente_hossam" || r.billet_etape === "a_envoyer_hossam")) {
+    patch.billet_etape = "a_envoyer_client";
+    patch.billet_recu_le = new Date().toISOString();
+  }
+  return patch;
+}
+
 // Message prêt à coller dans le groupe WhatsApp "only flight ticket" avec
 // Hossam — dateLabel est déjà formatée par l'appelant (chaque écran a sa
 // propre fonction de format de date locale).

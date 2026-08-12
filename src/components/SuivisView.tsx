@@ -16,8 +16,11 @@ import {
   acompteWaitingWarning,
   activitePaiementWarning,
   billetEtapeShortLabel,
+  billetUploadPatch,
+  cleanActivityTitle,
   hideMoment,
   hossamBilletMessage,
+  isLeCaireEnAvion,
   paiementBadge,
   participantsFor,
   resaTotalMontant,
@@ -25,6 +28,7 @@ import {
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { BILLET_ETAPES, VILLES_VOL } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import BilletAvionUpload from "@/components/BilletAvionUpload";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -107,26 +111,6 @@ function BilletEtapeTracker({
         </span>
       )}
     </div>
-  );
-}
-
-function VoirBilletLink({ path }: { path: string }) {
-  const [loading, setLoading] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async (e) => {
-        e.stopPropagation();
-        setLoading(true);
-        const supabase = createClient();
-        const { data } = await supabase.storage.from("billets-avion").createSignedUrl(path, 3600);
-        setLoading(false);
-        if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-      }}
-      className="text-xs font-medium text-[#171717] underline hover:no-underline"
-    >
-      {loading ? "Ouverture…" : "Voir le billet"}
-    </button>
   );
 }
 
@@ -394,6 +378,7 @@ function BilletDetailModal({
   onCopy,
   onOpenClient,
   onUpdateReservation,
+  onOpenActivity,
   onClose,
 }: {
   r: Reservation;
@@ -402,6 +387,7 @@ function BilletDetailModal({
   onCopy: (key: string, text: string) => void;
   onOpenClient: (id: string) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onOpenActivity: () => void;
   onClose: () => void;
 }) {
   const { nbAd, nbEnf } = participantsFor(r, client);
@@ -410,7 +396,7 @@ function BilletDetailModal({
     `${nbAd} adultes${
       nbEnf ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}` : ""
     }`;
-  const isCaire = (r.nom_activite || "").toLowerCase().includes("caire");
+  const isCaire = isLeCaireEnAvion(r.nom_activite);
   const key = "billet-" + r.id;
 
   return (
@@ -438,6 +424,16 @@ function BilletDetailModal({
         </div>
 
         <div className="mt-2">
+          <PropertyRow label="Activité">
+            <button
+              type="button"
+              onClick={onOpenActivity}
+              className="text-[#0F5C56] hover:underline"
+            >
+              {cleanActivityTitle(r.nom_activite) || "Activité"}
+              {r.billet_date ? ` le ${fmtDate(r.billet_date)}` : ""} →
+            </button>
+          </PropertyRow>
           <PropertyRow label="Date">
             {r.billet_date ? fmtDate(r.billet_date) : "Date ?"}
           </PropertyRow>
@@ -474,11 +470,13 @@ function BilletDetailModal({
               onChange={(patch) => onUpdateReservation(r.id, patch)}
             />
           </PropertyRow>
-          {r.billet_lien && (
-            <PropertyRow label="Billet">
-              <VoirBilletLink path={r.billet_lien} />
-            </PropertyRow>
-          )}
+        </div>
+
+        <div className="mt-3 border-t border-[#eaeaea] pt-3">
+          <BilletAvionUpload
+            path={r.billet_lien || null}
+            onChange={(path) => onUpdateReservation(r.id, billetUploadPatch(r, path))}
+          />
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -771,6 +769,8 @@ export default function SuivisView({
   onUpdateReservation,
   onOpenClient,
   initialRdvModalClientId,
+  initialBilletId,
+  onOpenReservationActivity,
 }: {
   sub: SuivisSub;
   clients: Client[];
@@ -785,6 +785,8 @@ export default function SuivisView({
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onOpenClient: (id: string) => void;
   initialRdvModalClientId?: string | null;
+  initialBilletId?: string | null;
+  onOpenReservationActivity: (reservationId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [newAppelClientId, setNewAppelClientId] = useState("");
@@ -803,6 +805,13 @@ export default function SuivisView({
   const [rdvKanbanView, setRdvKanbanView] = useState<string>("demain");
   const [billetsMonthFilter, setBilletsMonthFilter] = useState<string>("a_venir");
   const [selectedBilletId, setSelectedBilletId] = useState<string | null>(null);
+  // Retour depuis "Voir l'activité" (ouverte dans Réservations) — même
+  // pattern de synchronisation que lastConsumedRdvId ci-dessus.
+  const [lastConsumedBilletId, setLastConsumedBilletId] = useState<string | null | undefined>(undefined);
+  if (initialBilletId && initialBilletId !== lastConsumedBilletId) {
+    setLastConsumedBilletId(initialBilletId);
+    setSelectedBilletId(initialBilletId);
+  }
   const toggleExpand = (key: string) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
   const copyText = async (key: string, text: string) => {
     try {
@@ -1887,7 +1896,7 @@ export default function SuivisView({
                           ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}`
                           : ""
                       }`;
-                    const isCaire = (r.nom_activite || "").toLowerCase().includes("caire");
+                    const isCaire = isLeCaireEnAvion(r.nom_activite);
                     const sameDateAsPrev = i > 0 && billetsRows[i - 1].billet_date === r.billet_date;
                     return (
                       <tr
@@ -1930,7 +1939,7 @@ export default function SuivisView({
 
           {selectedBilletId &&
             (() => {
-              const r = billetsRows.find((row) => row.id === selectedBilletId);
+              const r = reservations.find((row) => row.id === selectedBilletId);
               const client = r && clients.find((c) => c.id === r.client_id);
               if (!r || !client) return null;
               return (
@@ -1941,6 +1950,7 @@ export default function SuivisView({
                   onCopy={copyText}
                   onOpenClient={onOpenClient}
                   onUpdateReservation={onUpdateReservation}
+                  onOpenActivity={() => onOpenReservationActivity(r.id)}
                   onClose={() => setSelectedBilletId(null)}
                 />
               );

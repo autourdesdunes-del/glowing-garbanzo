@@ -378,6 +378,7 @@ function ActivityDetailModal({
   onOpenActivity,
   onOpenRdvPaiement,
   onClose,
+  onBack,
 }: {
   client: Client;
   r: Reservation;
@@ -388,6 +389,7 @@ function ActivityDetailModal({
   onOpenActivity: (r: Reservation) => void;
   onOpenRdvPaiement: (clientId: string) => void;
   onClose: () => void;
+  onBack?: () => void;
 }) {
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
@@ -514,6 +516,15 @@ function ActivityDetailModal({
           className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
           onClick={(e) => e.stopPropagation()}
         >
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="mb-2 flex items-center gap-1 text-xs font-medium text-[#0F5C56] hover:underline"
+            >
+              ← Retour au billet
+            </button>
+          )}
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="font-heading text-lg font-semibold text-[#171717]">
@@ -1092,6 +1103,8 @@ export default function PlanningView({
   catalogue,
   onOpenClient,
   onOpenRdvPaiement,
+  focusReservationId,
+  onBackToBillet,
 }: {
   sub: PlanningSub;
   clients: Client[];
@@ -1101,6 +1114,8 @@ export default function PlanningView({
   catalogue: CatalogueItem[];
   onOpenClient: (clientId: string) => void;
   onOpenRdvPaiement: (clientId: string) => void;
+  focusReservationId?: string | null;
+  onBackToBillet?: () => void;
 }) {
   const [vue, setVue] = useState<"liste" | "calendrier" | "par_activite">(subToVue(sub));
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>(
@@ -1117,6 +1132,16 @@ export default function PlanningView({
     setLastSub(sub);
     setVue(subToVue(sub));
     if (sub === "aujourdhui" || sub === "demain") setFilter(sub);
+  }
+
+  // Ouvre directement l'activité visée depuis "Voir l'activité" (fiche
+  // détail d'un billet dans Suivis) — même pattern de synchronisation.
+  const [lastFocusId, setLastFocusId] = useState<string | null | undefined>(undefined);
+  if (focusReservationId && focusReservationId !== lastFocusId) {
+    setLastFocusId(focusReservationId);
+    const r = reservations.find((rr) => rr.id === focusReservationId);
+    const client = r && clients.find((c) => c.id === r.client_id);
+    if (r && client) setActiveActivity({ client, r });
   }
 
   const grouped = useMemo(() => {
@@ -1272,6 +1297,7 @@ export default function PlanningView({
           onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
           onOpenRdvPaiement={onOpenRdvPaiement}
           onClose={() => setActiveActivity(null)}
+          onBack={activeActivity.r.id === focusReservationId ? onBackToBillet : undefined}
         />
       )}
     </div>

@@ -8,7 +8,7 @@ import {
   avoirUtiliseTotal,
   chevalChameauBadge,
   cleanActivityTitle,
-  formatOptionLabel,
+  isDeuxiemeIleOption,
   momentBadge,
   paiementBadge,
   participantsFor,
@@ -318,7 +318,17 @@ function ActivityDetailModal({
   // Bloc équipe Égypte : la traduction reste "au mieux" (dictionnaire de
   // vocabulaire métier récurrent), pas un vrai moteur de traduction.
   const activiteLines: string[] = [fmtDDMM(r.date_debut || ""), translateFr(baseActivityName(r.nom_activite))];
-  options.forEach((o) => activiteLines.push(translateFr(formatOptionLabel(o))));
+  // La "2ème île" n'est jamais listée comme option ici — elle est déjà dans
+  // le titre (ex. "avec Paradise + Hula Hula"), la répéter en dessous ferait
+  // doublon. Format volontairement sans "participants" (tournure française
+  // "N participants X") — juste la quantité et le nom, à l'anglaise.
+  options
+    .filter((o) => !isDeuxiemeIleOption(o.nom))
+    .forEach((o) => {
+      const qty = Number(o.quantite) || 1;
+      const label = translateFr(o.nom);
+      activiteLines.push(qty > 1 ? `${qty} ${label}` : label);
+    });
   const momentEn = momentBadge(r);
   if (momentEn) activiteLines.push(translateFr(momentEn));
   if (r.horaire_souhaite) activiteLines.push(`Time : ${r.horaire_souhaite}`);

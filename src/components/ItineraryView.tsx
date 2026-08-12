@@ -14,8 +14,8 @@ import {
   acompteWaitingWarning,
   activitePaiementWarning,
   formatOptionLabel,
-  hideMoment,
   isDeuxiemeIleOption,
+  momentBadge,
   paiementBadge,
   participantsFor,
   resaTotalMontant,
@@ -171,6 +171,11 @@ export default function ItineraryView({
             {r.nom_activite || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </span>
+          {momentBadge(r) && (
+            <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
+              {momentBadge(r)}
+            </span>
+          )}
           {(resaOptions[r.id] || [])
             .filter((o) => !isDeuxiemeIleOption(o.nom))
             .map((o) => (
@@ -212,7 +217,6 @@ export default function ItineraryView({
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
           <span>{day ? fmtDate(day) : "Date à définir"}</span>
-          {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) && <span>· {r.moment}</span>}
           {r.pickup_reel ? (
             <span>· Pick-up {r.pickup_reel}</span>
           ) : (

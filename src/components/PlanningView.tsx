@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import {
   activitePaiementWarning,
-  hideMoment,
+  momentBadge,
   paiementBadge,
   participantsFor,
   resaTotalMontant,
@@ -124,9 +124,9 @@ function ReservationSummaryCard({
           {r.nom_activite || "Activité"}
           {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
         </p>
-        {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) && (
-          <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-semibold text-white">
-            {r.moment}
+        {momentBadge(r) && (
+          <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+            {momentBadge(r)}
           </span>
         )}
         {paiementWarning && (
@@ -232,7 +232,7 @@ function ActivityDetailModal({
           <DetailRow label="Date">
             {fmtDate(r.date_debut || "")}
             {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
-            {r.moment ? ` · ${r.moment}` : ""}
+            {momentBadge(r) ? ` · ${momentBadge(r)}` : ""}
           </DetailRow>
           <DetailRow label="Paiement">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>

@@ -21,8 +21,8 @@ import {
   groupeExtraCounts,
   formatOptionLabel,
   isDeuxiemeIleOption,
-  hideMoment,
   isSpeedboatPriveMaisonDauphins,
+  momentBadge,
   needsMomentSpeedboat,
   paiementStatutKey,
   participantsFor,
@@ -187,6 +187,11 @@ export default function ReservationCard({
               {r.nom_activite || "Activité sans nom"}
               {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
             </span>
+            {momentBadge(r) && (
+              <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+                {momentBadge(r)}
+              </span>
+            )}
             {options
               .filter((o) => !isDeuxiemeIleOption(o.nom))
               .map((o) => (
@@ -239,6 +244,11 @@ export default function ReservationCard({
               <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
             )}
           </p>
+          {momentBadge(r) && (
+            <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+              {momentBadge(r)}
+            </span>
+          )}
           {options
             .filter((o) => !isDeuxiemeIleOption(o.nom))
             .map((o) => (
@@ -253,7 +263,6 @@ export default function ReservationCard({
         <p className="mt-1 text-xs text-neutral-500">
           {fmtDate(r.date_debut)}
           {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
-          {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) ? ` · ${r.moment}` : ""}
           {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
         </p>
         <p className="mt-1 text-xs text-neutral-500">

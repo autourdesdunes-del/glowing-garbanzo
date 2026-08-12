@@ -210,6 +210,15 @@ export function hideMoment(nomActivite: string, horaireSouhaite: string) {
   return isSpeedboatSunset(nomActivite);
 }
 
+// Le créneau (matin / après-midi / coucher de soleil, cheval-chameau) ou le
+// moment (matin / après-midi, speedboat...) affiché à côté du titre de la
+// carte — un seul des deux est jamais renseigné selon le type d'activité.
+export function momentBadge(r: Reservation) {
+  if (r.creneau) return r.creneau;
+  if (r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite)) return r.moment;
+  return "";
+}
+
 // Les îles proposées pour les formules speedboat privé "journée complète"
 // et "demi-journée" — le client doit en choisir une avant de continuer.
 export const SPEEDBOAT_ILES = ["Orange Bay", "Paradise", "Hula Hula", "Magawish", "Oziréa"] as const;

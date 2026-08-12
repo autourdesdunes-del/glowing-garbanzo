@@ -116,6 +116,10 @@ function addMonths(dateStr: string, n: number) {
   const d = new Date(dateStr + "T00:00:00");
   return localDateStr(new Date(d.getFullYear(), d.getMonth() + n, 1));
 }
+function monthEndOf(monthStartStr: string) {
+  const d = new Date(monthStartStr + "T00:00:00");
+  return localDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
 function monthLabel(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
@@ -154,7 +158,7 @@ function ReservationSummaryCard({
   resaTarifs,
   onClick,
   onOpenClient,
-  compact = false,
+  size = "full",
 }: {
   client: Client;
   r: Reservation;
@@ -163,7 +167,7 @@ function ReservationSummaryCard({
   resaTarifs: Record<string, ReservationTarif[]>;
   onClick: () => void;
   onOpenClient: (clientId: string) => void;
-  compact?: boolean;
+  size?: "full" | "medium" | "compact";
 }) {
   const options = resaOptions[r.id] || [];
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
@@ -177,7 +181,64 @@ function ReservationSummaryCard({
   const infoComplet = !client.infos_manquantes.length || client.infos_manquantes.includes("Complet");
   const infoStatut = infoComplet ? null : client.infos_manquantes[0];
 
-  if (compact) {
+  if (size === "medium") {
+    return (
+      <div
+        onClick={onClick}
+        className="cursor-pointer rounded-md border border-[#666666]/20 bg-white p-2.5"
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="text-sm font-medium leading-tight text-[#171717]">
+            {cleanActivityTitle(r.nom_activite) || "Activité"}
+            {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+          </p>
+          {momentBadge(r) && (
+            <span className="rounded-full bg-[#C9973E]/20 px-1.5 py-0.5 text-[10px] font-medium text-[#8B4531]">
+              {momentBadge(r)}
+            </span>
+          )}
+          {chevalChameauBadge(r, client) && (
+            <span className="rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              {chevalChameauBadge(r, client)}
+            </span>
+          )}
+        </div>
+        {r.pickup_reel && (
+          <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-[#0F5C56]">
+            🚐 Pick-up {r.pickup_reel}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenClient(client.id);
+          }}
+          className="mt-0.5 text-xs font-medium text-[#171717] hover:underline"
+        >
+          {client.nom || "Sans nom"}
+        </button>
+        <p className="mt-0.5 text-[11px] text-neutral-500">
+          {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
+        </p>
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-medium ${badge.className}`}>
+            {badge.label}
+          </span>
+          <span className="text-sm font-semibold text-[#171717]">{euros(total)} €</span>
+        </div>
+        {(paiementWarning || (!infoComplet && infoStatut)) && (
+          <p className="mt-1 text-[11px] font-medium text-red-600">
+            {paiementWarning
+              ? `⚠️ ${euros(paiementWarning.amount)} ${paiementWarning.devise} to pay to activity`
+              : `⚠️ ${infoStatut}`}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (size === "compact") {
     return (
       <div
         onClick={onClick}
@@ -868,6 +929,17 @@ function ByActivityView({
   const [query, setQuery] = useState("");
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const todayStr = toStr(new Date());
+  const [monthFilter, setMonthFilter] = useState<string>("a_venir");
+
+  const monthOptions = useMemo(() => {
+    const base = monthStartOf(todayStr);
+    const opts: { value: string; label: string }[] = [];
+    for (let i = -3; i <= 12; i++) {
+      const m = addMonths(base, i);
+      opts.push({ value: m, label: monthLabel(m) });
+    }
+    return opts;
+  }, [todayStr]);
 
   const categoryLabel = (r: Reservation) => {
     if (r.catalogue_item_id) {
@@ -878,9 +950,15 @@ function ByActivityView({
   };
 
   const categories = useMemo(() => {
+    const monthEnd = monthFilter !== "a_venir" ? monthEndOf(monthFilter) : "";
     const byCategory = new Map<string, { label: string; byDate: Map<string, Row[]> }>();
     reservations.forEach((r) => {
-      if (!r.date_debut || r.date_debut < todayStr) return;
+      if (!r.date_debut) return;
+      if (monthFilter === "a_venir") {
+        if (r.date_debut < todayStr) return;
+      } else if (r.date_debut < monthFilter || r.date_debut > monthEnd) {
+        return;
+      }
       const client = clients.find((c) => c.id === r.client_id);
       if (!client) return;
       const label = categoryLabel(r);
@@ -898,19 +976,35 @@ function ByActivityView({
       .filter((cat) => cat.label.toLowerCase().includes(query.toLowerCase()))
       .sort((a, b) => a.label.localeCompare(b.label));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, reservations, catalogue, query, todayStr]);
+  }, [clients, reservations, catalogue, query, todayStr, monthFilter]);
 
   return (
     <div className="space-y-3">
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Filtrer par activité (ex. Louxor, Tortues, dauphins…)"
-        className="input"
-      />
+      <div className="flex flex-wrap gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filtrer par activité (ex. Louxor, Tortues, dauphins…)"
+          className="input flex-1"
+        />
+        <select
+          value={monthFilter}
+          onChange={(e) => setMonthFilter(e.target.value)}
+          className="input w-auto capitalize"
+        >
+          <option value="a_venir">À venir</option>
+          {monthOptions.map((m) => (
+            <option key={m.value} value={m.value} className="capitalize">
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {categories.length === 0 && (
-        <div className="text-sm text-neutral-400">Aucune activité à venir.</div>
+        <div className="text-sm text-neutral-400">
+          {monthFilter === "a_venir" ? "Aucune activité à venir." : "Aucune activité ce mois-ci."}
+        </div>
       )}
 
       {categories.map((cat) => {
@@ -957,7 +1051,7 @@ function ByActivityView({
                             resaTarifs={resaTarifs}
                             onClick={() => onOpenActivity(row)}
                             onOpenClient={onOpenClient}
-                            compact
+                            size="compact"
                           />
                         ))}
                       </div>
@@ -1138,7 +1232,7 @@ export default function PlanningView({
                 {fmtDate(date)}
                 {date === grouped.todayStr ? " — aujourd'hui" : ""}
               </h3>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {grouped.byDate[date].map((row) => (
                   <ReservationSummaryCard
                     key={row.r.id}
@@ -1149,6 +1243,7 @@ export default function PlanningView({
                     resaTarifs={resaTarifs}
                     onClick={() => setActiveActivity(row)}
                     onOpenClient={onOpenClient}
+                    size="medium"
                   />
                 ))}
               </div>

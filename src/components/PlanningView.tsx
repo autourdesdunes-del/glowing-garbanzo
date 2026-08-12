@@ -193,6 +193,7 @@ function ActivityDetailModal({
   resaOptions,
   resaTarifs,
   onOpenClient,
+  onOpenActivity,
   onClose,
 }: {
   client: Client;
@@ -201,6 +202,7 @@ function ActivityDetailModal({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onOpenClient: (clientId: string) => void;
+  onOpenActivity: (r: Reservation) => void;
   onClose: () => void;
 }) {
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
@@ -342,7 +344,12 @@ function ActivityDetailModal({
                   </div>
                 )}
                 {clientReservations.map((rr) => (
-                  <div key={rr.id} className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    key={rr.id}
+                    onClick={() => onOpenActivity(rr)}
+                    className="flex w-full items-center justify-between gap-2 text-left hover:underline"
+                  >
                     <span>
                       {rr.nom_activite || "Activité"}
                       {rr.date_debut ? ` (${fmtDate(rr.date_debut)})` : ""}
@@ -350,7 +357,7 @@ function ActivityDetailModal({
                     <span>
                       {euros(resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []))} €
                     </span>
-                  </div>
+                  </button>
                 ))}
                 <div className="flex items-center justify-between gap-2 border-t border-[#C9973E]/30 pt-1 font-semibold">
                   <span>Total séjour</span>
@@ -685,6 +692,7 @@ export default function PlanningView({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           onOpenClient={onOpenClient}
+          onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
           onClose={() => setActiveActivity(null)}
         />
       )}

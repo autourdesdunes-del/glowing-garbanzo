@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   Avoir,
@@ -346,7 +346,7 @@ export default function ClientDetail({
     if (error) toast("Échec de l'enregistrement du coût.");
   };
 
-  const addReservation = async (): Promise<string | null> => {
+  const addReservation = async (attempt = 0): Promise<string | null> => {
     const { data, error } = await supabase
       .from("reservations")
       .insert({ client_id: client.id, transfert_inclus: !hotelHorsHurghada })
@@ -361,14 +361,56 @@ export default function ClientDetail({
       if (avoirDisponible > 0) setAvoirPromptReservationId(newReservation.id);
       return newReservation.id;
     }
+    // Un token d'auth silencieusement expiré échoue une seule fois — on le
+    // rafraîchit et on retente avant d'afficher un échec à l'employée.
+    if (attempt === 0) {
+      await supabase.auth.refreshSession();
+      return addReservation(1);
+    }
     toast("Impossible d'ajouter l'activité.");
     return null;
   };
 
-  const updateReservation = async (id: string, patch: Partial<Reservation>) => {
+  // Gardés par réservation (id -> ...) comme le solde client dans AppShell —
+  // évite qu'une réponse en échec pour une activité perde ou mélange les
+  // modifications d'une autre activité en cours d'édition au même moment
+  // (le wizard "Ajouter une activité" enchaîne beaucoup de patchs rapides).
+  const reservationPendingPatch = useRef<Record<string, Partial<Reservation>>>({});
+  const reservationRetryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const reservationErrorToastShown = useRef<Record<string, boolean>>({});
+
+  const flushReservation = useCallback(
+    async (id: string, attempt = 0) => {
+      const patch = reservationPendingPatch.current[id];
+      if (!patch || Object.keys(patch).length === 0) return;
+      const { error } = await supabase.from("reservations").update(patch).eq("id", id);
+      if (!error) {
+        const current = reservationPendingPatch.current[id];
+        if (current) {
+          Object.keys(patch).forEach((k) => delete (current as Record<string, unknown>)[k]);
+        }
+        reservationErrorToastShown.current[id] = false;
+        return;
+      }
+      if (!reservationErrorToastShown.current[id]) {
+        toast("Échec de l'enregistrement — nouvelle tentative en cours…");
+        reservationErrorToastShown.current[id] = true;
+      }
+      if (attempt === 0) {
+        await supabase.auth.refreshSession();
+      }
+      const delay = Math.min(2000 * 2 ** attempt, 15000);
+      if (reservationRetryTimers.current[id]) clearTimeout(reservationRetryTimers.current[id]);
+      reservationRetryTimers.current[id] = setTimeout(() => flushReservation(id, attempt + 1), delay);
+    },
+    [supabase, toast]
+  );
+
+  const updateReservation = (id: string, patch: Partial<Reservation>) => {
     setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-    const { error } = await supabase.from("reservations").update(patch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement.");
+    reservationPendingPatch.current[id] = { ...reservationPendingPatch.current[id], ...patch };
+    if (reservationRetryTimers.current[id]) clearTimeout(reservationRetryTimers.current[id]);
+    flushReservation(id);
   };
 
   const deleteReservation = async (id: string) => {

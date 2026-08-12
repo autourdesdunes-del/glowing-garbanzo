@@ -301,6 +301,7 @@ function ActivityDetailModal({
   options.forEach((o) => activiteLines.push(translateFr(formatOptionLabel(o))));
   const momentEn = momentBadge(r);
   if (momentEn) activiteLines.push(translateFr(momentEn));
+  if (r.horaire_souhaite) activiteLines.push(`Time : ${r.horaire_souhaite}`);
   const chevalBadge = chevalChameauBadge(r, client);
   if (chevalBadge) activiteLines.push(chevalBadge);
   if (r.nb_conducteurs != null) activiteLines.push(`Drivers : ${r.nb_conducteurs}`);
@@ -548,9 +549,8 @@ function ActivityDetailModal({
           <h3 className="font-heading text-sm font-semibold text-[#171717]">
             Bloc pour l&apos;équipe Égypte
           </h3>
-          <p className="mt-1 text-xs text-neutral-500">
-            La date et le détail de l&apos;activité restent à taper à la main — ce bloc ne
-            couvre que la partie client.
+          <p dir="rtl" className="mt-1 text-xs text-neutral-500">
+            يرجى التحقق من صحة جميع الحقول قبل الإرسال
           </p>
           <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
             {egyptBlock}

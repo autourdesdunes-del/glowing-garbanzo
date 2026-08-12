@@ -647,9 +647,8 @@ export function SejourStep({
         <h3 className="font-heading text-sm font-semibold text-[#171717]">
           Bloc pour l&apos;équipe Égypte
         </h3>
-        <p className="mt-1 text-xs text-neutral-500">
-          La date et le détail de l&apos;activité restent à taper à la main — ce bloc ne
-          couvre que la partie client.
+        <p dir="rtl" className="mt-1 text-xs text-neutral-500">
+          يرجى التحقق من صحة جميع الحقول قبل الإرسال
         </p>
         <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
           {copyBlock}

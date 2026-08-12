@@ -366,3 +366,94 @@ export function resaTotalMontant(
   const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
   return base + optionsTotal + tarifsTotal + transfert + supplementIle;
 }
+
+function fmtEuros(n: number) {
+  return (Number(n) || 0).toLocaleString("fr-FR");
+}
+
+export type ResaBreakdownLine = { label: string; amount: number };
+
+// Détail du calcul du total d'une activité (ex. "25 € x 2 adultes = 50,00 €")
+// — même composition que resaTotalMontant, ligne par ligne pour l'affichage.
+export function resaBreakdown(
+  r: Reservation,
+  client: Client,
+  options: ReservationOption[] = [],
+  tarifs: ReservationTarif[] = []
+): ResaBreakdownLine[] {
+  const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+  const lines: ResaBreakdownLine[] = [];
+
+  if (r.tarif_mode === "groupe") {
+    if (Number(r.prix_groupe_base) || 0) {
+      lines.push({ label: "Forfait de base", amount: Number(r.prix_groupe_base) || 0 });
+    }
+    if (Number(r.participants_extra1) || 0) {
+      lines.push({
+        label: `${fmtEuros(r.prix_groupe_extra1)} € x ${r.participants_extra1} pers. supp.`,
+        amount: (Number(r.participants_extra1) || 0) * (Number(r.prix_groupe_extra1) || 0),
+      });
+    }
+    if (Number(r.participants_extra_enfants) || 0) {
+      lines.push({
+        label: `${fmtEuros(r.prix_groupe_extra_enfant)} € x ${r.participants_extra_enfants} enfant(s) supp.`,
+        amount: (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0),
+      });
+    }
+  } else {
+    if (nbAd > 0) {
+      lines.push({
+        label: `${fmtEuros(r.pu_adulte)} € x ${nbAd} adulte${nbAd > 1 ? "s" : ""}`,
+        amount: nbAd * (Number(r.pu_adulte) || 0),
+      });
+    }
+    if (nbEnf > 0) {
+      lines.push({
+        label: `${fmtEuros(r.pu_enfant)} € x ${nbEnf} enfant${nbEnf > 1 ? "s" : ""}`,
+        amount: nbEnf * (Number(r.pu_enfant) || 0),
+      });
+    }
+    if (nbAcc > 0) {
+      lines.push({
+        label: `${fmtEuros(r.pu_accompagnateur)} € x ${nbAcc} accompagnateur${nbAcc > 1 ? "s" : ""}`,
+        amount: nbAcc * (Number(r.pu_accompagnateur) || 0),
+      });
+    }
+    if (nbEnf3 > 0) {
+      lines.push({
+        label: `${fmtEuros(r.pu_enfant_3ans)} € x ${nbEnf3} enfant(s) 3 ans`,
+        amount: nbEnf3 * (Number(r.pu_enfant_3ans) || 0),
+      });
+    }
+  }
+
+  options.forEach((o) => {
+    const qty = Number(o.quantite) || 1;
+    lines.push({
+      label: qty > 1 ? `Option ${o.nom} (${fmtEuros(o.prix)} € x ${qty})` : `Option ${o.nom}`,
+      amount: (Number(o.prix) || 0) * qty,
+    });
+  });
+
+  tarifs.forEach((t) => {
+    if (!Number(t.quantite)) return;
+    lines.push({
+      label: `${t.label || "PU supplémentaire"} (${fmtEuros(t.pu)} € x ${t.quantite})`,
+      amount: (Number(t.quantite) || 0) * (Number(t.pu) || 0),
+    });
+  });
+
+  if (!r.transfert_inclus && Number(r.transfert_montant)) {
+    lines.push({ label: "Taxe de transfert", amount: Number(r.transfert_montant) || 0 });
+  }
+
+  const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
+  if (supplementIle) {
+    lines.push({
+      label: `Supplément Oziréa (30 € x ${nbAd} ad. + 15 € x ${nbEnf} enf.)`,
+      amount: supplementIle,
+    });
+  }
+
+  return lines;
+}

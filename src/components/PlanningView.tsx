@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import {
+  acompteWaitingWarning,
   activitePaiementWarning,
   momentBadge,
   paiementBadge,
   participantsFor,
+  resaBreakdown,
   resaTotalMontant,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
@@ -138,8 +140,12 @@ function ReservationSummaryCard({
       <p className="mt-1 text-xs text-neutral-500">
         {fmtDate(r.date_debut as string)}
         {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
-        {r.pickup_reel ? ` · Pick-up ${r.pickup_reel}` : ""}
       </p>
+      {r.pickup_reel && (
+        <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-[#0F5C56]">
+          🚐 Pick-up {r.pickup_reel}
+        </p>
+      )}
       <button
         type="button"
         onClick={(e) => {
@@ -183,6 +189,7 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 function ActivityDetailModal({
   client,
   r,
+  reservations,
   resaOptions,
   resaTarifs,
   onOpenClient,
@@ -190,16 +197,25 @@ function ActivityDetailModal({
 }: {
   client: Client;
   r: Reservation;
+  reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onOpenClient: (clientId: string) => void;
   onClose: () => void;
 }) {
+  const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const options = resaOptions[r.id] || [];
-  const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
+  const tarifs = resaTarifs[r.id] || [];
+  const total = resaTotalMontant(r, client, options, tarifs);
+  const breakdown = resaBreakdown(r, client, options, tarifs);
   const { nbAd, nbEnf } = participantsFor(r, client);
   const badge = paiementBadge(client, r);
   const soldeIci = client.solde_activite_id === r.id;
+  // Le calcul du restant à payer a besoin des réservations de CE client
+  // uniquement — jamais du tableau global toutes activités confondues.
+  const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
+  const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
+  const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -208,13 +224,35 @@ function ActivityDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-heading text-lg font-semibold text-[#171717]">
-            {r.nom_activite || "Activité sans nom"}
-          </h3>
-          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-[#171717]">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-heading text-lg font-semibold text-[#171717]">
+              {r.nom_activite || "Activité sans nom"}
+              {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+            </h3>
+            {momentBadge(r) && (
+              <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+                {momentBadge(r)}
+              </span>
+            )}
+          </div>
+          <button type="button" onClick={onClose} className="shrink-0 text-neutral-400 hover:text-[#171717]">
             ✕
           </button>
         </div>
+        {(paiementWarning || acompteWarning) && (
+          <div className="mt-1 flex flex-wrap gap-2">
+            {acompteWarning && (
+              <span className="text-xs font-medium text-yellow-700">
+                ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
+              </span>
+            )}
+            {paiementWarning && (
+              <span className="text-xs font-medium text-red-600">
+                ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="mt-3">
           <DetailRow label="Client">
@@ -232,7 +270,15 @@ function ActivityDetailModal({
           <DetailRow label="Date">
             {fmtDate(r.date_debut || "")}
             {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
-            {momentBadge(r) ? ` · ${momentBadge(r)}` : ""}
+          </DetailRow>
+          {r.pickup_reel && (
+            <DetailRow label="Pick-up">
+              <span className="text-[#0F5C56]">🚐 {r.pickup_reel}</span>
+            </DetailRow>
+          )}
+          <DetailRow label="PAX">
+            {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
+            {nbEnf > 0 && client.ages_enfants ? ` (âges : ${client.ages_enfants})` : ""}
           </DetailRow>
           <DetailRow label="Paiement">
             <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
@@ -240,24 +286,78 @@ function ActivityDetailModal({
             </span>
           </DetailRow>
           <DetailRow label="Total">{euros(total)} €</DetailRow>
-          <DetailRow label="PAX">
-            {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
-          </DetailRow>
-          {r.pickup_reel && <DetailRow label="Pick-up">{r.pickup_reel}</DetailRow>}
-          {soldeIci && (
-            <DetailRow label="Solde">
-              💰 Solde du séjour collecté ici — {client.solde_paye ? "Payé" : "À régler"}
-            </DetailRow>
-          )}
-          {options.length > 0 && (
-            <DetailRow label="Options">{options.map((o) => o.nom).join(", ")}</DetailRow>
-          )}
-          {r.info_importante && (
-            <div className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
-              ⚠ {r.info_importante}
-            </div>
-          )}
         </div>
+
+        {breakdown.length > 0 && (
+          <div className="mt-1 space-y-1 border-t border-neutral-100 pt-2 text-xs text-neutral-500">
+            {breakdown.map((line, i) => (
+              <div key={i} className="flex items-center justify-between gap-2">
+                <span>{line.label}</span>
+                <span>= {euros(line.amount)} €</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {soldeIci && (
+          <div className="mt-3 rounded-md bg-[#C9973E]/10 p-3 text-sm">
+            <button
+              type="button"
+              onClick={() => setShowSoldeDetail((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 text-left font-medium text-[#8B4531]"
+            >
+              <span>💰 Solde du séjour collecté ici — {client.solde_paye ? "Payé" : "À régler"}</span>
+              <span className="text-xs">{showSoldeDetail ? "▲" : "▼"}</span>
+            </button>
+            {showSoldeDetail && (
+              <div className="mt-2 space-y-1 border-t border-[#C9973E]/30 pt-2 text-xs text-[#8B4531]">
+                {client.paiement_type === "acompte" && client.acompte_valide && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span>
+                      Acompte — {client.acompte_mode}
+                      {client.acompte_paye && client.acompte_date_encaissement
+                        ? ` (encaissé le ${fmtDate(client.acompte_date_encaissement)})`
+                        : client.acompte_paye
+                        ? " (encaissé)"
+                        : " (à encaisser)"}
+                    </span>
+                    <span>{euros(client.acompte_montant)} €</span>
+                  </div>
+                )}
+                {clientReservations.map((rr) => (
+                  <div key={rr.id} className="flex items-center justify-between gap-2">
+                    <span>
+                      {rr.nom_activite || "Activité"}
+                      {rr.date_debut ? ` (${fmtDate(rr.date_debut)})` : ""}
+                    </span>
+                    <span>
+                      {euros(resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []))} €
+                    </span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between gap-2 border-t border-[#C9973E]/30 pt-1 font-semibold">
+                  <span>Total séjour</span>
+                  <span>
+                    {euros(
+                      clientReservations.reduce(
+                        (s, rr) =>
+                          s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
+                        0
+                      )
+                    )}{" "}
+                    €
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {r.info_importante && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ {r.info_importante}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -564,6 +664,7 @@ export default function PlanningView({
         <ActivityDetailModal
           client={activeActivity.client}
           r={activeActivity.r}
+          reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           onOpenClient={onOpenClient}

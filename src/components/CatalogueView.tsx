@@ -48,7 +48,9 @@ function isSpaActivity(a: CatalogueItem) {
 
 function PriceSummary({ a }: { a: CatalogueItem }) {
   if (a.tarif_mode === "groupe") {
-    if (!a.prix_groupe_base) return <span>Forfait sur demande</span>;
+    if (!a.prix_groupe_base) {
+      return <span>{a.prix_groupe_note || "Forfait sur demande"}</span>;
+    }
     return (
       <span>
         Forfait {euros(a.prix_groupe_base)}€ ({a.prix_groupe_base_pax} pers.)
@@ -1057,7 +1059,14 @@ export default function CatalogueView({
                         className="input"
                       />
                     </Field>
-                    <div />
+                    <Field label="Note tarif (si prix forfait à 0 = variable)">
+                      <input
+                        value={a.prix_groupe_note}
+                        onChange={(e) => onUpdate(a.id, { prix_groupe_note: e.target.value })}
+                        placeholder="ex. 25 €/quad, 110 €/buggy selon le nombre choisi"
+                        className="input"
+                      />
+                    </Field>
                     <Field label="PU personne supp. (€)">
                       <div className="flex gap-2">
                         <input
@@ -1942,7 +1951,9 @@ export default function CatalogueView({
                             </p>
                           </div>
                           <span className="font-amounts text-sm text-[#171717]">
-                            {a.prix_groupe_base ? `${euros(a.prix_groupe_base)}€` : "Sur demande"}
+                            {a.prix_groupe_base
+                              ? `${euros(a.prix_groupe_base)}€`
+                              : a.prix_groupe_note || "Sur demande"}
                           </span>
                         </div>
                         {a.prix_groupe_extra1 > 0 && (

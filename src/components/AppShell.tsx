@@ -11,6 +11,7 @@ import {
   CatalogueTarif,
   Client,
   EMPTY_CLIENT,
+  PaypalPaiement,
   PlanningShift,
   Profile,
   Remboursement,
@@ -264,6 +265,7 @@ function AppShellInner({
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
+  const [paypalPaiements, setPaypalPaiements] = useState<PaypalPaiement[]>([]);
   const [catalogueModificationRequests, setCatalogueModificationRequests] = useState<
     CatalogueModificationRequest[]
   >([]);
@@ -456,6 +458,11 @@ function AppShellInner({
       if (mode === "suivis" && !suivisLoaded) {
         const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
+        const { data: paypal } = await supabase
+          .from("paypal_paiements")
+          .select("*")
+          .order("paypal_recu_le", { ascending: false });
+        setPaypalPaiements((paypal as PaypalPaiement[]) || []);
         setSuivisLoaded(true);
       }
 
@@ -677,6 +684,38 @@ function AppShellInner({
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     const { error } = await supabase.from("clients").update(patch).eq("id", id);
     if (error) toast("Échec de l'enregistrement.");
+  };
+
+  // Rattache un paiement PayPal reçu (via IPN, voir /api/paypal/ipn) au
+  // client concerné — remplit directement l'acompte du dossier plutôt que
+  // de laisser l'employée ressaisir montant/mode/date à la main.
+  const rattacherPaypalPaiement = async (paiementId: string, clientId: string) => {
+    const paiement = paypalPaiements.find((p) => p.id === paiementId);
+    if (!paiement) return;
+    const rattacheAt = new Date().toISOString();
+    setPaypalPaiements((prev) =>
+      prev.map((p) =>
+        p.id === paiementId
+          ? { ...p, rattache_client_id: clientId, rattache_par: userEmail, rattache_at: rattacheAt }
+          : p
+      )
+    );
+    const { error: errPaiement } = await supabase
+      .from("paypal_paiements")
+      .update({ rattache_client_id: clientId, rattache_par: userEmail, rattache_at: rattacheAt })
+      .eq("id", paiementId);
+    if (errPaiement) {
+      toast("Échec du rattachement du paiement PayPal.");
+      return;
+    }
+    await updateClientById(clientId, {
+      paiement_type: "acompte",
+      acompte_montant: paiement.montant_net,
+      acompte_mode: "PayPal",
+      acompte_valide: true,
+      acompte_paye: true,
+      acompte_date_encaissement: paiement.paypal_recu_le.slice(0, 10),
+    });
   };
 
   const updateReservationById = async (id: string, patch: Partial<Reservation>) => {
@@ -1475,6 +1514,8 @@ function AppShellInner({
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
               remboursements={allRemboursements}
+              paypalPaiements={paypalPaiements}
+              onRattacherPaiement={rattacherPaypalPaiement}
               profiles={teamProfiles}
               planningShifts={teamPlanningShifts}
               catalogue={catalogue}

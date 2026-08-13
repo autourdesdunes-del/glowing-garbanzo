@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   CatalogueItem,
   Client,
+  PaypalPaiement,
   PlanningShift,
   Profile,
   Remboursement,
@@ -221,6 +222,7 @@ export const SUIVIS_SUBS = [
   { key: "avis", label: "Avis clients" },
   { key: "remb", label: "Remboursements" },
   { key: "billets", label: "Billets d'avion" },
+  { key: "paypal", label: "Paiements PayPal" },
 ] as const;
 
 export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"];
@@ -755,6 +757,80 @@ function AppelRow({
   );
 }
 
+function fmtDateTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+// Une ligne de paiement PayPal reçu (via IPN) mais pas encore rattachée à
+// un client — le nom du payeur PayPal ne suffit jamais à rapprocher
+// automatiquement sans risque d'erreur (deux clients peuvent avoir un nom
+// proche), donc l'employée choisit elle-même le bon dossier dans une
+// recherche courte plutôt qu'un rapprochement silencieux.
+function PaypalPaiementRow({
+  paiement,
+  clients,
+  onRattacher,
+}: {
+  paiement: PaypalPaiement;
+  clients: Client[];
+  onRattacher: (clientId: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const matches =
+    query.trim().length >= 2
+      ? clients.filter((c) => (c.nom || "").toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+      : [];
+
+  return (
+    <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <span className="font-medium text-[#171717]">{paiement.payeur_nom || "Nom inconnu"}</span>
+          <span className="ml-2 text-neutral-500">{fmtDateTime(paiement.paypal_recu_le)}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-amounts font-medium text-[#171717]">{euros(paiement.montant_net)} €</span>
+          {paiement.entre_proches ? (
+            <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
+              Entre proches ✅
+            </span>
+          ) : (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+              Frais prélevés — brut {euros(paiement.montant)} €
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="mt-2">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Rattacher à un client…"
+          className="input text-sm"
+        />
+        {matches.length > 0 && (
+          <div className="mt-1.5 divide-y divide-neutral-100 overflow-hidden rounded-md border border-neutral-200">
+            {matches.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => {
+                  onRattacher(c.id);
+                  setQuery("");
+                }}
+                className="block w-full px-3 py-1.5 text-left text-sm hover:bg-[#fafafa]"
+              >
+                {c.nom || "Sans nom"}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SuivisView({
   sub,
   clients,
@@ -762,6 +838,8 @@ export default function SuivisView({
   resaOptions,
   resaTarifs,
   remboursements,
+  paypalPaiements,
+  onRattacherPaiement,
   profiles,
   planningShifts,
   catalogue,
@@ -778,6 +856,8 @@ export default function SuivisView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   remboursements: Remboursement[];
+  paypalPaiements: PaypalPaiement[];
+  onRattacherPaiement: (paiementId: string, clientId: string) => void;
   profiles: Profile[];
   planningShifts: PlanningShift[];
   catalogue: CatalogueItem[];
@@ -1955,6 +2035,34 @@ export default function SuivisView({
                 />
               );
             })()}
+        </div>
+      )}
+
+      {sub === "paypal" && (
+        <div>
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+            Paiements PayPal — à rattacher
+          </h3>
+          <p className="mb-3 text-xs text-neutral-500">
+            Reçus automatiquement dès qu&apos;un client paie sur le compte PayPal de l&apos;agence.
+            Rattacher un paiement remplit directement l&apos;acompte du dossier.
+          </p>
+          {paypalPaiements.filter((p) => !p.rattache_client_id).length === 0 ? (
+            <div className="text-sm text-neutral-400">Aucun paiement en attente de rattachement.</div>
+          ) : (
+            <div className="space-y-2">
+              {paypalPaiements
+                .filter((p) => !p.rattache_client_id)
+                .map((p) => (
+                  <PaypalPaiementRow
+                    key={p.id}
+                    paiement={p}
+                    clients={clients}
+                    onRattacher={(clientId) => onRattacherPaiement(p.id, clientId)}
+                  />
+                ))}
+            </div>
+          )}
         </div>
       )}
     </div>

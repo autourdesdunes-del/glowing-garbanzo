@@ -67,6 +67,18 @@ export type CatalogueFaq = {
   created_at: string;
 };
 
+// Un jour du programme d'un circuit/activité sur plusieurs jours (ex. Le
+// Caire 2 jours, Abu Simbel...) — en plus du champ libre "programme",
+// toujours disponible pour les activités simples d'une seule journée.
+export type CatalogueJour = {
+  id: string;
+  catalogue_item_id: string;
+  titre: string;
+  description: string;
+  ordre: number;
+  created_at: string;
+};
+
 export type ReservationOption = {
   id: string;
   reservation_id: string;
@@ -327,7 +339,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   chambre: "",
   date_debut: null,
   date_fin: null,
-  adultes: 2,
+  adultes: 0,
   enfants: 0,
   ages_enfants: "",
   bebes: 0,

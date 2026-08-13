@@ -80,7 +80,9 @@ async function processMessage(
       "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_programme_envoye_resume"
     );
   query = leadId ? query.eq("kommo_lead_id", leadId) : query.eq("kommo_contact_id", contactId);
-  let existing = (await query.maybeSingle()).data;
+  const selectRes = await query.maybeSingle();
+  if (selectRes.error) throw new Error(`select existing failed: ${selectRes.error.message}`);
+  let existing = selectRes.data;
 
   // Premier message d'un lead qui vient d'apparaître dans Kommo : la fiche
   // CRM n'existe pas encore (le webhook classique "lead_added" arrive
@@ -99,7 +101,7 @@ async function processMessage(
     const telephone = phones?.simple_value || "";
     const status = additionalData.status as { id?: number; name?: string } | undefined;
 
-    const { data: created } = await admin
+    const insertRes = await admin
       .from("clients")
       .insert({
         nom,
@@ -115,7 +117,8 @@ async function processMessage(
         "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_programme_envoye_resume"
       )
       .single();
-    existing = created;
+    if (insertRes.error) throw new Error(`create client failed: ${insertRes.error.message}`);
+    existing = insertRes.data;
   }
   if (!existing) return null;
 
@@ -139,7 +142,7 @@ async function processMessage(
   });
   if (!updated) return existing.id;
 
-  await admin
+  const updateRes = await admin
     .from("clients")
     .update({
       kommo_resume: updated.resume || "",
@@ -154,6 +157,7 @@ async function processMessage(
       kommo_extraction_updated_at: new Date().toISOString(),
     })
     .eq("id", existing.id);
+  if (updateRes.error) throw new Error(`update client failed: ${updateRes.error.message}`);
 
   return existing.id;
 }

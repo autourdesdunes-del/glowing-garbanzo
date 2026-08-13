@@ -61,6 +61,18 @@ export const KOMMO_STATUS_MAP: Record<number, { nom: string; statutCrm: string }
       143: { nom: "Client perdu", statutCrm: "Client perdu" },
 };
 
+// Sens inverse (écriture CRM → Kommo) : un statut CRM ne pointe jamais vers
+// "Incoming leads" (109792979) — c'est une étape d'accueil transitoire côté
+// Kommo, on ne veut jamais y renvoyer un lead manuellement depuis le CRM.
+export const CRM_STATUT_TO_KOMMO_STATUS_ID: Record<string, number> = {
+    "Prospect": 109792983,
+    "À relancer": 109792987,
+    "Programme envoyé": 109792991,
+    "Demande d'infos envoyée": 109792995,
+    "Client confirmé": 142,
+    "Client perdu": 143,
+};
+
 export type KommoEventType =
     | "lead_status_changed"
   | "lead_added"

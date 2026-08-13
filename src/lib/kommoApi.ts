@@ -26,6 +26,30 @@ async function kommoFetch(path: string): Promise<unknown | null> {
     return res.json();
 }
 
+// Étape 2 (écriture) : pousse un changement de statut fait dans le CRM vers
+// le lead Kommo correspondant, pour que le pipeline reste synchronisé dans
+// les deux sens. Best-effort — un échec ici ne doit jamais bloquer l'action
+// dans le CRM (le statut local reste la source de vérité de l'app).
+export async function updateKommoLeadStatus(leadId: number, statusId: number): Promise<boolean> {
+    const base = kommoApiBase();
+    const token = process.env.KOMMO_ACCESS_TOKEN;
+    if (!base || !token) return false;
+
+  try {
+        const res = await fetch(`${base}/leads/${leadId}`, {
+              method: "PATCH",
+              headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ status_id: statusId }),
+        });
+        return res.ok;
+  } catch {
+        return false;
+  }
+}
+
 function extractPhoneOrEmail(
     customFields: unknown,
     code: "PHONE" | "EMAIL"

@@ -592,6 +592,18 @@ function AppShellInner({
   const retryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const errorToastShown = useRef<Record<string, boolean>>({});
 
+  // Répercute un changement de statut fait dans le CRM vers le lead Kommo
+  // correspondant (écriture CRM → Kommo) — best-effort, en tâche de fond :
+  // un échec réseau ici ne doit jamais bloquer/annuler l'action dans le CRM.
+  const pushStatutToKommo = (leadId: number | null, statut: string) => {
+    if (!leadId) return;
+    fetch("/api/kommo/push-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leadId, statut }),
+    }).catch(() => {});
+  };
+
   const flushSave = useCallback(
     async (id: string, attempt = 0) => {
       const patch = pendingPatches.current[id];
@@ -634,6 +646,9 @@ function AppShellInner({
   const updateSelected = (patch: Partial<Client>) => {
     if (!selected) return;
     const id = selected.id;
+    if (patch.statut && patch.statut !== selected.statut) {
+      pushStatutToKommo(selected.kommo_lead_id, patch.statut);
+    }
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     pendingPatches.current[id] = { ...pendingPatches.current[id], ...patch };
     if (saveTimers.current[id]) clearTimeout(saveTimers.current[id]);
@@ -712,6 +727,12 @@ function AppShellInner({
   };
 
   const updateClientById = async (id: string, patch: Partial<Client>) => {
+    if (patch.statut) {
+      const current = clients.find((c) => c.id === id);
+      if (current && patch.statut !== current.statut) {
+        pushStatutToKommo(current.kommo_lead_id, patch.statut);
+      }
+    }
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     const { error } = await supabase.from("clients").update(patch).eq("id", id);
     if (error) toast("Échec de l'enregistrement.");

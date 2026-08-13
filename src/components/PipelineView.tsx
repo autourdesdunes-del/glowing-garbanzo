@@ -172,12 +172,36 @@ export default function PipelineView({
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStatut, setOverStatut] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const filteredClients = q
+    ? clients.filter(
+        (c) =>
+          c.nom.toLowerCase().includes(q) ||
+          c.hotel.toLowerCase().includes(q) ||
+          (c.tags || []).some((tag) => tag.toLowerCase().includes(q))
+      )
+    : clients;
+
+  const searchBar = (
+    <div className="border-b border-[#666666]/15 bg-white px-6 py-2.5">
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Rechercher par nom, hôtel ou tag…"
+        className="input w-full max-w-xs text-sm"
+      />
+    </div>
+  );
 
   if (groupBy === "timing") {
     return (
-      <div className="flex h-full gap-4 overflow-x-auto p-6">
+      <div className="flex h-full flex-col">
+        {searchBar}
+        <div className="flex flex-1 gap-4 overflow-x-auto p-6">
         {TIMING_BUCKETS.map((bucket) => {
-          const items = clients.filter(bucket.match);
+          const items = filteredClients.filter(bucket.match);
           return (
             <div
               key={bucket.key}
@@ -207,14 +231,17 @@ export default function PipelineView({
             </div>
           );
         })}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full gap-4 overflow-x-auto p-6">
+    <div className="flex h-full flex-col">
+      {searchBar}
+      <div className="flex flex-1 gap-4 overflow-x-auto p-6">
       {statuts.map((statut) => {
-        const items = clients.filter((c) => c.statut === statut);
+        const items = filteredClients.filter((c) => c.statut === statut);
         return (
           <div
             key={statut}
@@ -263,6 +290,7 @@ export default function PipelineView({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

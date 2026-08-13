@@ -101,7 +101,6 @@ export async function extractProspectInfoFromMessage(params: {
     model: "claude-haiku-4-5-20251001",
     max_tokens: 500,
     thinking: { type: "disabled" },
-    output_config: { effort: "low" },
     system:
       "Tu es un outil interne pour Autour des Dunes, une agence de voyage francophone à Hurghada (Égypte). " +
       "Tu lis, message par message, une conversation WhatsApp/Instagram avec un prospect qui envisage de réserver des activités/un séjour via l'agence. " +

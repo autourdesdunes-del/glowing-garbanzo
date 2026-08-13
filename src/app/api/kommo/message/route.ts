@@ -72,17 +72,18 @@ async function processMessage(
   const contactId = payload.contact_id ? Number(payload.contact_id) : null;
   const text = typeof payload.text === "string" ? payload.text : "";
   const direction = payload.direction === "out" ? "out" : "in";
-  if (!text.trim() || (!leadId && !contactId)) return null;
+  if (!leadId && !contactId) return null;
 
-  let query = admin
-    .from("clients")
-    .select(
-      "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_programme_envoye_resume"
-    );
+  const nowIso = new Date().toISOString();
+  const SELECT_FIELDS =
+    "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_programme_envoye_resume, kommo_premier_echange_le";
+
+  let query = admin.from("clients").select(SELECT_FIELDS);
   query = leadId ? query.eq("kommo_lead_id", leadId) : query.eq("kommo_contact_id", contactId);
   const selectRes = await query.maybeSingle();
   if (selectRes.error) throw new Error(`select existing failed: ${selectRes.error.message}`);
   let existing = selectRes.data;
+  let isNewClient = false;
 
   // Premier message d'un lead qui vient d'apparaître dans Kommo : la fiche
   // CRM n'existe pas encore (le webhook classique "lead_added" arrive
@@ -90,6 +91,7 @@ async function processMessage(
   // à la volée avec ce que le payload du message fournit déjà, plutôt que
   // de perdre ce premier message.
   if (!existing) {
+    isNewClient = true;
     const additionalData = (payload.additional_data as Record<string, unknown>) || {};
     const mainContact = (additionalData.main_contact as Record<string, unknown>) || {};
     const rawName =
@@ -111,16 +113,31 @@ async function processMessage(
         kommo_contact_id: contactId,
         kommo_pipeline_status_id: status?.id ?? null,
         kommo_pipeline_status_nom: status?.name || "",
-        kommo_synced_at: new Date().toISOString(),
+        kommo_premier_echange_le: nowIso,
+        kommo_synced_at: nowIso,
       })
-      .select(
-        "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_programme_envoye_resume"
-      )
+      .select(SELECT_FIELDS)
       .single();
     if (insertRes.error) throw new Error(`create client failed: ${insertRes.error.message}`);
     existing = insertRes.data;
   }
   if (!existing) return null;
+
+  // Date du tout premier échange et de dernier échange (dans chaque sens) —
+  // posées à chaque message reçu, indépendamment du contenu, y compris les
+  // messages sans texte (photo, sticker...).
+  const echangePatch: Record<string, unknown> = {};
+  if (!isNewClient && !existing.kommo_premier_echange_le) echangePatch.kommo_premier_echange_le = nowIso;
+  if (direction === "out") echangePatch.kommo_last_team_reply_at = nowIso;
+  else echangePatch.kommo_last_client_message_at = nowIso;
+
+  if (!text.trim()) {
+    if (Object.keys(echangePatch).length > 0) {
+      const patchRes = await admin.from("clients").update(echangePatch).eq("id", existing.id);
+      if (patchRes.error) throw new Error(`update echange dates failed: ${patchRes.error.message}`);
+    }
+    return existing.id;
+  }
 
   const previousInfo: KommoExtractedInfo = {
     resume: existing.kommo_resume || null,
@@ -145,6 +162,7 @@ async function processMessage(
   const updateRes = await admin
     .from("clients")
     .update({
+      ...echangePatch,
       kommo_resume: updated.resume || "",
       kommo_sejour_debut_estime: updated.sejour_debut_estime,
       kommo_sejour_fin_estime: updated.sejour_fin_estime,
@@ -154,7 +172,7 @@ async function processMessage(
       kommo_ages_enfants_estime: updated.ages_enfants_estime || "",
       kommo_activites_interet: updated.activites_interet || "",
       kommo_programme_envoye_resume: updated.programme_envoye_resume || "",
-      kommo_extraction_updated_at: new Date().toISOString(),
+      kommo_extraction_updated_at: nowIso,
     })
     .eq("id", existing.id);
   if (updateRes.error) throw new Error(`update client failed: ${updateRes.error.message}`);

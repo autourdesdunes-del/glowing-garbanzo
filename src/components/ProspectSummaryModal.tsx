@@ -48,6 +48,12 @@ export default function ProspectSummaryModal({
     .filter(Boolean);
   const derniereMaj = fmtDateTime(client.kommo_extraction_updated_at);
   const demandeInfosLe = fmtDate(client.kommo_demande_infos_envoyee_le);
+  const premierEchange = fmtDateTime(client.kommo_premier_echange_le);
+  const dernierEchangeDate = [client.kommo_last_client_message_at, client.kommo_last_team_reply_at]
+    .filter((d): d is string => !!d)
+    .sort()
+    .at(-1);
+  const dernierEchange = dernierEchangeDate ? fmtDateTime(dernierEchangeDate) : null;
 
   const hasAnything =
     !!client.kommo_resume ||
@@ -57,7 +63,8 @@ export default function ProspectSummaryModal({
     !!client.kommo_ages_enfants_estime ||
     activites.length > 0 ||
     !!client.kommo_programme_envoye_resume ||
-    !!demandeInfosLe;
+    !!demandeInfosLe ||
+    !!premierEchange;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -127,6 +134,13 @@ export default function ProspectSummaryModal({
         )}
 
         {demandeInfosLe && <DetailRow label="Demande d'infos envoyée le">{demandeInfosLe}</DetailRow>}
+
+        {(premierEchange || dernierEchange) && (
+          <div className="mt-3">
+            {premierEchange && <DetailRow label="Premier échange">{premierEchange}</DetailRow>}
+            {dernierEchange && <DetailRow label="Dernier échange">{dernierEchange}</DetailRow>}
+          </div>
+        )}
 
         {!hasAnything && (
           <p className="mt-3 text-sm text-neutral-400">

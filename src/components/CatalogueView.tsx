@@ -31,7 +31,7 @@ import PhotoUpload from "@/components/PhotoUpload";
 import CatalogueModificationRequestModal from "@/components/CatalogueModificationRequestModal";
 import { localDateStr } from "@/lib/dates";
 import { useToast } from "@/components/ToastProvider";
-import { isChevalOuChameau } from "@/lib/resa";
+import { chevalOuChameauMot, isChevalOuChameau } from "@/lib/resa";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -57,14 +57,18 @@ function PriceSummary({ a }: { a: CatalogueItem }) {
       </span>
     );
   }
+  const animal = chevalOuChameauMot(a.nom);
   return (
     <>
-      <span>Adulte {euros(a.pu_adulte)}€</span>
+      <span>
+        Adulte {euros(a.pu_adulte)}€{animal && ` (par ${animal})`}
+      </span>
       {isSpaActivity(a) ? (
         <span>À partir de 10 ans</span>
       ) : (
         <span>Enfant {euros(a.pu_enfant)}€</span>
       )}
+      {!!a.pu_enfant_3ans && <span>Enfant 3 ans {euros(a.pu_enfant_3ans)}€</span>}
       {!isQuadActivity(a) && !isSpaActivity(a) && <span>Bébé {euros(a.pu_bebe)}€</span>}
     </>
   );
@@ -1868,6 +1872,11 @@ export default function CatalogueView({
                           <div className="min-w-0 flex-1">
                             <p className="text-sm text-neutral-700">Adulte</p>
                             <p className="text-[11px] text-neutral-400">{a.pu_adulte_age}</p>
+                            {chevalOuChameauMot(a.nom) && (
+                              <p className="text-[11px] font-medium text-[#0F5C56]">
+                                ℹ️ Tarif par {chevalOuChameauMot(a.nom)}
+                              </p>
+                            )}
                           </div>
                           <span className="font-amounts text-sm text-[#171717]">
                             {euros(a.pu_adulte)}€

@@ -371,6 +371,17 @@ export function isChevalOuChameau(nom: string) {
   return n.includes("cheval") || n.includes("chameau");
 }
 
+// Le tarif adulte/enfant d'une balade à cheval/chameau est un tarif "par
+// animal", pas "par personne" : un enfant seul sur son propre cheval/chameau
+// paie plein tarif adulte, ce qui ne va pas de soi si le prix est juste
+// affiché "Adulte X€" comme pour les autres activités.
+export function chevalOuChameauMot(nom: string): "cheval" | "chameau" | "" {
+  const n = (nom || "").toLowerCase();
+  if (n.includes("chameau")) return "chameau";
+  if (n.includes("cheval")) return "cheval";
+  return "";
+}
+
 // Quad (Safari quad, Safari quad & dîner spectacle, au coucher du soleil…) —
 // même logique que cheval/chameau : avec des enfants ou des ados, un quad
 // par participant n'est pas automatique (ex. enfant en passager derrière un

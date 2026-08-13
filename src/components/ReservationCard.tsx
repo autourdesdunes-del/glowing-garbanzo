@@ -50,6 +50,7 @@ const MAISON_DAUPHINS_TEXT =
 import { Field } from "@/components/client-steps";
 import MissingInfoModal from "@/components/MissingInfoModal";
 import { useToast } from "@/components/ToastProvider";
+import { useConfirm } from "@/components/ConfirmProvider";
 import BilletAvionUpload from "@/components/BilletAvionUpload";
 import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 
@@ -123,6 +124,7 @@ export default function ReservationCard({
   const [validationError, setValidationError] = useState(false);
   const [readingPassport, setReadingPassport] = useState(false);
   const toast = useToast();
+  const confirm = useConfirm();
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [showAnnulerModal, setShowAnnulerModal] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
@@ -167,9 +169,27 @@ export default function ReservationCard({
   champsRequisPersonnalises.forEach((c) => {
     if (!(r.champs_requis_coches || []).includes(c)) missingChamps.push(c);
   });
-  const pickFromCatalogue = (id: string) => {
+  const pickFromCatalogue = async (id: string) => {
     const item = catalogue.find((a) => a.id === id);
     if (!item) return;
+    // Ce menu reste affiché en permanence sur une activité déjà liée au
+    // catalogue — un re-clic accidentel (même sur la même activité)
+    // écrasait silencieusement les tarifs déjà personnalisés (adulte,
+    // enfant…) avec les valeurs par défaut du catalogue, sans aucun
+    // avertissement. On ne redemande rien si c'est déjà la même activité
+    // (aucun changement), sinon on confirme avant d'écraser les tarifs.
+    if (item.id === r.catalogue_item_id) return;
+    if (r.catalogue_item_id) {
+      const ok = await confirm({
+        title: "Changer d'activité du catalogue ?",
+        message:
+          "Cette activité est déjà liée à une activité du catalogue. La remplacer va réinitialiser tous les tarifs (adulte, enfant…) avec les valeurs par défaut de la nouvelle activité — tes éventuelles modifications de prix seront perdues.",
+        confirmLabel: "Remplacer",
+        cancelLabel: "Annuler",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     // Certaines activités démarrent déjà en forfait groupe (tarif_mode
     // copié depuis le catalogue) — sans ce pré-remplissage, le clic sur
     // "Forfait groupe" (qui fait le même travail) n'a jamais lieu puisque

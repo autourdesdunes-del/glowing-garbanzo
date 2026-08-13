@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CatalogueFaq,
   CatalogueItem,
+  CatalogueJour,
   CatalogueModificationRequest,
   CatalogueOption,
   CatalogueTarif,
@@ -282,6 +283,7 @@ function AppShellInner({
   );
   const [catalogueOptions, setCatalogueOptions] = useState<Record<string, CatalogueOption[]>>({});
   const [catalogueFaq, setCatalogueFaq] = useState<Record<string, CatalogueFaq[]>>({});
+  const [catalogueJours, setCatalogueJours] = useState<Record<string, CatalogueJour[]>>({});
   const [allResaTarifs, setAllResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
   const [sharedAlerts, setSharedAlerts] = useState<SharedActivityAlert[]>([]);
   const [showSharedAlertPopup, setShowSharedAlertPopup] = useState(false);
@@ -295,6 +297,7 @@ function AppShellInner({
         { data: transfertTarifsData },
         { data: catOptions },
         { data: catFaq },
+        { data: catJours },
         { data: profs },
         { data: shifts },
         { data: paypal },
@@ -308,6 +311,7 @@ function AppShellInner({
         supabase.from("transfert_tarifs").select("*").order("ordre", { ascending: true }),
         supabase.from("catalogue_options").select("*"),
         supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
+        supabase.from("catalogue_jours").select("*").order("ordre", { ascending: true }),
         supabase.from("profiles").select("*"),
         supabase.from("planning_shifts").select("*"),
         // Chargé sans attendre l'ouverture de Suivis : le pop-up de rappel
@@ -346,6 +350,11 @@ function AppShellInner({
         groupedFaq[f.catalogue_item_id] = [...(groupedFaq[f.catalogue_item_id] || []), f];
       });
       setCatalogueFaq(groupedFaq);
+      const groupedJours: Record<string, CatalogueJour[]> = {};
+      ((catJours as CatalogueJour[]) || []).forEach((j) => {
+        groupedJours[j.catalogue_item_id] = [...(groupedJours[j.catalogue_item_id] || []), j];
+      });
+      setCatalogueJours(groupedJours);
       setLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -841,6 +850,24 @@ function AppShellInner({
           }));
         }
       }
+      for (const j of catalogueJours[source.id] || []) {
+        const { data: jd } = await supabase
+          .from("catalogue_jours")
+          .insert({
+            catalogue_item_id: newItem.id,
+            titre: j.titre,
+            description: j.description,
+            ordre: j.ordre,
+          })
+          .select()
+          .single();
+        if (jd) {
+          setCatalogueJours((prev) => ({
+            ...prev,
+            [newItem.id]: [...(prev[newItem.id] || []), jd as CatalogueJour],
+          }));
+        }
+      }
     } else {
       toast("Impossible de dupliquer l'activité.");
     }
@@ -1049,6 +1076,61 @@ function AppShellInner({
     }));
     const { error } = await supabase.from("catalogue_faq").delete().eq("id", faqId);
     if (error) toast("Échec de la suppression.");
+  };
+
+  const addCatalogueJour = async (catalogueItemId: string) => {
+    const ordre = (catalogueJours[catalogueItemId] || []).length;
+    const { data, error } = await supabase
+      .from("catalogue_jours")
+      .insert({ catalogue_item_id: catalogueItemId, titre: "", description: "", ordre })
+      .select()
+      .single();
+    if (!error && data) {
+      const j = data as CatalogueJour;
+      setCatalogueJours((prev) => ({
+        ...prev,
+        [catalogueItemId]: [...(prev[catalogueItemId] || []), j],
+      }));
+    } else {
+      toast("Impossible d'ajouter ce jour.");
+    }
+  };
+
+  const updateCatalogueJour = async (
+    catalogueItemId: string,
+    jourId: string,
+    patch: Partial<CatalogueJour>
+  ) => {
+    setCatalogueJours((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).map((j) =>
+        j.id === jourId ? { ...j, ...patch } : j
+      ),
+    }));
+    const { error } = await supabase.from("catalogue_jours").update(patch).eq("id", jourId);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteCatalogueJour = async (catalogueItemId: string, jourId: string) => {
+    setCatalogueJours((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).filter((j) => j.id !== jourId),
+    }));
+    const { error } = await supabase.from("catalogue_jours").delete().eq("id", jourId);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  // Échange l'ordre entre un jour et son voisin (haut/bas) — pas de
+  // drag-and-drop ici, juste deux flèches, l'ordre important peu de fois.
+  const moveCatalogueJour = (catalogueItemId: string, jourId: string, direction: -1 | 1) => {
+    const list = [...(catalogueJours[catalogueItemId] || [])].sort((a, b) => a.ordre - b.ordre);
+    const idx = list.findIndex((j) => j.id === jourId);
+    const swapIdx = idx + direction;
+    if (idx === -1 || swapIdx < 0 || swapIdx >= list.length) return;
+    const a = list[idx];
+    const b = list[swapIdx];
+    updateCatalogueJour(catalogueItemId, a.id, { ordre: b.ordre });
+    updateCatalogueJour(catalogueItemId, b.id, { ordre: a.ordre });
   };
 
   const { topVenteIds, topRentabiliteIds } = useMemo(() => {
@@ -1579,6 +1661,11 @@ function AppShellInner({
             onAddFaq={addCatalogueFaq}
             onUpdateFaq={updateCatalogueFaq}
             onDeleteFaq={deleteCatalogueFaq}
+            jours={catalogueJours}
+            onAddJour={addCatalogueJour}
+            onUpdateJour={updateCatalogueJour}
+            onDeleteJour={deleteCatalogueJour}
+            onMoveJour={moveCatalogueJour}
             topVenteIds={topVenteIds}
             topRentabiliteIds={topRentabiliteIds}
             canSeeMargins={effectiveIsDirection}

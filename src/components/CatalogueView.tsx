@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CatalogueFaq,
   CatalogueItem,
+  CatalogueJour,
   CatalogueOption,
   CatalogueTarif,
   CatalogueTransfertTarif,
@@ -463,6 +464,11 @@ export default function CatalogueView({
   onAddFaq,
   onUpdateFaq,
   onDeleteFaq,
+  jours,
+  onAddJour,
+  onUpdateJour,
+  onDeleteJour,
+  onMoveJour,
   topVenteIds,
   topRentabiliteIds,
   canSeeMargins,
@@ -493,6 +499,11 @@ export default function CatalogueView({
   onAddFaq: (catalogueItemId: string) => void;
   onUpdateFaq: (catalogueItemId: string, faqId: string, patch: Partial<CatalogueFaq>) => void;
   onDeleteFaq: (catalogueItemId: string, faqId: string) => void;
+  jours: Record<string, CatalogueJour[]>;
+  onAddJour: (catalogueItemId: string) => void;
+  onUpdateJour: (catalogueItemId: string, jourId: string, patch: Partial<CatalogueJour>) => void;
+  onDeleteJour: (catalogueItemId: string, jourId: string) => void;
+  onMoveJour: (catalogueItemId: string, jourId: string, direction: -1 | 1) => void;
   topVenteIds: Set<string>;
   topRentabiliteIds: Set<string>;
   canSeeMargins: boolean;
@@ -674,6 +685,67 @@ export default function CatalogueView({
                     className="input min-h-[110px] resize-y"
                   />
                 </Field>
+              </div>
+
+              <div className="mb-3">
+                <p className="mb-1 text-sm font-medium text-neutral-700">
+                  Programme jour par jour (circuits sur plusieurs jours)
+                </p>
+                <p className="mb-1.5 text-xs text-neutral-400">
+                  Pour un circuit comme Le Caire 2 jours ou Abu Simbel — laisse vide si
+                  l&apos;activité tient dans le champ &quot;Programme complet&quot; ci-dessus.
+                </p>
+                {[...(jours[a.id] || [])]
+                  .sort((x, y) => x.ordre - y.ordre)
+                  .map((j, idx, arr) => (
+                    <div key={j.id} className="mb-2 rounded-md border border-neutral-200 p-2">
+                      <div className="mb-1.5 flex items-center gap-2">
+                        <span className="text-xs font-semibold text-neutral-500">
+                          Jour {idx + 1}
+                        </span>
+                        <input
+                          placeholder="Titre (ex. Arrivée au Caire)"
+                          value={j.titre}
+                          onChange={(e) => onUpdateJour(a.id, j.id, { titre: e.target.value })}
+                          className="input flex-1"
+                        />
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => onMoveJour(a.id, j.id, -1)}
+                          className="text-neutral-500 disabled:opacity-30"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === arr.length - 1}
+                          onClick={() => onMoveJour(a.id, j.id, 1)}
+                          className="text-neutral-500 disabled:opacity-30"
+                        >
+                          ↓
+                        </button>
+                        <button
+                          onClick={() => onDeleteJour(a.id, j.id)}
+                          className="text-red-600"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <textarea
+                        placeholder="Programme de ce jour…"
+                        value={j.description}
+                        onChange={(e) => onUpdateJour(a.id, j.id, { description: e.target.value })}
+                        className="input min-h-[70px] resize-y"
+                      />
+                    </div>
+                  ))}
+                <button
+                  onClick={() => onAddJour(a.id)}
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                >
+                  + Ajouter un jour
+                </button>
               </div>
 
               <div className="mb-3">
@@ -1643,6 +1715,31 @@ export default function CatalogueView({
                       </p>
                     </>
                   )}
+
+                  {(() => {
+                    const sortedJours = [...(jours[a.id] || [])].sort((x, y) => x.ordre - y.ordre);
+                    if (sortedJours.length === 0) return null;
+                    return (
+                      <>
+                        <h4 className="mb-2 text-sm font-semibold text-[#171717]">
+                          Programme jour par jour
+                        </h4>
+                        <div className="mb-5 space-y-3">
+                          {sortedJours.map((j, idx) => (
+                            <div key={j.id}>
+                              <p className="text-sm font-semibold text-[#171717]">
+                                Jour {idx + 1}
+                                {j.titre ? ` — ${j.titre}` : ""}
+                              </p>
+                              <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-600">
+                                {j.description}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
 
                   <h4 className="mb-1 text-sm font-semibold text-[#171717]">
                     Ce qu&apos;il faut savoir

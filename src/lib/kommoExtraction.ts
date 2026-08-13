@@ -16,6 +16,7 @@ export type KommoExtractedInfo = {
   nb_enfants_estime: number | null;
   ages_enfants_estime: string | null;
   activites_interet: string | null;
+  programme_envoye_resume: string | null;
 };
 
 export const EMPTY_EXTRACTED_INFO: KommoExtractedInfo = {
@@ -27,6 +28,7 @@ export const EMPTY_EXTRACTED_INFO: KommoExtractedInfo = {
   nb_enfants_estime: null,
   ages_enfants_estime: null,
   activites_interet: null,
+  programme_envoye_resume: null,
 };
 
 const EXTRACTION_TOOL = {
@@ -72,6 +74,11 @@ const EXTRACTION_TOOL = {
         description:
           "Activités qui intéressent potentiellement le prospect (mentionnées ou clairement sous-entendues par ses questions), séparées par des virgules (ex. 'plongée, excursion désert, Louxor'). null si rien n'est ressorti.",
       },
+      programme_envoye_resume: {
+        type: ["string", "null"],
+        description:
+          "Résumé très court du programme/de l'itinéraire proposé au prospect par l'équipe, UNIQUEMENT si ce message le mentionne ou le cite explicitement (ex. le prospect répond en citant ou commentant un programme reçu, ou le message de l'équipe détaille un programme envoyé). Ne jamais inventer un programme qui n'est pas explicitement dans le texte. null si aucun programme n'est mentionné dans ce message.",
+      },
     },
     required: [
       "resume",
@@ -82,6 +89,7 @@ const EXTRACTION_TOOL = {
       "nb_enfants_estime",
       "ages_enfants_estime",
       "activites_interet",
+      "programme_envoye_resume",
     ],
     additionalProperties: false,
   },
@@ -115,7 +123,7 @@ export async function extractProspectInfoFromMessage(params: {
           `Date du jour : ${todayStr}\n\n` +
           `Informations déjà connues sur ce prospect (JSON) :\n${JSON.stringify(previousInfo, null, 2)}\n\n` +
           `Nouveau message ${newMessageDirection === "in" ? "du prospect" : "de l'équipe (pas du prospect)"} :\n"${newMessageText}"\n\n` +
-          "Appelle l'outil avec l'état à jour complet (les 8 champs), en gardant les valeurs déjà connues quand ce message n'apporte rien de nouveau sur un champ.",
+          "Appelle l'outil avec l'état à jour complet (les 9 champs), en gardant les valeurs déjà connues quand ce message n'apporte rien de nouveau sur un champ.",
       },
     ],
   });

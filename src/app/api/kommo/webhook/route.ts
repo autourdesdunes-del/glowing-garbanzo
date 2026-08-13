@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchKommoLeadContactInfo } from "@/lib/kommoApi";
+import { localDateStr } from "@/lib/dates";
 import {
     cleanKommoName,
     detectKommoEventType,
@@ -9,6 +10,11 @@ import {
     parseKommoFormBody,
       KOMMO_STATUS_MAP,
 } from "@/lib/kommoWebhook";
+
+// Id du statut Kommo "Demande d'infos envoyée" (cf. KOMMO_STATUS_MAP) — sert
+// à horodater l'entrée dans cette étape, une seule fois côté webhook
+// classique (fiable), pas déduit par l'IA.
+const DEMANDE_INFOS_STATUS_ID = 109792995;
 
 // Étape 1 (lecture seule) de l'intégration Kommo : ce endpoint reçoit les
 // webhooks Kommo (statut de lead, contact ajouté/modifié) et se contente de
@@ -106,10 +112,10 @@ async function processLeadEvent(
           
               const { data: existing } = await admin
                         .from("clients")
-                        .select("id, nom, telephone, email")
+                        .select("id, nom, telephone, email, kommo_demande_infos_envoyee_le")
                         .eq("kommo_lead_id", leadId)
                         .maybeSingle();
-          
+
               if (existing) {
                         const patch: Record<string, unknown> = {
                                     kommo_pipeline_status_id: statusId,
@@ -117,6 +123,11 @@ async function processLeadEvent(
                                     kommo_synced_at: new Date().toISOString(),
                         };
                         if (mapped) patch.statut = mapped.statutCrm;
+                        // Horodate l'entrée dans "Demande d'infos envoyée" une seule fois
+                        // (ne réécrase pas une date déjà posée si le lead y repasse).
+                        if (statusId === DEMANDE_INFOS_STATUS_ID && !existing.kommo_demande_infos_envoyee_le) {
+                                    patch.kommo_demande_infos_envoyee_le = localDateStr(new Date());
+                        }
 
                         // Le nom se resynchronise à chaque webhook (écrase une éventuelle
                         // saisie manuelle) — demande explicite : c'est Kommo qui fait foi

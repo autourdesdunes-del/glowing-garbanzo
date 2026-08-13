@@ -77,7 +77,7 @@ async function processMessage(
   let query = admin
     .from("clients")
     .select(
-      "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet"
+      "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_programme_envoye_resume"
     );
   query = leadId ? query.eq("kommo_lead_id", leadId) : query.eq("kommo_contact_id", contactId);
   let existing = (await query.maybeSingle()).data;
@@ -112,7 +112,7 @@ async function processMessage(
         kommo_synced_at: new Date().toISOString(),
       })
       .select(
-        "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet"
+        "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_programme_envoye_resume"
       )
       .single();
     existing = created;
@@ -128,6 +128,7 @@ async function processMessage(
     nb_enfants_estime: existing.kommo_nb_enfants_estime,
     ages_enfants_estime: existing.kommo_ages_enfants_estime || null,
     activites_interet: existing.kommo_activites_interet || null,
+    programme_envoye_resume: existing.kommo_programme_envoye_resume || null,
   };
 
   const updated = await extractProspectInfoFromMessage({
@@ -149,6 +150,7 @@ async function processMessage(
       kommo_nb_enfants_estime: updated.nb_enfants_estime,
       kommo_ages_enfants_estime: updated.ages_enfants_estime || "",
       kommo_activites_interet: updated.activites_interet || "",
+      kommo_programme_envoye_resume: updated.programme_envoye_resume || "",
       kommo_extraction_updated_at: new Date().toISOString(),
     })
     .eq("id", existing.id);

@@ -288,6 +288,8 @@ export type Client = {
   kommo_ages_enfants_estime: string;
   kommo_activites_interet: string;
   kommo_extraction_updated_at: string | null;
+  kommo_demande_infos_envoyee_le: string | null;
+  kommo_programme_envoye_resume: string;
   created_at: string;
   updated_at: string;
 };
@@ -366,6 +368,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   kommo_ages_enfants_estime: "",
   kommo_activites_interet: "",
   kommo_extraction_updated_at: null,
+  kommo_demande_infos_envoyee_le: null,
+  kommo_programme_envoye_resume: "",
 };
 
 export type UserShift = {
@@ -465,6 +469,25 @@ export type BusEscalation = {
   client_nom: string;
   reservation_id: string | null;
   nom_activite: string;
+  employe_id: string;
+  employe_nom: string;
+  statut: "en_attente" | "validee" | "refusee";
+  resolu_par: string | null;
+  resolu_par_nom: string;
+  resolu_message: string;
+  resolu_at: string | null;
+  created_at: string;
+};
+
+export type JourEscalation = {
+  id: string;
+  client_id: string;
+  client_nom: string;
+  reservation_id: string | null;
+  nom_activite: string;
+  date_choisie: string | null;
+  jour_choisi: string;
+  jours_disponibles: string[];
   employe_id: string;
   employe_nom: string;
   statut: "en_attente" | "validee" | "refusee";

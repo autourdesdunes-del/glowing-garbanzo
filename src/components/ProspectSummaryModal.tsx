@@ -45,6 +45,7 @@ export default function ProspectSummaryModal({
     .map((a) => a.trim())
     .filter(Boolean);
   const derniereMaj = fmtDateTime(client.kommo_extraction_updated_at);
+  const demandeInfosLe = fmtDate(client.kommo_demande_infos_envoyee_le);
 
   const hasAnything =
     !!client.kommo_resume ||
@@ -52,7 +53,9 @@ export default function ProspectSummaryModal({
     !!client.kommo_hotel_estime ||
     hasPax ||
     !!client.kommo_ages_enfants_estime ||
-    activites.length > 0;
+    activites.length > 0 ||
+    !!client.kommo_programme_envoye_resume ||
+    !!demandeInfosLe;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -111,6 +114,17 @@ export default function ProspectSummaryModal({
             </div>
           </div>
         )}
+
+        {client.kommo_programme_envoye_resume && (
+          <div className="mt-3">
+            <p className="mb-1.5 text-xs font-medium text-neutral-500">Programme envoyé</p>
+            <p className="rounded-md bg-[#0F5C56]/5 p-3 text-sm text-[#171717]">
+              {client.kommo_programme_envoye_resume}
+            </p>
+          </div>
+        )}
+
+        {demandeInfosLe && <DetailRow label="Demande d'infos envoyée le">{demandeInfosLe}</DetailRow>}
 
         {!hasAnything && (
           <p className="mt-3 text-sm text-neutral-400">

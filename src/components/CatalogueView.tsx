@@ -47,6 +47,7 @@ function isSpaActivity(a: CatalogueItem) {
 
 function PriceSummary({ a }: { a: CatalogueItem }) {
   if (a.tarif_mode === "groupe") {
+    if (!a.prix_groupe_base) return <span>Forfait sur demande</span>;
     return (
       <span>
         Forfait {euros(a.prix_groupe_base)}€ ({a.prix_groupe_base_pax} pers.)
@@ -1923,7 +1924,7 @@ export default function CatalogueView({
                             </p>
                           </div>
                           <span className="font-amounts text-sm text-[#171717]">
-                            {euros(a.prix_groupe_base)}€
+                            {a.prix_groupe_base ? `${euros(a.prix_groupe_base)}€` : "Sur demande"}
                           </span>
                         </div>
                         {a.prix_groupe_extra1 > 0 && (

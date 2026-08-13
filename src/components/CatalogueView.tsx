@@ -1950,12 +1950,19 @@ export default function CatalogueView({
                               jusqu&apos;à {a.prix_groupe_base_pax} personne(s)
                             </p>
                           </div>
-                          <span className="font-amounts text-sm text-[#171717]">
-                            {a.prix_groupe_base
-                              ? `${euros(a.prix_groupe_base)}€`
-                              : a.prix_groupe_note || "Sur demande"}
-                          </span>
+                          {a.prix_groupe_base ? (
+                            <span className="font-amounts text-sm text-[#171717]">
+                              {euros(a.prix_groupe_base)}€
+                            </span>
+                          ) : (
+                            !a.prix_groupe_note && (
+                              <span className="text-sm text-neutral-500">Sur demande</span>
+                            )
+                          )}
                         </div>
+                        {!a.prix_groupe_base && a.prix_groupe_note && (
+                          <p className="pl-11 text-sm text-neutral-600">{a.prix_groupe_note}</p>
+                        )}
                         {a.prix_groupe_extra1 > 0 && (
                           <div className="flex items-center gap-3">
                             <RowIcon>

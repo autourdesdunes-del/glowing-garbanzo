@@ -835,7 +835,73 @@ function PaypalPaiementRow({
 // paiement des derniers jours sans avoir à chercher dans Supabase (rattaché
 // ou non, contrairement à la liste principale qui ne montre que les
 // paiements encore en attente).
-function PaypalHistorique({ paypalPaiements, clients }: { paypalPaiements: PaypalPaiement[]; clients: Client[] }) {
+function PaypalHistoriqueDetailModal({
+  paiement,
+  client,
+  onOpenClient,
+  onClose,
+}: {
+  paiement: PaypalPaiement;
+  client: Client | null;
+  onOpenClient: (id: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between">
+          <h2 className="font-heading text-base font-semibold text-[#171717]">💰 Paiement PayPal</h2>
+          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-[#171717]">
+            ✕
+          </button>
+        </div>
+        <div className="mt-2">
+          <PropertyRow label="Reçu le">{fmtDateTime(paiement.paypal_recu_le)}</PropertyRow>
+          <PropertyRow label="Payeur">{paiement.payeur_nom || "?"}</PropertyRow>
+          {paiement.payeur_email && <PropertyRow label="Email">{paiement.payeur_email}</PropertyRow>}
+          <PropertyRow label="Montant brut">{euros(paiement.montant)} €</PropertyRow>
+          {paiement.frais > 0 && <PropertyRow label="Frais PayPal">{euros(paiement.frais)} €</PropertyRow>}
+          <PropertyRow label="Montant net">{euros(paiement.montant_net)} €</PropertyRow>
+          <PropertyRow label="Entre proches">{paiement.entre_proches ? "Oui ✅" : "Non"}</PropertyRow>
+          <PropertyRow label="Statut">
+            {client ? (
+              <button
+                onClick={() => {
+                  onOpenClient(client.id);
+                  onClose();
+                }}
+                className="font-medium text-[#0F5C56] hover:underline"
+              >
+                Rattaché à {client.nom}
+              </button>
+            ) : (
+              <span className="text-[#8B4531]">En attente de rattachement</span>
+            )}
+          </PropertyRow>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Petit panneau discret, pas un vrai onglet — juste de quoi retrouver un
+// paiement des derniers jours sans avoir à chercher dans Supabase (rattaché
+// ou non, contrairement à la liste principale qui ne montre que les
+// paiements encore en attente). Chaque ligne ouvre le détail complet en
+// pop-up au clic.
+function PaypalHistorique({
+  paypalPaiements,
+  clients,
+  onOpenClient,
+}: {
+  paypalPaiements: PaypalPaiement[];
+  clients: Client[];
+  onOpenClient: (id: string) => void;
+}) {
+  const [selected, setSelected] = useState<PaypalPaiement | null>(null);
   const cinqJours = Date.now() - 5 * 86400000;
   const recents = paypalPaiements
     .filter((p) => Date.parse(p.paypal_recu_le) >= cinqJours)
@@ -856,7 +922,11 @@ function PaypalHistorique({ paypalPaiements, clients }: { paypalPaiements: Paypa
               ? clients.find((c) => c.id === p.rattache_client_id)
               : null;
             return (
-              <div key={p.id} className="text-[11px] leading-tight">
+              <button
+                key={p.id}
+                onClick={() => setSelected(p)}
+                className="block w-full rounded px-1 py-0.5 text-left text-[11px] leading-tight hover:bg-white"
+              >
                 <div className="flex items-center justify-between text-neutral-400">
                   <span>{fmtDateTime(p.paypal_recu_le)}</span>
                   <span className="font-amounts">{euros(p.montant_net)}€</span>
@@ -869,10 +939,22 @@ function PaypalHistorique({ paypalPaiements, clients }: { paypalPaiements: Paypa
                     <span className="text-[#8B4531]"> — en attente</span>
                   )}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
+      )}
+      {selected && (
+        <PaypalHistoriqueDetailModal
+          paiement={selected}
+          client={
+            selected.rattache_client_id
+              ? clients.find((c) => c.id === selected.rattache_client_id) || null
+              : null
+          }
+          onOpenClient={onOpenClient}
+          onClose={() => setSelected(null)}
+        />
       )}
     </div>
   );
@@ -2112,7 +2194,7 @@ export default function SuivisView({
               </div>
             )}
           </div>
-          <PaypalHistorique paypalPaiements={paypalPaiements} clients={clients} />
+          <PaypalHistorique paypalPaiements={paypalPaiements} clients={clients} onOpenClient={onOpenClient} />
         </div>
       )}
     </div>

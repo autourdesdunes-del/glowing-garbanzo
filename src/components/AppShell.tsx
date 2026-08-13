@@ -550,6 +550,11 @@ function AppShellInner({
     setSuivisSub("billets");
   };
 
+  const openPaypalPaiements = () => {
+    setMode("suivis");
+    setSuivisSub("paypal");
+  };
+
   // Depuis la fiche détail d'un billet (Suivis > Billets d'avion), ouvre
   // l'activité liée dans Réservations > Calendrier par activité, avec un
   // "Retour" qui ramène pile sur cette même fiche billet (pas juste sur la
@@ -1376,6 +1381,8 @@ function AppShellInner({
               onOpenAvisClients={openAvisClients}
               onOpenProspectsARelancer={openProspectsARelancer}
               onOpenBilletsAvion={openBilletsAvion}
+              onOpenPaypalPaiements={openPaypalPaiements}
+              paypalPaiementsNonRattaches={paypalPaiementsNonRattaches}
               onCreateClient={addClient}
               onUpdateClient={updateClientById}
               onDeleteClient={deleteClient}

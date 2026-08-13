@@ -196,41 +196,45 @@ export default function PipelineView({
   );
 
   if (groupBy === "timing") {
+    // Un client annulé n'a plus rien à voir avec la proximité de son
+    // séjour (souvent déjà passée ou sans intérêt) — colonne à part plutôt
+    // que mélangé aux clients actifs dans "Plus tard / date à définir".
+    const clientsAnnules = filteredClients.filter((c) => c.statut === "Client annulé");
+    const clientsActifs = filteredClients.filter((c) => c.statut !== "Client annulé");
+    const renderColumn = (key: string, label: string, items: Client[]) => (
+      <div
+        key={key}
+        className="flex w-64 flex-shrink-0 flex-col rounded-lg border border-[#666666]/15 bg-[#fafafa]/30 p-2"
+      >
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <span className="text-xs font-semibold text-[#171717]">{label}</span>
+          <span className="ml-auto text-xs text-neutral-400">{items.length}</span>
+        </div>
+        <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
+          {items.map((c) => (
+            <ClientCard
+              key={c.id}
+              client={c}
+              draggable={false}
+              dragging={false}
+              onDragStart={() => {}}
+              onDragEnd={() => {}}
+              onOpenClient={onOpenClient}
+              showIncompleteBadge
+            />
+          ))}
+          {items.length === 0 && <div className="p-2 text-center text-xs text-neutral-300">Vide</div>}
+        </div>
+      </div>
+    );
     return (
       <div className="flex h-full flex-col">
         {searchBar}
         <div className="flex flex-1 gap-4 overflow-x-auto p-6">
-        {TIMING_BUCKETS.map((bucket) => {
-          const items = filteredClients.filter(bucket.match);
-          return (
-            <div
-              key={bucket.key}
-              className="flex w-64 flex-shrink-0 flex-col rounded-lg border border-[#666666]/15 bg-[#fafafa]/30 p-2"
-            >
-              <div className="mb-2 flex items-center gap-2 px-1">
-                <span className="text-xs font-semibold text-[#171717]">{bucket.label}</span>
-                <span className="ml-auto text-xs text-neutral-400">{items.length}</span>
-              </div>
-              <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
-                {items.map((c) => (
-                  <ClientCard
-                    key={c.id}
-                    client={c}
-                    draggable={false}
-                    dragging={false}
-                    onDragStart={() => {}}
-                    onDragEnd={() => {}}
-                    onOpenClient={onOpenClient}
-                    showIncompleteBadge
-                  />
-                ))}
-                {items.length === 0 && (
-                  <div className="p-2 text-center text-xs text-neutral-300">Vide</div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+          {TIMING_BUCKETS.map((bucket) =>
+            renderColumn(bucket.key, bucket.label, clientsActifs.filter(bucket.match))
+          )}
+          {renderColumn("annule", "Client annulé", clientsAnnules)}
         </div>
       </div>
     );

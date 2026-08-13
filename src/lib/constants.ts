@@ -6,7 +6,7 @@ export const PROSPECT_STATUTS: string[] = [
   "Programme envoyé",
   "Demande d'infos envoyée",
 ];
-export const CLIENT_STATUTS: string[] = ["Client confirmé", "Client perdu"];
+export const CLIENT_STATUTS: string[] = ["Client confirmé", "Client perdu", "Client annulé"];
 export const STATUTS: string[] = [...PROSPECT_STATUTS, ...CLIENT_STATUTS];
 export const CANAUX = ["Instagram", "WhatsApp", "TikTok", "Email", "Autre"] as const;
 export const RELATIONS = [
@@ -200,4 +200,23 @@ export const STATUT_COLORS: Record<string, string> = {
   "Demande d'infos envoyée": "#F3B8BE",
   "Client confirmé": "#171717",
   "Client perdu": "#9CA3AF",
+  "Client annulé": "#C4453A",
 };
+
+// Options de règle d'annulation par activité (Catalogue) — voir
+// resa.ts:reglementAnnulation pour le calcul remboursable/non remboursable
+// qui en découle.
+export const REGLES_ANNULATION = [
+  { key: "hurghada_24h", label: "Hurghada — remboursable jusqu'à 24h avant" },
+  { key: "culturelle_48h", label: "Excursion culturelle (hors Hurghada) — 48h avant" },
+  { key: "siwa_desert_10j", label: "Siwa / Désert Blanc — 10 jours avant" },
+  { key: "non_remboursable", label: "Non remboursable (billet d'avion, croisière, hôtel...)" },
+] as const;
+
+export const RAISONS_ANNULATION = [
+  "Météo",
+  "Client ne veut plus",
+  "Changement de programme",
+  "Non-présentation",
+  "Autre",
+] as const;

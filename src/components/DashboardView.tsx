@@ -415,7 +415,9 @@ export default function DashboardView({
   });
 
   const caTotal = isDirection
-    ? reservations.reduce(
+    ? reservations
+        .filter((r) => r.statut_resa !== "Annulée")
+        .reduce(
         (s, r) =>
           s +
           resaTotalMontant(

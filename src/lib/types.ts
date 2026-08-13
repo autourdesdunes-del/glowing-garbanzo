@@ -32,6 +32,7 @@ export type CatalogueItem = {
   prix_groupe_extra1_age: string;
   prix_groupe_extra_enfant: number;
   prix_groupe_extra_enfant_age: string;
+  prix_groupe_note: string;
   marge_pct: number;
   specificites: string;
   horaire_approx: string;
@@ -43,6 +44,7 @@ export type CatalogueItem = {
   guide_egyptologue: boolean;
   guide_supplement: boolean;
   guide_supplement_prix: number;
+  regle_annulation: "hurghada_24h" | "culturelle_48h" | "siwa_desert_10j" | "non_remboursable";
   programme: string;
   inclus: string;
   inclus_liste: string[];
@@ -175,7 +177,12 @@ export type Reservation = {
   numero_vol: string;
   horaire_vol: string;
   champs_requis_coches: string[];
-  statut_resa: "Brouillon" | "Confirmée";
+  statut_resa: "Brouillon" | "Confirmée" | "Annulée";
+  annulation_raison: string;
+  annulation_date: string | null;
+  annulation_remb_avoir: "" | "rembourse" | "avoir";
+  annulation_exception_hossam: boolean;
+  annulation_prevenir_hossam: boolean;
   billet_requis: boolean;
   billet_etape: string;
   billet_demande_envoyee_le: string | null;
@@ -322,6 +329,8 @@ export type Client = {
   kommo_extraction_updated_at: string | null;
   kommo_demande_infos_envoyee_le: string | null;
   kommo_programme_envoye_resume: string;
+  annulation_raison: string;
+  annulation_date: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -403,6 +412,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   kommo_extraction_updated_at: null,
   kommo_demande_infos_envoyee_le: null,
   kommo_programme_envoye_resume: "",
+  annulation_raison: "",
+  annulation_date: null,
 };
 
 export type UserShift = {

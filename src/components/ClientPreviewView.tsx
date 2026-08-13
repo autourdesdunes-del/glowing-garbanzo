@@ -198,9 +198,10 @@ export default function ClientPreviewView({
     countdownNum = "Séjour terminé";
   }
 
-  const sortedResas = [...reservations].sort((a, b) =>
-    (a.date_debut || "").localeCompare(b.date_debut || "")
-  );
+  const annulees = reservations.filter((r) => r.statut_resa === "Annulée");
+  const sortedResas = reservations
+    .filter((r) => r.statut_resa !== "Annulée")
+    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
   const total = sortedResas.reduce(
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
@@ -220,7 +221,7 @@ export default function ClientPreviewView({
     "Retour",
   ];
 
-  const bookedNames = new Set(reservations.map((r) => r.nom_activite));
+  const bookedNames = new Set(sortedResas.map((r) => r.nom_activite));
   const suggestions = catalogue.filter((a) => a.valide && !bookedNames.has(a.nom)).slice(0, 4);
   const suggestionsWithPhoto = suggestions.filter((a) => a.photo_path);
 
@@ -413,6 +414,20 @@ export default function ClientPreviewView({
             </div>
           </div>
         ))}
+        {annulees.length > 0 && (
+          <details className="mt-2 text-xs text-neutral-400">
+            <summary className="cursor-pointer select-none">
+              Activités annulées ({annulees.length})
+            </summary>
+            <div className="mt-2 space-y-1">
+              {annulees.map((r) => (
+                <div key={r.id}>
+                  {fmtDate(r.date_debut)} — {r.nom_activite || "Activité"}
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
       </NavPanel>
 
       <NavPanel

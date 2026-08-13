@@ -1,4 +1,4 @@
-import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { weekdayFr } from "@/lib/dates";
 
 // Le solde reste unique par séjour (règle métier — jamais un solde par
@@ -155,6 +155,14 @@ export function avoirUtiliseTotal(reservations: Reservation[]) {
   return reservations.reduce((s, rr) => s + (Number(rr.avoir_utilise) || 0), 0);
 }
 
+// Une activité annulée sort du total du séjour (et de tout calcul de
+// paiement) sans jamais être supprimée — elle reste consultable, juste
+// exclue des sommes. Toujours passer les réservations par ici avant de les
+// sommer.
+export function reservationsActives(reservations: Reservation[]) {
+  return reservations.filter((r) => r.statut_resa !== "Annulée");
+}
+
 // "Paiement intégral" → "à la première activité" : signale, sur l'activité
 // choisie comme point de collecte (la première par défaut, ou une autre si
 // l'employée en a sélectionné une autre), le montant qui reste à encaisser.
@@ -174,7 +182,7 @@ export function activitePaiementWarning(
     // conversion — jamais recalculé silencieusement à l'affichage.
     return { amount: client.egp_montant, devise: "EGP" };
   }
-  const totalSejour = reservations.reduce(
+  const totalSejour = reservationsActives(reservations).reduce(
     (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
     0
   );
@@ -244,6 +252,66 @@ export function isSpeedboat(nom: string) {
 // encore dans le catalogue (à activer ici quand ils y seront).
 export function isLeCaireEnAvion(nom: string) {
   return (nom || "").trim().toLowerCase() === "le caire en avion";
+}
+
+export type ReglementAnnulation = {
+  remboursable: boolean;
+  raison: string;
+  prevenirHossam: boolean;
+};
+
+// Calcule si une activité annulée maintenant serait remboursable — jamais
+// deviné depuis le nom de l'activité en texte libre (trop risqué sur une
+// histoire d'argent), toujours à partir de billet_requis et de la règle
+// d'annulation réglée une fois pour toutes sur l'activité du Catalogue.
+// Règles validées avec Mélanie (2026-08) : billet d'avion et croisière/
+// hôtel jamais remboursables sauf exception Hossam ; Siwa/Désert Blanc non
+// remboursables sous 10 jours ; le reste (Hurghada) sous 24h, les
+// excursions culturelles hors Hurghada sous 48h ; une annulation après la
+// date de l'activité compte comme non-présentation, jamais remboursée.
+export function reglementAnnulation(
+  r: Reservation,
+  catalogueItem: CatalogueItem | undefined,
+  now: Date
+): ReglementAnnulation {
+  if (r.date_debut) {
+    const heuresAvant = (Date.parse(r.date_debut + "T00:00:00") - now.getTime()) / 3600000;
+    if (heuresAvant < 0) {
+      return { remboursable: false, raison: "Non-présentation (date déjà passée)", prevenirHossam: false };
+    }
+    if (r.billet_requis) {
+      return {
+        remboursable: false,
+        raison: "Billet d'avion requis — non remboursable sauf exception Hossam",
+        prevenirHossam: true,
+      };
+    }
+    const regle = catalogueItem?.regle_annulation || "hurghada_24h";
+    if (regle === "non_remboursable") {
+      return {
+        remboursable: false,
+        raison: "Activité non remboursable (croisière, hôtel...) sauf exception Hossam",
+        prevenirHossam: true,
+      };
+    }
+    if (regle === "siwa_desert_10j") {
+      const joursAvant = heuresAvant / 24;
+      return joursAvant >= 10
+        ? { remboursable: true, raison: "Annulé à 10 jours ou plus — remboursable", prevenirHossam: false }
+        : { remboursable: false, raison: "Annulé à moins de 10 jours — non remboursable", prevenirHossam: false };
+    }
+    const seuilHeures = regle === "culturelle_48h" ? 48 : 24;
+    return heuresAvant >= seuilHeures
+      ? { remboursable: true, raison: `Annulé à ${seuilHeures}h ou plus — remboursable`, prevenirHossam: false }
+      : {
+          remboursable: false,
+          raison: `Annulé à moins de ${seuilHeures}h — non remboursable`,
+          prevenirHossam: false,
+        };
+  }
+  // Pas de date : on ne peut pas calculer de délai, on part du principe le
+  // plus prudent pour l'agence.
+  return { remboursable: false, raison: "Date d'activité inconnue", prevenirHossam: false };
 }
 
 const BILLET_ETAPE_SHORT_LABELS: Record<string, string> = {

@@ -28,7 +28,7 @@ import {
   RELATIONS,
   STATUTS,
 } from "@/lib/constants";
-import { hossamBilletMessage, resaTotalMontant } from "@/lib/resa";
+import { hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { matchHotel } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
@@ -1334,7 +1334,7 @@ export function PaiementsStep({
     if (pending) setBilletHossamReminder(pending);
   };
 
-  const totalSejour = reservations.reduce(
+  const totalSejour = reservationsActives(reservations).reduce(
     (sum, r) => sum + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );

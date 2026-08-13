@@ -1040,7 +1040,7 @@ export default function SuivisView({
     const acomptePaye =
       c.paiement_type === "acompte" && c.acompte_paye ? Number(c.acompte_montant) || 0 : 0;
     const totalSejour = reservations
-      .filter((r) => r.client_id === c.id)
+      .filter((r) => r.client_id === c.id && r.statut_resa !== "Annulée")
       .reduce((sum, r) => sum + resaTotalMontant(r, c, resaOptions[r.id] || [], resaTarifs[r.id] || []), 0);
     return Math.max(totalSejour - acomptePaye, 0);
   };

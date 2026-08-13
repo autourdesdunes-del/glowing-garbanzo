@@ -46,6 +46,7 @@ import AppelReminders from "@/components/AppelReminders";
 import BilletRappels from "@/components/BilletRappels";
 import BilletEnvoiRappels from "@/components/BilletEnvoiRappels";
 import PaypalPaiementRappel from "@/components/PaypalPaiementRappel";
+import AnnulationHossamAlert from "@/components/AnnulationHossamAlert";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
 
@@ -1210,6 +1211,7 @@ function AppShellInner({
         clients={clients}
         onRattacher={rattacherPaypalPaiement}
       />
+      <AnnulationHossamAlert reservations={allReservations} clients={clients} userEmail={userEmail} />
       {prospectSummaryId &&
         (() => {
           const c = clients.find((cl) => cl.id === prospectSummaryId);

@@ -51,6 +51,7 @@ import { Field } from "@/components/client-steps";
 import MissingInfoModal from "@/components/MissingInfoModal";
 import { useToast } from "@/components/ToastProvider";
 import BilletAvionUpload from "@/components/BilletAvionUpload";
+import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -123,6 +124,7 @@ export default function ReservationCard({
   const [readingPassport, setReadingPassport] = useState(false);
   const toast = useToast();
   const [showMomentModal, setShowMomentModal] = useState(false);
+  const [showAnnulerModal, setShowAnnulerModal] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
   const isTransfert = catalogueItem?.categorie === "Transfert" && transfertTarifs.length > 0;
   const matchTransfertTarif = (zone: string, vehicule: string) =>
@@ -264,6 +266,21 @@ export default function ReservationCard({
   };
 
   if (!expanded) {
+    if (r.statut_resa === "Annulée") {
+      return (
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 opacity-60">
+          <p className="font-medium text-neutral-500 line-through">
+            {r.nom_activite || "Activité sans nom"}
+          </p>
+          <p className="mt-1 text-xs text-neutral-400">
+            Annulée le {r.annulation_date ? fmtDate(r.annulation_date) : "?"}
+            {r.annulation_raison ? ` — ${r.annulation_raison}` : ""}
+            {r.annulation_remb_avoir === "rembourse" && " — remboursée"}
+            {r.annulation_remb_avoir === "avoir" && " — avoir créé"}
+          </p>
+        </div>
+      );
+    }
     if (r.statut_resa === "Confirmée") {
       return (
         <div
@@ -411,6 +428,14 @@ export default function ReservationCard({
         <button onClick={onDelete} className="text-xs text-red-600 hover:underline">
           Retirer
         </button>
+        {r.statut_resa !== "Annulée" && (
+          <button
+            onClick={() => setShowAnnulerModal(true)}
+            className="whitespace-nowrap text-xs text-neutral-500 hover:text-red-600 hover:underline"
+          >
+            Annuler
+          </button>
+        )}
         <button
           onClick={() => {
             if (missingChamps.length > 0) {
@@ -1314,6 +1339,17 @@ export default function ReservationCard({
           </select>
         </div>
       </div>
+      {showAnnulerModal && (
+        <AnnulerActiviteModal
+          r={r}
+          client={client}
+          options={options}
+          tarifs={tarifs}
+          catalogueItem={catalogueItem}
+          onUpdate={onUpdate}
+          onClose={() => setShowAnnulerModal(false)}
+        />
+      )}
     </div>
   );
 }

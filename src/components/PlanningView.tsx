@@ -14,6 +14,7 @@ import {
   participantsFor,
   resaBreakdown,
   resaTotalMontant,
+  reservationsActives,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 import { buildPaxEnglish } from "@/components/client-steps";
@@ -425,7 +426,7 @@ function ActivityDetailModal({
   const soldeSansActivite =
     !soldeIci && !client.solde_paye && !client.solde_activite_id && !rdvPlanifie;
   const [showSoldeSansActiviteAlert, setShowSoldeSansActiviteAlert] = useState(soldeSansActivite);
-  const totalSejourClient = clientReservations.reduce(
+  const totalSejourClient = reservationsActives(clientReservations).reduce(
     (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
     0
   );
@@ -678,7 +679,7 @@ function ActivityDetailModal({
                   <span>Total séjour</span>
                   <span>
                     {euros(
-                      clientReservations.reduce(
+                      reservationsActives(clientReservations).reduce(
                         (s, rr) =>
                           s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
                         0

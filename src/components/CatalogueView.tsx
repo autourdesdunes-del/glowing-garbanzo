@@ -21,6 +21,7 @@ import {
   INCLUS_PRESETS,
   JOURS_SEMAINE,
   NON_INCLUS_PRESETS,
+  REGLES_ANNULATION,
   TYPE_MODIFICATION_OPTIONS,
   VEHICULES_TRANSFERT,
   ZONES_TRANSFERT,
@@ -874,6 +875,23 @@ export default function CatalogueView({
                   >
                     {GUIDE_OPTIONS.map((g) => (
                       <option key={g}>{g}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Règle d'annulation">
+                  <select
+                    value={a.regle_annulation}
+                    onChange={(e) =>
+                      onUpdate(a.id, {
+                        regle_annulation: e.target.value as CatalogueItem["regle_annulation"],
+                      })
+                    }
+                    className="input"
+                  >
+                    {REGLES_ANNULATION.map((r) => (
+                      <option key={r.key} value={r.key}>
+                        {r.label}
+                      </option>
                     ))}
                   </select>
                 </Field>

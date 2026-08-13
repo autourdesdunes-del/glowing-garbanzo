@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   BusEscalation,
   CatalogueItem,
@@ -137,6 +138,12 @@ export default function ItineraryView({
     if (val && val.trim()) onSetPickup(r.id, val.trim());
   };
 
+  const [voirAnnulees, setVoirAnnulees] = useState(false);
+  const nbAnnulees = reservations.filter((r) => r.statut_resa === "Annulée").length;
+  const reservationsAffichees = voirAnnulees
+    ? reservations
+    : reservations.filter((r) => r.statut_resa !== "Annulée");
+
   const renderCard = (r: Reservation, day?: string) => {
     if (expandedId === r.id) {
       return (
@@ -268,24 +275,34 @@ export default function ItineraryView({
     );
   };
 
-  const dateless = reservations.filter((r) => !r.date_debut);
+  const dateless = reservationsAffichees.filter((r) => !r.date_debut);
   // Les jours affichés viennent des dates des activités elles-mêmes, pas
   // du séjour du client — sinon une activité datée disparaît silencieusement
   // dès que le séjour (Contact > Séjour) n'est pas encore renseigné, ou que
   // l'activité tombe hors de cette plage (avant l'arrivée, après le départ).
   const daySet = new Set<string>();
-  reservations.forEach((r) => {
+  reservationsAffichees.forEach((r) => {
     if (!r.date_debut) return;
     enumerateDays(r.date_debut, r.date_fin || r.date_debut).forEach((d) => daySet.add(d));
   });
   const days = Array.from(daySet).sort();
 
-  if (dateless.length === 0 && days.length === 0) {
+  if (dateless.length === 0 && days.length === 0 && nbAnnulees === 0) {
     return <div className="text-sm text-neutral-400">Aucune activité planifiée pour l&apos;instant.</div>;
   }
 
   return (
     <div className="space-y-4">
+      {nbAnnulees > 0 && (
+        <button
+          onClick={() => setVoirAnnulees((v) => !v)}
+          className="text-xs font-medium text-neutral-500 hover:text-[#171717] hover:underline"
+        >
+          {voirAnnulees
+            ? "Masquer les activités annulées"
+            : `Voir les activités annulées (${nbAnnulees})`}
+        </button>
+      )}
       {dateless.length > 0 && (
         <div className="rounded-md border border-[#666666]/15 bg-white p-4">
           <div className="mb-2">
@@ -298,7 +315,7 @@ export default function ItineraryView({
       )}
 
       {days.map((day) => {
-        const dayResas = reservations.filter((r) => {
+        const dayResas = reservationsAffichees.filter((r) => {
           if (!r.date_debut) return false;
           const end = r.date_fin || r.date_debut;
           return day >= r.date_debut && day <= end;

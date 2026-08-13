@@ -21,10 +21,11 @@ import { useToast } from "@/components/ToastProvider";
 import MissingInfoModal from "@/components/MissingInfoModal";
 import GuidedActivityModal from "@/components/GuidedActivityModal";
 import AvoirUseModal from "@/components/AvoirUseModal";
+import AnnulerClientModal from "@/components/AnnulerClientModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
-import { resaTotalMontant, avoirUtiliseTotal, findMomentConflict } from "@/lib/resa";
+import { resaTotalMontant, avoirUtiliseTotal, findMomentConflict, reservationsActives } from "@/lib/resa";
 import {
   ActivitesStep,
   ContactStep,
@@ -228,6 +229,7 @@ export default function ClientDetail({
   const [resaTarifs, setResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
   const [coutsMap, setCoutsMap] = useState<Record<string, number>>({});
   const [generatingDoc, setGeneratingDoc] = useState<"devis" | "facture" | null>(null);
+  const [showAnnulerClientModal, setShowAnnulerClientModal] = useState(false);
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
   const [avoirs, setAvoirs] = useState<Avoir[]>([]);
@@ -573,7 +575,7 @@ export default function ClientDetail({
     (c) => c.id !== client.id && client.telephone && c.telephone === client.telephone
   );
 
-  const totalSejourHeader = reservations.reduce(
+  const totalSejourHeader = reservationsActives(reservations).reduce(
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
@@ -639,6 +641,14 @@ export default function ClientDetail({
             >
               {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
             </button>
+            {client.statut !== "Client annulé" && (
+              <button
+                onClick={() => setShowAnnulerClientModal(true)}
+                className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+              >
+                Annuler ce client
+              </button>
+            )}
             {canDelete && (
               <button
                 onClick={onDelete}
@@ -922,6 +932,19 @@ export default function ClientDetail({
           actionLabel={missingInfo.actionLabel}
           onAction={goToMissingField}
           onClose={() => setMissingInfo(null)}
+        />
+      )}
+
+      {showAnnulerClientModal && (
+        <AnnulerClientModal
+          client={client}
+          reservations={reservations}
+          resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
+          catalogue={catalogue}
+          onUpdateClient={onChange}
+          onUpdateReservation={updateReservation}
+          onClose={() => setShowAnnulerClientModal(false)}
         />
       )}
     </div>

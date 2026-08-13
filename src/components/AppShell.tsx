@@ -9,6 +9,7 @@ import {
   CatalogueModificationRequest,
   CatalogueOption,
   CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   EMPTY_CLIENT,
   PaypalPaiement,
@@ -276,6 +277,9 @@ function AppShellInner({
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
+  const [transfertTarifs, setTransfertTarifs] = useState<Record<string, CatalogueTransfertTarif[]>>(
+    {}
+  );
   const [catalogueOptions, setCatalogueOptions] = useState<Record<string, CatalogueOption[]>>({});
   const [catalogueFaq, setCatalogueFaq] = useState<Record<string, CatalogueFaq[]>>({});
   const [allResaTarifs, setAllResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
@@ -288,6 +292,7 @@ function AppShellInner({
         { data, error },
         { data: cat, error: catError },
         { data: catTarifs },
+        { data: transfertTarifsData },
         { data: catOptions },
         { data: catFaq },
         { data: profs },
@@ -300,6 +305,7 @@ function AppShellInner({
           .select("*")
           .order("ordre", { ascending: true }),
         supabase.from("catalogue_tarifs").select("*"),
+        supabase.from("transfert_tarifs").select("*").order("ordre", { ascending: true }),
         supabase.from("catalogue_options").select("*"),
         supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
         supabase.from("profiles").select("*"),
@@ -322,6 +328,14 @@ function AppShellInner({
         groupedCatTarifs[t.catalogue_item_id] = [...(groupedCatTarifs[t.catalogue_item_id] || []), t];
       });
       setCatalogueTarifs(groupedCatTarifs);
+      const groupedTransfertTarifs: Record<string, CatalogueTransfertTarif[]> = {};
+      ((transfertTarifsData as CatalogueTransfertTarif[]) || []).forEach((t) => {
+        groupedTransfertTarifs[t.catalogue_item_id] = [
+          ...(groupedTransfertTarifs[t.catalogue_item_id] || []),
+          t,
+        ];
+      });
+      setTransfertTarifs(groupedTransfertTarifs);
       const groupedCatOptions: Record<string, CatalogueOption[]> = {};
       ((catOptions as CatalogueOption[]) || []).forEach((o) => {
         groupedCatOptions[o.catalogue_item_id] = [...(groupedCatOptions[o.catalogue_item_id] || []), o];
@@ -777,6 +791,25 @@ function AppShellInner({
           }));
         }
       }
+      for (const tt of transfertTarifs[source.id] || []) {
+        const { data: ttd } = await supabase
+          .from("transfert_tarifs")
+          .insert({
+            catalogue_item_id: newItem.id,
+            zone: tt.zone,
+            vehicule: tt.vehicule,
+            prix: tt.prix,
+            ordre: tt.ordre,
+          })
+          .select()
+          .single();
+        if (ttd) {
+          setTransfertTarifs((prev) => ({
+            ...prev,
+            [newItem.id]: [...(prev[newItem.id] || []), ttd as CatalogueTransfertTarif],
+          }));
+        }
+      }
       for (const o of catalogueOptions[source.id] || []) {
         const { data: od } = await supabase
           .from("catalogue_options")
@@ -886,6 +919,48 @@ function AppShellInner({
       [catalogueItemId]: (prev[catalogueItemId] || []).filter((t) => t.id !== tarifId),
     }));
     const { error } = await supabase.from("catalogue_tarifs").delete().eq("id", tarifId);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const addTransfertTarif = async (catalogueItemId: string) => {
+    const ordre = (transfertTarifs[catalogueItemId] || []).length;
+    const { data, error } = await supabase
+      .from("transfert_tarifs")
+      .insert({ catalogue_item_id: catalogueItemId, zone: "", vehicule: "", prix: 0, ordre })
+      .select()
+      .single();
+    if (!error && data) {
+      const t = data as CatalogueTransfertTarif;
+      setTransfertTarifs((prev) => ({
+        ...prev,
+        [catalogueItemId]: [...(prev[catalogueItemId] || []), t],
+      }));
+    } else {
+      toast("Impossible d'ajouter ce tarif de transfert.");
+    }
+  };
+
+  const updateTransfertTarif = async (
+    catalogueItemId: string,
+    tarifId: string,
+    patch: Partial<CatalogueTransfertTarif>
+  ) => {
+    setTransfertTarifs((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).map((t) =>
+        t.id === tarifId ? { ...t, ...patch } : t
+      ),
+    }));
+    const { error } = await supabase.from("transfert_tarifs").update(patch).eq("id", tarifId);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteTransfertTarif = async (catalogueItemId: string, tarifId: string) => {
+    setTransfertTarifs((prev) => ({
+      ...prev,
+      [catalogueItemId]: (prev[catalogueItemId] || []).filter((t) => t.id !== tarifId),
+    }));
+    const { error } = await supabase.from("transfert_tarifs").delete().eq("id", tarifId);
     if (error) toast("Échec de la suppression.");
   };
 
@@ -1059,6 +1134,10 @@ function AppShellInner({
               onOpenFullFile={() => {
                 setSelectedId(c.id);
                 setTeamView("liste");
+                setProspectSummaryId(null);
+              }}
+              onConfirmClient={async () => {
+                await updateClientById(c.id, { statut: "Client confirmé" });
                 setProspectSummaryId(null);
               }}
             />
@@ -1457,6 +1536,7 @@ function AppShellInner({
                 canSeeMargins={effectiveIsDirection}
                 catalogue={catalogue}
                 catalogueTarifs={catalogueTarifs}
+                transfertTarifs={transfertTarifs}
                 catalogueOptions={catalogueOptions}
                 onOpenHelp={() => setMode("help")}
               />
@@ -1480,6 +1560,10 @@ function AppShellInner({
             onAddTarif={addCatalogueTarif}
             onUpdateTarif={updateCatalogueTarif}
             onDeleteTarif={deleteCatalogueTarif}
+            transfertTarifs={transfertTarifs}
+            onAddTransfertTarif={addTransfertTarif}
+            onUpdateTransfertTarif={updateTransfertTarif}
+            onDeleteTransfertTarif={deleteTransfertTarif}
             options={catalogueOptions}
             onAddOption={addCatalogueOption}
             onUpdateOption={updateCatalogueOption}

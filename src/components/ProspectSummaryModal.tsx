@@ -31,10 +31,12 @@ export default function ProspectSummaryModal({
   client,
   onClose,
   onOpenFullFile,
+  onConfirmClient,
 }: {
   client: Client;
   onClose: () => void;
   onOpenFullFile: () => void;
+  onConfirmClient: () => void;
 }) {
   const sejourDebut = fmtDate(client.kommo_sejour_debut_estime);
   const sejourFin = fmtDate(client.kommo_sejour_fin_estime);
@@ -138,13 +140,22 @@ export default function ProspectSummaryModal({
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={onOpenFullFile}
-          className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-        >
-          Voir la fiche complète
-        </button>
+        <div className="mt-4 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onConfirmClient}
+            className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            ✓ Passer en client confirmé
+          </button>
+          <button
+            type="button"
+            onClick={onOpenFullFile}
+            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
+          >
+            Voir la fiche complète
+          </button>
+        </div>
       </div>
     </div>
   );

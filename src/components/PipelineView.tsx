@@ -17,6 +17,12 @@ function daysUntil(dateStr: string): number {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
+function monthYearLabel(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 // Pour les clients confirmés, le statut seul (Confirmé/Perdu) ne distingue
 // rien d'utile — tout le monde termine dans la même colonne. On regroupe
 // plutôt par proximité du séjour : c'est ce qui détermine l'urgence
@@ -88,6 +94,18 @@ function ClientCard({
     ? (c.infos_manquantes || []).filter((s) => s !== "Complet")
     : [];
   const incomplete = missingInfos.length > 0;
+
+  // Pour un prospect, ces champs "officiels" ne sont souvent pas encore
+  // remplis — on retombe alors sur les estimations déduites par l'IA de la
+  // conversation Kommo, plutôt que de n'afficher rien du tout.
+  const moisSource = c.date_debut || c.kommo_sejour_debut_estime;
+  const moisLabel = moisSource ? monthYearLabel(moisSource) : null;
+  const paxAdultes = c.adultes || c.kommo_nb_adultes_estime || 0;
+  const paxEnfants = c.enfants || c.kommo_nb_enfants_estime || 0;
+  const paxLabel = paxAdultes || paxEnfants ? `${paxAdultes}${paxEnfants ? `+${paxEnfants}` : ""} pax` : null;
+  const hotelLabel = c.hotel || c.kommo_hotel_estime || null;
+  const hasMiniInfo = moisLabel || paxLabel || hotelLabel;
+
   return (
     <div
       draggable={draggable}
@@ -109,6 +127,13 @@ function ClientCard({
       </div>
       {c.date_debut && (
         <div className="font-amounts mt-1 text-xs text-neutral-400">{fmtDate(c.date_debut)}</div>
+      )}
+      {hasMiniInfo && (
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-neutral-400">
+          {moisLabel && <span>📅 {moisLabel}</span>}
+          {paxLabel && <span>👥 {paxLabel}</span>}
+          {hotelLabel && <span className="truncate">🏨 {hotelLabel}</span>}
+        </div>
       )}
       {incomplete && (
         <div className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">

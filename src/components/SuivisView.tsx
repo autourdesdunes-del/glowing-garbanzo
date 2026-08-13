@@ -831,6 +831,53 @@ function PaypalPaiementRow({
   );
 }
 
+// Petit panneau discret, pas un vrai onglet — juste de quoi retrouver un
+// paiement des derniers jours sans avoir à chercher dans Supabase (rattaché
+// ou non, contrairement à la liste principale qui ne montre que les
+// paiements encore en attente).
+function PaypalHistorique({ paypalPaiements, clients }: { paypalPaiements: PaypalPaiement[]; clients: Client[] }) {
+  const cinqJours = Date.now() - 5 * 86400000;
+  const recents = paypalPaiements
+    .filter((p) => Date.parse(p.paypal_recu_le) >= cinqJours)
+    .sort((a, b) => b.paypal_recu_le.localeCompare(a.paypal_recu_le));
+
+  return (
+    <div className="w-56 flex-shrink-0 rounded-md border border-neutral-200 bg-[#fafafa] p-2.5">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-neutral-500">
+        <span>🕐</span>
+        <span>Historique (5 j)</span>
+      </div>
+      {recents.length === 0 ? (
+        <p className="text-[11px] text-neutral-400">Rien sur les 5 derniers jours.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {recents.map((p) => {
+            const client = p.rattache_client_id
+              ? clients.find((c) => c.id === p.rattache_client_id)
+              : null;
+            return (
+              <div key={p.id} className="text-[11px] leading-tight">
+                <div className="flex items-center justify-between text-neutral-400">
+                  <span>{fmtDateTime(p.paypal_recu_le)}</span>
+                  <span className="font-amounts">{euros(p.montant_net)}€</span>
+                </div>
+                <div className="truncate text-neutral-600">
+                  {p.payeur_nom || "?"}
+                  {client ? (
+                    <span className="text-[#0F5C56]"> → {client.nom}</span>
+                  ) : (
+                    <span className="text-[#8B4531]"> — en attente</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SuivisView({
   sub,
   clients,
@@ -2039,30 +2086,33 @@ export default function SuivisView({
       )}
 
       {sub === "paypal" && (
-        <div>
-          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-            Paiements PayPal — à rattacher
-          </h3>
-          <p className="mb-3 text-xs text-neutral-500">
-            Reçus automatiquement dès qu&apos;un client paie sur le compte PayPal de l&apos;agence.
-            Rattacher un paiement remplit directement l&apos;acompte du dossier.
-          </p>
-          {paypalPaiements.filter((p) => !p.rattache_client_id).length === 0 ? (
-            <div className="text-sm text-neutral-400">Aucun paiement en attente de rattachement.</div>
-          ) : (
-            <div className="space-y-2">
-              {paypalPaiements
-                .filter((p) => !p.rattache_client_id)
-                .map((p) => (
-                  <PaypalPaiementRow
-                    key={p.id}
-                    paiement={p}
-                    clients={clients}
-                    onRattacher={(clientId) => onRattacherPaiement(p.id, clientId)}
-                  />
-                ))}
-            </div>
-          )}
+        <div className="flex items-start gap-6">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+              Paiements PayPal — à rattacher
+            </h3>
+            <p className="mb-3 text-xs text-neutral-500">
+              Reçus automatiquement dès qu&apos;un client paie sur le compte PayPal de l&apos;agence.
+              Rattacher un paiement remplit directement l&apos;acompte du dossier.
+            </p>
+            {paypalPaiements.filter((p) => !p.rattache_client_id).length === 0 ? (
+              <div className="text-sm text-neutral-400">Aucun paiement en attente de rattachement.</div>
+            ) : (
+              <div className="space-y-2">
+                {paypalPaiements
+                  .filter((p) => !p.rattache_client_id)
+                  .map((p) => (
+                    <PaypalPaiementRow
+                      key={p.id}
+                      paiement={p}
+                      clients={clients}
+                      onRattacher={(clientId) => onRattacherPaiement(p.id, clientId)}
+                    />
+                  ))}
+              </div>
+            )}
+          </div>
+          <PaypalHistorique paypalPaiements={paypalPaiements} clients={clients} />
         </div>
       )}
     </div>

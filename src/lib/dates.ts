@@ -20,3 +20,20 @@ export function addDays(dateStr: string, n: number): string {
   d.setDate(d.getDate() + n);
   return localDateStr(d);
 }
+
+// Index JS Date.getDay() (0 = dimanche) vers le nom de jour tel qu'utilisé
+// dans catalogue_activites.jours_disponibles.
+export const WEEKDAY_FR = [
+  "Dimanche",
+  "Lundi",
+  "Mardi",
+  "Mercredi",
+  "Jeudi",
+  "Vendredi",
+  "Samedi",
+] as const;
+
+export function weekdayFr(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return WEEKDAY_FR[d.getDay()];
+}

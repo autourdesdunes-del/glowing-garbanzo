@@ -43,6 +43,7 @@ import AppelReminders from "@/components/AppelReminders";
 import BilletRappels from "@/components/BilletRappels";
 import BilletEnvoiRappels from "@/components/BilletEnvoiRappels";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
+import JourEscalationCenter from "@/components/JourEscalationCenter";
 
 type Mode =
   | "dashboard"
@@ -992,6 +993,7 @@ function AppShellInner({
         currentUserId={userId}
       />
       <BusEscalationCenter profiles={teamProfiles} currentUserId={userId} />
+      <JourEscalationCenter profiles={teamProfiles} currentUserId={userId} />
       <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />
       <BilletEnvoiRappels
         reservations={allReservations}

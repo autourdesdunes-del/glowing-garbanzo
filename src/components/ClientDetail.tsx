@@ -174,6 +174,39 @@ export default function ClientDetail({
     refreshBusEscalations();
   };
 
+  // La date choisie tombe hors des jours disponibles du catalogue —
+  // l'activité garde quand même cette date (jamais bloquée en attendant une
+  // réponse), la demande part en parallèle pour Sylvie/Direction.
+  const handleJourEscalation = async (
+    nomActivite: string,
+    reservationId: string,
+    dateChoisie: string,
+    jourChoisi: string,
+    joursDisponibles: string[]
+  ) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    await supabase.from("jour_escalations").insert({
+      client_id: client.id,
+      client_nom: client.nom,
+      reservation_id: reservationId,
+      nom_activite: nomActivite,
+      date_choisie: dateChoisie,
+      jour_choisi: jourChoisi,
+      jours_disponibles: joursDisponibles,
+      employe_id: user.id,
+      employe_nom: employeNom,
+    });
+  };
+
   const goToMissingField = () => {
     if (!missingInfo) return;
     const { focusId, section } = missingInfo;
@@ -709,6 +742,7 @@ export default function ClientDetail({
         onUpdateCoutReel={updateCoutReel}
         onBusEscalation={handleBusEscalation}
         busEscalations={busEscalations}
+        onJourEscalation={handleJourEscalation}
       />
 
       <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
@@ -762,6 +796,7 @@ export default function ClientDetail({
           onRequestAdd={() => setGuidedOpen(true)}
           onBusEscalation={handleBusEscalation}
           busEscalations={busEscalations}
+          onJourEscalation={handleJourEscalation}
         />
       </Section>
 

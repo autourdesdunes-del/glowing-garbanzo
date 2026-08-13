@@ -45,6 +45,7 @@ export default function GuidedActivityModal({
   onUpdateCoutReel,
   onBusEscalation,
   busEscalations,
+  onJourEscalation,
 }: {
   open: boolean;
   onClose: () => void;
@@ -71,6 +72,13 @@ export default function GuidedActivityModal({
   onUpdateCoutReel: (id: string, value: number) => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   busEscalations: BusEscalation[];
+  onJourEscalation: (
+    nomActivite: string,
+    reservationId: string,
+    dateChoisie: string,
+    jourChoisi: string,
+    joursDisponibles: string[]
+  ) => Promise<void>;
 }) {
   const [step, setStep] = useState<Step>("activites");
 
@@ -131,6 +139,7 @@ export default function GuidedActivityModal({
             onUpdateCoutReel={onUpdateCoutReel}
             onBusEscalation={onBusEscalation}
             busEscalations={busEscalations}
+            onJourEscalation={onJourEscalation}
           />
         )}
 

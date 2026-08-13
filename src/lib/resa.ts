@@ -1,4 +1,5 @@
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { weekdayFr } from "@/lib/dates";
 
 // Le solde reste unique par séjour (règle métier — jamais un solde par
 // activité), mais l'équipe doit pouvoir choisir explicitement son statut de
@@ -578,6 +579,18 @@ export function resaTotalMontant(
 // (déjà exclus de nbEnf, voir participantsFor).
 export function isGrandEgyptianMuseum(siteCaire: string) {
   return siteCaire === "Grand Egyptian Museum (nouveau musée)";
+}
+
+// Certaines activités du catalogue n'ont lieu que certains jours de la
+// semaine (ex. Louxor en mini-bus : mardi/jeudi/dimanche seulement) — un
+// jours_disponibles vide veut dire "tous les jours", jamais "aucun jour".
+export function joursDisponiblesMismatch(dateStr: string | null, joursDisponibles: string[]) {
+  if (!dateStr || !joursDisponibles || joursDisponibles.length === 0) return false;
+  return !joursDisponibles.includes(weekdayFr(dateStr));
+}
+
+export function joursDisponiblesLabel(joursDisponibles: string[]) {
+  return joursDisponibles.join(", ");
 }
 
 function fmtEuros(n: number) {

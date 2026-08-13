@@ -20,6 +20,7 @@ import {
   isSafariQuadBase,
   isQuad,
   isSpeedboatPriveMaisonDauphins,
+  joursDisponiblesMismatch,
   needsMomentSpeedboat,
   participantsFor,
   resaTotalMontant,
@@ -27,9 +28,10 @@ import {
   speedboatIleType,
   SPEEDBOAT_ILES,
 } from "@/lib/resa";
-import { todayStr } from "@/lib/dates";
+import { todayStr, weekdayFr } from "@/lib/dates";
 import { Field } from "@/components/Field";
 import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
+import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
 
 function joursAvant(dateStr: string | null) {
   if (!dateStr) return null;
@@ -145,6 +147,7 @@ export default function AddActivityWizard({
   onFinish,
   onCancel,
   onBusEscalation,
+  onJourEscalation,
 }: {
   client: Client;
   catalogue: CatalogueItem[];
@@ -152,6 +155,13 @@ export default function AddActivityWizard({
   catalogueOptions: Record<string, CatalogueOption[]>;
   hotelHorsHurghada?: boolean;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
+  onJourEscalation: (
+    nomActivite: string,
+    reservationId: string,
+    dateChoisie: string,
+    jourChoisi: string,
+    joursDisponibles: string[]
+  ) => Promise<void>;
   onAddReservation: () => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
@@ -190,6 +200,12 @@ export default function AddActivityWizard({
   const [hossamAskedPremiere, setHossamAskedPremiere] = useState(false);
   const [hossamAskedFinale, setHossamAskedFinale] = useState(false);
   const [hossamUrgentAlert, setHossamUrgentAlert] = useState(false);
+  // La date choisie peut tomber hors des jours disponibles du catalogue —
+  // une fois que l'employée a répondu (changer / demander l'autorisation)
+  // pour CETTE date précise, on ne la rembête pas une deuxième fois tant
+  // qu'elle ne choisit pas une autre date tout aussi hors-jours.
+  const [jourAlertOpen, setJourAlertOpen] = useState(false);
+  const [jourAcceptedDate, setJourAcceptedDate] = useState<string | null>(null);
   // Une activité personnalisée garde le titre tapé à la main — on ne le
   // recalcule jamais automatiquement (île / moment / créneau / nb de
   // chevaux) dans ce cas, contrairement aux activités venant du catalogue.
@@ -644,6 +660,8 @@ export default function AddActivityWizard({
     const isSpa = isSpaMassage(r.nom_activite);
     const missingDate = !r.date_debut;
     const missingHoraire = isSpa && !r.horaire_souhaite;
+    const joursDisponibles = catalogueItem?.jours_disponibles || [];
+    const jourMismatch = joursDisponiblesMismatch(r.date_debut, joursDisponibles);
     const nextStep = steps[steps.indexOf("date") + 1];
     const nextLabel =
       nextStep === "ile"
@@ -652,17 +670,29 @@ export default function AddActivityWizard({
           ? "Suivant — Matin/après-midi"
           : "Suivant — Participants";
 
+    // Ce qui se passe une fois la date acceptée (jour valide, ou jour
+    // refusé mais l'employée a demandé/obtenu l'autorisation) — factorisé
+    // pour être identique que ça vienne du bouton "Suivant" normal ou de la
+    // demande d'autorisation résolue immédiatement.
+    const proceedAfterDate = () => {
+      if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedPremiere) {
+        setHossamPopup("premiere");
+        return;
+      }
+      setStep(nextStep);
+    };
+
     const goNext = () => {
       if (missingDate || missingHoraire) {
         setValidationError(true);
         return;
       }
       setValidationError(false);
-      if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedPremiere) {
-        setHossamPopup("premiere");
+      if (jourMismatch && jourAcceptedDate !== r.date_debut) {
+        setJourAlertOpen(true);
         return;
       }
-      setStep(nextStep);
+      proceedAfterDate();
     };
 
     return wrap(
@@ -682,6 +712,27 @@ export default function AddActivityWizard({
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
             ⚠ Impossible de continuer — la date de l&apos;activité est obligatoire.
           </div>
+        )}
+
+        {jourAlertOpen && r.date_debut && (
+          <JourIndisponibleAlert
+            nomActivite={catalogueItem?.nom || r.nom_activite}
+            jourChoisi={weekdayFr(r.date_debut)}
+            joursDisponibles={joursDisponibles}
+            onChangeDate={() => setJourAlertOpen(false)}
+            onDemanderAutorisation={async () => {
+              await onJourEscalation(
+                catalogueItem?.nom || r.nom_activite,
+                r.id,
+                r.date_debut as string,
+                weekdayFr(r.date_debut as string),
+                joursDisponibles
+              );
+              setJourAcceptedDate(r.date_debut);
+              setJourAlertOpen(false);
+              proceedAfterDate();
+            }}
+          />
         )}
 
         {hossamPopup === "premiere" && (

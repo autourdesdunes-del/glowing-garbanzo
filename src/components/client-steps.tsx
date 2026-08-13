@@ -689,6 +689,7 @@ export function ActivitesStep({
   onRequestAdd,
   onBusEscalation,
   busEscalations,
+  onJourEscalation,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -717,6 +718,13 @@ export function ActivitesStep({
   onRequestAdd?: () => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   busEscalations: BusEscalation[];
+  onJourEscalation: (
+    nomActivite: string,
+    reservationId: string,
+    dateChoisie: string,
+    jourChoisi: string,
+    joursDisponibles: string[]
+  ) => Promise<void>;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
@@ -744,6 +752,7 @@ export function ActivitesStep({
         onFinish={() => setAddingNew(false)}
         onCancel={() => setAddingNew(false)}
         onBusEscalation={onBusEscalation}
+        onJourEscalation={onJourEscalation}
       />
     );
   }
@@ -793,6 +802,7 @@ export function ActivitesStep({
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}
         busEscalations={busEscalations}
+        onJourEscalation={onJourEscalation}
       />
     </div>
   );

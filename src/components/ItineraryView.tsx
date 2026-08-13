@@ -94,6 +94,7 @@ export default function ItineraryView({
   coutsMap,
   onUpdateCoutReel,
   busEscalations = [],
+  onJourEscalation,
 }: {
   client: Client;
   reservations: Reservation[];
@@ -119,6 +120,13 @@ export default function ItineraryView({
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   busEscalations?: BusEscalation[];
+  onJourEscalation: (
+    nomActivite: string,
+    reservationId: string,
+    dateChoisie: string,
+    jourChoisi: string,
+    joursDisponibles: string[]
+  ) => Promise<void>;
 }) {
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
@@ -153,6 +161,9 @@ export default function ItineraryView({
           hotelHorsHurghada={hotelHorsHurghada}
           coutReel={coutsMap[r.id] || 0}
           onUpdateCoutReel={(v) => onUpdateCoutReel(r.id, v)}
+          onJourEscalation={(dateChoisie, jourChoisi, joursDisponibles) =>
+            onJourEscalation(r.nom_activite, r.id, dateChoisie, jourChoisi, joursDisponibles)
+          }
         />
       );
     }

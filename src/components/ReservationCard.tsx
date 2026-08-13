@@ -22,6 +22,7 @@ import {
   isQuad,
   isSafariQuadBase,
   isSpeedboatPriveMaisonDauphins,
+  joursDisponiblesMismatch,
   momentBadge,
   needsMomentSpeedboat,
   paiementStatutKey,
@@ -32,6 +33,8 @@ import {
   SPEEDBOAT_ILES,
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
+import { weekdayFr } from "@/lib/dates";
+import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
 
 const MOMENTS_SPEEDBOAT = ["Matin", "Après-midi"] as const;
 const MAISON_DAUPHINS_TEXT =
@@ -74,6 +77,7 @@ export default function ReservationCard({
   hotelHorsHurghada,
   coutReel,
   onUpdateCoutReel,
+  onJourEscalation,
 }: {
   r: Reservation;
   client: Client;
@@ -97,8 +101,14 @@ export default function ReservationCard({
   hotelHorsHurghada?: boolean;
   coutReel: number;
   onUpdateCoutReel: (value: number) => void;
+  onJourEscalation: (
+    dateChoisie: string,
+    jourChoisi: string,
+    joursDisponibles: string[]
+  ) => Promise<void>;
 }) {
   const [showPaxOverride, setShowPaxOverride] = useState(!!r.pax_override);
+  const [jourAlertDate, setJourAlertDate] = useState<string | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [readingPassport, setReadingPassport] = useState(false);
   const toast = useToast();
@@ -428,6 +438,21 @@ export default function ReservationCard({
         />
       )}
 
+      {jourAlertDate && (
+        <JourIndisponibleAlert
+          nomActivite={nomPourDetection}
+          jourChoisi={weekdayFr(jourAlertDate)}
+          joursDisponibles={catalogueItem?.jours_disponibles || []}
+          onChangeDate={() => setJourAlertDate(null)}
+          onDemanderAutorisation={async () => {
+            const joursDisponibles = catalogueItem?.jours_disponibles || [];
+            await onJourEscalation(jourAlertDate, weekdayFr(jourAlertDate), joursDisponibles);
+            onUpdate({ date_debut: jourAlertDate });
+            setJourAlertDate(null);
+          }}
+        />
+      )}
+
       {ileType && (
         <div className="mb-3" id={`field-ile-${r.id}`}>
           <p className="mb-1.5 text-sm font-medium text-neutral-700">Île *</p>
@@ -545,7 +570,15 @@ export default function ReservationCard({
           <input
             type="date"
             value={r.date_debut ?? ""}
-            onChange={(e) => onUpdate({ date_debut: e.target.value || null })}
+            onChange={(e) => {
+              const newDate = e.target.value || null;
+              const joursDisponibles = catalogueItem?.jours_disponibles || [];
+              if (newDate && joursDisponiblesMismatch(newDate, joursDisponibles)) {
+                setJourAlertDate(newDate);
+                return;
+              }
+              onUpdate({ date_debut: newDate });
+            }}
             className="input"
           />
         </Field>

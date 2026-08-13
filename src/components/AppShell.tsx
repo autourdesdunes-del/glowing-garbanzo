@@ -1023,6 +1023,8 @@ function AppShellInner({
     );
   }
 
+  const paypalPaiementsNonRattaches = paypalPaiements.filter((p) => !p.rattache_client_id).length;
+
   const currentTab = TABS.find((t) => t.key === mode);
 
   return (
@@ -1154,13 +1156,18 @@ function AppShellInner({
                       <button
                         key={s.key}
                         onClick={() => setSuivisSub(s.key)}
-                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                        className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
                           suivisSub === s.key
                             ? "bg-[#fafafa] text-[#171717]"
                             : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
                         }`}
                       >
-                        {s.label}
+                        <span>{s.label}</span>
+                        {s.key === "paypal" && paypalPaiementsNonRattaches > 0 && (
+                          <span className="rounded-full bg-[#EE0000] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            +{paypalPaiementsNonRattaches}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

@@ -5,12 +5,20 @@ import {
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   Reservation,
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS, SITES_CAIRE } from "@/lib/constants";
+import {
+  CHAMPS_REQUIS_PRESETS,
+  CRENEAUX_ACTIVITE,
+  OPTIONS_PRESETS,
+  SITES_CAIRE,
+  VEHICULES_TRANSFERT,
+  ZONES_TRANSFERT,
+} from "@/lib/constants";
 import {
   groupeExtraCounts,
   isChevalOuChameau,
@@ -130,6 +138,7 @@ export default function AddActivityWizard({
   client,
   catalogue,
   catalogueTarifs,
+  transfertTarifs,
   catalogueOptions,
   hotelHorsHurghada,
   onAddReservation,
@@ -152,6 +161,7 @@ export default function AddActivityWizard({
   client: Client;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
+  transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   hotelHorsHurghada?: boolean;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
@@ -220,6 +230,8 @@ export default function AddActivityWizard({
     (c) => !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c)
   );
   const catTarifs = catalogueItem ? catalogueTarifs[catalogueItem.id] || [] : [];
+  const catTransfertTarifs = catalogueItem ? transfertTarifs[catalogueItem.id] || [] : [];
+  const isTransfert = catalogueItem?.categorie === "Transfert" && catTransfertTarifs.length > 0;
   const catOptions = catalogueItem ? catalogueOptions[catalogueItem.id] || [] : [];
 
   const nbEnfantsParticipants = r ? participantsFor(r, client).nbEnf : 0;
@@ -1141,8 +1153,65 @@ export default function AddActivityWizard({
     const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
     const total = resaTotalMontant(r, client, options, tarifs);
 
+    const matchTransfertTarif = (zone: string, vehicule: string) =>
+      catTransfertTarifs.find((t) => t.zone === zone && t.vehicule === vehicule);
+
     return wrap(
       <>
+        {isTransfert && (
+          <div className="mb-3 rounded-md border border-neutral-200 p-3">
+            <p className="mb-2 text-xs font-medium text-neutral-500">
+              Transfert : le prix est un forfait selon la zone de l&apos;hôtel et le véhicule
+              utilisé, pas par personne.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={r.zone_transfert}
+                onChange={(e) => {
+                  const zone = e.target.value;
+                  const match = matchTransfertTarif(zone, r.vehicule_transfert);
+                  onUpdateReservation(r.id, {
+                    zone_transfert: zone,
+                    ...(match
+                      ? { tarif_mode: "groupe", prix_groupe_base: match.prix }
+                      : {}),
+                  });
+                }}
+                className="input"
+              >
+                <option value="">— Zone de l&apos;hôtel —</option>
+                {ZONES_TRANSFERT.map((z) => (
+                  <option key={z}>{z}</option>
+                ))}
+              </select>
+              <select
+                value={r.vehicule_transfert}
+                onChange={(e) => {
+                  const vehicule = e.target.value;
+                  const match = matchTransfertTarif(r.zone_transfert, vehicule);
+                  onUpdateReservation(r.id, {
+                    vehicule_transfert: vehicule,
+                    ...(match
+                      ? { tarif_mode: "groupe", prix_groupe_base: match.prix }
+                      : {}),
+                  });
+                }}
+                className="input"
+              >
+                <option value="">— Véhicule —</option>
+                {VEHICULES_TRANSFERT.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+            {r.zone_transfert && r.vehicule_transfert && !matchTransfertTarif(r.zone_transfert, r.vehicule_transfert) && (
+              <p className="mt-2 text-xs font-medium text-red-600">
+                ⚠ Aucun tarif défini dans le catalogue pour cette zone + ce véhicule — saisis le
+                prix forfait à la main ci-dessous.
+              </p>
+            )}
+          </div>
+        )}
         <div className="mb-2 flex gap-2">
           <button
             type="button"

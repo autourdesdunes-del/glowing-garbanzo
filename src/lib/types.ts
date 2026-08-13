@@ -92,6 +92,20 @@ export type CatalogueOption = {
   created_at: string;
 };
 
+// Tarif forfaitaire d'un transfert selon la zone de l'hôtel (Hurghada, Sahl
+// Hasheesh, Makadi, El Gouna, Safaga…) et le véhicule utilisé (voiture,
+// van…) — le prix n'est jamais par personne, c'est un forfait pour le
+// trajet entier, propre à chaque activité de type "Transfert".
+export type CatalogueTransfertTarif = {
+  id: string;
+  catalogue_item_id: string;
+  zone: string;
+  vehicule: string;
+  prix: number;
+  ordre: number;
+  created_at: string;
+};
+
 export type ReservationTarif = {
   id: string;
   reservation_id: string;
@@ -131,6 +145,8 @@ export type Reservation = {
   pax_override: string;
   transfert_inclus: boolean;
   transfert_montant: number;
+  zone_transfert: string;
+  vehicule_transfert: string;
   horaire_approx: string;
   pickup_reel: string;
   point_rdv: string;

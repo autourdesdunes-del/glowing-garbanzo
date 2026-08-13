@@ -12,6 +12,7 @@ import {
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   HotelReference,
   Reservation,
@@ -129,6 +130,9 @@ export default function QuickAddClient({
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
+  const [transfertTarifs, setTransfertTarifs] = useState<Record<string, CatalogueTransfertTarif[]>>(
+    {}
+  );
   const [catalogueOptions, setCatalogueOptions] = useState<Record<string, CatalogueOption[]>>({});
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
@@ -137,15 +141,23 @@ export default function QuickAddClient({
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const [{ data: h }, { data: t }, { data: opts }, { data: cat }, { data: catTarifs }, { data: catOptions }] =
-        await Promise.all([
-          supabase.from("hotels_reference").select("*"),
-          supabase.from("transfert_taxes").select("*"),
-          supabase.from("infos_manquantes_options").select("label").order("created_at", { ascending: true }),
-          supabase.from("catalogue_activites").select("*").order("created_at", { ascending: false }),
-          supabase.from("catalogue_tarifs").select("*"),
-          supabase.from("catalogue_options").select("*"),
-        ]);
+      const [
+        { data: h },
+        { data: t },
+        { data: opts },
+        { data: cat },
+        { data: catTarifs },
+        { data: transfertTarifsData },
+        { data: catOptions },
+      ] = await Promise.all([
+        supabase.from("hotels_reference").select("*"),
+        supabase.from("transfert_taxes").select("*"),
+        supabase.from("infos_manquantes_options").select("label").order("created_at", { ascending: true }),
+        supabase.from("catalogue_activites").select("*").order("created_at", { ascending: false }),
+        supabase.from("catalogue_tarifs").select("*"),
+        supabase.from("transfert_tarifs").select("*").order("ordre", { ascending: true }),
+        supabase.from("catalogue_options").select("*"),
+      ]);
       setHotelsRef((h as HotelReference[]) || []);
       setTaxesRef((t as TransfertTaxe[]) || []);
       const fetched = ((opts as { label: string }[]) || []).map((o) => o.label);
@@ -160,6 +172,14 @@ export default function QuickAddClient({
         groupedCatTarifs[t2.catalogue_item_id] = [...(groupedCatTarifs[t2.catalogue_item_id] || []), t2];
       });
       setCatalogueTarifs(groupedCatTarifs);
+      const groupedTransfertTarifs: Record<string, CatalogueTransfertTarif[]> = {};
+      ((transfertTarifsData as CatalogueTransfertTarif[]) || []).forEach((t3) => {
+        groupedTransfertTarifs[t3.catalogue_item_id] = [
+          ...(groupedTransfertTarifs[t3.catalogue_item_id] || []),
+          t3,
+        ];
+      });
+      setTransfertTarifs(groupedTransfertTarifs);
       const groupedCatOptions: Record<string, CatalogueOption[]> = {};
       ((catOptions as CatalogueOption[]) || []).forEach((o2) => {
         groupedCatOptions[o2.catalogue_item_id] = [...(groupedCatOptions[o2.catalogue_item_id] || []), o2];
@@ -843,6 +863,7 @@ export default function QuickAddClient({
                   onDeleteTarif={deleteResaTarif}
                   catalogue={catalogue}
                   catalogueTarifs={catalogueTarifs}
+                  transfertTarifs={transfertTarifs}
                   catalogueOptions={catalogueOptions}
                   canSeeMargins={false}
                   hotelHorsHurghada={hotelHorsHurghada}

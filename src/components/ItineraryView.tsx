@@ -5,6 +5,7 @@ import {
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   Reservation,
   ReservationOption,
@@ -88,6 +89,7 @@ export default function ItineraryView({
   onUpdateClient,
   catalogue,
   catalogueTarifs,
+  transfertTarifs,
   catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
@@ -114,6 +116,7 @@ export default function ItineraryView({
   onUpdateClient: (patch: Partial<Client>) => void;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
+  transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
@@ -156,6 +159,7 @@ export default function ItineraryView({
           onUpdateClient={onUpdateClient}
           catalogue={catalogue}
           catalogueTarifs={r.catalogue_item_id ? catalogueTarifs[r.catalogue_item_id] || [] : []}
+          transfertTarifs={r.catalogue_item_id ? transfertTarifs[r.catalogue_item_id] || [] : []}
           catalogueOptions={r.catalogue_item_id ? catalogueOptions[r.catalogue_item_id] || [] : []}
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}

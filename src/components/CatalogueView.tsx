@@ -2,18 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueFaq, CatalogueItem, CatalogueOption, CatalogueTarif } from "@/lib/types";
+import {
+  CatalogueFaq,
+  CatalogueItem,
+  CatalogueOption,
+  CatalogueTarif,
+  CatalogueTransfertTarif,
+} from "@/lib/types";
 import {
   A_PREVOIR_PRESETS,
   CATALOGUE_CATEGORIES,
   CATALOGUE_TAGS_PRESETS,
     CHAMPS_REQUIS_PRESETS,
   DUREE_OPTIONS,
+  DUREE_OPTIONS_TRANSFERT,
   GUIDE_OPTIONS,
   INCLUS_PRESETS,
   JOURS_SEMAINE,
   NON_INCLUS_PRESETS,
   TYPE_MODIFICATION_OPTIONS,
+  VEHICULES_TRANSFERT,
+  ZONES_TRANSFERT,
 } from "@/lib/constants";
 import { Field } from "@/components/client-steps";
 import PhotoUpload from "@/components/PhotoUpload";
@@ -442,6 +451,10 @@ export default function CatalogueView({
   onAddTarif,
   onUpdateTarif,
   onDeleteTarif,
+  transfertTarifs,
+  onAddTransfertTarif,
+  onUpdateTransfertTarif,
+  onDeleteTransfertTarif,
   options,
   onAddOption,
   onUpdateOption,
@@ -464,6 +477,14 @@ export default function CatalogueView({
   onAddTarif: (catalogueItemId: string) => void;
   onUpdateTarif: (catalogueItemId: string, tarifId: string, patch: Partial<CatalogueTarif>) => void;
   onDeleteTarif: (catalogueItemId: string, tarifId: string) => void;
+  transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
+  onAddTransfertTarif: (catalogueItemId: string) => void;
+  onUpdateTransfertTarif: (
+    catalogueItemId: string,
+    tarifId: string,
+    patch: Partial<CatalogueTransfertTarif>
+  ) => void;
+  onDeleteTransfertTarif: (catalogueItemId: string, tarifId: string) => void;
   options: Record<string, CatalogueOption[]>;
   onAddOption: (catalogueItemId: string) => void;
   onUpdateOption: (catalogueItemId: string, optionId: string, patch: Partial<CatalogueOption>) => void;
@@ -755,9 +776,13 @@ export default function CatalogueView({
                     onChange={(e) => onUpdate(a.id, { duree: e.target.value })}
                     className="input"
                   >
-                    {DUREE_OPTIONS.map((d) => (
-                      <option key={d}>{d}</option>
-                    ))}
+                    {(a.categorie === "Transfert" ? DUREE_OPTIONS_TRANSFERT : DUREE_OPTIONS).map(
+                      (d) => (
+                        <option key={d || "vide"} value={d}>
+                          {d || "—"}
+                        </option>
+                      )
+                    )}
                   </select>
                 </Field>
                 <Field label="Disponibilités (précisions libres)">
@@ -1167,6 +1192,67 @@ export default function CatalogueView({
                   + Ajouter une option
                 </button>
               </div>
+              {a.categorie === "Transfert" && (
+                <div className="mt-3">
+                  <p className="mb-1 text-sm font-medium text-neutral-700">
+                    Tarifs de transfert par zone
+                  </p>
+                  <p className="mb-1.5 text-xs text-neutral-400">
+                    Le prix d&apos;un transfert n&apos;est jamais par personne : c&apos;est un
+                    forfait pour le trajet, qui dépend de la zone de l&apos;hôtel (plus ou moins
+                    loin) et du véhicule utilisé (voiture ou van selon le nombre de personnes).
+                  </p>
+                  {(transfertTarifs[a.id] || []).map((t) => (
+                    <div key={t.id} className="mb-2 flex flex-wrap items-center gap-2">
+                      <select
+                        value={t.zone}
+                        onChange={(e) =>
+                          onUpdateTransfertTarif(a.id, t.id, { zone: e.target.value })
+                        }
+                        className="input min-w-[140px] flex-1"
+                      >
+                        <option value="">— Zone —</option>
+                        {ZONES_TRANSFERT.map((z) => (
+                          <option key={z}>{z}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={t.vehicule}
+                        onChange={(e) =>
+                          onUpdateTransfertTarif(a.id, t.id, { vehicule: e.target.value })
+                        }
+                        className="input min-w-[160px] flex-1"
+                      >
+                        <option value="">— Véhicule —</option>
+                        {VEHICULES_TRANSFERT.map((v) => (
+                          <option key={v}>{v}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        placeholder="Prix forfait €"
+                        value={t.prix}
+                        onChange={(e) =>
+                          onUpdateTransfertTarif(a.id, t.id, { prix: Number(e.target.value) })
+                        }
+                        className="input w-28"
+                      />
+                      <button
+                        onClick={() => onDeleteTransfertTarif(a.id, t.id)}
+                        className="text-red-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => onAddTransfertTarif(a.id)}
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    + Ajouter un tarif de transfert
+                  </button>
+                </div>
+              )}
               <div className="mt-3">
                 <p className="mb-1 text-sm font-medium text-neutral-700">
                   FAQ (questions fréquentes des clients)
@@ -1808,6 +1894,36 @@ export default function CatalogueView({
                               </div>
                               <span className="font-amounts text-sm text-[#171717]">
                                 {euros(t.pu)}€
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+
+                  {(() => {
+                    const filledTransfertTarifs = (transfertTarifs[a.id] || []).filter(
+                      (t) => t.zone.trim() && t.vehicule.trim()
+                    );
+                    if (filledTransfertTarifs.length === 0) return null;
+                    return (
+                      <>
+                        <h4 className="mb-3 text-sm font-semibold text-[#171717]">
+                          Tarifs de transfert par zone
+                        </h4>
+                        <div className="mb-3 space-y-2">
+                          {filledTransfertTarifs.map((t) => (
+                            <div key={t.id} className="flex items-center gap-3">
+                              <RowIcon>
+                                <IconTag />
+                              </RowIcon>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm text-neutral-700">{t.zone}</p>
+                                <p className="text-[11px] text-neutral-400">{t.vehicule}</p>
+                              </div>
+                              <span className="font-amounts text-sm text-[#171717]">
+                                {euros(t.prix)}€
                               </span>
                             </div>
                           ))}

@@ -5,12 +5,20 @@ import {
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   Reservation,
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, OPTIONS_PRESETS, SITES_CAIRE } from "@/lib/constants";
+import {
+  CHAMPS_REQUIS_PRESETS,
+  CRENEAUX_ACTIVITE,
+  OPTIONS_PRESETS,
+  SITES_CAIRE,
+  VEHICULES_TRANSFERT,
+  ZONES_TRANSFERT,
+} from "@/lib/constants";
 import {
   groupeExtraCounts,
   billetEtapeShortLabel,
@@ -72,6 +80,7 @@ export default function ReservationCard({
   onUpdateClient,
   catalogue,
   catalogueTarifs,
+  transfertTarifs,
   catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
@@ -96,6 +105,7 @@ export default function ReservationCard({
   onUpdateClient: (patch: Partial<Client>) => void;
   catalogue: CatalogueItem[];
   catalogueTarifs: CatalogueTarif[];
+  transfertTarifs: CatalogueTransfertTarif[];
   catalogueOptions: CatalogueOption[];
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
@@ -114,6 +124,9 @@ export default function ReservationCard({
   const toast = useToast();
   const [showMomentModal, setShowMomentModal] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+  const isTransfert = catalogueItem?.categorie === "Transfert" && transfertTarifs.length > 0;
+  const matchTransfertTarif = (zone: string, vehicule: string) =>
+    transfertTarifs.find((t) => t.zone === zone && t.vehicule === vehicule);
   const champsRequis = catalogueItem?.champs_requis_liste || [];
   const nomPourDetection = catalogueItem?.nom || r.nom_activite;
   const quadPourDetection = isQuad(nomPourDetection);
@@ -522,6 +535,59 @@ export default function ReservationCard({
       {options.length > 0 && (
         <div className="mb-3 rounded-md bg-[#C9973E]/10 px-3 py-2 text-xs text-[#666666]">
           ⚠ Option(s) ajoutée(s) : {options.map((o) => formatOptionLabel(o)).join(", ")}
+        </div>
+      )}
+
+      {isTransfert && (
+        <div className="mb-3 rounded-md border border-neutral-200 p-3">
+          <p className="mb-2 text-xs font-medium text-neutral-500">
+            Transfert : le prix est un forfait selon la zone de l&apos;hôtel et le véhicule
+            utilisé, pas par personne.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={r.zone_transfert}
+              onChange={(e) => {
+                const zone = e.target.value;
+                const match = matchTransfertTarif(zone, r.vehicule_transfert);
+                onUpdate({
+                  zone_transfert: zone,
+                  ...(match ? { tarif_mode: "groupe", prix_groupe_base: match.prix } : {}),
+                });
+              }}
+              className="input"
+            >
+              <option value="">— Zone de l&apos;hôtel —</option>
+              {ZONES_TRANSFERT.map((z) => (
+                <option key={z}>{z}</option>
+              ))}
+            </select>
+            <select
+              value={r.vehicule_transfert}
+              onChange={(e) => {
+                const vehicule = e.target.value;
+                const match = matchTransfertTarif(r.zone_transfert, vehicule);
+                onUpdate({
+                  vehicule_transfert: vehicule,
+                  ...(match ? { tarif_mode: "groupe", prix_groupe_base: match.prix } : {}),
+                });
+              }}
+              className="input"
+            >
+              <option value="">— Véhicule —</option>
+              {VEHICULES_TRANSFERT.map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </select>
+          </div>
+          {r.zone_transfert &&
+            r.vehicule_transfert &&
+            !matchTransfertTarif(r.zone_transfert, r.vehicule_transfert) && (
+              <p className="mt-2 text-xs font-medium text-red-600">
+                ⚠ Aucun tarif défini dans le catalogue pour cette zone + ce véhicule — saisis le
+                prix forfait à la main ci-dessous.
+              </p>
+            )}
         </div>
       )}
 

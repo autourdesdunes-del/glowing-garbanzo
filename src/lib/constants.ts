@@ -111,6 +111,26 @@ export const INCLUS_PRESETS = [
 
 export const DUREE_OPTIONS = ["1h", "2h/2h30", "Demi-journée", "Journée", "Plusieurs jours"] as const;
 
+// Pour un transfert, "Demi-journée"/"Journée" n'ont pas de sens et la durée
+// n'est pas toujours pertinente à préciser — on autorise donc de ne rien
+// mettre, en plus d'un sous-ensemble des durées courtes.
+export const DUREE_OPTIONS_TRANSFERT = ["", "1h", "2h/2h30", "Plusieurs jours"] as const;
+
+// Zones d'hôtel desservies par les transferts aéroport — le tarif d'un
+// transfert dépend de la zone (plus ou moins loin de l'aéroport) ET du
+// véhicule utilisé (voiture ou van selon le nombre de personnes), jamais
+// d'un prix par personne unique.
+export const ZONES_TRANSFERT = [
+  "Hurghada",
+  "Sahl Hasheesh",
+  "Makadi",
+  "El Gouna",
+  "Safaga",
+  "Autre",
+] as const;
+
+export const VEHICULES_TRANSFERT = ["Voiture (jusqu'à 3 pers.)", "Van (4 pers. et +)"] as const;
+
 export const NON_INCLUS_PRESETS = [
   "Boissons alcoolisées",
   "Pourboires",

@@ -9,6 +9,7 @@ import {
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   ClientHotel,
   HotelReference,
@@ -681,6 +682,7 @@ export function ActivitesStep({
   onDeleteTarif,
   catalogue,
   catalogueTarifs,
+  transfertTarifs,
   catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
@@ -705,6 +707,7 @@ export function ActivitesStep({
   onDeleteTarif: (resaId: string, tarifId: string) => void;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
+  transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
@@ -735,6 +738,7 @@ export function ActivitesStep({
         client={client}
         catalogue={catalogue}
         catalogueTarifs={catalogueTarifs}
+        transfertTarifs={transfertTarifs}
         catalogueOptions={catalogueOptions}
         hotelHorsHurghada={hotelHorsHurghada}
         onAddReservation={onAddReservation}
@@ -798,6 +802,7 @@ export function ActivitesStep({
         onUpdateClient={onChange}
         catalogue={catalogue}
         catalogueTarifs={catalogueTarifs}
+        transfertTarifs={transfertTarifs}
         catalogueOptions={catalogueOptions}
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}

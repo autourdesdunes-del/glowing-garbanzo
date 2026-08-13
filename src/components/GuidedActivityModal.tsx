@@ -7,6 +7,7 @@ import {
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   Reservation,
   ReservationOption,
@@ -38,6 +39,7 @@ export default function GuidedActivityModal({
   onDeleteTarif,
   catalogue,
   catalogueTarifs,
+  transfertTarifs,
   catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
@@ -65,6 +67,7 @@ export default function GuidedActivityModal({
   onDeleteTarif: (resaId: string, tarifId: string) => void;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
+  transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada: boolean;
@@ -132,6 +135,7 @@ export default function GuidedActivityModal({
             onDeleteTarif={onDeleteTarif}
             catalogue={catalogue}
             catalogueTarifs={catalogueTarifs}
+            transfertTarifs={transfertTarifs}
             catalogueOptions={catalogueOptions}
             canSeeMargins={canSeeMargins}
             hotelHorsHurghada={hotelHorsHurghada}

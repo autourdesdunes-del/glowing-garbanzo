@@ -8,6 +8,7 @@ import {
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   HotelReference,
   Reservation,
@@ -87,6 +88,7 @@ export default function ClientDetail({
   canSeeMargins,
   catalogue,
   catalogueTarifs,
+  transfertTarifs,
   catalogueOptions,
   onOpenHelp,
 }: {
@@ -100,6 +102,7 @@ export default function ClientDetail({
   canSeeMargins: boolean;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
+  transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   onOpenHelp: () => void;
 }) {
@@ -735,6 +738,7 @@ export default function ClientDetail({
         onDeleteTarif={deleteTarif}
         catalogue={catalogue}
         catalogueTarifs={catalogueTarifs}
+        transfertTarifs={transfertTarifs}
         catalogueOptions={catalogueOptions}
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}
@@ -788,6 +792,7 @@ export default function ClientDetail({
           onDeleteTarif={deleteTarif}
           catalogue={catalogue}
           catalogueTarifs={catalogueTarifs}
+          transfertTarifs={transfertTarifs}
           catalogueOptions={catalogueOptions}
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}

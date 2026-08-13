@@ -40,6 +40,9 @@ export type CatalogueItem = {
   prochaines_dispo_dates: string[];
   guide: string;
   guide_francophone_sur_demande: boolean;
+  guide_egyptologue: boolean;
+  guide_supplement: boolean;
+  guide_supplement_prix: number;
   programme: string;
   inclus: string;
   inclus_liste: string[];
@@ -460,6 +463,23 @@ export type TransfertTaxe = {
 export type InfoManquanteOption = {
   id: string;
   label: string;
+  created_at: string;
+};
+
+export type PaypalPaiement = {
+  id: string;
+  transaction_id: string;
+  montant: number;
+  devise: string;
+  frais: number;
+  montant_net: number;
+  entre_proches: boolean | null;
+  payeur_nom: string;
+  payeur_email: string;
+  paypal_recu_le: string;
+  rattache_client_id: string | null;
+  rattache_par: string;
+  rattache_at: string | null;
   created_at: string;
 };
 

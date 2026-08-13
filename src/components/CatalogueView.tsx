@@ -791,6 +791,40 @@ export default function CatalogueView({
                     ⭐ Guide francophone sur demande
                   </label>
                 </div>
+                <div className="flex items-end pb-1.5">
+                  <button
+                    type="button"
+                    onClick={() => onUpdate(a.id, { guide_egyptologue: !a.guide_egyptologue })}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                      a.guide_egyptologue
+                        ? "border-blue-600 bg-blue-600 text-white"
+                        : "border-neutral-300 text-neutral-600 hover:border-blue-400"
+                    }`}
+                  >
+                    ★ Guide francophone égyptologue
+                  </button>
+                </div>
+                <div className="flex items-end gap-2 pb-1.5">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={a.guide_supplement}
+                      onChange={(e) => onUpdate(a.id, { guide_supplement: e.target.checked })}
+                    />
+                    Guide en supplément
+                  </label>
+                  {a.guide_supplement && (
+                    <input
+                      type="number"
+                      value={a.guide_supplement_prix}
+                      onChange={(e) =>
+                        onUpdate(a.id, { guide_supplement_prix: Number(e.target.value) })
+                      }
+                      className="input w-20"
+                      placeholder="€"
+                    />
+                  )}
+                </div>
                 {a.tarif_mode !== "groupe" ? (
                   <>
                     <Field label="PU adulte (€)">
@@ -1534,6 +1568,16 @@ export default function CatalogueView({
                         {a.guide_francophone_sur_demande && (
                           <span className="ml-1.5 text-[#f5a623]">
                             ⭐ Guide francophone sur demande
+                          </span>
+                        )}
+                        {a.guide_egyptologue && (
+                          <span className="ml-1.5 font-medium text-blue-600">
+                            ★ Guide francophone égyptologue
+                          </span>
+                        )}
+                        {a.guide_supplement && (
+                          <span className="ml-1.5 text-neutral-500">
+                            + Guide en supplément ({a.guide_supplement_prix} €)
                           </span>
                         )}
                       </p>

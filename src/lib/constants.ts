@@ -109,7 +109,7 @@ export const INCLUS_PRESETS = [
   "Pourboires guide",
 ] as const;
 
-export const DUREE_OPTIONS = ["2h/2h30", "Demi-journée", "Journée", "Plusieurs jours"] as const;
+export const DUREE_OPTIONS = ["1h", "2h/2h30", "Demi-journée", "Journée", "Plusieurs jours"] as const;
 
 export const NON_INCLUS_PRESETS = [
   "Boissons alcoolisées",

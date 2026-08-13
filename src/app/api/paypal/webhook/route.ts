@@ -13,31 +13,42 @@ import { extractPaypalPaiement, verifyPaypalWebhookSignature } from "@/lib/paypa
 export async function POST(request: Request) {
   const rawBody = await request.text();
 
-  let verified = false;
-  try {
-    verified = await verifyPaypalWebhookSignature(request.headers, rawBody);
-  } catch {
-    verified = false;
-  }
-  if (!verified) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   let payload: Record<string, unknown> = {};
   try {
     payload = JSON.parse(rawBody);
   } catch {
-    payload = { _parse_error: true };
+    payload = { _parse_error: true, _raw: rawBody };
   }
 
   const admin = createAdminClient();
   const eventType = (payload.event_type as string) || "inconnu";
 
+  // On journalise systématiquement, même si la signature échoue ensuite —
+  // sinon un échec de vérification est invisible (rien en base) et
+  // indiscernable de "PayPal n'a rien envoyé du tout".
   const { data: logRow } = await admin
     .from("paypal_webhook_events")
     .insert({ event_type: eventType, payload })
     .select("id")
     .single();
+
+  let verified = false;
+  let verifyError: string | null = null;
+  try {
+    verified = await verifyPaypalWebhookSignature(request.headers, rawBody);
+  } catch (err) {
+    verified = false;
+    verifyError = String(err instanceof Error ? err.message : err);
+  }
+  if (!verified) {
+    if (logRow) {
+      await admin
+        .from("paypal_webhook_events")
+        .update({ error: verifyError || "Signature PayPal invalide" })
+        .eq("id", logRow.id);
+    }
+    return new Response("Unauthorized", { status: 401 });
+  }
 
   try {
     const extrait = extractPaypalPaiement(payload);

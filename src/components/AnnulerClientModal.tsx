@@ -38,7 +38,7 @@ export default function AnnulerClientModal({
 }) {
   const toast = useToast();
   const [raison, setRaison] = useState<string>(RAISONS_ANNULATION[0]);
-  const [exception, setException] = useState(false);
+  const [raisonAutre, setRaisonAutre] = useState("");
   const [remboursementChoix, setRemboursementChoix] = useState<"rembourse" | "avoir" | "">("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,11 +48,16 @@ export default function AnnulerClientModal({
     const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
     const montant = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
     const reglement = reglementAnnulation(r, catalogueItem, now);
-    return { r, montant, reglement, remboursable: reglement.remboursable || exception };
+    return { r, montant, reglement, remboursable: reglement.remboursable };
   });
   const totalRemboursable = lignes.filter((l) => l.remboursable).reduce((s, l) => s + l.montant, 0);
+  const raisonFinale = raison === "Autre" ? raisonAutre.trim() : raison;
 
   const confirmer = async () => {
+    if (raison === "Autre" && !raisonAutre.trim()) {
+      toast("Précisez la raison de l'annulation.");
+      return;
+    }
     if (totalRemboursable > 0 && !remboursementChoix) {
       toast("Choisissez remboursement ou avoir avant de confirmer.");
       return;
@@ -82,15 +87,15 @@ export default function AnnulerClientModal({
       }
       onUpdateReservation(r.id, {
         statut_resa: "Annulée",
-        annulation_raison: raison,
+        annulation_raison: raisonFinale,
         annulation_date: date,
         annulation_remb_avoir: remboursable ? remboursementChoix : "",
-        annulation_exception_hossam: exception,
+        annulation_exception_hossam: false,
         annulation_prevenir_hossam: reglement.prevenirHossam,
       });
     }
 
-    onUpdateClient({ statut: "Client annulé", annulation_raison: raison, annulation_date: date });
+    onUpdateClient({ statut: "Client annulé", annulation_raison: raisonFinale, annulation_date: date });
     setSubmitting(false);
     onClose();
   };
@@ -138,11 +143,6 @@ export default function AnnulerClientModal({
           </div>
         )}
 
-        <label className="mt-3 flex items-center gap-2 text-xs text-neutral-600">
-          <input type="checkbox" checked={exception} onChange={(e) => setException(e.target.checked)} />
-          Exception validée par Hossam — rembourser aussi les activités normalement non remboursables
-        </label>
-
         <div className="mt-3">
           <label className="mb-1 block text-xs font-medium text-neutral-500">Raison de l&apos;annulation</label>
           <select value={raison} onChange={(e) => setRaison(e.target.value)} className="input text-sm">
@@ -150,6 +150,15 @@ export default function AnnulerClientModal({
               <option key={rai}>{rai}</option>
             ))}
           </select>
+          {raison === "Autre" && (
+            <textarea
+              value={raisonAutre}
+              onChange={(e) => setRaisonAutre(e.target.value)}
+              placeholder="Précisez la raison…"
+              rows={2}
+              className="input mt-1.5 text-sm"
+            />
+          )}
         </div>
 
         {totalRemboursable > 0 && (

@@ -38,6 +38,7 @@ export default function AnnulerActiviteModal({
 }) {
   const toast = useToast();
   const [raison, setRaison] = useState<string>(RAISONS_ANNULATION[0]);
+  const [raisonAutre, setRaisonAutre] = useState("");
   const [exception, setException] = useState(false);
   const [remboursementChoix, setRemboursementChoix] = useState<"rembourse" | "avoir" | "">("");
   const [submitting, setSubmitting] = useState(false);
@@ -45,8 +46,13 @@ export default function AnnulerActiviteModal({
   const montant = resaTotalMontant(r, client, options, tarifs);
   const reglement = reglementAnnulation(r, catalogueItem, new Date());
   const remboursable = reglement.remboursable || exception;
+  const raisonFinale = raison === "Autre" ? raisonAutre.trim() : raison;
 
   const confirmer = async () => {
+    if (raison === "Autre" && !raisonAutre.trim()) {
+      toast("Précisez la raison de l'annulation.");
+      return;
+    }
     if (remboursable && !remboursementChoix) {
       toast("Choisissez remboursement ou avoir avant de confirmer.");
       return;
@@ -77,7 +83,7 @@ export default function AnnulerActiviteModal({
 
     onUpdate({
       statut_resa: "Annulée",
-      annulation_raison: raison,
+      annulation_raison: raisonFinale,
       annulation_date: todayStr(),
       annulation_remb_avoir: remboursable ? remboursementChoix : "",
       annulation_exception_hossam: exception,
@@ -126,6 +132,15 @@ export default function AnnulerActiviteModal({
               <option key={rai}>{rai}</option>
             ))}
           </select>
+          {raison === "Autre" && (
+            <textarea
+              value={raisonAutre}
+              onChange={(e) => setRaisonAutre(e.target.value)}
+              placeholder="Précisez la raison…"
+              rows={2}
+              className="input mt-1.5 text-sm"
+            />
+          )}
         </div>
 
         {remboursable && (

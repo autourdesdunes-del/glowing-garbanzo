@@ -43,6 +43,7 @@ import Spinner from "@/components/Spinner";
 import AppelReminders from "@/components/AppelReminders";
 import BilletRappels from "@/components/BilletRappels";
 import BilletEnvoiRappels from "@/components/BilletEnvoiRappels";
+import PaypalPaiementRappel from "@/components/PaypalPaiementRappel";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
 
@@ -291,6 +292,7 @@ function AppShellInner({
         { data: catFaq },
         { data: profs },
         { data: shifts },
+        { data: paypal },
       ] = await Promise.all([
         supabase.from("clients").select("*").order("created_at", { ascending: false }),
         supabase
@@ -302,9 +304,14 @@ function AppShellInner({
         supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
         supabase.from("profiles").select("*"),
         supabase.from("planning_shifts").select("*"),
+        // Chargé sans attendre l'ouverture de Suivis : le pop-up de rappel
+        // (PaypalPaiementRappel) doit pouvoir se déclencher quel que soit
+        // l'onglet ouvert, comme les autres rappels (billets, appels...).
+        supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
       ]);
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
+      setPaypalPaiements((paypal as PaypalPaiement[]) || []);
       if (!error && data) {
         setClients(data as Client[]);
         if (data.length && !selectedId) setSelectedId(data[0].id);
@@ -458,11 +465,6 @@ function AppShellInner({
       if (mode === "suivis" && !suivisLoaded) {
         const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
-        const { data: paypal } = await supabase
-          .from("paypal_paiements")
-          .select("*")
-          .order("paypal_recu_le", { ascending: false });
-        setPaypalPaiements((paypal as PaypalPaiement[]) || []);
         setSuivisLoaded(true);
       }
 
@@ -1038,6 +1040,11 @@ function AppShellInner({
         reservations={allReservations}
         clients={clients}
         onUpdateReservation={updateReservationById}
+      />
+      <PaypalPaiementRappel
+        paypalPaiements={paypalPaiements}
+        clients={clients}
+        onRattacher={rattacherPaypalPaiement}
       />
       {prospectSummaryId &&
         (() => {

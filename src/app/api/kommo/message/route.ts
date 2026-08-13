@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseKommoFormBody } from "@/lib/kommoWebhook";
+import { cleanKommoName, parseKommoFormBody } from "@/lib/kommoWebhook";
 import { extractProspectInfoFromMessage, KommoExtractedInfo } from "@/lib/kommoExtraction";
 import { localDateStr } from "@/lib/dates";
 
@@ -80,7 +80,43 @@ async function processMessage(
       "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet"
     );
   query = leadId ? query.eq("kommo_lead_id", leadId) : query.eq("kommo_contact_id", contactId);
-  const { data: existing } = await query.maybeSingle();
+  let existing = (await query.maybeSingle()).data;
+
+  // Premier message d'un lead qui vient d'apparaître dans Kommo : la fiche
+  // CRM n'existe pas encore (le webhook classique "lead_added" arrive
+  // parfois après, ou pas du tout selon la config Kommo) — on la crée ici
+  // à la volée avec ce que le payload du message fournit déjà, plutôt que
+  // de perdre ce premier message.
+  if (!existing) {
+    const additionalData = (payload.additional_data as Record<string, unknown>) || {};
+    const mainContact = (additionalData.main_contact as Record<string, unknown>) || {};
+    const rawName =
+      (typeof mainContact.name === "string" && mainContact.name) ||
+      (typeof additionalData.name === "string" && additionalData.name) ||
+      "";
+    const nom = cleanKommoName(rawName) || (leadId ? `Lead Kommo #${leadId}` : `Contact Kommo #${contactId}`);
+    const phones = additionalData.main_contact_phones as { simple_value?: string } | undefined;
+    const telephone = phones?.simple_value || "";
+    const status = additionalData.status as { id?: number; name?: string } | undefined;
+
+    const { data: created } = await admin
+      .from("clients")
+      .insert({
+        nom,
+        statut: "Prospect",
+        telephone,
+        kommo_lead_id: leadId,
+        kommo_contact_id: contactId,
+        kommo_pipeline_status_id: status?.id ?? null,
+        kommo_pipeline_status_nom: status?.name || "",
+        kommo_synced_at: new Date().toISOString(),
+      })
+      .select(
+        "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet"
+      )
+      .single();
+    existing = created;
+  }
   if (!existing) return null;
 
   const previousInfo: KommoExtractedInfo = {

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { HotelReference, TransfertTaxe } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
+import TransfertTaxeModificationRequestModal from "@/components/TransfertTaxeModificationRequestModal";
 
 const VILLES = [
   "Hurghada",
@@ -32,6 +33,39 @@ export default function HelpView() {
   const [newHotelVille, setNewHotelVille] = useState("Hurghada");
   const [newHotelVilleAutre, setNewHotelVilleAutre] = useState("");
   const [taxesOuvertes, setTaxesOuvertes] = useState<Record<string, boolean>>({});
+  const [taxeRequestOpen, setTaxeRequestOpen] = useState(false);
+
+  const submitTaxeModificationRequest = async (payload: {
+    transfertTaxeId: string | null;
+    ville: string;
+    trancheLabel: string;
+    explication: string;
+  }) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const demandeurNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    const { error } = await supabase.from("transfert_taxe_modification_requests").insert({
+      transfert_taxe_id: payload.transfertTaxeId,
+      ville: payload.ville,
+      tranche_label: payload.trancheLabel,
+      explication: payload.explication,
+      demandeur_id: user.id,
+      demandeur_nom: demandeurNom,
+    });
+    if (error) {
+      toast("Échec de l'envoi de la demande.");
+      return;
+    }
+    toast("Demande envoyée à la Direction.");
+    setTaxeRequestOpen(false);
+  };
 
   useEffect(() => {
     (async () => {
@@ -213,8 +247,15 @@ export default function HelpView() {
           Si une personne est seule, faire une demande pour connaître le montant de la taxe.
         </p>
         <p className="mt-3 text-xs text-neutral-400">
-          Référence uniquement — non modifiable ici. Pour un changement, voir directement avec Mélanie.
+          Référence uniquement — non modifiable ici.
         </p>
+        <button
+          type="button"
+          onClick={() => setTaxeRequestOpen(true)}
+          className="mt-3 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+        >
+          Demander une modification de tarif
+        </button>
 
         {Array.from(new Set(taxes.map((t) => t.ville))).map((ville) => {
           const tranches = taxes
@@ -251,6 +292,14 @@ export default function HelpView() {
           );
         })}
       </div>
+      )}
+
+      {taxeRequestOpen && (
+        <TransfertTaxeModificationRequestModal
+          taxes={taxes}
+          onSubmit={submitTaxeModificationRequest}
+          onClose={() => setTaxeRequestOpen(false)}
+        />
       )}
     </div>
   );

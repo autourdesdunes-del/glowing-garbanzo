@@ -8,6 +8,7 @@ import {
   Reservation,
   ReservationOption,
   ReservationTarif,
+  TransfertTaxeModificationRequest,
 } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
@@ -75,6 +76,8 @@ export default function DirectionView({
   coutsMap,
   catalogueModificationRequests,
   onResolveCatalogueModificationRequest,
+  transfertTaxeModificationRequests,
+  onResolveTransfertTaxeModificationRequest,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -85,9 +88,15 @@ export default function DirectionView({
   coutsMap: Record<string, number>;
   catalogueModificationRequests: CatalogueModificationRequest[];
   onResolveCatalogueModificationRequest: (id: string) => void;
+  transfertTaxeModificationRequests: TransfertTaxeModificationRequest[];
+  onResolveTransfertTaxeModificationRequest: (id: string) => void;
 }) {
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
+  const [expandedTaxeRequestId, setExpandedTaxeRequestId] = useState<string | null>(null);
   const modifCatalogueRows = [...catalogueModificationRequests].sort((a, b) =>
+    b.created_at.localeCompare(a.created_at)
+  );
+  const modifTaxeRows = [...transfertTaxeModificationRequests].sort((a, b) =>
     b.created_at.localeCompare(a.created_at)
   );
   const currentMonth = todayStr().slice(0, 7);
@@ -241,6 +250,60 @@ export default function DirectionView({
                       {r.statut !== "Traité" && (
                         <button
                           onClick={() => onResolveCatalogueModificationRequest(r.id)}
+                          className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          Marquer traité
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {modifTaxeRows.length > 0 && (
+        <div>
+          <h3 className="font-heading mb-2 flex items-center gap-2 text-sm font-semibold text-[#171717]">
+            Demandes de modification des taxes de transfert
+            {modifTaxeRows.some((r) => r.statut !== "Traité") && (
+              <span className="rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-medium text-[#666666]">
+                {modifTaxeRows.filter((r) => r.statut !== "Traité").length} en attente
+              </span>
+            )}
+          </h3>
+          <div className="space-y-2">
+            {modifTaxeRows.map((r) => {
+              const isOpen = expandedTaxeRequestId === r.id;
+              return (
+                <div key={r.id} className="rounded-md border border-neutral-200 bg-white">
+                  <div
+                    onClick={() => setExpandedTaxeRequestId(isOpen ? null : r.id)}
+                    className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
+                  >
+                    <span className="font-amounts text-neutral-500">{fmtDate(r.created_at)}</span>
+                    <span>
+                      <strong>{r.demandeur_nom || "Sans nom"}</strong> — {r.ville}
+                      {r.tranche_label ? ` (${r.tranche_label.split("\n")[0]})` : ""}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        r.statut === "Traité"
+                          ? "bg-[#171717]/10 text-[#171717]"
+                          : "bg-[#f5a623]/20 text-[#666666]"
+                      }`}
+                    >
+                      {r.statut}
+                    </span>
+                  </div>
+                  {isOpen && (
+                    <div className="space-y-2 border-t border-neutral-100 p-3 text-sm text-neutral-600">
+                      <div>{r.explication}</div>
+                      {r.statut !== "Traité" && (
+                        <button
+                          onClick={() => onResolveTransfertTaxeModificationRequest(r.id)}
                           className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
                         >
                           Marquer traité

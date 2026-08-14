@@ -617,3 +617,18 @@ export type CatalogueModificationRequest = {
   statut: "En attente" | "Traité";
   created_at: string;
 };
+
+// Demande de correction d'une tranche de taxe de transfert — même
+// mécanisme que CatalogueModificationRequest (page en lecture seule pour
+// l'équipe, la Direction valide/applique le changement).
+export type TransfertTaxeModificationRequest = {
+  id: string;
+  transfert_taxe_id: string | null;
+  ville: string;
+  tranche_label: string;
+  explication: string;
+  demandeur_id: string;
+  demandeur_nom: string;
+  statut: "En attente" | "Traité";
+  created_at: string;
+};

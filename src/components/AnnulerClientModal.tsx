@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { reglementAnnulation, resaTotalMontant } from "@/lib/resa";
 import { RAISONS_ANNULATION } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
+import PaypalEmailPromptModal from "@/components/PaypalEmailPromptModal";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -40,6 +41,8 @@ export default function AnnulerClientModal({
   const [raison, setRaison] = useState<string>(RAISONS_ANNULATION[0]);
   const [raisonAutre, setRaisonAutre] = useState("");
   const [remboursementChoix, setRemboursementChoix] = useState<"rembourse" | "avoir" | "">("");
+  const [paypalEmail, setPaypalEmail] = useState(client.email || "");
+  const [showPaypalPrompt, setShowPaypalPrompt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const actives = reservations.filter((r) => r.client_id === client.id && r.statut_resa !== "Annulée");
@@ -53,6 +56,17 @@ export default function AnnulerClientModal({
   const totalRemboursable = lignes.filter((l) => l.remboursable).reduce((s, l) => s + l.montant, 0);
   const raisonFinale = raison === "Autre" ? raisonAutre.trim() : raison;
 
+  // Le remboursement se fait par défaut via PayPal (demande explicite) —
+  // dès qu'il y a quelque chose à rembourser, "Rembourser" est déjà
+  // sélectionné et demande l'adresse PayPal tout de suite.
+  useEffect(() => {
+    if (totalRemboursable > 0 && !remboursementChoix) {
+      setRemboursementChoix("rembourse");
+      setShowPaypalPrompt(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalRemboursable]);
+
   const confirmer = async () => {
     if (raison === "Autre" && !raisonAutre.trim()) {
       toast("Précisez la raison de l'annulation.");
@@ -60,6 +74,10 @@ export default function AnnulerClientModal({
     }
     if (totalRemboursable > 0 && !remboursementChoix) {
       toast("Choisissez remboursement ou avoir avant de confirmer.");
+      return;
+    }
+    if (totalRemboursable > 0 && remboursementChoix === "rembourse" && !paypalEmail.trim()) {
+      setShowPaypalPrompt(true);
       return;
     }
     setSubmitting(true);
@@ -72,6 +90,8 @@ export default function AnnulerClientModal({
           client_id: client.id,
           montant,
           raison: "Annulation",
+          mode: "PayPal",
+          paypal_email: paypalEmail.trim(),
           activite_id: r.id,
           date_probleme: date,
         });
@@ -168,7 +188,10 @@ export default function AnnulerClientModal({
             </label>
             <div className="flex gap-2">
               <button
-                onClick={() => setRemboursementChoix("rembourse")}
+                onClick={() => {
+                  setRemboursementChoix("rembourse");
+                  setShowPaypalPrompt(true);
+                }}
                 className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
                   remboursementChoix === "rembourse"
                     ? "border-[#171717] bg-[#171717] text-white"
@@ -188,6 +211,29 @@ export default function AnnulerClientModal({
                 Avoir (cas particulier)
               </button>
             </div>
+            {remboursementChoix === "rembourse" && (
+              <p className="mt-1.5 text-xs text-neutral-500">
+                PayPal —{" "}
+                {paypalEmail ? (
+                  <>
+                    {paypalEmail}{" "}
+                    <button
+                      onClick={() => setShowPaypalPrompt(true)}
+                      className="text-[#171717] underline hover:no-underline"
+                    >
+                      modifier
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowPaypalPrompt(true)}
+                    className="text-[#171717] underline hover:no-underline"
+                  >
+                    saisir l&apos;adresse
+                  </button>
+                )}
+              </p>
+            )}
           </div>
         )}
 
@@ -199,6 +245,16 @@ export default function AnnulerClientModal({
           {submitting ? "…" : "Confirmer l'annulation du client"}
         </button>
       </div>
+      {showPaypalPrompt && (
+        <PaypalEmailPromptModal
+          initialValue={paypalEmail}
+          onConfirm={(email) => {
+            setPaypalEmail(email);
+            setShowPaypalPrompt(false);
+          }}
+          onClose={() => setShowPaypalPrompt(false)}
+        />
+      )}
     </div>
   );
 }

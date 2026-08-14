@@ -1,0 +1,56 @@
+"use client";
+
+import { useState } from "react";
+
+// Demande l'adresse PayPal du client au moment de choisir "Rembourser" lors
+// d'une annulation — le remboursement par défaut se fait par PayPal
+// (demande explicite), donc autant demander l'adresse tout de suite plutôt
+// que de laisser le champ vide dans Suivis > Remboursements.
+export default function PaypalEmailPromptModal({
+  initialValue,
+  onConfirm,
+  onClose,
+}: {
+  initialValue: string;
+  onConfirm: (email: string) => void;
+  onClose: () => void;
+}) {
+  const [email, setEmail] = useState(initialValue);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-sm rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="font-heading text-base font-semibold text-[#171717]">Adresse PayPal du client</h2>
+        <p className="mt-1 text-xs text-neutral-500">
+          Nécessaire pour effectuer le remboursement — voir Suivis &gt; Remboursements.
+        </p>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="email@paypal.com"
+          autoFocus
+          className="input mt-3 text-sm"
+        />
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-[#fafafa]"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={() => email.trim() && onConfirm(email.trim())}
+            disabled={!email.trim()}
+            className="flex-1 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            Valider
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

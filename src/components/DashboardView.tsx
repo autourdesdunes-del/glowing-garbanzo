@@ -179,11 +179,13 @@ function ActionRow({
   icon,
   title,
   sub,
+  count,
   onClick,
 }: {
   icon: keyof typeof ICONS;
   title: string;
   sub: string;
+  count?: number;
   onClick?: () => void;
 }) {
   return (
@@ -198,6 +200,11 @@ function ActionRow({
         <p className="text-sm font-medium text-[#171717]">{title}</p>
         <p className="text-xs text-[#666666]">{sub}</p>
       </div>
+      {!!count && (
+        <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-semibold text-white">
+          🔔 {count}
+        </span>
+      )}
       {onClick && (
         <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[6px] text-[#666666]">
           ›
@@ -402,6 +409,21 @@ export default function DashboardView({
 
   const urgentCount =
     rdvToday.length + pickupsMissingTomorrow.length + billetsUrgents.length + acomptesUrgents.length;
+
+  // Total toutes rubriques "Actions rapides" confondues — affiché en cloche
+  // en haut de la section pour voir d'un coup d'œil s'il y a quelque chose à
+  // traiter, sans avoir à dérouler toute la liste.
+  const actionsRapidesTotal =
+    callsToday.length +
+    roomsMissingTomorrow.length +
+    pickupsMissingTomorrow.length +
+    rdvToday.length +
+    billetsEnAttente.length +
+    activitesEnAttente.length +
+    paidToday.length +
+    auRevoirToday.length +
+    avisToday.length +
+    staleProspects.length;
 
   // -- Priority queue: every client needing attention soon, ranked by departure date.
   type QueueRow = { client: Client; motifs: string[] };
@@ -704,9 +726,14 @@ export default function DashboardView({
 
         <div className="space-y-6">
           <div>
-            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-              Actions rapides
-            </h2>
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="font-heading text-lg font-semibold text-[#171717]">Actions rapides</h2>
+              {actionsRapidesTotal > 0 && (
+                <span className="flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-semibold text-white">
+                  🔔 {actionsRapidesTotal}
+                </span>
+              )}
+            </div>
             <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
               {callsToday.map((c) => (
                 <ActionRow
@@ -725,6 +752,7 @@ export default function DashboardView({
                     ? `${roomsMissingTomorrow.length} client(s) arrivant demain`
                     : "Rien à demander"
                 }
+                count={roomsMissingTomorrow.length}
                 onClick={roomsMissingTomorrow.length > 0 ? onOpenNumerosChambre : undefined}
               />
               <ActionRow
@@ -735,12 +763,14 @@ export default function DashboardView({
                     ? `${pickupsMissingTomorrow.length} activité(s) demain`
                     : "Rien à ajouter"
                 }
+                count={pickupsMissingTomorrow.length}
                 onClick={pickupsMissingTomorrow.length > 0 ? onOpenPickupsChambres : undefined}
               />
               <ActionRow
                 icon="wallet"
                 title="RDV paiements aujourd'hui"
                 sub={rdvToday.length > 0 ? `${rdvToday.length} rendez-vous` : "Aucun aujourd'hui"}
+                count={rdvToday.length}
                 onClick={rdvToday.length > 0 ? onOpenRdvPaiements : undefined}
               />
               <ActionRow
@@ -757,6 +787,7 @@ export default function DashboardView({
                         .join(" · ") + (billetsEnAttente.length > 3 ? "…" : "")
                     : "Aucun en attente"
                 }
+                count={billetsEnAttente.length}
                 onClick={billetsEnAttente.length > 0 ? onOpenBilletsAvion : undefined}
               />
               <ActionRow
@@ -773,6 +804,7 @@ export default function DashboardView({
                         .join(" · ") + (activitesEnAttente.length > 3 ? "…" : "")
                     : "Rien en attente"
                 }
+                count={activitesEnAttente.length}
                 onClick={
                   activitesEnAttente[0] ? () => onOpenClient(activitesEnAttente[0].client_id) : undefined
                 }
@@ -783,18 +815,21 @@ export default function DashboardView({
                 sub={
                   paidToday.length > 0 ? `${paidToday.length} solde(s) aujourd'hui` : "Rien de nouveau"
                 }
+                count={paidToday.length}
                 onClick={paidToday[0] ? () => onOpenClient(paidToday[0].id) : undefined}
               />
               <ActionRow
                 icon="wave"
                 title="Messages au revoir"
                 sub={auRevoirToday.length > 0 ? `${auRevoirToday.length} à envoyer` : "Rien à envoyer"}
+                count={auRevoirToday.length}
                 onClick={auRevoirToday.length > 0 ? onOpenAuRevoir : undefined}
               />
               <ActionRow
                 icon="star"
                 title="Demandes d'avis"
                 sub={avisToday.length > 0 ? `${avisToday.length} à envoyer` : "Rien à envoyer"}
+                count={avisToday.length}
                 onClick={avisToday.length > 0 ? onOpenAvisClients : undefined}
               />
               <ActionRow
@@ -803,6 +838,7 @@ export default function DashboardView({
                 sub={
                   staleProspects.length > 0 ? `${staleProspects.length} à relancer` : "Rien à relancer"
                 }
+                count={staleProspects.length}
                 onClick={staleProspects.length > 0 ? onOpenProspectsARelancer : undefined}
               />
             </div>

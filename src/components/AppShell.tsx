@@ -48,6 +48,7 @@ import BilletEnvoiRappels from "@/components/BilletEnvoiRappels";
 import PaypalPaiementRappel from "@/components/PaypalPaiementRappel";
 import AnnulationHossamAlert from "@/components/AnnulationHossamAlert";
 import DoublonPossibleAlert from "@/components/DoublonPossibleAlert";
+import NouveauClientConfirmeAlert from "@/components/NouveauClientConfirmeAlert";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
 import AssouanVerificationCenter from "@/components/AssouanVerificationCenter";
@@ -255,6 +256,7 @@ function AppShellInner({
   const [prospectSummaryId, setProspectSummaryId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [clientListExpanded, setClientListExpanded] = useState(false);
   // Liste/Pipeline est un toggle par onglet : Clients démarre en Liste,
   // Prospects démarre en Pipeline (vue Kommo par défaut) — chacun garde son
   // propre choix ensuite si l'utilisateur bascule.
@@ -597,12 +599,12 @@ function AppShellInner({
   // Répercute un changement de statut fait dans le CRM vers le lead Kommo
   // correspondant (écriture CRM → Kommo) — best-effort, en tâche de fond :
   // un échec réseau ici ne doit jamais bloquer/annuler l'action dans le CRM.
-  const pushStatutToKommo = (leadId: number | null, statut: string) => {
+  const pushStatutToKommo = (leadId: number | null, statut: string, nom?: string) => {
     if (!leadId) return;
     fetch("/api/kommo/push-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ leadId, statut }),
+      body: JSON.stringify({ leadId, statut, nom }),
     }).catch(() => {});
   };
 
@@ -649,7 +651,7 @@ function AppShellInner({
     if (!selected) return;
     const id = selected.id;
     if (patch.statut && patch.statut !== selected.statut) {
-      pushStatutToKommo(selected.kommo_lead_id, patch.statut);
+      pushStatutToKommo(selected.kommo_lead_id, patch.statut, patch.nom ?? selected.nom);
     }
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     pendingPatches.current[id] = { ...pendingPatches.current[id], ...patch };
@@ -732,7 +734,7 @@ function AppShellInner({
     if (patch.statut) {
       const current = clients.find((c) => c.id === id);
       if (current && patch.statut !== current.statut) {
-        pushStatutToKommo(current.kommo_lead_id, patch.statut);
+        pushStatutToKommo(current.kommo_lead_id, patch.statut, patch.nom ?? current.nom);
       }
     }
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -1257,6 +1259,11 @@ function AppShellInner({
         onOpenClient={openClient}
         onResoudre={(id) => updateClientById(id, { doublon_traite: true })}
       />
+      <NouveauClientConfirmeAlert
+        clients={clients}
+        onOpenClient={openClient}
+        onAssigner={(id, assignee) => updateClientById(id, { confirmation_assignee_a: assignee })}
+      />
       {prospectSummaryId &&
         (() => {
           const c = clients.find((cl) => cl.id === prospectSummaryId);
@@ -1596,62 +1603,79 @@ function AppShellInner({
                 defaultStatut="Client confirmé"
               />
             </div>
-            {allTags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 border-b border-[#666666]/10 p-2">
-                {allTags.map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-                    className={`rounded-full border px-2 py-0.5 text-xs ${
-                      tagFilter === tag
-                        ? "border-[#171717] bg-[#171717] text-white"
-                        : "border-neutral-200 text-neutral-500"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex-1 overflow-y-auto">
-              {filtered.length === 0 && (
-                <div className="p-4 text-sm text-neutral-400">Aucun client.</div>
-              )}
-              {filtered.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedId(c.id)}
-                  className={`block w-full border-b border-[#666666]/10 px-4 py-3 text-left ${
-                    c.id === selectedId ? "bg-[#fafafa]" : "hover:bg-[#fafafa]/50"
-                  }`}
-                >
-                  <div className="font-medium text-[#171717]">
-                    {c.nom || "Sans nom"}
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs">
-                    <span
-                      className="rounded-full px-2 py-0.5 text-white"
-                      style={{ backgroundColor: STATUT_COLORS[c.statut] }}
-                    >
-                      {c.statut}
-                    </span>
-                    {c.date_debut && (
-                      <span className="font-amounts text-neutral-500">
-                        {fmtDate(c.date_debut)}
-                      </span>
-                    )}
-                    {(c.tags || []).map((tag) => (
-                      <span
+            <button
+              onClick={() => setClientListExpanded((v) => !v)}
+              className="flex items-center justify-between border-b border-[#666666]/10 px-3 py-2 text-left text-xs font-medium text-neutral-500 hover:bg-[#fafafa]"
+            >
+              <span>
+                {clientListExpanded || query.trim()
+                  ? `${filtered.length} client${filtered.length > 1 ? "s" : ""}`
+                  : "Afficher la liste des clients"}
+              </span>
+              <span className={`transition-transform ${clientListExpanded || query.trim() ? "rotate-180" : ""}`}>
+                ⌄
+              </span>
+            </button>
+            {(clientListExpanded || query.trim()) && (
+              <>
+                {allTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 border-b border-[#666666]/10 p-2">
+                    {allTags.map((tag) => (
+                      <button
                         key={tag}
-                        className="rounded-full bg-[#fafafa] px-2 py-0.5 text-[#171717]"
+                        onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+                        className={`rounded-full border px-2 py-0.5 text-xs ${
+                          tagFilter === tag
+                            ? "border-[#171717] bg-[#171717] text-white"
+                            : "border-neutral-200 text-neutral-500"
+                        }`}
                       >
                         {tag}
-                      </span>
+                      </button>
                     ))}
                   </div>
-                </button>
-              ))}
-            </div>
+                )}
+                <div className="flex-1 overflow-y-auto">
+                  {filtered.length === 0 && (
+                    <div className="p-4 text-sm text-neutral-400">Aucun client.</div>
+                  )}
+                  {filtered.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedId(c.id)}
+                      className={`block w-full border-b border-[#666666]/10 px-4 py-3 text-left ${
+                        c.id === selectedId ? "bg-[#fafafa]" : "hover:bg-[#fafafa]/50"
+                      }`}
+                    >
+                      <div className="font-medium text-[#171717]">
+                        {c.nom || "Sans nom"}
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-xs">
+                        <span
+                          className="rounded-full px-2 py-0.5 text-white"
+                          style={{ backgroundColor: STATUT_COLORS[c.statut] }}
+                        >
+                          {c.statut}
+                        </span>
+                        {c.date_debut && (
+                          <span className="font-amounts text-neutral-500">
+                            {fmtDate(c.date_debut)}
+                          </span>
+                        )}
+                        {(c.tags || []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-[#fafafa] px-2 py-0.5 text-[#171717]"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </aside>
 
           <main className="flex-1 overflow-y-auto p-6">

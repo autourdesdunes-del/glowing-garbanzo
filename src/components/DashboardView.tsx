@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Client, PlanningShift, Reservation, ReservationOption, ReservationTarif, UserShift } from "@/lib/types";
-import { resaTotalMontant } from "@/lib/resa";
+import { cleanActivityTitle, resaTotalMontant } from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
@@ -330,6 +330,13 @@ export default function DashboardView({
   const billetsEnAttente = reservations
     .filter((r) => r.billet_requis && r.billet_etape !== "termine" && (!r.billet_date || r.billet_date >= todayStr))
     .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
+
+  // Activités pas encore validées (Brouillon) — souvent parce qu'une info
+  // requise a été passée à l'ajout (pointure, vol du client…) et jamais
+  // complétée depuis, donc facile à oublier sans liste dédiée.
+  const activitesEnAttente = reservations
+    .filter((r) => r.statut_resa === "Brouillon")
+    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
 
   const auRevoirToday = clients.filter(
     (c) => c.date_fin && addDays(c.date_fin, 1) === todayStr && !c.au_revoir_envoye
@@ -751,6 +758,24 @@ export default function DashboardView({
                     : "Aucun en attente"
                 }
                 onClick={billetsEnAttente.length > 0 ? onOpenBilletsAvion : undefined}
+              />
+              <ActionRow
+                icon="clipboard"
+                title="Activités en attente de validation"
+                sub={
+                  activitesEnAttente.length > 0
+                    ? activitesEnAttente
+                        .slice(0, 3)
+                        .map((r) => {
+                          const c = clients.find((cl) => cl.id === r.client_id);
+                          return `${c?.nom || "?"} — ${cleanActivityTitle(r.nom_activite) || "Activité"}`;
+                        })
+                        .join(" · ") + (activitesEnAttente.length > 3 ? "…" : "")
+                    : "Rien en attente"
+                }
+                onClick={
+                  activitesEnAttente[0] ? () => onOpenClient(activitesEnAttente[0].client_id) : undefined
+                }
               />
               <ActionRow
                 icon="check"

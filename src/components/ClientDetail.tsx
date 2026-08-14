@@ -811,6 +811,7 @@ export default function ClientDetail({
         <ContactStep
           client={client}
           onChange={onChange}
+          reservations={reservations}
           onNeedsField={(message, focusId) =>
             setMissingInfo({
               message,

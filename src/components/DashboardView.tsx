@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Client, PlanningShift, Reservation, ReservationOption, ReservationTarif, UserShift } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
+import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
@@ -366,8 +367,7 @@ export default function DashboardView({
       c.date_debut &&
       c.date_debut >= todayStr &&
       c.date_debut <= in14Days &&
-      c.infos_manquantes.length > 0 &&
-      !(c.infos_manquantes.length === 1 && c.infos_manquantes[0] === "Complet")
+      infosManquantesToutes(c, reservations).length > 0
   );
 
   // Billet d'avion pas encore reçu (étape avant "reçu — à envoyer au

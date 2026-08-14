@@ -20,6 +20,7 @@ import {
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 import { buildPaxEnglish } from "@/components/client-steps";
+import { infosManquantesToutes } from "@/lib/infosManquantes";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -185,8 +186,9 @@ function ReservationSummaryCard({
   // peine de sommer les montants de plusieurs clients (bug déjà rencontré).
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
   const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
-  const infoComplet = !client.infos_manquantes.length || client.infos_manquantes.includes("Complet");
-  const infoStatut = infoComplet ? null : client.infos_manquantes[0];
+  const infosManquantes = infosManquantesToutes(client, reservations);
+  const infoComplet = infosManquantes.length === 0;
+  const infoStatut = infoComplet ? null : infosManquantes[0];
 
   if (size === "medium") {
     return (

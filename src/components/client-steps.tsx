@@ -30,6 +30,7 @@ import {
   STATUTS,
 } from "@/lib/constants";
 import { hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
+import { infosManquantesAuto } from "@/lib/infosManquantes";
 import { matchHotel } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
@@ -83,7 +84,11 @@ export function ContactStep({
   client,
   onChange,
   onNeedsField,
-}: StepProps & { onNeedsField: (message: string, focusId: string) => void }) {
+  reservations,
+}: StepProps & {
+  onNeedsField: (message: string, focusId: string) => void;
+  reservations: Reservation[];
+}) {
   const supabase = createClient();
   const toast = useToast();
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
@@ -109,6 +114,12 @@ export function ContactStep({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Déduites des vraies données (hôtel/chambre/téléphone/acompte/billet/
+  // passeport) plutôt que cochées à la main — toujours à jour, jamais
+  // oubliées ni laissées cochées une fois l'info complétée.
+  const autoTags = infosManquantesAuto(client, reservations);
+  const manualTagsAffichees = client.infos_manquantes.filter((s) => !autoTags.includes(s));
 
   const toggleInfoManquante = (opt: string) => {
     const has = client.infos_manquantes.includes(opt);
@@ -249,7 +260,16 @@ export function ContactStep({
       <div>
         <span className="mb-1 block text-sm font-medium text-neutral-700">Infos manquantes</span>
         <div className="flex flex-wrap items-center gap-1.5">
-          {client.infos_manquantes.map((s) => (
+          {autoTags.map((s) => (
+            <span
+              key={`auto-${s}`}
+              title="Détecté automatiquement depuis la fiche — se retire tout seul une fois complété"
+              className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
+            >
+              🔒 {s}
+            </span>
+          ))}
+          {manualTagsAffichees.map((s) => (
             <span
               key={s}
               className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#666666]"
@@ -264,7 +284,7 @@ export function ContactStep({
               </button>
             </span>
           ))}
-          {client.infos_manquantes.length === 0 && !infoManquanteOpen && (
+          {autoTags.length === 0 && manualTagsAffichees.length === 0 && !infoManquanteOpen && (
             <span className="text-sm text-neutral-400">Aucune info manquante</span>
           )}
           <button

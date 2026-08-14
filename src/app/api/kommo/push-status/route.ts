@@ -21,12 +21,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "Non authentifié." }, { status: 401 });
   }
 
-  const { leadId, statut } = await request.json();
+  const { leadId, statut, nom } = await request.json();
   const statusId = typeof statut === "string" ? CRM_STATUT_TO_KOMMO_STATUS_ID[statut] : undefined;
   if (!leadId || !statusId) {
     return Response.json({ error: "lead_id ou statut manquant/inconnu." }, { status: 400 });
   }
 
-  const ok = await updateKommoLeadStatus(Number(leadId), statusId);
+  // Le nom complet n'est repoussé vers Kommo que pour "Client confirmé" —
+  // c'est le cas où avoir le bon nom (plutôt qu'un pseudo Instagram/WhatsApp)
+  // compte vraiment sur le lead Kommo.
+  const nameToPush = statut === "Client confirmé" && typeof nom === "string" && nom.trim() ? nom.trim() : undefined;
+
+  const ok = await updateKommoLeadStatus(Number(leadId), statusId, nameToPush);
   return Response.json({ ok });
 }

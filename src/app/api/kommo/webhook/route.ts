@@ -147,6 +147,13 @@ async function processLeadEvent(
                         // écraser silencieusement en le repassant "Client confirmé".
                         if (mapped && existing.statut !== "Client annulé" && existing.statut !== "Client perdu") {
                                     patch.statut = mapped.statutCrm;
+                                    // Nouvelle confirmation (pas un simple re-sync d'un lead déjà
+                                    // confirmé) : déclenche la pop-up bloquante "à compléter" côté
+                                    // équipe — voir NouveauClientConfirmeAlert.
+                                    if (mapped.statutCrm === "Client confirmé" && existing.statut !== "Client confirmé") {
+                                                patch.confirmation_a_traiter = true;
+                                                patch.confirmation_assignee_a = null;
+                                    }
                         }
                         // Horodate l'entrée dans "Demande d'infos envoyée" une seule fois
                         // (ne réécrase pas une date déjà posée si le lead y repasse).
@@ -157,9 +164,15 @@ async function processLeadEvent(
                         // Le nom se resynchronise à chaque webhook (écrase une éventuelle
                         // saisie manuelle) — demande explicite : c'est Kommo qui fait foi
                         // pour le nom, et ça nettoie au passage le ✅ que les employées
-                        // ajoutent parfois devant le nom sur Kommo.
-                        const info = await fetchKommoLeadContactInfo(leadId);
-                        const cleanedNom = cleanKommoName(info?.nom || "");
+                        // ajoutent parfois devant le nom sur Kommo. Priorité au nom du LEAD
+                        // lui-même (entry.name, ce que les employées éditent réellement en
+                        // haut de la fiche Kommo) — le nom du CONTACT lié (récupéré via API)
+                        // ne sert que de repli, car il peut être vide ou périmé (souvent un
+                        // pseudo Instagram/WhatsApp jamais mis à jour) même quand le lead,
+                        // lui, a été correctement renommé "Prénom NOM".
+                        const cleanedFromEntry = cleanKommoName(entryName);
+                        const info = cleanedFromEntry ? null : await fetchKommoLeadContactInfo(leadId);
+                        const cleanedNom = cleanedFromEntry || cleanKommoName(info?.nom || "");
                         if (cleanedNom) patch.nom = cleanedNom;
                         if (info?.telephone && !existing.telephone) patch.telephone = info.telephone;
                         if (info?.email && !existing.email) patch.email = info.email;
@@ -196,6 +209,8 @@ async function processLeadEvent(
 
               if (matchedId) {
                         const gardeStatut = matchedStatut === "Client annulé" || matchedStatut === "Client perdu";
+                        const nouvelleConfirmation =
+                                  mapped?.statutCrm === "Client confirmé" && !gardeStatut && matchedStatut !== "Client confirmé";
                         await admin
                                     .from("clients")
                                     .update({
@@ -205,6 +220,9 @@ async function processLeadEvent(
                                                   kommo_synced_at: new Date().toISOString(),
                                                   ...(mapped && !gardeStatut ? { statut: mapped.statutCrm } : {}),
                                                   ...(nom ? { nom } : {}),
+                                                  ...(nouvelleConfirmation
+                                                        ? { confirmation_a_traiter: true, confirmation_assignee_a: null }
+                                                        : {}),
                                     })
                                     .eq("id", matchedId);
                         lastClientId = matchedId;
@@ -222,6 +240,9 @@ async function processLeadEvent(
                                                   kommo_pipeline_status_nom: statusNom,
                                                   kommo_synced_at: new Date().toISOString(),
                                                   doublon_possible_id: doublonPossibleId,
+                                                  ...(mapped?.statutCrm === "Client confirmé"
+                                                        ? { confirmation_a_traiter: true }
+                                                        : {}),
                                     })
                                     .select("id")
                                     .single();

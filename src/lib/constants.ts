@@ -1,3 +1,15 @@
+// Coordonnées affichées sur les flyers générés par le CRM (cf.
+// CatalogueFlyer.tsx). Même numéro WhatsApp que celui utilisé pour les
+// conversations client ailleurs dans l'app (ex. ClientPreviewView.tsx) —
+// l'ancien numéro affiché sur les flyers Canva (+201157002473) est
+// désormais obsolète (confirmé 2026-08-14).
+export const AGENCY_CONTACT = {
+  site: "autourdesduneshurghada.com",
+  email: "autourdesdunes@gmail.com",
+  whatsapp: "+201556221115",
+  instagram: "autourdesduneshurghada",
+};
+
 // Étapes de la pipeline Prospects, calquées sur le pipeline Kommo (mêmes
 // noms d'étape) pour que les deux restent lisibles côte à côte.
 export const PROSPECT_STATUTS: string[] = [

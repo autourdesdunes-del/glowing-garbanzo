@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import CatalogueFlyerStage from "@/components/CatalogueFlyer";
 import {
   CatalogueFaq,
   CatalogueItem,
@@ -554,6 +555,7 @@ export default function CatalogueView({
   // que rendre chaque carte/ligne draggable en permanence.
   const [reorderMode, setReorderMode] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
+  const [flyerItem, setFlyerItem] = useState<CatalogueItem | null>(null);
   // Réordonner le catalogue est réservé à la Direction — l'ordre choisi
   // pilote aussi bien cet affichage que la liste de choix de l'assistant
   // "Ajouter une activité" côté équipe.
@@ -1511,6 +1513,7 @@ export default function CatalogueView({
           onClose={() => setRequestOpen(false)}
         />
       )}
+      <CatalogueFlyerStage item={flyerItem} onDone={() => setFlyerItem(null)} />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-heading text-xl font-semibold text-[#171717]">
@@ -1757,6 +1760,13 @@ export default function CatalogueView({
                       </div>
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => setFlyerItem(a)}
+                        disabled={flyerItem?.id === a.id}
+                        className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60 disabled:opacity-50"
+                      >
+                        {flyerItem?.id === a.id ? "Génération…" : "⬇ Flyer"}
+                      </button>
                       {canSeeMargins && a.marge_pct > 0 && (
                         <span className="rounded-full bg-[#0070f3]/10 px-2.5 py-1 text-[11px] font-medium text-[#0070f3]">
                           Marge cible {a.marge_pct}%

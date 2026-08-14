@@ -30,7 +30,10 @@ async function kommoFetch(path: string): Promise<unknown | null> {
 // le lead Kommo correspondant, pour que le pipeline reste synchronisé dans
 // les deux sens. Best-effort — un échec ici ne doit jamais bloquer l'action
 // dans le CRM (le statut local reste la source de vérité de l'app).
-export async function updateKommoLeadStatus(leadId: number, statusId: number): Promise<boolean> {
+// `name`, optionnel, resynchronise aussi le titre du lead Kommo — utilisé
+// pour "Client confirmé" afin que le lead affiche le nom complet correct
+// côté Kommo (souvent un pseudo Instagram/WhatsApp à l'origine).
+export async function updateKommoLeadStatus(leadId: number, statusId: number, name?: string): Promise<boolean> {
     const base = kommoApiBase();
     const token = process.env.KOMMO_ACCESS_TOKEN;
     if (!base || !token) return false;
@@ -42,7 +45,7 @@ export async function updateKommoLeadStatus(leadId: number, statusId: number): P
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
               },
-              body: JSON.stringify({ status_id: statusId }),
+              body: JSON.stringify({ status_id: statusId, ...(name ? { name } : {}) }),
         });
         return res.ok;
   } catch {
@@ -50,15 +53,21 @@ export async function updateKommoLeadStatus(leadId: number, statusId: number): P
   }
 }
 
-// Va chercher le statut actuel d'un lead Kommo — utilisé par le job de
-// réconciliation (cf. /api/cron/kommo-reconcile) pour rattraper les
-// changements de statut que le webhook classique n'a pas notifiés (constaté
+// Va chercher le statut (et le nom) actuels d'un lead Kommo — utilisé par le
+// job de réconciliation (cf. /api/cron/kommo-reconcile) pour rattraper les
+// changements que le webhook classique n'a pas notifiés (constaté
 // notamment pour les leads clôturés "Réservé" via l'action de clôture
-// Kommo, qui n'émet pas toujours le webhook "lead_status_changed").
+// Kommo, qui n'émet pas toujours le webhook "lead_status_changed"). Le nom
+// renvoyé est celui du LEAD lui-même (ce que les employées éditent en haut
+// de la fiche Kommo), pas celui d'un contact lié qui peut être vide/périmé.
 export async function fetchKommoLeadStatus(leadId: number): Promise<number | null> {
+    const lead = await fetchKommoLead(leadId);
+    return typeof lead?.status_id === "number" ? lead.status_id : null;
+}
+
+export async function fetchKommoLead(leadId: number): Promise<{ status_id?: number; name?: string } | null> {
     try {
-          const lead = (await kommoFetch(`/leads/${leadId}`)) as { status_id?: number } | null;
-          return typeof lead?.status_id === "number" ? lead.status_id : null;
+          return (await kommoFetch(`/leads/${leadId}`)) as { status_id?: number; name?: string } | null;
     } catch {
           return null;
     }

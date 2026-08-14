@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchKommoLeadStatus } from "@/lib/kommoApi";
-import { KOMMO_STATUS_MAP } from "@/lib/kommoWebhook";
+import { fetchKommoLead } from "@/lib/kommoApi";
+import { KOMMO_STATUS_MAP, cleanKommoName } from "@/lib/kommoWebhook";
 
 // Filet de sécurité pour le sync Kommo → CRM : constaté que le webhook
 // classique ("lead_status_changed") n'émet pas toujours d'événement quand
@@ -33,12 +33,20 @@ export async function GET(request: Request) {
   const updates: { nom: string; from: string; to: string }[] = [];
 
   for (const client of clients ?? []) {
-    const statusId = await fetchKommoLeadStatus(client.kommo_lead_id as number);
+    const lead = await fetchKommoLead(client.kommo_lead_id as number);
+    const statusId = typeof lead?.status_id === "number" ? lead.status_id : null;
     if (statusId === null) continue;
 
     const mapped = KOMMO_STATUS_MAP[statusId];
     if (!mapped || mapped.statutCrm === client.statut) continue;
     if (client.statut === "Client annulé" || client.statut === "Client perdu") continue;
+
+    // Ce job ne passait jusqu'ici que par le statut : un lead rattrapé ici
+    // (webhook "lead_status_changed" manqué, cf. commentaire plus haut)
+    // gardait donc son nom d'origine (souvent un pseudo Instagram/WhatsApp)
+    // même si l'équipe l'avait bien renommé "Prénom NOM" sur Kommo au
+    // moment de le clôturer "Réservé".
+    const cleanedNom = cleanKommoName(lead?.name || "");
 
     const { error: updateError } = await admin
       .from("clients")
@@ -47,6 +55,14 @@ export async function GET(request: Request) {
         kommo_pipeline_status_id: statusId,
         kommo_pipeline_status_nom: mapped.nom,
         kommo_synced_at: new Date().toISOString(),
+        ...(cleanedNom ? { nom: cleanedNom } : {}),
+        // Le client partait d'un statut "actif" (jamais déjà confirmé, cf.
+        // ACTIVE_STATUSES) : toute bascule vers "Client confirmé" ici est
+        // une vraie nouvelle confirmation — déclenche la pop-up bloquante
+        // "à compléter" côté équipe, comme pour le webhook classique.
+        ...(mapped.statutCrm === "Client confirmé"
+          ? { confirmation_a_traiter: true, confirmation_assignee_a: null }
+          : {}),
       })
       .eq("id", client.id);
 

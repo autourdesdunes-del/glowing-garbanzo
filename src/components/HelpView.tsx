@@ -26,14 +26,12 @@ export default function HelpView() {
   const [hotels, setHotels] = useState<HotelReference[]>([]);
   const [hotelSearch, setHotelSearch] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const [taxesExpanded, setTaxesExpanded] = useState(false);
   const [taxes, setTaxes] = useState<TransfertTaxe[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [newHotelNom, setNewHotelNom] = useState("");
   const [newHotelVille, setNewHotelVille] = useState("Hurghada");
   const [newHotelVilleAutre, setNewHotelVilleAutre] = useState("");
-  const [newTaxeVille, setNewTaxeVille] = useState("");
-  const [newTaxeMontant, setNewTaxeMontant] = useState(0);
+  const [taxesOuvertes, setTaxesOuvertes] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     (async () => {
@@ -76,36 +74,6 @@ export default function HelpView() {
     if (!ok) return;
     setHotels((prev) => prev.filter((h) => h.id !== id));
     const { error } = await supabase.from("hotels_reference").delete().eq("id", id);
-    if (error) toast("Échec de la suppression.");
-  };
-
-  const addTaxe = async () => {
-    if (!newTaxeVille.trim()) return;
-    const { data, error } = await supabase
-      .from("transfert_taxes")
-      .insert({ ville: newTaxeVille.trim(), montant: newTaxeMontant })
-      .select()
-      .single();
-    if (!error && data) {
-      setTaxes((prev) => [...prev, data as TransfertTaxe].sort((a, b) => a.ville.localeCompare(b.ville)));
-      setNewTaxeVille("");
-      setNewTaxeMontant(0);
-    } else {
-      toast("Impossible d'ajouter cette ville (déjà présente ?).");
-    }
-  };
-
-  const updateTaxe = async (id: string, patch: Partial<TransfertTaxe>) => {
-    setTaxes((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
-    const { error } = await supabase.from("transfert_taxes").update(patch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement.");
-  };
-
-  const deleteTaxe = async (id: string) => {
-    const ok = await confirm({ message: "Retirer cette ville ?", confirmLabel: "Retirer", danger: true });
-    if (!ok) return;
-    setTaxes((prev) => prev.filter((t) => t.id !== id));
-    const { error } = await supabase.from("transfert_taxes").delete().eq("id", id);
     if (error) toast("Échec de la suppression.");
   };
 
@@ -239,73 +207,49 @@ export default function HelpView() {
       {tab === "taxes" && (
       <div>
         <h2 className="font-heading text-lg font-semibold text-[#171717]">
-          Taxes de transfert par ville
+          🏦 Taxes de transfert
         </h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Montant affiché en alerte quand un client loge hors Hurghada.
+        <p className="mt-2 rounded-md bg-[#C9973E]/10 p-3 text-sm text-[#8B4531]">
+          Si une personne est seule, faire une demande pour connaître le montant de la taxe.
+        </p>
+        <p className="mt-3 text-xs text-neutral-400">
+          Référence uniquement — non modifiable ici. Pour un changement, voir directement avec Mélanie.
         </p>
 
-        <div className="mt-4 space-y-2">
-          {(taxesExpanded ? taxes : taxes.slice(0, 5)).map((t) => (
-            <div
-              key={t.id}
-              className="flex flex-wrap items-center gap-3 rounded-md border border-neutral-200 bg-white p-3"
-            >
-              <input
-                value={t.ville}
-                onChange={(e) => updateTaxe(t.id, { ville: e.target.value })}
-                className="input min-w-[160px] flex-1"
-              />
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  value={t.montant}
-                  onChange={(e) => updateTaxe(t.id, { montant: Number(e.target.value) })}
-                  className="input w-28"
-                />
-                <span className="text-sm text-neutral-500">€</span>
-              </div>
+        {Array.from(new Set(taxes.map((t) => t.ville))).map((ville) => {
+          const tranches = taxes
+            .filter((t) => t.ville === ville && t.montant !== null)
+            .sort((a, b) => a.ordre - b.ordre);
+          if (tranches.length === 0) return null;
+          const ouvert = taxesOuvertes[ville] ?? false;
+          const noteZone = tranches.map((t) => t.note).find((n) => n.trim());
+          return (
+            <div key={ville} className="mt-3 rounded-md border border-neutral-200 bg-white">
               <button
-                onClick={() => deleteTaxe(t.id)}
-                className="text-xs text-red-600 hover:underline"
+                type="button"
+                onClick={() => setTaxesOuvertes((prev) => ({ ...prev, [ville]: !ouvert }))}
+                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold text-[#171717]"
               >
-                Retirer
+                <span>📍{ville.toUpperCase()}</span>
+                <span className="text-neutral-400">{ouvert ? "▲" : "▼"}</span>
               </button>
+              {ouvert && (
+                <div className="space-y-3 border-t border-neutral-100 px-4 py-3">
+                  {noteZone && <p className="text-xs italic text-neutral-400">{noteZone}</p>}
+                  <ul className="space-y-3 text-sm text-neutral-700">
+                    {tranches.map((t) => (
+                      <li key={t.id}>
+                        {t.label.split("\n").map((ligne, i) => (
+                          <p key={i}>{ligne}</p>
+                        ))}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-        {taxes.length > 5 && (
-          <button
-            onClick={() => setTaxesExpanded((v) => !v)}
-            className="mt-1.5 text-xs text-[#171717] hover:underline"
-          >
-            {taxesExpanded ? "Voir moins" : `Voir les ${taxes.length - 5} autres`}
-          </button>
-        )}
-
-        <div className="mt-3 flex items-center gap-3 rounded-md border border-dashed border-neutral-300 p-3">
-          <input
-            value={newTaxeVille}
-            onChange={(e) => setNewTaxeVille(e.target.value)}
-            placeholder="Ville (ex. El Gouna)"
-            className="input flex-1"
-          />
-          <div className="flex items-center gap-1">
-            <input
-              type="number"
-              value={newTaxeMontant}
-              onChange={(e) => setNewTaxeMontant(Number(e.target.value))}
-              className="input w-28"
-            />
-            <span className="text-sm text-neutral-500">€</span>
-          </div>
-          <button
-            onClick={addTaxe}
-            className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-          >
-            + Ajouter
-          </button>
-        </div>
+          );
+        })}
       </div>
       )}
     </div>

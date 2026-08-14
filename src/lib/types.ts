@@ -340,6 +340,8 @@ export type Client = {
   annulation_date: string | null;
   doublon_possible_id: string | null;
   doublon_traite: boolean;
+  confirmation_a_traiter: boolean;
+  confirmation_assignee_a: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -426,6 +428,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   annulation_date: null,
   doublon_possible_id: null,
   doublon_traite: false,
+  confirmation_a_traiter: false,
+  confirmation_assignee_a: null,
 };
 
 export type UserShift = {
@@ -508,7 +512,16 @@ export type HotelReference = {
 export type TransfertTaxe = {
   id: string;
   ville: string;
-  montant: number;
+  nb_adultes_min: number | null;
+  nb_adultes_max: number | null;
+  nb_enfants_min: number | null;
+  nb_enfants_max: number | null;
+  nb_total_min: number | null;
+  nb_total_max: number | null;
+  montant: number | null;
+  note: string;
+  label: string;
+  ordre: number;
   created_at: string;
   updated_at: string;
 };

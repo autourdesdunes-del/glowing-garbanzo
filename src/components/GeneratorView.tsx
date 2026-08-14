@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client } from "@/lib/types";
+import { CatalogueItem, Client, HotelReference, TransfertTaxe } from "@/lib/types";
 import { normalizeJoursDisponibles } from "@/lib/resa";
 import { PROSPECT_STATUTS } from "@/lib/constants";
+import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import { useToast } from "@/components/ToastProvider";
 
 function euros(n: number) {
@@ -70,6 +71,16 @@ function parseDureeJours(nom: string): number | null {
   return total > 0 ? total : null;
 }
 
+// "Louxor 1 jour (déjà sur place)" veut dire pour un client déjà logé à
+// Louxor — proposer ça à un client côté Hurghada (Makadi, Sahl Hasheesh...)
+// n'a aucun sens, il lui faut la version "depuis Hurghada" (en mini-bus, en
+// voiture privée...) à la place. Retourne la ville concernée, ou null si
+// l'activité n'est pas une variante "déjà sur place".
+function dejaSurPlaceVille(nom: string): string | null {
+  const m = nom.match(/^(.+?)\s+\d.*\(déjà sur place\)/i);
+  return m ? m[1].trim() : null;
+}
+
 // Pour varier le programme plutôt que d'enchaîner deux journées "mer"
 // (îles, plongée, catamaran...) ou deux journées "désert" (quad, buggy,
 // safari...) d'affilée — seuls ces deux tags catalogue sont assez fiables
@@ -113,6 +124,7 @@ type Ligne = {
   nbPersonnes: number;
   remise: number;
   remiseLabel: string;
+  taxeTransfert: number;
 };
 
 // Construit le message texte envoyé au client tel quel (copié-collé
@@ -132,12 +144,13 @@ function buildProgrammeText(moisLabel: string, nbPersonnes: number, hotel: strin
     .sort((a, b) => (a.date || "9999-99-99").localeCompare(b.date || "9999-99-99"));
 
   sorted.forEach((l) => {
-    const total = Math.max(l.prixParPersonne * l.nbPersonnes - (l.remise || 0), 0);
+    const total = Math.max(l.prixParPersonne * l.nbPersonnes - (l.remise || 0) + (l.taxeTransfert || 0), 0);
     parts.push("");
     parts.push(`📍${fmtDDMonth(l.date) || "Date à définir"}`);
     parts.push(l.nom);
     parts.push(`${euros(l.prixParPersonne)} euros par personne (${l.nbPersonnes})`);
     if (l.remise > 0) parts.push(`Remise -${euros(l.remise)} euros (${l.remiseLabel || "geste commercial"})`);
+    if (l.taxeTransfert > 0) parts.push(`+ Taxe de transfert : ${euros(l.taxeTransfert)} euros`);
     parts.push(`➡️Total : ${euros(total)} euros`);
   });
 
@@ -157,6 +170,8 @@ function suggererProgramme({
   agesEnfants,
   interets,
   activitesAEviter,
+  villeClient,
+  taxeTransfertMontant,
 }: {
   catalogue: CatalogueItem[];
   dateDebut: string;
@@ -166,6 +181,8 @@ function suggererProgramme({
   agesEnfants: string;
   interets: string;
   activitesAEviter: string;
+  villeClient: string;
+  taxeTransfertMontant: number;
 }): Ligne[] {
   const nbPersonnes = nbAdultes + nbEnfants;
   const ages = extractAges(agesEnfants);
@@ -223,6 +240,13 @@ function suggererProgramme({
     // Un refus explicite du prospect prime sur tout le reste — jamais
     // proposée, quel que soit le score.
     .filter((a) => !matchEviter(a))
+    // "(déjà sur place)" ne concerne que les clients déjà logés dans la
+    // ville de l'excursion elle-même — sinon il faut la version "depuis
+    // Hurghada" (en mini-bus, en voiture privée...).
+    .filter((a) => {
+      const ville = dejaSurPlaceVille(a.nom);
+      return !ville || ville.toLowerCase() === villeClient.trim().toLowerCase();
+    })
     .map((item) => {
       const joursItem = normalizeJoursDisponibles(item.jours_disponibles);
       const disponibleSurSejour =
@@ -301,6 +325,7 @@ function suggererProgramme({
       nbPersonnes: nbPersonnes || 2,
       remise: 0,
       remiseLabel: "",
+      taxeTransfert: taxeTransfertMontant,
     });
   };
 
@@ -402,8 +427,33 @@ export default function GeneratorView({
   const [picker, setPicker] = useState("");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [hotels, setHotels] = useState<HotelReference[]>([]);
+  const [transfertTaxes, setTransfertTaxes] = useState<TransfertTaxe[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: h }, { data: t }] = await Promise.all([
+        supabase.from("hotels_reference").select("*"),
+        supabase.from("transfert_taxes").select("*"),
+      ]);
+      setHotels((h as HotelReference[]) || []);
+      setTransfertTaxes((t as TransfertTaxe[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const nbPersonnes = adultes + enfants;
+
+  // Zone de l'hôtel du prospect (Makadi, Sahl Hasheesh, El Gouna, Soma Bay,
+  // Safaga...) et taxe de transfert correspondante — jamais un montant
+  // deviné : soit une tranche précise (voir HELP > Taxes de transfert)
+  // correspond, soit rien n'est ajouté automatiquement.
+  const villeClient = useMemo(() => matchHotel(hotel, hotels)?.ville || "", [hotel, hotels]);
+  const taxeResultat = useMemo(
+    () => matchTransfertTaxe(transfertTaxes, villeClient, adultes, enfants),
+    [transfertTaxes, villeClient, adultes, enfants]
+  );
+  const taxeTransfertMontant = taxeResultat.type === "montant" ? taxeResultat.montant : 0;
 
   const applyProspect = (id: string) => {
     setProspectId(id);
@@ -420,6 +470,9 @@ export default function GeneratorView({
   };
 
   const genererAuto = () => {
+    if (taxeResultat.type === "a_demander") {
+      toast(`Taxe de transfert (${villeClient}) : ${taxeResultat.note} — non ajoutée automatiquement.`);
+    }
     const suggestions = suggererProgramme({
       catalogue,
       dateDebut,
@@ -429,6 +482,8 @@ export default function GeneratorView({
       agesEnfants,
       interets,
       activitesAEviter,
+      villeClient,
+      taxeTransfertMontant,
     });
     if (suggestions.length === 0) {
       toast("Aucune activité du catalogue ne correspond à ces critères — ajoute-les à la main.");
@@ -451,6 +506,7 @@ export default function GeneratorView({
         nbPersonnes: nbPersonnes || 2,
         remise: 0,
         remiseLabel: "",
+        taxeTransfert: taxeTransfertMontant,
       },
     ]);
     setPicker("");
@@ -471,7 +527,7 @@ export default function GeneratorView({
   );
 
   const totalGeneral = lignes.reduce(
-    (s, l) => s + Math.max(l.prixParPersonne * l.nbPersonnes - (l.remise || 0), 0),
+    (s, l) => s + Math.max(l.prixParPersonne * l.nbPersonnes - (l.remise || 0) + (l.taxeTransfert || 0), 0),
     0
   );
 
@@ -516,6 +572,9 @@ export default function GeneratorView({
         point_rdv: item?.point_rdv || "",
         photo_path: item?.photo_path || "",
         date_debut: l.date || null,
+        transfert_inclus: !(l.taxeTransfert > 0),
+        transfert_montant: l.taxeTransfert || 0,
+        zone_transfert: villeClient,
       });
       if (error) {
         toast("Échec de l'ajout d'une activité.");
@@ -593,6 +652,15 @@ export default function GeneratorView({
           <label className="col-span-2 text-xs text-neutral-500">
             Hôtel
             <input type="text" value={hotel} onChange={(e) => setHotel(e.target.value)} className="input mt-1" />
+            {villeClient && villeClient.toLowerCase() !== "hurghada" && (
+              <span className="mt-1 block text-[11px] text-[#8B4531]">
+                {taxeResultat.type === "montant" &&
+                  `Zone ${villeClient} — taxe de transfert ${euros(taxeTransfertMontant)}€ ajoutée automatiquement à chaque activité.`}
+                {taxeResultat.type === "a_demander" && `Zone ${villeClient} — ${taxeResultat.note}.`}
+                {taxeResultat.type === "aucune" &&
+                  `Zone ${villeClient} — aucune tranche de taxe connue pour ce groupe (voir HELP).`}
+              </span>
+            )}
           </label>
           <label className="col-span-2 text-xs text-neutral-500 sm:col-span-4">
             Envies exprimées dans la conversation (séparées par une virgule)
@@ -705,6 +773,16 @@ export default function GeneratorView({
                       min={0}
                       value={l.remise}
                       onChange={(e) => updateLigne(l.id, { remise: Math.max(0, Number(e.target.value)) })}
+                      className="input mt-0.5 text-sm"
+                    />
+                  </label>
+                  <label className="text-[11px] text-neutral-500">
+                    Taxe de transfert (€)
+                    <input
+                      type="number"
+                      min={0}
+                      value={l.taxeTransfert}
+                      onChange={(e) => updateLigne(l.id, { taxeTransfert: Math.max(0, Number(e.target.value)) })}
                       className="input mt-0.5 text-sm"
                     />
                   </label>

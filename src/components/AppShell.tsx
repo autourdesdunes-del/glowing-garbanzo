@@ -47,6 +47,7 @@ import BilletRappels from "@/components/BilletRappels";
 import BilletEnvoiRappels from "@/components/BilletEnvoiRappels";
 import PaypalPaiementRappel from "@/components/PaypalPaiementRappel";
 import AnnulationHossamAlert from "@/components/AnnulationHossamAlert";
+import DoublonPossibleAlert from "@/components/DoublonPossibleAlert";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
 
@@ -1243,7 +1244,6 @@ function AppShellInner({
               onClose={() => setProspectSummaryId(null)}
               onOpenFullFile={() => {
                 setSelectedId(c.id);
-                setTeamView("liste");
                 setProspectSummaryId(null);
               }}
               onConfirmClient={async () => {
@@ -1496,21 +1496,67 @@ function AppShellInner({
         </div>
       )}
 
-      {(mode === "team" || mode === "prospects") && (
+      {mode === "prospects" && (
+        <div className="flex flex-1 flex-col">
+          <div className="flex items-center gap-2 border-b border-[#666666]/10 bg-white px-3 py-1.5">
+            <QuickAddClient
+              onCreate={addClient}
+              onUpdateClient={updateClientById}
+              clients={clients}
+              onDeleteClient={deleteClient}
+              onOpenClient={openClient}
+              defaultStatut="Prospect"
+            />
+          </div>
+          <PipelineView
+            clients={scoped}
+            statuts={activeStatuts}
+            groupBy="statut"
+            onUpdateStatut={(id, statut) => updateClientById(id, { statut })}
+            onOpenClient={(id) => setProspectSummaryId(id)}
+          />
+        </div>
+      )}
+
+      {mode === "prospects" && selectedId && (() => {
+        const c = clients.find((cl) => cl.id === selectedId);
+        if (!c) return null;
+        return (
+          <div className="fixed inset-0 z-40 flex flex-col bg-white">
+            <div className="flex items-center gap-2 border-b border-[#666666]/10 bg-white px-4 py-2.5">
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="rounded-md px-2.5 py-1 text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
+              >
+                ← Retour au pipeline
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <ClientDetail
+                client={c}
+                allClients={clients}
+                onChange={updateSelected}
+                onDelete={() => deleteClient(c.id)}
+                onJumpToClient={openClient}
+                onDuplicateAsNewStay={duplicateAsNewStay}
+                canDelete={effectiveIsDirection}
+                canSeeMargins={effectiveIsDirection}
+                catalogue={catalogue}
+                catalogueTarifs={catalogueTarifs}
+                transfertTarifs={transfertTarifs}
+                catalogueOptions={catalogueOptions}
+                onOpenHelp={() => setMode("help")}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
+      {mode === "team" && (
         <div className="flex flex-1 flex-col">
           <div className="flex items-center justify-between gap-2 border-b border-[#666666]/10 bg-white px-3 py-1.5">
-            {mode === "prospects" && teamView === "pipeline" ? (
-              <QuickAddClient
-                onCreate={addClient}
-                onUpdateClient={updateClientById}
-                clients={clients}
-                onDeleteClient={deleteClient}
-                onOpenClient={openClient}
-                defaultStatut="Prospect"
-              />
-            ) : (
-              <span />
-            )}
+            <span />
             <div className="flex gap-1">
             <button
               onClick={() => setTeamView("liste")}
@@ -1539,13 +1585,9 @@ function AppShellInner({
             <PipelineView
               clients={scoped}
               statuts={activeStatuts}
-              groupBy={mode === "team" ? "timing" : "statut"}
+              groupBy="timing"
               onUpdateStatut={(id, statut) => updateClientById(id, { statut })}
               onOpenClient={(id) => {
-                if (mode === "prospects") {
-                  setProspectSummaryId(id);
-                  return;
-                }
                 setSelectedId(id);
                 setTeamView("liste");
               }}
@@ -1557,7 +1599,7 @@ function AppShellInner({
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={mode === "prospects" ? "Rechercher un prospect…" : "Rechercher un client…"}
+                placeholder="Rechercher un client…"
                 className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#171717] focus:outline-none"
               />
               <QuickAddClient
@@ -1566,7 +1608,7 @@ function AppShellInner({
                 clients={clients}
                 onDeleteClient={deleteClient}
                 onOpenClient={openClient}
-                defaultStatut={mode === "prospects" ? "Prospect" : "Client confirmé"}
+                defaultStatut="Client confirmé"
               />
             </div>
             {allTags.length > 0 && (
@@ -1588,9 +1630,7 @@ function AppShellInner({
             )}
             <div className="flex-1 overflow-y-auto">
               {filtered.length === 0 && (
-                <div className="p-4 text-sm text-neutral-400">
-                  {mode === "prospects" ? "Aucun prospect." : "Aucun client."}
-                </div>
+                <div className="p-4 text-sm text-neutral-400">Aucun client.</div>
               )}
               {filtered.map((c) => (
                 <button
@@ -1631,11 +1671,7 @@ function AppShellInner({
 
           <main className="flex-1 overflow-y-auto p-6">
             {!selected || !activeStatuts.includes(selected.statut) ? (
-              <div className="text-neutral-400">
-                {mode === "prospects"
-                  ? "Sélectionne ou crée un prospect pour commencer."
-                  : "Sélectionne ou crée un client pour commencer."}
-              </div>
+              <div className="text-neutral-400">Sélectionne ou crée un client pour commencer.</div>
             ) : (
               <ClientDetail
                 client={selected}

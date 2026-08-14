@@ -245,6 +245,75 @@ export function volBadge(r: Reservation) {
   return `✈ ${[r.numero_vol.trim(), r.horaire_vol.trim()].filter(Boolean).join(" · ")}`;
 }
 
+// Villes utilisées dans les noms catalogue de transferts privatifs (ex.
+// "Transfert privatif Hurghada - Louxor") — sert à retrouver la 2e ville
+// même quand le nom continue après (ex. "... Louxor avec arrêts Edfou et
+// Kom Ombo") : on prend la ville connue la plus longue en préfixe du reste,
+// jamais tout ce qui suit le tiret.
+const VILLES_TRANSFERT_CONNUES = [
+  "Le Caire",
+  "Hurghada",
+  "Louxor",
+  "Assouan",
+  "Marsa Alam",
+  "Sahl Hasheesh",
+  "Makadi",
+  "El Gouna",
+  "Safaga",
+].sort((a, b) => b.length - a.length);
+
+export type SensTransfertOption = { value: string; label: string; titre: string };
+
+// Les transferts aéroport et privatifs peuvent se faire dans les deux sens
+// (ex. aéroport → hôtel ou hôtel → aéroport ; Hurghada → Louxor ou l'inverse)
+// — on demande le sens dès la sélection dans le catalogue et le titre
+// affiché est mis à jour en conséquence. Retourne un tableau vide si le nom
+// ne correspond à aucun des deux formats.
+export function transfertSensOptions(nomCatalogue: string): SensTransfertOption[] {
+  const aeroport = nomCatalogue.match(/^Transfert aéroport - .+$/);
+  if (aeroport) {
+    return [
+      {
+        value: "aeroport_hotel",
+        label: "Aéroport → Hôtel",
+        titre: `${nomCatalogue} (Aéroport → Hôtel)`,
+      },
+      {
+        value: "hotel_aeroport",
+        label: "Hôtel → Aéroport",
+        titre: `${nomCatalogue} (Hôtel → Aéroport)`,
+      },
+    ];
+  }
+
+  const privatif = nomCatalogue.match(/^Transfert privatif (.+)$/);
+  if (privatif) {
+    const reste = privatif[1];
+    const dashIdx = reste.indexOf(" - ");
+    if (dashIdx === -1) return [];
+    const villeA = reste.slice(0, dashIdx).trim();
+    const apres = reste.slice(dashIdx + 3);
+    const villeB = VILLES_TRANSFERT_CONNUES.find((v) => apres.startsWith(v));
+    if (!villeA || !villeB) return [];
+    const suffixe = apres.slice(villeB.length).trim();
+    const suffixeStr = suffixe ? ` ${suffixe}` : "";
+    return [
+      {
+        value: "direct",
+        label: `${villeA} → ${villeB}`,
+        titre: `Transfert privatif ${villeA} - ${villeB}${suffixeStr}`,
+      },
+      {
+        value: "inverse",
+        label: `${villeB} → ${villeA}`,
+        titre: `Transfert privatif ${villeB} - ${villeA}${suffixeStr}`,
+      },
+    ];
+  }
+
+  return [];
+}
+
 // Les îles proposées pour les formules speedboat privé "journée complète"
 // et "demi-journée" — le client doit en choisir une avant de continuer.
 export const SPEEDBOAT_ILES = ["Orange Bay", "Paradise", "Hula Hula", "Magawish", "Oziréa"] as const;

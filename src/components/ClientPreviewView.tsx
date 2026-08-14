@@ -221,8 +221,14 @@ export default function ClientPreviewView({
     "Retour",
   ];
 
+  // Comparaison par catalogue_item_id plutôt que par nom : certains titres
+  // (ex. transferts avec sens aéroport/hôtel) diffèrent du nom catalogue une
+  // fois affichés, un match par texte exact les laisserait ressuggérer.
+  const bookedCatalogueIds = new Set(sortedResas.map((r) => r.catalogue_item_id).filter(Boolean));
   const bookedNames = new Set(sortedResas.map((r) => r.nom_activite));
-  const suggestions = catalogue.filter((a) => a.valide && !bookedNames.has(a.nom)).slice(0, 4);
+  const suggestions = catalogue
+    .filter((a) => a.valide && !bookedCatalogueIds.has(a.id) && !bookedNames.has(a.nom))
+    .slice(0, 4);
   const suggestionsWithPhoto = suggestions.filter((a) => a.photo_path);
 
   const [suggestionPhotos, setSuggestionPhotos] = useState<Record<string, string>>({});

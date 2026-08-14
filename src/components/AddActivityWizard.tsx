@@ -36,6 +36,8 @@ import {
   speedboatIleTitre,
   speedboatIleType,
   SPEEDBOAT_ILES,
+  SensTransfertOption,
+  transfertSensOptions,
 } from "@/lib/resa";
 import { todayStr, weekdayFr } from "@/lib/dates";
 import { Field } from "@/components/Field";
@@ -43,6 +45,7 @@ import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
 import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
 import PhotoVolUpload from "@/components/PhotoVolUpload";
+import TransfertSensModal from "@/components/TransfertSensModal";
 
 function joursAvant(dateStr: string | null) {
   if (!dateStr) return null;
@@ -204,6 +207,7 @@ export default function AddActivityWizard({
     item: CatalogueItem;
     kind: "bus" | "safari";
   } | null>(null);
+  const [pendingSensTransfert, setPendingSensTransfert] = useState<CatalogueItem | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
   // Deux relances Hossam distinctes pour "Le Caire en avion" : une première
@@ -272,14 +276,22 @@ export default function AddActivityWizard({
   steps.push("tarifs", "options", "transfert");
   const stepIndex = steps.indexOf(step);
 
-  const startFromCatalogue = async (item: CatalogueItem): Promise<string | null> => {
+  const startFromCatalogue = async (
+    item: CatalogueItem,
+    nomActiviteOverride?: string
+  ): Promise<string | null> => {
     if (creating) return null;
     setCreating(true);
     setIsCustomFlow(false);
     const id = await onAddReservation();
     if (id) {
       onUpdateReservation(id, {
-        nom_activite: item.nom,
+        // Passer par un 2e onUpdateReservation juste après celui-ci pour
+        // ajouter le sens du transfert créerait une course : les deux
+        // patches partent en parallèle vers Supabase et celui qui répond en
+        // dernier écrase l'autre — d'où l'override intégré ici, dans le
+        // même appel.
+        nom_activite: nomActiviteOverride || item.nom,
         catalogue_item_id: item.id,
         pu_adulte: item.pu_adulte,
         pu_enfant: item.pu_enfant,
@@ -423,6 +435,18 @@ export default function AddActivityWizard({
             }}
           />
         )}
+        {pendingSensTransfert && (
+          <TransfertSensModal
+            nomActivite={pendingSensTransfert.nom}
+            options={transfertSensOptions(pendingSensTransfert.nom)}
+            onCancel={() => setPendingSensTransfert(null)}
+            onChoose={(option: SensTransfertOption) => {
+              const item = pendingSensTransfert;
+              setPendingSensTransfert(null);
+              startFromCatalogue(item, option.titre);
+            }}
+          />
+        )}
         {catalogue.length > 0 && (
           <div className="mb-3 space-y-2">
             {catalogue.map((a) => (
@@ -435,6 +459,8 @@ export default function AddActivityWizard({
                     setPendingRedirect({ item: a, kind: "bus" });
                   } else if (isFamilySafariBedouin(a.nom) && isAdultsOnly(client)) {
                     setPendingRedirect({ item: a, kind: "safari" });
+                  } else if (transfertSensOptions(a.nom).length > 0) {
+                    setPendingSensTransfert(a);
                   } else {
                     startFromCatalogue(a);
                   }

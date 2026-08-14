@@ -76,7 +76,7 @@ async function processMessage(
 
   const nowIso = new Date().toISOString();
   const SELECT_FIELDS =
-    "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_programme_envoye_resume, kommo_premier_echange_le";
+    "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_activites_a_eviter, kommo_programme_envoye_resume, kommo_premier_echange_le";
 
   let query = admin.from("clients").select(SELECT_FIELDS);
   query = leadId ? query.eq("kommo_lead_id", leadId) : query.eq("kommo_contact_id", contactId);
@@ -148,6 +148,7 @@ async function processMessage(
     nb_enfants_estime: existing.kommo_nb_enfants_estime,
     ages_enfants_estime: existing.kommo_ages_enfants_estime || null,
     activites_interet: existing.kommo_activites_interet || null,
+    activites_a_eviter: existing.kommo_activites_a_eviter || null,
     programme_envoye_resume: existing.kommo_programme_envoye_resume || null,
   };
 
@@ -171,6 +172,7 @@ async function processMessage(
       kommo_nb_enfants_estime: updated.nb_enfants_estime,
       kommo_ages_enfants_estime: updated.ages_enfants_estime || "",
       kommo_activites_interet: updated.activites_interet || "",
+      kommo_activites_a_eviter: updated.activites_a_eviter || "",
       kommo_programme_envoye_resume: updated.programme_envoye_resume || "",
       kommo_extraction_updated_at: nowIso,
     })

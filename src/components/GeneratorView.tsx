@@ -156,6 +156,7 @@ function suggererProgramme({
   nbEnfants,
   agesEnfants,
   interets,
+  activitesAEviter,
 }: {
   catalogue: CatalogueItem[];
   dateDebut: string;
@@ -164,6 +165,7 @@ function suggererProgramme({
   nbEnfants: number;
   agesEnfants: string;
   interets: string;
+  activitesAEviter: string;
 }): Ligne[] {
   const nbPersonnes = nbAdultes + nbEnfants;
   const ages = extractAges(agesEnfants);
@@ -175,6 +177,15 @@ function suggererProgramme({
     .split(",")
     .map((m) => m.trim().toLowerCase())
     .filter(Boolean);
+  const motsAEviter = activitesAEviter
+    .split(",")
+    .map((m) => m.trim().toLowerCase())
+    .filter(Boolean);
+  const matchEviter = (item: CatalogueItem) => {
+    if (motsAEviter.length === 0) return false;
+    const hay = [item.nom, item.categorie, ...(item.tags || [])].join(" ").toLowerCase();
+    return motsAEviter.some((m) => hay.includes(m));
+  };
 
   const jours = datesInRange(dateDebut, dateFin);
   const joursSemaineDispo = new Set(jours.map((d) => WEEKDAY_FR[new Date(d + "T00:00:00").getDay()]));
@@ -193,6 +204,9 @@ function suggererProgramme({
     // généré est toujours au format "X € par personne", donc on les laisse
     // à l'ajout manuel plutôt que d'afficher un prix à 0€.
     .filter((a) => a.tarif_mode === "personne")
+    // Un refus explicite du prospect prime sur tout le reste — jamais
+    // proposée, quel que soit le score.
+    .filter((a) => !matchEviter(a))
     .map((item) => {
       const joursItem = normalizeJoursDisponibles(item.jours_disponibles);
       const disponibleSurSejour =
@@ -366,6 +380,7 @@ export default function GeneratorView({
   const [enfants, setEnfants] = useState(0);
   const [agesEnfants, setAgesEnfants] = useState("");
   const [interets, setInterets] = useState("");
+  const [activitesAEviter, setActivitesAEviter] = useState("");
   const [hotel, setHotel] = useState("");
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [picker, setPicker] = useState("");
@@ -384,6 +399,7 @@ export default function GeneratorView({
     setEnfants(c.kommo_nb_enfants_estime ?? 0);
     setAgesEnfants(c.kommo_ages_enfants_estime || "");
     setInterets(c.kommo_activites_interet || "");
+    setActivitesAEviter(c.kommo_activites_a_eviter || "");
     setHotel(c.kommo_hotel_estime || c.hotel || "");
   };
 
@@ -396,6 +412,7 @@ export default function GeneratorView({
       nbEnfants: enfants,
       agesEnfants,
       interets,
+      activitesAEviter,
     });
     if (suggestions.length === 0) {
       toast("Aucune activité du catalogue ne correspond à ces critères — ajoute-les à la main.");
@@ -568,6 +585,16 @@ export default function GeneratorView({
               value={interets}
               onChange={(e) => setInterets(e.target.value)}
               placeholder="ex. plongée, îles, culture"
+              className="input mt-1"
+            />
+          </label>
+          <label className="col-span-2 text-xs text-neutral-500 sm:col-span-4">
+            Activités à éviter (séparées par une virgule)
+            <input
+              type="text"
+              value={activitesAEviter}
+              onChange={(e) => setActivitesAEviter(e.target.value)}
+              placeholder="ex. désert, plongée"
               className="input mt-1"
             />
           </label>

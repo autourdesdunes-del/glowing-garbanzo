@@ -332,6 +332,7 @@ export type Client = {
   kommo_nb_enfants_estime: number | null;
   kommo_ages_enfants_estime: string;
   kommo_activites_interet: string;
+  kommo_activites_a_eviter: string;
   kommo_extraction_updated_at: string | null;
   kommo_demande_infos_envoyee_le: string | null;
   kommo_programme_envoye_resume: string;
@@ -417,6 +418,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   kommo_nb_enfants_estime: null,
   kommo_ages_enfants_estime: "",
   kommo_activites_interet: "",
+  kommo_activites_a_eviter: "",
   kommo_extraction_updated_at: null,
   kommo_demande_infos_envoyee_le: null,
   kommo_programme_envoye_resume: "",

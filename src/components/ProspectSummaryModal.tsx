@@ -165,6 +165,17 @@ export default function ProspectSummaryModal({
             />
           </Field>
 
+          <Field label="Activités à éviter">
+            <input
+              type="text"
+              value={draft.kommo_activites_a_eviter}
+              onChange={(e) => setDraft({ ...draft, kommo_activites_a_eviter: e.target.value })}
+              onBlur={() => save({ kommo_activites_a_eviter: draft.kommo_activites_a_eviter })}
+              placeholder="ex. désert, plongée (séparées par une virgule)"
+              className="input text-sm"
+            />
+          </Field>
+
           <Field label="Programme envoyé">
             <textarea
               value={draft.kommo_programme_envoye_resume}

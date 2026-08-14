@@ -76,9 +76,17 @@ function PriceSummary({ a }: { a: CatalogueItem }) {
           {isMontgolfiereActivity(a) ? " — à partir de 7 ans uniquement" : ""}
         </span>
       )}
-      {!!a.pu_enfant_3ans && <span>Enfant 3 ans {euros(a.pu_enfant_3ans)}€</span>}
+      {!!a.pu_enfant_3ans &&
+        (isMontgolfiereActivity(a) ? (
+          <span>4 à 7 ans (visites, sans montgolfière) {euros(a.pu_enfant_3ans)}€</span>
+        ) : (
+          <span>Enfant 3 ans {euros(a.pu_enfant_3ans)}€</span>
+        ))}
       {!isQuadActivity(a) && !isSpaActivity(a) && !isMontgolfiereActivity(a) && (
         <span>Bébé {euros(a.pu_bebe)}€</span>
+      )}
+      {isMontgolfiereActivity(a) && (
+        <span>Bébé {euros(a.pu_bebe)}€ — 0 à 3 ans, ne montent pas</span>
       )}
     </>
   );
@@ -1009,7 +1017,7 @@ export default function CatalogueView({
                         )}
                       </Field>
                     )}
-                    {!isQuadActivity(a) && !isSpaActivity(a) && !isMontgolfiereActivity(a) && (
+                    {!isQuadActivity(a) && !isSpaActivity(a) && (
                       <Field label="PU bébé (€)">
                         <div className="flex gap-2">
                           <input
@@ -1050,13 +1058,25 @@ export default function CatalogueView({
                         </p>
                       )}
                     </Field>
-                    <Field label="PU enfant 3 ans (€)">
+                    <Field
+                      label={
+                        isMontgolfiereActivity(a)
+                          ? "PU 4-7 ans, visites sans montgolfière (€)"
+                          : "PU enfant 3 ans (€)"
+                      }
+                    >
                       <input
                         type="number"
                         value={a.pu_enfant_3ans}
                         onChange={(e) => onUpdate(a.id, { pu_enfant_3ans: Number(e.target.value) })}
                         className="input w-20"
                       />
+                      {isMontgolfiereActivity(a) && (
+                        <p className="mt-1 text-xs font-medium text-[#0F5C56]">
+                          ℹ️ Les 0-3 ans ne paient rien et ne montent pas ; les 4-7 ans ne montent
+                          pas non plus mais peuvent être du voyage à ce tarif.
+                        </p>
+                      )}
                     </Field>
                   </>
                 ) : (
@@ -1925,7 +1945,7 @@ export default function CatalogueView({
                             </span>
                           </div>
                         )}
-                        {!isQuadActivity(a) && !isSpaActivity(a) && !isMontgolfiereActivity(a) && (
+                        {!isQuadActivity(a) && !isSpaActivity(a) && (
                           <div className="flex items-center gap-3">
                             <RowIcon>
                               <IconBebe />
@@ -1933,6 +1953,11 @@ export default function CatalogueView({
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-neutral-700">Bébé</p>
                               <p className="text-[11px] text-neutral-400">{a.pu_bebe_age}</p>
+                              {isMontgolfiereActivity(a) && (
+                                <p className="text-[11px] font-medium text-red-600">
+                                  ⚠ Ne montent pas en montgolfière
+                                </p>
+                              )}
                             </div>
                             <span className="font-amounts text-sm text-[#171717]">
                               {euros(a.pu_bebe)}€
@@ -1959,7 +1984,14 @@ export default function CatalogueView({
                               <IconEnfant />
                             </RowIcon>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm text-neutral-700">Enfant 3 ans</p>
+                              <p className="text-sm text-neutral-700">
+                                {isMontgolfiereActivity(a) ? "4 à 7 ans" : "Enfant 3 ans"}
+                              </p>
+                              {isMontgolfiereActivity(a) && (
+                                <p className="text-[11px] font-medium text-red-600">
+                                  ⚠ Ne montent pas en montgolfière — visites uniquement
+                                </p>
+                              )}
                             </div>
                             <span className="font-amounts text-sm text-[#171717]">
                               {euros(a.pu_enfant_3ans)}€

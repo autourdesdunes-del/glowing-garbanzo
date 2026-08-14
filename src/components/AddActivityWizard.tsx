@@ -25,6 +25,7 @@ import {
   isDeuxiemeIleOption,
   isGrandEgyptianMuseum,
   isLeCaireEnAvion,
+  isMontgolfiereActivity,
   isSafariQuadBase,
   isQuad,
   isSpeedboatPriveMaisonDauphins,
@@ -998,7 +999,13 @@ export default function AddActivityWizard({
                 className="input"
               />
             </Field>
-            <Field label="Enfants 3 ans">
+            <Field
+              label={
+                isMontgolfiereActivity(catalogueItem?.nom || r.nom_activite)
+                  ? "Enfants 4-7 ans (visites)"
+                  : "Enfants 3 ans"
+              }
+            >
               <input
                 type="number"
                 value={r.participants_enfants_3ans}
@@ -1289,7 +1296,13 @@ export default function AddActivityWizard({
                 </Field>
               )}
               {nbEnf3 > 0 && (
-                <Field label="PU enfant 3 ans (€)">
+                <Field
+                  label={
+                    isMontgolfiereActivity(catalogueItem?.nom || r.nom_activite)
+                      ? "PU 4-7 ans, visites sans montgolfière (€)"
+                      : "PU enfant 3 ans (€)"
+                  }
+                >
                   <input
                     type="number"
                     value={r.pu_enfant_3ans}

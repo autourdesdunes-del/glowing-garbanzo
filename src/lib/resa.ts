@@ -390,6 +390,14 @@ export function isQuad(nom: string) {
   return (nom || "").toLowerCase().includes("quad");
 }
 
+// Montgolfière (Louxor) — interdite aux moins de 7 ans. Les 0-3 ans ne
+// paient rien et ne montent pas ; les 4-7 ans ne montent pas non plus mais
+// peuvent être du voyage (visites), au tarif "enfant 3 ans" du catalogue —
+// champ réutilisé pour cette tranche d'âge précisément sur ces activités.
+export function isMontgolfiereActivity(nom: string) {
+  return (nom || "").toLowerCase().includes("montgolfi");
+}
+
 // Moment de la journée effectif d'une réservation, tous champs confondus —
 // "creneau" (cheval/quad) et "moment" (speedboat…) désignent la même notion
 // sous deux noms différents selon le type d'activité. "Journée" et "Plusieurs

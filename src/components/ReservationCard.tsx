@@ -27,6 +27,7 @@ import {
   isDeuxiemeIleOption,
   isGrandEgyptianMuseum,
   isLeCaireEnAvion,
+  isMontgolfiereActivity,
   isQuad,
   isSafariQuadBase,
   isSpeedboatPriveMaisonDauphins,
@@ -719,7 +720,13 @@ export default function ReservationCard({
                 className="input"
               />
             </Field>
-            <Field label="PU enfant 3 ans (€)">
+            <Field
+              label={
+                isMontgolfiereActivity(nomPourDetection)
+                  ? "PU 4-7 ans, visites sans montgolfière (€)"
+                  : "PU enfant 3 ans (€)"
+              }
+            >
               <input
                 type="number"
                 value={r.pu_enfant_3ans}
@@ -894,7 +901,11 @@ export default function ReservationCard({
                 className="input"
               />
             </Field>
-            <Field label="Enfants 3 ans">
+            <Field
+              label={
+                isMontgolfiereActivity(nomPourDetection) ? "Enfants 4-7 ans (visites)" : "Enfants 3 ans"
+              }
+            >
               <input
                 type="number"
                 value={r.participants_enfants_3ans}

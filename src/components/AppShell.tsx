@@ -1265,10 +1265,7 @@ function AppShellInner({
             <ProspectSummaryModal
               client={c}
               onClose={() => setProspectSummaryId(null)}
-              onOpenFullFile={() => {
-                setSelectedId(c.id);
-                setProspectSummaryId(null);
-              }}
+              onUpdateClient={(patch) => updateClientById(c.id, patch)}
               onConfirmClient={async () => {
                 await updateClientById(c.id, { statut: "Client confirmé" });
                 setProspectSummaryId(null);
@@ -1540,41 +1537,6 @@ function AppShellInner({
           />
         </div>
       )}
-
-      {mode === "prospects" && selectedId && (() => {
-        const c = clients.find((cl) => cl.id === selectedId);
-        if (!c) return null;
-        return (
-          <div className="fixed inset-0 z-40 flex flex-col bg-white">
-            <div className="flex items-center gap-2 border-b border-[#666666]/10 bg-white px-4 py-2.5">
-              <button
-                type="button"
-                onClick={() => setSelectedId(null)}
-                className="rounded-md px-2.5 py-1 text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
-              >
-                ← Retour au pipeline
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <ClientDetail
-                client={c}
-                allClients={clients}
-                onChange={updateSelected}
-                onDelete={() => deleteClient(c.id)}
-                onJumpToClient={openClient}
-                onDuplicateAsNewStay={duplicateAsNewStay}
-                canDelete={effectiveIsDirection}
-                canSeeMargins={effectiveIsDirection}
-                catalogue={catalogue}
-                catalogueTarifs={catalogueTarifs}
-                transfertTarifs={transfertTarifs}
-                catalogueOptions={catalogueOptions}
-                onOpenHelp={() => setMode("help")}
-              />
-            </div>
-          </div>
-        );
-      })()}
 
       {mode === "team" && (
         <div className="flex flex-1 flex-col">

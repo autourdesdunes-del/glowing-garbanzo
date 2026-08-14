@@ -1,12 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Client } from "@/lib/types";
-
-function fmtDate(dateStr: string | null) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
 
 function fmtDateTime(dateStr: string | null) {
   if (!dateStr) return null;
@@ -15,37 +10,44 @@ function fmtDateTime(dateStr: string | null) {
     d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+function fmtDate(dateStr: string | null) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-3 border-b border-neutral-100 py-2 text-sm last:border-0">
-      <span className="text-neutral-500">{label}</span>
-      <span className="text-right font-medium text-[#171717]">{children}</span>
-    </div>
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-neutral-500">{label}</span>
+      {children}
+    </label>
   );
 }
 
 // Feuille de synthèse d'un prospect, déduite automatiquement de la
-// conversation Kommo (WhatsApp/Instagram) — n'affiche que ce qui a
-// effectivement été extrait, jamais de section vide/placeholder.
+// conversation Kommo (WhatsApp/Instagram) — c'est directement cette carte
+// qu'on modifie si l'extraction automatique s'est trompée ou est
+// incomplète, plutôt que de renvoyer vers la fiche client complète (jugée
+// trop lourde pour un simple prospect pas encore qualifié).
 export default function ProspectSummaryModal({
   client,
   onClose,
-  onOpenFullFile,
+  onUpdateClient,
   onConfirmClient,
 }: {
   client: Client;
   onClose: () => void;
-  onOpenFullFile: () => void;
+  onUpdateClient: (patch: Partial<Client>) => void;
   onConfirmClient: () => void;
 }) {
-  const sejourDebut = fmtDate(client.kommo_sejour_debut_estime);
-  const sejourFin = fmtDate(client.kommo_sejour_fin_estime);
-  const hasSejour = sejourDebut || sejourFin;
-  const hasPax = client.kommo_nb_adultes_estime != null || client.kommo_nb_enfants_estime != null;
-  const activites = (client.kommo_activites_interet || "")
-    .split(",")
-    .map((a) => a.trim())
-    .filter(Boolean);
+  const [draft, setDraft] = useState(client);
+  useEffect(() => {
+    setDraft(client);
+  }, [client]);
+
+  const save = (patch: Partial<Client>) => onUpdateClient(patch);
+
   const derniereMaj = fmtDateTime(client.kommo_extraction_updated_at);
   const demandeInfosLe = fmtDate(client.kommo_demande_infos_envoyee_le);
   const premierEchange = fmtDateTime(client.kommo_premier_echange_le);
@@ -54,17 +56,6 @@ export default function ProspectSummaryModal({
     .sort()
     .at(-1);
   const dernierEchange = dernierEchangeDate ? fmtDateTime(dernierEchangeDate) : null;
-
-  const hasAnything =
-    !!client.kommo_resume ||
-    hasSejour ||
-    !!client.kommo_hotel_estime ||
-    hasPax ||
-    !!client.kommo_ages_enfants_estime ||
-    activites.length > 0 ||
-    !!client.kommo_programme_envoye_resume ||
-    !!demandeInfosLe ||
-    !!premierEchange;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -81,93 +72,144 @@ export default function ProspectSummaryModal({
           </button>
         </div>
 
-        {client.kommo_resume && (
-          <p className="mt-3 rounded-md bg-[#fafafa] p-3 text-sm text-[#171717]">{client.kommo_resume}</p>
-        )}
+        <div className="mt-3 space-y-3">
+          <Field label="Résumé">
+            <textarea
+              value={draft.kommo_resume}
+              onChange={(e) => setDraft({ ...draft, kommo_resume: e.target.value })}
+              onBlur={() => save({ kommo_resume: draft.kommo_resume })}
+              placeholder="Résumé de la conversation…"
+              rows={3}
+              className="input text-sm"
+            />
+          </Field>
 
-        {(hasSejour || client.kommo_hotel_estime || hasPax || client.kommo_ages_enfants_estime) && (
-          <div className="mt-3">
-            {hasSejour && (
-              <DetailRow label="Séjour">
-                {sejourDebut || "?"}
-                {sejourFin ? ` → ${sejourFin}` : ""}
-              </DetailRow>
-            )}
-            {client.kommo_hotel_estime && <DetailRow label="Hôtel">{client.kommo_hotel_estime}</DetailRow>}
-            {hasPax && (
-              <DetailRow label="PAX">
-                {client.kommo_nb_adultes_estime != null ? `${client.kommo_nb_adultes_estime} adultes` : ""}
-                {client.kommo_nb_enfants_estime
-                  ? `${client.kommo_nb_adultes_estime != null ? ", " : ""}${client.kommo_nb_enfants_estime} enfant(s)`
-                  : ""}
-              </DetailRow>
-            )}
-            {client.kommo_ages_enfants_estime && (
-              <DetailRow label="Âges enfants/ados">{client.kommo_ages_enfants_estime}</DetailRow>
-            )}
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Séjour — début">
+              <input
+                type="date"
+                value={draft.kommo_sejour_debut_estime || ""}
+                onChange={(e) => setDraft({ ...draft, kommo_sejour_debut_estime: e.target.value || null })}
+                onBlur={() => save({ kommo_sejour_debut_estime: draft.kommo_sejour_debut_estime })}
+                className="input text-sm"
+              />
+            </Field>
+            <Field label="Séjour — fin">
+              <input
+                type="date"
+                value={draft.kommo_sejour_fin_estime || ""}
+                onChange={(e) => setDraft({ ...draft, kommo_sejour_fin_estime: e.target.value || null })}
+                onBlur={() => save({ kommo_sejour_fin_estime: draft.kommo_sejour_fin_estime })}
+                className="input text-sm"
+              />
+            </Field>
           </div>
-        )}
 
-        {activites.length > 0 && (
-          <div className="mt-3">
-            <p className="mb-1.5 text-xs font-medium text-neutral-500">Activités qui l&apos;intéressent</p>
-            <div className="flex flex-wrap gap-1.5">
-              {activites.map((a) => (
-                <span
-                  key={a}
-                  className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]"
-                >
-                  {a}
-                </span>
-              ))}
-            </div>
+          <Field label="Hôtel">
+            <input
+              type="text"
+              value={draft.kommo_hotel_estime}
+              onChange={(e) => setDraft({ ...draft, kommo_hotel_estime: e.target.value })}
+              onBlur={() => save({ kommo_hotel_estime: draft.kommo_hotel_estime })}
+              placeholder="Hôtel estimé"
+              className="input text-sm"
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Adultes">
+              <input
+                type="number"
+                min={0}
+                value={draft.kommo_nb_adultes_estime ?? ""}
+                onChange={(e) =>
+                  setDraft({ ...draft, kommo_nb_adultes_estime: e.target.value === "" ? null : Number(e.target.value) })
+                }
+                onBlur={() => save({ kommo_nb_adultes_estime: draft.kommo_nb_adultes_estime })}
+                className="input text-sm"
+              />
+            </Field>
+            <Field label="Enfants">
+              <input
+                type="number"
+                min={0}
+                value={draft.kommo_nb_enfants_estime ?? ""}
+                onChange={(e) =>
+                  setDraft({ ...draft, kommo_nb_enfants_estime: e.target.value === "" ? null : Number(e.target.value) })
+                }
+                onBlur={() => save({ kommo_nb_enfants_estime: draft.kommo_nb_enfants_estime })}
+                className="input text-sm"
+              />
+            </Field>
           </div>
-        )}
 
-        {client.kommo_programme_envoye_resume && (
-          <div className="mt-3">
-            <p className="mb-1.5 text-xs font-medium text-neutral-500">Programme envoyé</p>
-            <p className="rounded-md bg-[#0F5C56]/5 p-3 text-sm text-[#171717]">
-              {client.kommo_programme_envoye_resume}
-            </p>
+          <Field label="Âges enfants/ados">
+            <input
+              type="text"
+              value={draft.kommo_ages_enfants_estime}
+              onChange={(e) => setDraft({ ...draft, kommo_ages_enfants_estime: e.target.value })}
+              onBlur={() => save({ kommo_ages_enfants_estime: draft.kommo_ages_enfants_estime })}
+              placeholder="ex. 6, 9 et 14 ans"
+              className="input text-sm"
+            />
+          </Field>
+
+          <Field label="Activités qui l'intéressent">
+            <input
+              type="text"
+              value={draft.kommo_activites_interet}
+              onChange={(e) => setDraft({ ...draft, kommo_activites_interet: e.target.value })}
+              onBlur={() => save({ kommo_activites_interet: draft.kommo_activites_interet })}
+              placeholder="ex. Louxor, plongée, quad (séparées par une virgule)"
+              className="input text-sm"
+            />
+          </Field>
+
+          <Field label="Programme envoyé">
+            <textarea
+              value={draft.kommo_programme_envoye_resume}
+              onChange={(e) => setDraft({ ...draft, kommo_programme_envoye_resume: e.target.value })}
+              onBlur={() => save({ kommo_programme_envoye_resume: draft.kommo_programme_envoye_resume })}
+              placeholder="Résumé du programme envoyé…"
+              rows={2}
+              className="input text-sm"
+            />
+          </Field>
+
+          <Field label="Note">
+            <textarea
+              value={draft.commentaires}
+              onChange={(e) => setDraft({ ...draft, commentaires: e.target.value })}
+              onBlur={() => save({ commentaires: draft.commentaires })}
+              placeholder="Note libre pour l'équipe…"
+              rows={2}
+              className="input text-sm"
+            />
+          </Field>
+        </div>
+
+        {(demandeInfosLe || premierEchange || dernierEchange) && (
+          <div className="mt-3 space-y-1 border-t border-neutral-100 pt-3 text-xs text-neutral-400">
+            {demandeInfosLe && <p>Demande d&apos;infos envoyée le {demandeInfosLe}</p>}
+            {premierEchange && <p>Premier échange : {premierEchange}</p>}
+            {dernierEchange && <p>Dernier échange : {dernierEchange}</p>}
           </div>
-        )}
-
-        {demandeInfosLe && <DetailRow label="Demande d'infos envoyée le">{demandeInfosLe}</DetailRow>}
-
-        {(premierEchange || dernierEchange) && (
-          <div className="mt-3">
-            {premierEchange && <DetailRow label="Premier échange">{premierEchange}</DetailRow>}
-            {dernierEchange && <DetailRow label="Dernier échange">{dernierEchange}</DetailRow>}
-          </div>
-        )}
-
-        {!hasAnything && (
-          <p className="mt-3 text-sm text-neutral-400">
-            Pas encore assez d&apos;informations dans la conversation Kommo pour remplir cette fiche.
-          </p>
         )}
 
         {derniereMaj && (
           <p className="mt-3 text-[11px] text-neutral-400">
-            Déduit automatiquement de la conversation Kommo — dernière mise à jour {derniereMaj}
+            Champs pré-remplis automatiquement depuis la conversation Kommo (dernière extraction {derniereMaj}) —
+            modifiables ci-dessus si besoin.
           </p>
         )}
 
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-4">
           <button
             type="button"
             onClick={onConfirmClient}
             className="w-full rounded-md bg-[#0F5C56] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             ✓ Passer en client confirmé
-          </button>
-          <button
-            type="button"
-            onClick={onOpenFullFile}
-            className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
-          >
-            Voir la fiche complète
           </button>
         </div>
       </div>

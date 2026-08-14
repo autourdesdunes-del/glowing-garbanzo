@@ -237,6 +237,14 @@ export function momentBadge(r: Reservation) {
   return value;
 }
 
+// N° de vol / horaire d'arrivée du client (transferts aéroport) — affiché
+// juste à côté du titre, pas seulement dans le détail, pour que l'équipe
+// voie l'info sans ouvrir la fiche.
+export function volBadge(r: Reservation) {
+  if (!r.numero_vol.trim() && !r.horaire_vol.trim()) return "";
+  return `✈ ${[r.numero_vol.trim(), r.horaire_vol.trim()].filter(Boolean).join(" · ")}`;
+}
+
 // Les îles proposées pour les formules speedboat privé "journée complète"
 // et "demi-journée" — le client doit en choisir une avant de continuer.
 export const SPEEDBOAT_ILES = ["Orange Bay", "Paradise", "Hula Hula", "Magawish", "Oziréa"] as const;
@@ -312,6 +320,14 @@ export function reglementAnnulation(
   // Pas de date : on ne peut pas calculer de délai, on part du principe le
   // plus prudent pour l'agence.
   return { remboursable: false, raison: "Date d'activité inconnue", prevenirHossam: false };
+}
+
+// Le solde/acompte est unique par séjour (jamais par activité) — proposer un
+// remboursement n'a de sens que si de l'argent a réellement été encaissé
+// (acompte encaissé ou solde payé). Sans ça, "rembourser" rendrait de
+// l'argent que l'agence n'a jamais reçu.
+export function clientAPayeQuelqueChose(client: Client) {
+  return !!((client.paiement_type === "acompte" && client.acompte_valide && client.acompte_paye) || client.solde_paye);
 }
 
 const BILLET_ETAPE_SHORT_LABELS: Record<string, string> = {

@@ -767,21 +767,27 @@ export function ActivitesStep({
     );
   }
 
+  const clientAnnule = client.statut === "Client annulé";
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <button
-          onClick={() => {
-            if (onRequestAdd) {
-              onRequestAdd();
-              return;
-            }
-            setAddingNew(true);
-          }}
-          className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-        >
-          + Ajouter une activité
-        </button>
+        {clientAnnule ? (
+          <p className="text-xs text-neutral-400">Client annulé — impossible d&apos;ajouter une activité.</p>
+        ) : (
+          <button
+            onClick={() => {
+              if (onRequestAdd) {
+                onRequestAdd();
+                return;
+              }
+              setAddingNew(true);
+            }}
+            className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          >
+            + Ajouter une activité
+          </button>
+        )}
       </div>
 
       <ItineraryView

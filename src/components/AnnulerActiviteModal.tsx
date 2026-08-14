@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { reglementAnnulation, resaTotalMontant } from "@/lib/resa";
+import { clientAPayeQuelqueChose, reglementAnnulation, resaTotalMontant } from "@/lib/resa";
 import { RAISONS_ANNULATION } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/client";
@@ -49,48 +49,39 @@ export default function AnnulerActiviteModal({
   const montant = resaTotalMontant(r, client, options, tarifs);
   const reglement = reglementAnnulation(r, catalogueItem, new Date());
   const remboursable = reglement.remboursable || exception;
+  // Rien à rembourser si l'agence n'a jamais reçu d'argent pour ce séjour
+  // (acompte pas encore encaissé, solde pas payé) ou si l'activité est
+  // gratuite — même si la règle d'annulation dirait "remboursable".
+  const remboursementPossible = remboursable && montant > 0 && clientAPayeQuelqueChose(client);
   const raisonFinale = raison === "Autre" ? raisonAutre.trim() : raison;
 
   // Le remboursement se fait par défaut via PayPal (demande explicite) —
-  // dès que c'est remboursable, "Rembourser" est déjà sélectionné et
-  // demande l'adresse PayPal tout de suite plutôt que d'attendre la
-  // confirmation finale.
+  // dès que c'est remboursable, "Rembourser" est présélectionné, mais
+  // l'adresse PayPal n'est demandée qu'au moment de confirmer l'annulation,
+  // jamais avant.
   useEffect(() => {
-    if (remboursable && !remboursementChoix) {
+    if (remboursementPossible && !remboursementChoix) {
       setRemboursementChoix("rembourse");
-      setShowPaypalPrompt(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remboursable]);
+  }, [remboursementPossible]);
 
-  const confirmer = async () => {
-    if (raison === "Autre" && !raisonAutre.trim()) {
-      toast("Précisez la raison de l'annulation.");
-      return;
-    }
-    if (remboursable && !remboursementChoix) {
-      toast("Choisissez remboursement ou avoir avant de confirmer.");
-      return;
-    }
-    if (remboursable && remboursementChoix === "rembourse" && !paypalEmail.trim()) {
-      setShowPaypalPrompt(true);
-      return;
-    }
+  const doConfirm = async (emailPourRemb: string) => {
     setSubmitting(true);
     const supabase = createClient();
 
-    if (remboursable && remboursementChoix === "rembourse") {
+    if (remboursementPossible && remboursementChoix === "rembourse") {
       const { error } = await supabase.from("remboursements").insert({
         client_id: client.id,
         montant,
         raison: "Annulation",
         mode: "PayPal",
-        paypal_email: paypalEmail.trim(),
+        paypal_email: emailPourRemb.trim(),
         activite_id: r.id,
         date_probleme: todayStr(),
       });
       if (error) toast("Échec de la création du remboursement.");
-    } else if (remboursable && remboursementChoix === "avoir") {
+    } else if (remboursementPossible && remboursementChoix === "avoir") {
       const { error } = await supabase.from("avoirs").insert({
         client_id: client.id,
         montant,
@@ -106,12 +97,28 @@ export default function AnnulerActiviteModal({
       statut_resa: "Annulée",
       annulation_raison: raisonFinale,
       annulation_date: todayStr(),
-      annulation_remb_avoir: remboursable ? remboursementChoix : "",
+      annulation_remb_avoir: remboursementPossible ? remboursementChoix : "",
       annulation_exception_hossam: exception,
       annulation_prevenir_hossam: reglement.prevenirHossam,
     });
     setSubmitting(false);
     onClose();
+  };
+
+  const confirmer = () => {
+    if (raison === "Autre" && !raisonAutre.trim()) {
+      toast("Précisez la raison de l'annulation.");
+      return;
+    }
+    if (remboursementPossible && !remboursementChoix) {
+      toast("Choisissez remboursement ou avoir avant de confirmer.");
+      return;
+    }
+    if (remboursementPossible && remboursementChoix === "rembourse" && !paypalEmail.trim()) {
+      setShowPaypalPrompt(true);
+      return;
+    }
+    doConfirm(paypalEmail);
   };
 
   return (
@@ -169,52 +176,52 @@ export default function AnnulerActiviteModal({
             <label className="mb-1 block text-xs font-medium text-neutral-500">
               Montant concerné : {euros(montant)} €
             </label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  setRemboursementChoix("rembourse");
-                  setShowPaypalPrompt(true);
-                }}
-                className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
-                  remboursementChoix === "rembourse"
-                    ? "border-[#171717] bg-[#171717] text-white"
-                    : "border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
-                }`}
-              >
-                Rembourser
-              </button>
-              <button
-                onClick={() => setRemboursementChoix("avoir")}
-                className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
-                  remboursementChoix === "avoir"
-                    ? "border-[#171717] bg-[#171717] text-white"
-                    : "border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
-                }`}
-              >
-                Avoir (cas particulier)
-              </button>
-            </div>
-            {remboursementChoix === "rembourse" && (
-              <p className="mt-1.5 text-xs text-neutral-500">
-                PayPal —{" "}
-                {paypalEmail ? (
-                  <>
-                    {paypalEmail}{" "}
-                    <button
-                      onClick={() => setShowPaypalPrompt(true)}
-                      className="text-[#171717] underline hover:no-underline"
-                    >
-                      modifier
-                    </button>
-                  </>
-                ) : (
+            {remboursementPossible ? (
+              <>
+                <div className="flex gap-2">
                   <button
-                    onClick={() => setShowPaypalPrompt(true)}
-                    className="text-[#171717] underline hover:no-underline"
+                    onClick={() => setRemboursementChoix("rembourse")}
+                    className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
+                      remboursementChoix === "rembourse"
+                        ? "border-[#171717] bg-[#171717] text-white"
+                        : "border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
+                    }`}
                   >
-                    saisir l&apos;adresse
+                    Rembourser
                   </button>
+                  <button
+                    onClick={() => setRemboursementChoix("avoir")}
+                    className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
+                      remboursementChoix === "avoir"
+                        ? "border-[#171717] bg-[#171717] text-white"
+                        : "border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
+                    }`}
+                  >
+                    Avoir (cas particulier)
+                  </button>
+                </div>
+                {remboursementChoix === "rembourse" && (
+                  <p className="mt-1.5 text-xs text-neutral-500">
+                    PayPal —{" "}
+                    {paypalEmail ? (
+                      <>
+                        {paypalEmail}{" "}
+                        <button
+                          onClick={() => setShowPaypalPrompt(true)}
+                          className="text-[#171717] underline hover:no-underline"
+                        >
+                          modifier
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-neutral-400">demandée à la confirmation</span>
+                    )}
+                  </p>
                 )}
+              </>
+            ) : (
+              <p className="text-xs text-neutral-400">
+                Aucun paiement reçu pour ce séjour (acompte non encaissé, solde non payé) — rien à rembourser.
               </p>
             )}
           </div>
@@ -234,6 +241,7 @@ export default function AnnulerActiviteModal({
           onConfirm={(email) => {
             setPaypalEmail(email);
             setShowPaypalPrompt(false);
+            doConfirm(email);
           }}
           onClose={() => setShowPaypalPrompt(false)}
         />

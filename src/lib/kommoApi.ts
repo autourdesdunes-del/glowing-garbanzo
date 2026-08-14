@@ -50,6 +50,20 @@ export async function updateKommoLeadStatus(leadId: number, statusId: number): P
   }
 }
 
+// Va chercher le statut actuel d'un lead Kommo — utilisé par le job de
+// réconciliation (cf. /api/cron/kommo-reconcile) pour rattraper les
+// changements de statut que le webhook classique n'a pas notifiés (constaté
+// notamment pour les leads clôturés "Réservé" via l'action de clôture
+// Kommo, qui n'émet pas toujours le webhook "lead_status_changed").
+export async function fetchKommoLeadStatus(leadId: number): Promise<number | null> {
+    try {
+          const lead = (await kommoFetch(`/leads/${leadId}`)) as { status_id?: number } | null;
+          return typeof lead?.status_id === "number" ? lead.status_id : null;
+    } catch {
+          return null;
+    }
+}
+
 function extractPhoneOrEmail(
     customFields: unknown,
     code: "PHONE" | "EMAIL"

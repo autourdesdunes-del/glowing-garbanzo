@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/kommo-reconcile",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}

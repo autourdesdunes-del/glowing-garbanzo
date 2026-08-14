@@ -322,13 +322,21 @@ export function isSpeedboat(nom: string) {
   return (nom || "").toLowerCase().includes("speedboat");
 }
 
-// Seule activité du catalogue avec un billet d'avion intérieur à gérer pour
-// l'instant (aller-retour Hurghada ↔ Le Caire, même jour) — le billet_requis
-// et les villes se déduisent automatiquement de ce nom, plus besoin de case
-// à cocher manuelle. Les circuits et achats de billet secs ne sont pas
-// encore dans le catalogue (à activer ici quand ils y seront).
+// Trajet fixe aller-retour Hurghada ↔ Le Caire, même jour — le billet_requis
+// et les villes s'en déduisent automatiquement, plus besoin de case à cocher
+// manuelle.
 export function isLeCaireEnAvion(nom: string) {
   return (nom || "").trim().toLowerCase() === "le caire en avion";
+}
+
+// Autres cas où l'agence achète elle-même un billet d'avion intérieur pour
+// le client — l'activité générique "Billets d'avion" (vols achetés au cas
+// par cas, hors trajet fixe du Caire) et tous les circuits multi-jours.
+// Contrairement au Caire en avion, pas de trajet connu à l'avance : les
+// villes restent à remplir à la main dans le tableau des billets d'avion.
+export function needsBilletInterneGenerique(nom: string) {
+  const n = (nom || "").trim().toLowerCase();
+  return n === "billets d'avion" || n.includes("circuit");
 }
 
 export type ReglementAnnulation = {

@@ -25,6 +25,7 @@ import {
   isDeuxiemeIleOption,
   isGrandEgyptianMuseum,
   isLeCaireEnAvion,
+  needsBilletInterneGenerique,
   isMontgolfiereActivity,
   isSafariQuadBase,
   isQuad,
@@ -308,6 +309,12 @@ export default function AddActivityWizard({
         point_rdv: item.point_rdv,
         photo_path: item.photo_path,
         transfert_inclus: !hotelHorsHurghada,
+        // Signalé dès la création plutôt que d'attendre que la carte soit
+        // ouverte une première fois (ReservationCard ne monte, et donc son
+        // useEffect de secours ne tourne, que lorsque l'activité est
+        // dépliée) — sinon l'activité n'apparaîtrait pas tout de suite dans
+        // le tableau des billets d'avion.
+        billet_requis: needsBilletInterneGenerique(item.nom),
         // La colonne "moment" est NOT NULL avec une contrainte CHECK
         // ('Matin'/'Après-midi'/'Journée'/'Plusieurs jours') — jamais de
         // chaîne vide, sinon la sauvegarde échoue silencieusement (l'écran
@@ -740,6 +747,7 @@ export default function AddActivityWizard({
 
   if (step === "date") {
     const isSpa = isSpaMassage(r.nom_activite);
+    const billetInterneGenerique = needsBilletInterneGenerique(catalogueItem?.nom || r.nom_activite);
     const missingDate = !r.date_debut;
     const missingHoraire = isSpa && !r.horaire_souhaite;
     const joursDisponibles = catalogueItem?.jours_disponibles || [];
@@ -791,6 +799,11 @@ export default function AddActivityWizard({
               onUpdateReservation(r.id, {
                 date_debut: newDate,
                 ...(attendu ? { pu_adulte: attendu.pu_adulte, pu_enfant: attendu.pu_enfant } : {}),
+                // Le Caire en avion synchronise déjà sa date de billet via le
+                // popup Hossam plus loin — ici on couvre les autres cas
+                // (activité générique "Billets d'avion", circuits) qui n'ont
+                // pas ce popup.
+                ...(billetInterneGenerique ? { billet_date: newDate } : {}),
               });
             }}
             className={`input max-w-[220px] ${

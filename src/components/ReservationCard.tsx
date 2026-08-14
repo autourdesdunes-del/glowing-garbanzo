@@ -28,6 +28,7 @@ import {
   isDeuxiemeIleOption,
   isGrandEgyptianMuseum,
   isLeCaireEnAvion,
+  needsBilletInterneGenerique,
   isMontgolfiereActivity,
   isQuad,
   isSafariQuadBase,
@@ -256,12 +257,14 @@ export default function ReservationCard({
   const badge = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === statutKey)!;
   const hasInfo = !!r.info_importante;
   const leCaireEnAvion = isLeCaireEnAvion(nomPourDetection);
+  const billetInterneGenerique = needsBilletInterneGenerique(nomPourDetection);
 
-  // "Le Caire en avion" est pour l'instant la seule activité du catalogue
-  // avec un billet d'avion intérieur à gérer — plus de case à cocher
-  // manuelle, tout se déduit du nom de l'activité (villes fixes, date
-  // synchronisée avec l'activité). Circuits et achats de billet secs pas
-  // encore dans le catalogue, à ajouter ici quand ils y seront.
+  // Toute activité avec un billet d'avion intérieur à gérer (achat fait par
+  // l'agence) déduit automatiquement billet_requis de son nom — plus de case
+  // à cocher manuelle. "Le Caire en avion" a un trajet fixe connu à l'avance
+  // (Hurghada ↔ Le Caire) ; les autres cas (activité générique "Billets
+  // d'avion", circuits) n'ont pas de villes prévisibles — elles restent à
+  // remplir à la main dans le tableau des billets d'avion.
   useEffect(() => {
     if (leCaireEnAvion) {
       const patch: Partial<Reservation> = {};
@@ -270,12 +273,18 @@ export default function ReservationCard({
       if (r.billet_ville_arrivee !== "Le Caire") patch.billet_ville_arrivee = "Le Caire";
       if (r.billet_date !== r.date_debut) patch.billet_date = r.date_debut;
       if (Object.keys(patch).length > 0) onUpdate(patch);
+    } else if (billetInterneGenerique) {
+      const patch: Partial<Reservation> = {};
+      if (!r.billet_requis) patch.billet_requis = true;
+      if (r.billet_date !== r.date_debut) patch.billet_date = r.date_debut;
+      if (Object.keys(patch).length > 0) onUpdate(patch);
     } else if (r.billet_requis) {
       onUpdate({ billet_requis: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     leCaireEnAvion,
+    billetInterneGenerique,
     r.billet_requis,
     r.billet_ville_depart,
     r.billet_ville_arrivee,

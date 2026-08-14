@@ -89,6 +89,7 @@ const PAYMENT_MODE_EN: Record<string, string> = {
 };
 function resaActiveOn(r: Reservation, dateStr: string) {
   if (!r.date_debut) return false;
+  if (r.statut_resa === "Annulée") return false;
   const end = r.date_fin || r.date_debut;
   return dateStr >= r.date_debut && dateStr <= end;
 }

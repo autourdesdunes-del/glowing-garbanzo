@@ -737,6 +737,22 @@ function AppShellInner({
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
     const { error } = await supabase.from("clients").update(patch).eq("id", id);
     if (error) toast("Échec de l'enregistrement.");
+
+    // Un client annulé sans que ses activités le soient rendrait le total du
+    // séjour et le calendrier incohérents — on annule donc en cascade,
+    // quelle que soit la source du changement de statut (modal dédié ou
+    // glisser-déposer dans le Pipeline). Idempotent : ne touche pas les
+    // réservations déjà annulées (ex. déjà traitées par AnnulerClientModal).
+    if (patch.statut === "Client annulé") {
+      const aAnnuler = allReservations.filter((r) => r.client_id === id && r.statut_resa !== "Annulée");
+      for (const r of aAnnuler) {
+        await updateReservationById(r.id, {
+          statut_resa: "Annulée",
+          annulation_raison: r.annulation_raison || "Client annulé",
+          annulation_date: r.annulation_date || localDateStr(new Date()),
+        });
+      }
+    }
   };
 
   // Rattache un paiement PayPal reçu (via IPN, voir /api/paypal/ipn) au

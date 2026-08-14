@@ -46,6 +46,10 @@ function isSpaActivity(a: CatalogueItem) {
   return n.includes("spa") || n.includes("massage");
 }
 
+function isMontgolfiereActivity(a: CatalogueItem) {
+  return (a.nom || "").toLowerCase().includes("montgolfi");
+}
+
 function PriceSummary({ a }: { a: CatalogueItem }) {
   if (a.tarif_mode === "groupe") {
     if (!a.prix_groupe_base) {
@@ -69,10 +73,13 @@ function PriceSummary({ a }: { a: CatalogueItem }) {
         <span>
           Enfant {euros(a.pu_enfant)}€
           {animal ? ` — à partir de 5 ans si seul à ${animal}` : ""}
+          {isMontgolfiereActivity(a) ? " — à partir de 7 ans uniquement" : ""}
         </span>
       )}
       {!!a.pu_enfant_3ans && <span>Enfant 3 ans {euros(a.pu_enfant_3ans)}€</span>}
-      {!isQuadActivity(a) && !isSpaActivity(a) && <span>Bébé {euros(a.pu_bebe)}€</span>}
+      {!isQuadActivity(a) && !isSpaActivity(a) && !isMontgolfiereActivity(a) && (
+        <span>Bébé {euros(a.pu_bebe)}€</span>
+      )}
     </>
   );
 }
@@ -995,9 +1002,14 @@ export default function CatalogueView({
                             ⚠ Interdit aux enfants de moins de 6 ans
                           </p>
                         )}
+                        {isMontgolfiereActivity(a) && (
+                          <p className="mt-1 text-xs font-medium text-red-600">
+                            ⚠ Montgolfière interdite aux enfants de moins de 7 ans
+                          </p>
+                        )}
                       </Field>
                     )}
-                    {!isQuadActivity(a) && !isSpaActivity(a) && (
+                    {!isQuadActivity(a) && !isSpaActivity(a) && !isMontgolfiereActivity(a) && (
                       <Field label="PU bébé (€)">
                         <div className="flex gap-2">
                           <input
@@ -1902,13 +1914,18 @@ export default function CatalogueView({
                                   ⚠ Interdit aux enfants de moins de 6 ans
                                 </p>
                               )}
+                              {isMontgolfiereActivity(a) && (
+                                <p className="text-[11px] font-medium text-red-600">
+                                  ⚠ Interdit aux enfants de moins de 7 ans
+                                </p>
+                              )}
                             </div>
                             <span className="font-amounts text-sm text-[#171717]">
                               {euros(a.pu_enfant)}€
                             </span>
                           </div>
                         )}
-                        {!isQuadActivity(a) && !isSpaActivity(a) && (
+                        {!isQuadActivity(a) && !isSpaActivity(a) && !isMontgolfiereActivity(a) && (
                           <div className="flex items-center gap-3">
                             <RowIcon>
                               <IconBebe />

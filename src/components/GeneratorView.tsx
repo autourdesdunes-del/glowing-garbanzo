@@ -57,6 +57,35 @@ function extractAges(text: string): number[] {
   return matches ? matches.map(Number) : [];
 }
 
+// Aucun champ structuré de durée n'existe sur le catalogue ("duree" vaut
+// juste "Plusieurs jours") — le nombre de jours est toujours écrit dans le
+// nom ("5 jours et 4 nuits", ou "1 jour visites & 1 jour Montgolfière" =
+// 2 jours au total). On additionne toutes les mentions "N jour(s)"
+// trouvées ; si aucune n'est trouvée, la durée est jugée trop incertaine
+// pour être auto-planifiée (l'activité reste ajoutable à la main).
+function parseDureeJours(nom: string): number | null {
+  const matches = nom.match(/(\d+)\s*jours?/gi);
+  if (!matches || matches.length === 0) return null;
+  const total = matches.reduce((s, m) => s + (parseInt(m, 10) || 0), 0);
+  return total > 0 ? total : null;
+}
+
+// Tags qui désignent une destination/un grand thème de séjour plutôt qu'un
+// simple type d'activité — une fois couverts par une activité choisie (en
+// particulier un séjour multi-jours), on ne repropose pas une deuxième
+// activité sur la même destination (ex. une croisière Louxor-Assouan couvre
+// déjà Louxor, inutile de reproposer du Louxor à côté).
+const DESTINATION_TAGS = new Set([
+  "Louxor",
+  "Assouan",
+  "Assouan & Abu Simbel",
+  "Le Caire",
+  "Siwa",
+  "Croisière",
+  "Marsa Alam",
+  "Circuits",
+]);
+
 let ligneSeq = 0;
 function nextLigneId() {
   ligneSeq += 1;
@@ -147,11 +176,21 @@ function suggererProgramme({
   const candidats = catalogue
     .filter((a) => a.valide)
     .filter((a) => a.categorie !== "Transfert")
+    // Les activités au tarif "groupe" (bateau privatisé, prix au bateau et
+    // non par personne) n'ont pas de pu_adulte exploitable — le message
+    // généré est toujours au format "X € par personne", donc on les laisse
+    // à l'ajout manuel plutôt que d'afficher un prix à 0€.
+    .filter((a) => a.tarif_mode === "personne")
     .map((item) => {
       const joursItem = normalizeJoursDisponibles(item.jours_disponibles);
       const disponibleSurSejour =
         joursItem.length === 0 || jours.length === 0 || joursItem.some((j) => joursSemaineDispo.has(j));
       const enfantsFriendly = (item.tags || []).includes("Enfants");
+      const isMultiJour = item.categorie === "Séjour multi-jours";
+      // Durée inconnue (nom sans mention de nombre de jours) : trop risqué
+      // de deviner combien de jours bloquer sur le séjour, on laisse ces
+      // circuits à l'ajout manuel plutôt que de mal les placer.
+      const dureeJours = isMultiJour ? parseDureeJours(item.nom) : 1;
 
       let score = (item.marge_pct || 0) * 0.5;
       if (matchInteret(item)) score += 50;
@@ -160,30 +199,58 @@ function suggererProgramme({
       if (hasAdos && (item.categorie === "Excursion" || item.categorie === "Séjour multi-jours")) score += 5;
 
       const prixParPersonne = item.pu_adulte || 0;
+      const destinationTags = (item.tags || []).filter((t) => DESTINATION_TAGS.has(t));
 
-      return { item, score, disponibleSurSejour, joursItem, prixParPersonne };
+      return { item, score, disponibleSurSejour, joursItem, prixParPersonne, dureeJours, destinationTags };
     })
-    .filter((c) => c.disponibleSurSejour)
+    .filter((c) => c.disponibleSurSejour && c.dureeJours !== null)
     .sort((a, b) => b.score - a.score);
 
   const nbNuits = jours.length > 0 ? jours.length - 1 : 0;
   const cible = jours.length > 0 ? Math.min(6, Math.max(2, Math.round(nbNuits / 2))) : 4;
 
-  const used = new Set<string>();
+  const usedDates = new Set<string>();
+  // Comparaison par inclusion (pas d'égalité stricte) car deux tags
+  // désignant la même destination ne s'écrivent pas toujours pareil
+  // ("Assouan" vs "Assouan & Abu Simbel") — l'un doit quand même bloquer
+  // l'autre.
+  const usedDestinationTags: string[] = [];
+  const destinationDejaCouverte = (tags: string[]) =>
+    tags.some((t) =>
+      usedDestinationTags.some(
+        (u) => t.toLowerCase().includes(u.toLowerCase()) || u.toLowerCase().includes(t.toLowerCase())
+      )
+    );
   const lignes: Ligne[] = [];
   for (const c of candidats) {
     if (lignes.length >= cible) break;
+    // Une destination déjà couverte (ex. une croisière incluant Louxor) ne
+    // doit pas ressortir une deuxième fois sous une autre activité.
+    if (destinationDejaCouverte(c.destinationTags)) continue;
+
+    const dureeJours = c.dureeJours || 1;
     let date = "";
     if (jours.length > 0) {
-      const jourLibre = jours.find((d) => {
-        if (used.has(d)) return false;
-        if (c.joursItem.length === 0) return true;
-        return c.joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()]);
+      // Cherche un jour de départ autorisé pour l'activité dont toute la
+      // durée (ex. 5 jours et 4 nuits) tient dans le séjour sans chevaucher
+      // un autre jour déjà occupé.
+      const jourDepart = jours.find((d, idx) => {
+        if (usedDates.has(d)) return false;
+        if (c.joursItem.length > 0 && !c.joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()])) {
+          return false;
+        }
+        if (idx + dureeJours > jours.length) return false;
+        for (let k = 0; k < dureeJours; k++) {
+          if (usedDates.has(jours[idx + k])) return false;
+        }
+        return true;
       });
-      if (!jourLibre) continue;
-      date = jourLibre;
-      used.add(date);
+      if (!jourDepart) continue;
+      date = jourDepart;
+      const startIdx = jours.indexOf(date);
+      for (let k = 0; k < dureeJours; k++) usedDates.add(jours[startIdx + k]);
     }
+    c.destinationTags.forEach((t) => usedDestinationTags.push(t));
     lignes.push({
       id: nextLigneId(),
       catalogueItemId: c.item.id,

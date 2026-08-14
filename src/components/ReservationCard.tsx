@@ -23,6 +23,7 @@ import {
   billetEtapeShortLabel,
   billetUploadPatch,
   formatOptionLabel,
+  hauteSaisonAttendu,
   isDeuxiemeIleOption,
   isGrandEgyptianMuseum,
   isLeCaireEnAvion,
@@ -691,7 +692,11 @@ export default function ReservationCard({
                 setJourAlertDate(newDate);
                 return;
               }
-              onUpdate({ date_debut: newDate });
+              const attendu = catalogueItem ? hauteSaisonAttendu(newDate, catalogueItem) : null;
+              onUpdate({
+                date_debut: newDate,
+                ...(attendu ? { pu_adulte: attendu.pu_adulte, pu_enfant: attendu.pu_enfant } : {}),
+              });
             }}
             className="input"
           />
@@ -794,6 +799,24 @@ export default function ReservationCard({
           </Field>
         )}
       </div>
+
+      {(() => {
+        const hauteSaison = catalogueItem ? hauteSaisonAttendu(r.date_debut, catalogueItem) : null;
+        if (!hauteSaison || r.tarif_mode === "groupe") return null;
+        const mismatch =
+          (nbAd > 0 && Number(r.pu_adulte) !== hauteSaison.pu_adulte) ||
+          (nbEnf > 0 && Number(r.pu_enfant) !== hauteSaison.pu_enfant);
+        if (!mismatch) return null;
+        return (
+          <div className="mt-2 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Cette date tombe en haute saison ({catalogueItem?.haute_saison_debut} au{" "}
+            {catalogueItem?.haute_saison_fin}) — le tarif doit être {hauteSaison.pu_adulte} € par
+            adulte
+            {nbEnf > 0 ? ` et ${hauteSaison.pu_enfant} € par enfant` : ""}, corrige le prix
+            ci-dessus.
+          </div>
+        );
+      })()}
 
       <div className="mt-2">
         <p className="mb-1 text-xs font-medium text-neutral-500">

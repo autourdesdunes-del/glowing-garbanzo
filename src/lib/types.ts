@@ -33,6 +33,10 @@ export type CatalogueItem = {
   prix_groupe_extra_enfant: number;
   prix_groupe_extra_enfant_age: string;
   prix_groupe_note: string;
+  haute_saison_debut: string;
+  haute_saison_fin: string;
+  haute_saison_pu_adulte: number;
+  haute_saison_pu_enfant: number;
   marge_pct: number;
   specificites: string;
   horaire_approx: string;

@@ -1078,6 +1078,54 @@ export default function CatalogueView({
                         </p>
                       )}
                     </Field>
+                    <div className="col-span-3 rounded-md border border-neutral-200 p-3">
+                      <p className="mb-2 text-sm font-medium text-neutral-700">
+                        Haute saison (période récurrente chaque année, ex. Noël/Nouvel An)
+                      </p>
+                      <div className="grid grid-cols-4 gap-2">
+                        <Field label="Début (MM-JJ)">
+                          <input
+                            value={a.haute_saison_debut}
+                            onChange={(e) => onUpdate(a.id, { haute_saison_debut: e.target.value })}
+                            placeholder="ex. 12-20"
+                            className="input"
+                          />
+                        </Field>
+                        <Field label="Fin (MM-JJ)">
+                          <input
+                            value={a.haute_saison_fin}
+                            onChange={(e) => onUpdate(a.id, { haute_saison_fin: e.target.value })}
+                            placeholder="ex. 01-07"
+                            className="input"
+                          />
+                        </Field>
+                        <Field label="PU adulte haute saison (€)">
+                          <input
+                            type="number"
+                            value={a.haute_saison_pu_adulte}
+                            onChange={(e) =>
+                              onUpdate(a.id, { haute_saison_pu_adulte: Number(e.target.value) })
+                            }
+                            className="input"
+                          />
+                        </Field>
+                        <Field label="PU enfant haute saison (€)">
+                          <input
+                            type="number"
+                            value={a.haute_saison_pu_enfant}
+                            onChange={(e) =>
+                              onUpdate(a.id, { haute_saison_pu_enfant: Number(e.target.value) })
+                            }
+                            className="input"
+                          />
+                        </Field>
+                      </div>
+                      <p className="mt-1.5 text-xs text-neutral-400">
+                        Laisse vide si cette activité n&apos;a pas de tarif haute saison. Si une date
+                        choisie tombe dans cette période, l&apos;employée doit utiliser ce tarif — sinon
+                        un message d&apos;erreur l&apos;empêche de continuer.
+                      </p>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -1996,6 +2044,22 @@ export default function CatalogueView({
                             <span className="font-amounts text-sm text-[#171717]">
                               {euros(a.pu_enfant_3ans)}€
                             </span>
+                          </div>
+                        )}
+                        {a.haute_saison_debut && a.haute_saison_fin && (
+                          <div className="flex items-center gap-3">
+                            <RowIcon>
+                              <IconAdulte />
+                            </RowIcon>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-neutral-700">
+                                Haute saison ({a.haute_saison_debut} au {a.haute_saison_fin})
+                              </p>
+                              <p className="text-[11px] text-neutral-400">
+                                Adulte {euros(a.haute_saison_pu_adulte)}€ · Enfant{" "}
+                                {euros(a.haute_saison_pu_enfant)}€
+                              </p>
+                            </div>
                           </div>
                         )}
                       </>

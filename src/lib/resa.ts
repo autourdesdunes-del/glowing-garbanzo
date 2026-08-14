@@ -398,6 +398,34 @@ export function isMontgolfiereActivity(nom: string) {
   return (nom || "").toLowerCase().includes("montgolfi");
 }
 
+// Période haute saison récurrente chaque année (ex. croisières Nil : 20
+// décembre au 7 janvier), définie en jour/mois "MM-DD" sur le catalogue —
+// peut chevaucher le 31 décembre (ex. "12-20" à "01-07").
+export function isDateInSaisonRange(
+  dateStr: string | null,
+  debutMMDD: string,
+  finMMDD: string
+): boolean {
+  if (!dateStr || !debutMMDD || !finMMDD) return false;
+  const md = dateStr.slice(5, 10);
+  if (debutMMDD <= finMMDD) return md >= debutMMDD && md <= finMMDD;
+  return md >= debutMMDD || md <= finMMDD;
+}
+
+// Tarif attendu pour une date donnée si l'activité a une haute saison
+// configurée et que la date choisie tombe dedans — null sinon (pas de
+// haute saison définie, ou date hors période).
+export function hauteSaisonAttendu(
+  dateStr: string | null,
+  item: Pick<
+    CatalogueItem,
+    "haute_saison_debut" | "haute_saison_fin" | "haute_saison_pu_adulte" | "haute_saison_pu_enfant"
+  >
+): { pu_adulte: number; pu_enfant: number } | null {
+  if (!isDateInSaisonRange(dateStr, item.haute_saison_debut, item.haute_saison_fin)) return null;
+  return { pu_adulte: item.haute_saison_pu_adulte, pu_enfant: item.haute_saison_pu_enfant };
+}
+
 // Moment de la journée effectif d'une réservation, tous champs confondus —
 // "creneau" (cheval/quad) et "moment" (speedboat…) désignent la même notion
 // sous deux noms différents selon le type d'activité. "Journée" et "Plusieurs

@@ -20,6 +20,7 @@ import {
 } from "@/lib/constants";
 import {
   groupeExtraCounts,
+  hauteSaisonAttendu,
   isChevalOuChameau,
   isDeuxiemeIleOption,
   isGrandEgyptianMuseum,
@@ -721,7 +722,14 @@ export default function AddActivityWizard({
           <input
             type="date"
             value={r.date_debut ?? ""}
-            onChange={(e) => onUpdateReservation(r.id, { date_debut: e.target.value || null })}
+            onChange={(e) => {
+              const newDate = e.target.value || null;
+              const attendu = catalogueItem ? hauteSaisonAttendu(newDate, catalogueItem) : null;
+              onUpdateReservation(r.id, {
+                date_debut: newDate,
+                ...(attendu ? { pu_adulte: attendu.pu_adulte, pu_enfant: attendu.pu_enfant } : {}),
+              });
+            }}
             className={`input max-w-[220px] ${
               validationError && missingDate ? "border-red-300 focus:border-red-400" : ""
             }`}
@@ -1170,6 +1178,27 @@ export default function AddActivityWizard({
     const matchTransfertTarif = (zone: string, vehicule: string) =>
       catTransfertTarifs.find((t) => t.zone === zone && t.vehicule === vehicule);
 
+    // Certaines activités (ex. croisières Nil) ont un tarif dédié pour une
+    // période récurrente chaque année (ex. 20 décembre au 7 janvier) — si la
+    // date choisie tombe dedans, on bloque tant que le tarif affiché ne
+    // correspond pas à ce prix haute saison, pour ne pas facturer le tarif
+    // normal par erreur.
+    const hauteSaison = catalogueItem ? hauteSaisonAttendu(r.date_debut, catalogueItem) : null;
+    const hauteSaisonMismatch =
+      !!hauteSaison &&
+      r.tarif_mode !== "groupe" &&
+      ((nbAd > 0 && Number(r.pu_adulte) !== hauteSaison.pu_adulte) ||
+        (nbEnf > 0 && Number(r.pu_enfant) !== hauteSaison.pu_enfant));
+
+    const goNextTarifs = () => {
+      if (hauteSaisonMismatch) {
+        setValidationError(true);
+        return;
+      }
+      setValidationError(false);
+      setStep("options");
+    };
+
     return wrap(
       <>
         {isTransfert && (
@@ -1459,7 +1488,17 @@ export default function AddActivityWizard({
           </span>
         </div>
 
-        {navButtons(() => setStep("options"), "Suivant — Options")}
+        {validationError && hauteSaisonMismatch && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Cette date tombe en haute saison ({catalogueItem?.haute_saison_debut} au{" "}
+            {catalogueItem?.haute_saison_fin}) — le tarif doit être {hauteSaison?.pu_adulte} € par
+            adulte
+            {nbEnf > 0 ? ` et ${hauteSaison?.pu_enfant} € par enfant` : ""}, corrige le prix
+            ci-dessus pour continuer.
+          </div>
+        )}
+
+        {navButtons(goNextTarifs, "Suivant — Options")}
       </>
     );
   }

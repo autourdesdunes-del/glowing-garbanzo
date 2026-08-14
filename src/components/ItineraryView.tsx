@@ -21,6 +21,7 @@ import {
   formatOptionLabel,
   isDeuxiemeIleOption,
   momentBadge,
+  pointureBadge,
   volBadge,
   paiementBadge,
   participantsFor,
@@ -213,6 +214,11 @@ export default function ItineraryView({
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
               {volBadge(r)}
               {r.photo_vol_path ? " 📷" : ""}
+            </span>
+          )}
+          {pointureBadge(r) && (
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
+              {pointureBadge(r)}
             </span>
           )}
           {chevalChameauBadge(r, client) && (

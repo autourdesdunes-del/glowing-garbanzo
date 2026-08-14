@@ -245,6 +245,13 @@ export function volBadge(r: Reservation) {
   return `✈ ${[r.numero_vol.trim(), r.horaire_vol.trim()].filter(Boolean).join(" · ")}`;
 }
 
+// Pointure(s) des clients (activités tortues, palmes fournies) — affichée
+// juste à côté du titre pour la même raison que volBadge ci-dessus.
+export function pointureBadge(r: Reservation) {
+  if (!r.pointure.trim()) return "";
+  return `👟 ${r.pointure.trim()}`;
+}
+
 // Villes utilisées dans les noms catalogue de transferts privatifs (ex.
 // "Transfert privatif Hurghada - Louxor") — sert à retrouver la 2e ville
 // même quand le nom continue après (ex. "... Louxor avec arrêts Edfou et

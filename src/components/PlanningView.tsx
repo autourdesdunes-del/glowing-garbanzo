@@ -13,6 +13,7 @@ import {
   momentBadge,
   paiementBadge,
   participantsFor,
+  pointureBadge,
   resaBreakdown,
   resaTotalMontant,
   reservationsActives,
@@ -212,6 +213,11 @@ function ReservationSummaryCard({
               {r.photo_vol_path ? " 📷" : ""}
             </span>
           )}
+          {pointureBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
+              {pointureBadge(r)}
+            </span>
+          )}
           {chevalChameauBadge(r, client) && (
             <span className="whitespace-nowrap rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
               {chevalChameauBadge(r, client)}
@@ -274,6 +280,11 @@ function ReservationSummaryCard({
               {r.photo_vol_path ? " 📷" : ""}
             </span>
           )}
+          {pointureBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
+              {pointureBadge(r)}
+            </span>
+          )}
           {chevalChameauBadge(r, client) && (
             <span className="rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
               {chevalChameauBadge(r, client)}
@@ -333,6 +344,11 @@ function ReservationSummaryCard({
           <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
             {volBadge(r)}
             {r.photo_vol_path ? " 📷" : ""}
+          </span>
+        )}
+        {pointureBadge(r) && (
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+            {pointureBadge(r)}
           </span>
         )}
         {chevalChameauBadge(r, client) && (
@@ -579,6 +595,11 @@ function ActivityDetailModal({
               <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
                 {volBadge(r)}
                 {r.photo_vol_path ? " 📷" : ""}
+              </span>
+            )}
+            {pointureBadge(r) && (
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+                {pointureBadge(r)}
               </span>
             )}
             {chevalChameauBadge(r, client) && (

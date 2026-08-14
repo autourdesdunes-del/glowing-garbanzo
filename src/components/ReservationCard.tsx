@@ -35,6 +35,7 @@ import {
   isSpeedboatPriveMaisonDauphins,
   joursDisponiblesMismatch,
   momentBadge,
+  pointureBadge,
   volBadge,
   needsMomentSpeedboat,
   paiementStatutKey,
@@ -137,6 +138,7 @@ export default function ReservationCard({
   const confirm = useConfirm();
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [showVolModal, setShowVolModal] = useState(false);
+  const [showPointureModal, setShowPointureModal] = useState(false);
   const [showAnnulerModal, setShowAnnulerModal] = useState(false);
   const [assouanAlertOpen, setAssouanAlertOpen] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
@@ -357,6 +359,11 @@ export default function ReservationCard({
                 {r.photo_vol_path ? " 📷" : ""}
               </span>
             )}
+            {pointureBadge(r) && (
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+                {pointureBadge(r)}
+              </span>
+            )}
             {options
               .filter((o) => !isDeuxiemeIleOption(o.nom))
               .map((o) => (
@@ -418,6 +425,11 @@ export default function ReservationCard({
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
               {volBadge(r)}
               {r.photo_vol_path ? " 📷" : ""}
+            </span>
+          )}
+          {pointureBadge(r) && (
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+              {pointureBadge(r)}
             </span>
           )}
           {options
@@ -507,6 +519,7 @@ export default function ReservationCard({
               setValidationError(true);
               if (needsMoment && !r.moment) setShowMomentModal(true);
               if (missingChamps.includes("Vol & horaire")) setShowVolModal(true);
+              if (missingChamps.includes("Pointure")) setShowPointureModal(true);
               return;
             }
             setValidationError(false);
@@ -562,6 +575,23 @@ export default function ReservationCard({
             });
           }}
           onClose={() => setShowVolModal(false)}
+        />
+      )}
+
+      {showPointureModal && (
+        <MissingInfoModal
+          message="vous n'avez pas rempli les pointures des clients."
+          actionLabel="Je complète maintenant"
+          onAction={() => {
+            setShowPointureModal(false);
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                const el = document.getElementById(`field-pointure-${r.id}`);
+                el?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 50);
+            });
+          }}
+          onClose={() => setShowPointureModal(false)}
         />
       )}
 
@@ -1047,8 +1077,9 @@ export default function ReservationCard({
           </p>
           <div className="grid grid-cols-2 gap-3">
             {champsRequis.includes("Pointure") && (
-              <Field label="Pointure *">
+              <Field label="Pointure des clients (palmes) *">
                 <input
+                  id={`field-pointure-${r.id}`}
                   value={r.pointure}
                   onChange={(e) => onUpdate({ pointure: e.target.value })}
                   className={`input ${

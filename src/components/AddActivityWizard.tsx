@@ -522,7 +522,10 @@ export default function AddActivityWizard({
 
   if (step === "specifs") {
     const missing: string[] = [];
-    if (champsRequis.includes("Pointure") && !r.pointure.trim()) missing.push("Pointure");
+    // Comme pour le vol du client, la pointure peut se remplir plus tard (le
+    // client ne l'a pas toujours donnée dès la réservation) — on ne bloque
+    // pas "Suivant" ici, seulement "Valider" plus tard sur la fiche (voir
+    // ReservationCard).
     if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
       missing.push("Créneau");
     }
@@ -560,15 +563,20 @@ export default function AddActivityWizard({
       <>
         <div className="grid grid-cols-2 gap-3">
           {champsRequis.includes("Pointure") && (
-            <Field label="Pointure *">
-              <input
-                value={r.pointure}
-                onChange={(e) => onUpdateReservation(r.id, { pointure: e.target.value })}
-                className={`input ${
-                  validationError && !r.pointure.trim() ? "border-red-300 focus:border-red-400" : ""
-                }`}
-              />
-            </Field>
+            <>
+              <Field label="Pointure des clients (palmes)">
+                <input
+                  value={r.pointure}
+                  onChange={(e) => onUpdateReservation(r.id, { pointure: e.target.value })}
+                  className="input"
+                />
+              </Field>
+              <p className="col-span-2 text-xs text-neutral-400">
+                Tu peux passer cette étape si le client ne t&apos;a pas encore donné les pointures —
+                l&apos;activité restera en attente tant qu&apos;elles ne sont pas remplies, avec un
+                rappel au moment de la valider.
+              </p>
+            </>
           )}
           {champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && (
             <Field label="Créneau *">

@@ -37,6 +37,7 @@ export type CatalogueItem = {
   haute_saison_fin: string;
   haute_saison_pu_adulte: number;
   haute_saison_pu_enfant: number;
+  necessite_verif_hebergement_assouan: boolean;
   marge_pct: number;
   specificites: string;
   horaire_approx: string;
@@ -557,6 +558,27 @@ export type JourEscalation = {
   date_choisie: string | null;
   jour_choisi: string;
   jours_disponibles: string[];
+  employe_id: string;
+  employe_nom: string;
+  statut: "en_attente" | "validee" | "refusee";
+  resolu_par: string | null;
+  resolu_par_nom: string;
+  resolu_message: string;
+  resolu_at: string | null;
+  created_at: string;
+};
+
+// Vérification (par Sylvie/Direction) que l'employée a bien informé le
+// client de vérifier la localisation de son hôtel à Assouan (rive vs
+// île/presqu'île/Village Nubien, navette bateau à réserver auprès de
+// l'hôtel) — contrairement à BusEscalation/JourEscalation, tant que ce
+// n'est pas "validee" l'activité ne peut pas être confirmée.
+export type AssouanVerification = {
+  id: string;
+  client_id: string;
+  client_nom: string;
+  reservation_id: string;
+  nom_activite: string;
   employe_id: string;
   employe_nom: string;
   statut: "en_attente" | "validee" | "refusee";

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  AssouanVerification,
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
@@ -44,6 +45,7 @@ import {
 } from "@/lib/resa";
 import { weekdayFr } from "@/lib/dates";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
+import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
 
 const MOMENTS_SPEEDBOAT = ["Matin", "Après-midi"] as const;
 const MAISON_DAUPHINS_TEXT =
@@ -90,6 +92,8 @@ export default function ReservationCard({
   coutReel,
   onUpdateCoutReel,
   onJourEscalation,
+  onAssouanVerification,
+  assouanVerification,
 }: {
   r: Reservation;
   client: Client;
@@ -119,6 +123,8 @@ export default function ReservationCard({
     jourChoisi: string,
     joursDisponibles: string[]
   ) => Promise<void>;
+  onAssouanVerification: () => Promise<void>;
+  assouanVerification: AssouanVerification | null;
 }) {
   const [showPaxOverride, setShowPaxOverride] = useState(!!r.pax_override);
   const [jourAlertDate, setJourAlertDate] = useState<string | null>(null);
@@ -128,6 +134,7 @@ export default function ReservationCard({
   const confirm = useConfirm();
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [showAnnulerModal, setShowAnnulerModal] = useState(false);
+  const [assouanAlertOpen, setAssouanAlertOpen] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
   const isTransfert = catalogueItem?.categorie === "Transfert" && transfertTarifs.length > 0;
   const zonesTransfertDisponibles = Array.from(new Set(transfertTarifs.map((t) => t.zone))).filter(
@@ -173,6 +180,16 @@ export default function ReservationCard({
   champsRequisPersonnalises.forEach((c) => {
     if (!(r.champs_requis_coches || []).includes(c)) missingChamps.push(c);
   });
+  // Contrairement aux autres champs manquants, celui-ci ne se coche pas
+  // tout seul : il faut que Sylvie/Direction ait validé la vérification
+  // (voir AssouanVerificationCenter) — "en_attente" ou "refusee" bloquent
+  // toujours la confirmation de l'activité.
+  if (
+    catalogueItem?.necessite_verif_hebergement_assouan &&
+    assouanVerification?.statut !== "validee"
+  ) {
+    missingChamps.push("Vérification hébergement Assouan (Sylvie)");
+  }
   const pickFromCatalogue = async (id: string) => {
     const item = catalogue.find((a) => a.id === id);
     if (!item) return;
@@ -1135,6 +1152,59 @@ export default function ReservationCard({
                 );
               })}
             </div>
+          )}
+          {catalogueItem?.necessite_verif_hebergement_assouan && (
+            <div className="mt-3 rounded-md border border-[#0F5C56]/30 bg-[#0F5C56]/5 p-3">
+              <p className="text-xs text-[#0F5C56]">
+                ℹ️ Cette activité concerne Assouan — vérifie avec le client la localisation de son
+                hôtel.
+              </p>
+              {!assouanVerification && (
+                <button
+                  type="button"
+                  onClick={() => setAssouanAlertOpen(true)}
+                  className="mt-1 text-xs font-medium text-[#0F5C56] underline"
+                >
+                  Voir l&apos;info à donner au client
+                </button>
+              )}
+              {assouanVerification?.statut === "en_attente" && (
+                <p className="mt-1 text-xs font-medium text-amber-700">
+                  ⏳ Info envoyée, en attente de vérification par Sylvie.
+                </p>
+              )}
+              {assouanVerification?.statut === "refusee" && (
+                <div>
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    ⚠ {assouanVerification.resolu_par_nom || "Sylvie"} a refusé
+                    {assouanVerification.resolu_message ? ` (« ${assouanVerification.resolu_message} »)` : ""} —
+                    à refaire.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setAssouanAlertOpen(true)}
+                    className="mt-1 text-xs font-medium text-[#0F5C56] underline"
+                  >
+                    Revoir l&apos;info à donner au client
+                  </button>
+                </div>
+              )}
+              {assouanVerification?.statut === "validee" && (
+                <p className="mt-1 text-xs font-medium text-emerald-700">
+                  ✓ Vérifié par {assouanVerification.resolu_par_nom || "Sylvie"}.
+                </p>
+              )}
+            </div>
+          )}
+          {assouanAlertOpen && (
+            <AssouanHebergementAlert
+              nomActivite={catalogueItem?.nom || r.nom_activite}
+              onClose={() => setAssouanAlertOpen(false)}
+              onConfirmerInfo={async () => {
+                await onAssouanVerification();
+                setAssouanAlertOpen(false);
+              }}
+            />
           )}
         </div>
       )}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   Avoir,
+  AssouanVerification,
   BusEscalation,
   CatalogueItem,
   CatalogueOption,
@@ -126,6 +127,7 @@ export default function ClientDetail({
     section: (typeof SECTIONS)[number];
   } | null>(null);
   const [busEscalations, setBusEscalations] = useState<BusEscalation[]>([]);
+  const [assouanVerifications, setAssouanVerifications] = useState<AssouanVerification[]>([]);
   const [momentConflict, setMomentConflict] = useState<{ current: Reservation; other: Reservation } | null>(
     null
   );
@@ -151,6 +153,50 @@ export default function ClientDetail({
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
+
+  // Gardé quel que soit le statut (contrairement à busEscalations) : il faut
+  // savoir si une vérification est "validee" pour débloquer la confirmation
+  // de l'activité, pas seulement celles en attente.
+  const refreshAssouanVerifications = async () => {
+    const { data } = await supabase
+      .from("assouan_verifications")
+      .select("*")
+      .eq("client_id", client.id);
+    setAssouanVerifications((data as AssouanVerification[]) || []);
+  };
+
+  useEffect(() => {
+    const check = () => refreshAssouanVerifications();
+    check();
+    const id = setInterval(check, 20000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  // L'employée indique avoir informé le client de vérifier la localisation
+  // de son hôtel à Assouan — reste "en_attente" jusqu'à ce que Sylvie/
+  // Direction valide, ce qui seul débloque la confirmation de l'activité.
+  const handleAssouanVerification = async (nomActivite: string, reservationId: string) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    await supabase.from("assouan_verifications").insert({
+      client_id: client.id,
+      client_nom: client.nom,
+      reservation_id: reservationId,
+      nom_activite: nomActivite,
+      employe_id: user.id,
+      employe_nom: employeNom,
+    });
+    refreshAssouanVerifications();
+  };
 
   // Le client insiste pour la formule bus (au lieu du mini-bus recommandé) —
   // on trace qui a validé cette décision pour que la Direction/Sylvie
@@ -757,6 +803,8 @@ export default function ClientDetail({
         onBusEscalation={handleBusEscalation}
         busEscalations={busEscalations}
         onJourEscalation={handleJourEscalation}
+        onAssouanVerification={handleAssouanVerification}
+        assouanVerifications={assouanVerifications}
       />
 
       <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
@@ -812,6 +860,8 @@ export default function ClientDetail({
           onBusEscalation={handleBusEscalation}
           busEscalations={busEscalations}
           onJourEscalation={handleJourEscalation}
+          onAssouanVerification={handleAssouanVerification}
+          assouanVerifications={assouanVerifications}
         />
       </Section>
 

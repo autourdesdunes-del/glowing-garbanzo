@@ -41,6 +41,7 @@ import { todayStr, weekdayFr } from "@/lib/dates";
 import { Field } from "@/components/Field";
 import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
+import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
 
 function joursAvant(dateStr: string | null) {
   if (!dateStr) return null;
@@ -158,6 +159,7 @@ export default function AddActivityWizard({
   onCancel,
   onBusEscalation,
   onJourEscalation,
+  onAssouanVerification,
 }: {
   client: Client;
   catalogue: CatalogueItem[];
@@ -173,6 +175,7 @@ export default function AddActivityWizard({
     jourChoisi: string,
     joursDisponibles: string[]
   ) => Promise<void>;
+  onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
   onAddReservation: () => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
@@ -217,6 +220,8 @@ export default function AddActivityWizard({
   // qu'elle ne choisit pas une autre date tout aussi hors-jours.
   const [jourAlertOpen, setJourAlertOpen] = useState(false);
   const [jourAcceptedDate, setJourAcceptedDate] = useState<string | null>(null);
+  const [assouanAlertOpen, setAssouanAlertOpen] = useState(false);
+  const [assouanInfoSent, setAssouanInfoSent] = useState(false);
   // Une activité personnalisée garde le titre tapé à la main — on ne le
   // recalcule jamais automatiquement (île / moment / créneau / nb de
   // chevaux) dans ce cas, contrairement aux activités venant du catalogue.
@@ -1201,6 +1206,38 @@ export default function AddActivityWizard({
 
     return wrap(
       <>
+        {catalogueItem?.necessite_verif_hebergement_assouan && (
+          <div className="mb-3 rounded-md border border-[#0F5C56]/30 bg-[#0F5C56]/5 p-3">
+            <p className="text-xs text-[#0F5C56]">
+              ℹ️ Cette activité concerne Assouan — vérifie avec le client la localisation de son
+              hôtel.
+            </p>
+            {assouanInfoSent ? (
+              <p className="mt-1 text-xs font-medium text-emerald-700">
+                ✓ Info envoyée, en attente de vérification par Sylvie.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAssouanAlertOpen(true)}
+                className="mt-1 text-xs font-medium text-[#0F5C56] underline"
+              >
+                Voir l&apos;info à donner au client
+              </button>
+            )}
+          </div>
+        )}
+        {assouanAlertOpen && (
+          <AssouanHebergementAlert
+            nomActivite={catalogueItem?.nom || r.nom_activite}
+            onClose={() => setAssouanAlertOpen(false)}
+            onConfirmerInfo={async () => {
+              await onAssouanVerification(catalogueItem?.nom || r.nom_activite, r.id);
+              setAssouanInfoSent(true);
+              setAssouanAlertOpen(false);
+            }}
+          />
+        )}
         {isTransfert && (
           <div className="mb-3 rounded-md border border-neutral-200 p-3">
             <p className="mb-2 text-xs font-medium text-neutral-500">

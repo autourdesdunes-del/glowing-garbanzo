@@ -50,6 +50,7 @@ import AnnulationHossamAlert from "@/components/AnnulationHossamAlert";
 import DoublonPossibleAlert from "@/components/DoublonPossibleAlert";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
+import AssouanVerificationCenter from "@/components/AssouanVerificationCenter";
 
 type Mode =
   | "dashboard"
@@ -1238,6 +1239,7 @@ function AppShellInner({
       />
       <BusEscalationCenter profiles={teamProfiles} currentUserId={userId} />
       <JourEscalationCenter profiles={teamProfiles} currentUserId={userId} />
+      <AssouanVerificationCenter profiles={teamProfiles} currentUserId={userId} />
       <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />
       <BilletEnvoiRappels
         reservations={allReservations}

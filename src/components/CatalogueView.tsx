@@ -1249,6 +1249,26 @@ export default function CatalogueView({
               </div>
 
               <div className="mt-3">
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={a.necessite_verif_hebergement_assouan}
+                    onChange={(e) =>
+                      onUpdate(a.id, { necessite_verif_hebergement_assouan: e.target.checked })
+                    }
+                  />
+                  Concerne Assouan : demander au client de vérifier la localisation de son hôtel
+                  (rive/île/presqu&apos;île/Village Nubien)
+                </label>
+                {a.necessite_verif_hebergement_assouan && (
+                  <p className="mt-1.5 pl-6 text-xs text-neutral-400">
+                    ℹ️ Une employée devra confirmer avoir informé le client, puis Sylvie/Direction
+                    devra vérifier avant que l&apos;activité puisse être validée.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-3">
                 <p className="mb-1.5 text-sm font-medium text-neutral-700">Inclus</p>
                 <ChipMultiSelect
                   values={a.inclus_liste || []}
@@ -1785,6 +1805,15 @@ export default function CatalogueView({
                   {a.specificites && (
                     <div className="mb-4 whitespace-pre-line rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
                       ⚠ {a.specificites}
+                    </div>
+                  )}
+
+                  {a.necessite_verif_hebergement_assouan && (
+                    <div className="mb-4 rounded-md border border-[#0F5C56]/30 bg-[#0F5C56]/5 px-3 py-2 text-sm font-medium text-[#0F5C56]">
+                      ℹ️ Concerne Assouan : vérifier avec le client la localisation de son hôtel
+                      (rive de la ville → chauffeur direct ; île/presqu&apos;île/Village Nubien →
+                      compter 1h de route, navette bateau gratuite à réserver auprès de
+                      l&apos;hôtel).
                     </div>
                   )}
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ActivityLogEntry,
+  AssouanVerification,
   Avoir,
   BusEscalation,
   CatalogueItem,
@@ -692,6 +693,8 @@ export function ActivitesStep({
   onBusEscalation,
   busEscalations,
   onJourEscalation,
+  onAssouanVerification,
+  assouanVerifications,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -728,6 +731,8 @@ export function ActivitesStep({
     jourChoisi: string,
     joursDisponibles: string[]
   ) => Promise<void>;
+  onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
+  assouanVerifications: AssouanVerification[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
@@ -757,6 +762,7 @@ export function ActivitesStep({
         onCancel={() => setAddingNew(false)}
         onBusEscalation={onBusEscalation}
         onJourEscalation={onJourEscalation}
+        onAssouanVerification={onAssouanVerification}
       />
     );
   }
@@ -808,6 +814,8 @@ export function ActivitesStep({
         hotelHorsHurghada={hotelHorsHurghada}
         busEscalations={busEscalations}
         onJourEscalation={onJourEscalation}
+        onAssouanVerification={onAssouanVerification}
+        assouanVerifications={assouanVerifications}
       />
     </div>
   );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ActivitesStep, PaiementsStep } from "@/components/client-steps";
 import {
+  AssouanVerification,
   BusEscalation,
   CatalogueItem,
   CatalogueOption,
@@ -48,6 +49,8 @@ export default function GuidedActivityModal({
   onBusEscalation,
   busEscalations,
   onJourEscalation,
+  onAssouanVerification,
+  assouanVerifications,
 }: {
   open: boolean;
   onClose: () => void;
@@ -82,6 +85,8 @@ export default function GuidedActivityModal({
     jourChoisi: string,
     joursDisponibles: string[]
   ) => Promise<void>;
+  onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
+  assouanVerifications: AssouanVerification[];
 }) {
   const [step, setStep] = useState<Step>("activites");
 
@@ -144,6 +149,8 @@ export default function GuidedActivityModal({
             onBusEscalation={onBusEscalation}
             busEscalations={busEscalations}
             onJourEscalation={onJourEscalation}
+            onAssouanVerification={onAssouanVerification}
+            assouanVerifications={assouanVerifications}
           />
         )}
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  AssouanVerification,
   BusEscalation,
   CatalogueItem,
   CatalogueOption,
@@ -98,6 +99,8 @@ export default function ItineraryView({
   onUpdateCoutReel,
   busEscalations = [],
   onJourEscalation,
+  onAssouanVerification,
+  assouanVerifications = [],
 }: {
   client: Client;
   reservations: Reservation[];
@@ -131,6 +134,8 @@ export default function ItineraryView({
     jourChoisi: string,
     joursDisponibles: string[]
   ) => Promise<void>;
+  onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
+  assouanVerifications?: AssouanVerification[];
 }) {
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
@@ -175,6 +180,8 @@ export default function ItineraryView({
           onJourEscalation={(dateChoisie, jourChoisi, joursDisponibles) =>
             onJourEscalation(r.nom_activite, r.id, dateChoisie, jourChoisi, joursDisponibles)
           }
+          onAssouanVerification={() => onAssouanVerification(r.nom_activite, r.id)}
+          assouanVerification={assouanVerifications.find((v) => v.reservation_id === r.id) || null}
         />
       );
     }
@@ -184,6 +191,7 @@ export default function ItineraryView({
     const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs);
     const acompteWarning = acompteWaitingWarning(client, r, reservations);
     const busEscalation = busEscalations.find((e) => e.reservation_id === r.id);
+    const assouanVerification = assouanVerifications.find((v) => v.reservation_id === r.id);
     return (
       <div
         key={r.id}
@@ -226,6 +234,19 @@ export default function ItineraryView({
               {busEscalation.statut === "refusee"
                 ? "⚠ Bus refusé — à traiter"
                 : "⏳ Bus en attente de validation"}
+            </span>
+          )}
+          {assouanVerification && assouanVerification.statut !== "validee" && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                assouanVerification.statut === "refusee"
+                  ? "bg-red-100 text-red-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {assouanVerification.statut === "refusee"
+                ? "⚠ Hébergement Assouan à refaire"
+                : "⏳ Hébergement Assouan en attente de validation"}
             </span>
           )}
           {acompteWarning && (

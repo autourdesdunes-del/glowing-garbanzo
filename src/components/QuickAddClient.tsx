@@ -229,6 +229,28 @@ export default function QuickAddClient({
     });
   };
 
+  const handleAssouanVerification = async (nomActivite: string, reservationId: string) => {
+    if (!clientId) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    await supabase.from("assouan_verifications").insert({
+      client_id: clientId,
+      client_nom: answers.nom || "",
+      reservation_id: reservationId,
+      nom_activite: nomActivite,
+      employe_id: user.id,
+      employe_nom: employeNom,
+    });
+  };
+
   const handleJourEscalation = async (
     nomActivite: string,
     reservationId: string,
@@ -872,6 +894,8 @@ export default function QuickAddClient({
                   onBusEscalation={handleBusEscalation}
                   busEscalations={[]}
                   onJourEscalation={handleJourEscalation}
+                  onAssouanVerification={handleAssouanVerification}
+                  assouanVerifications={[]}
                 />
               )}
 

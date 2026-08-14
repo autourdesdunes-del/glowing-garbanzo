@@ -130,7 +130,7 @@ async function processLeadEvent(
           
               const { data: existing } = await admin
                         .from("clients")
-                        .select("id, nom, telephone, email, kommo_demande_infos_envoyee_le")
+                        .select("id, nom, telephone, email, statut, kommo_demande_infos_envoyee_le")
                         .eq("kommo_lead_id", leadId)
                         .maybeSingle();
 
@@ -140,7 +140,14 @@ async function processLeadEvent(
                                     kommo_pipeline_status_nom: statusNom,
                                     kommo_synced_at: new Date().toISOString(),
                         };
-                        if (mapped) patch.statut = mapped.statutCrm;
+                        // "Client annulé"/"Client perdu" sont des décisions manuelles côté
+                        // CRM, sans équivalent dans le pipeline Kommo — un webhook qui
+                        // resynchronise juste le statut (message reçu, etc., sans que
+                        // personne n'ait rouvert le lead côté Kommo) ne doit jamais les
+                        // écraser silencieusement en le repassant "Client confirmé".
+                        if (mapped && existing.statut !== "Client annulé" && existing.statut !== "Client perdu") {
+                                    patch.statut = mapped.statutCrm;
+                        }
                         // Horodate l'entrée dans "Demande d'infos envoyée" une seule fois
                         // (ne réécrase pas une date déjà posée si le lead y repasse).
                         if (statusId === DEMANDE_INFOS_STATUS_ID && !existing.kommo_demande_infos_envoyee_le) {
@@ -176,12 +183,19 @@ async function processLeadEvent(
               nom = cleanKommoName(nom);
 
               let matchedId: string | null = null;
+              let matchedStatut: string | null = null;
               if (telephone) {
-                        const { data } = await admin.from("clients").select("id").eq("telephone", telephone).maybeSingle();
+                        const { data } = await admin
+                                    .from("clients")
+                                    .select("id, statut")
+                                    .eq("telephone", telephone)
+                                    .maybeSingle();
                         matchedId = data?.id ?? null;
+                        matchedStatut = data?.statut ?? null;
               }
 
               if (matchedId) {
+                        const gardeStatut = matchedStatut === "Client annulé" || matchedStatut === "Client perdu";
                         await admin
                                     .from("clients")
                                     .update({
@@ -189,7 +203,7 @@ async function processLeadEvent(
                                                   kommo_pipeline_status_id: statusId,
                                                   kommo_pipeline_status_nom: statusNom,
                                                   kommo_synced_at: new Date().toISOString(),
-                                                  ...(mapped ? { statut: mapped.statutCrm } : {}),
+                                                  ...(mapped && !gardeStatut ? { statut: mapped.statutCrm } : {}),
                                                   ...(nom ? { nom } : {}),
                                     })
                                     .eq("id", matchedId);

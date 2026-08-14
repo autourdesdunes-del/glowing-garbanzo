@@ -20,6 +20,7 @@ import {
   Reservation,
   ReservationOption,
   ReservationTarif,
+  TransfertTaxeModificationRequest,
 } from "@/lib/types";
 import { resaTotalMontant, sharedActivityAlerts, SharedActivityAlert } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
@@ -277,6 +278,9 @@ function AppShellInner({
   const [catalogueModificationRequests, setCatalogueModificationRequests] = useState<
     CatalogueModificationRequest[]
   >([]);
+  const [transfertTaxeModificationRequests, setTransfertTaxeModificationRequests] = useState<
+    TransfertTaxeModificationRequest[]
+  >([]);
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [modifsLoaded, setModifsLoaded] = useState(false);
   const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
@@ -499,6 +503,10 @@ function AppShellInner({
       if ((mode === "suivis" || mode === "direction") && !modifsLoaded) {
         const { data: modifs } = await supabase.from("catalogue_modification_requests").select("*");
         setCatalogueModificationRequests((modifs as CatalogueModificationRequest[]) || []);
+        const { data: taxeModifs } = await supabase
+          .from("transfert_taxe_modification_requests")
+          .select("*");
+        setTransfertTaxeModificationRequests((taxeModifs as TransfertTaxeModificationRequest[]) || []);
         setModifsLoaded(true);
       }
     })();
@@ -807,6 +815,17 @@ function AppShellInner({
     );
     const { error } = await supabase
       .from("catalogue_modification_requests")
+      .update({ statut: "Traité" })
+      .eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const resolveTransfertTaxeModificationRequest = async (id: string) => {
+    setTransfertTaxeModificationRequests((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, statut: "Traité" } : r))
+    );
+    const { error } = await supabase
+      .from("transfert_taxe_modification_requests")
       .update({ statut: "Traité" })
       .eq("id", id);
     if (error) toast("Échec de l'enregistrement.");
@@ -1865,6 +1884,8 @@ function AppShellInner({
               coutsMap={allCoutsMap}
               catalogueModificationRequests={catalogueModificationRequests}
               onResolveCatalogueModificationRequest={resolveCatalogueModificationRequest}
+              transfertTaxeModificationRequests={transfertTaxeModificationRequests}
+              onResolveTransfertTaxeModificationRequest={resolveTransfertTaxeModificationRequest}
             />
           )}
         </div>

@@ -128,6 +128,8 @@ export const ZONES_TRANSFERT = [
   "Safaga",
   "Louxor",
   "Assouan",
+  "Le Caire",
+  "Marsa Alam",
   "Autre",
 ] as const;
 

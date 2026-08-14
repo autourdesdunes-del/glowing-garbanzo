@@ -17,7 +17,6 @@ import {
   OPTIONS_PRESETS,
   SITES_CAIRE,
   VEHICULES_TRANSFERT,
-  ZONES_TRANSFERT,
 } from "@/lib/constants";
 import {
   groupeExtraCounts,
@@ -130,6 +129,9 @@ export default function ReservationCard({
   const [showAnnulerModal, setShowAnnulerModal] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
   const isTransfert = catalogueItem?.categorie === "Transfert" && transfertTarifs.length > 0;
+  const zonesTransfertDisponibles = Array.from(new Set(transfertTarifs.map((t) => t.zone))).filter(
+    Boolean
+  );
   const matchTransfertTarif = (zone: string, vehicule: string) =>
     transfertTarifs.find((t) => t.zone === zone && t.vehicule === vehicule);
   const champsRequis = catalogueItem?.champs_requis_liste || [];
@@ -604,7 +606,7 @@ export default function ReservationCard({
               className="input"
             >
               <option value="">— Zone de l&apos;hôtel —</option>
-              {ZONES_TRANSFERT.map((z) => (
+              {zonesTransfertDisponibles.map((z) => (
                 <option key={z}>{z}</option>
               ))}
             </select>

@@ -17,7 +17,6 @@ import {
   OPTIONS_PRESETS,
   SITES_CAIRE,
   VEHICULES_TRANSFERT,
-  ZONES_TRANSFERT,
 } from "@/lib/constants";
 import {
   groupeExtraCounts,
@@ -233,6 +232,14 @@ export default function AddActivityWizard({
   const catTarifs = catalogueItem ? catalogueTarifs[catalogueItem.id] || [] : [];
   const catTransfertTarifs = catalogueItem ? transfertTarifs[catalogueItem.id] || [] : [];
   const isTransfert = catalogueItem?.categorie === "Transfert" && catTransfertTarifs.length > 0;
+  // Ne proposer que les zones réellement configurées pour cette activité —
+  // la liste globale ZONES_TRANSFERT sert au catalogue à définir plusieurs
+  // zones (ex. transferts aéroport Hurghada/Sahl Hasheesh/Makadi...), mais
+  // un trajet point-à-point (ex. Transfert privatif Hurghada - Louxor) n'a
+  // qu'une seule zone pertinente : pas besoin d'afficher les autres.
+  const zonesTransfertDisponibles = Array.from(new Set(catTransfertTarifs.map((t) => t.zone))).filter(
+    Boolean
+  );
   const catOptions = catalogueItem ? catalogueOptions[catalogueItem.id] || [] : [];
 
   const nbEnfantsParticipants = r ? participantsFor(r, client).nbEnf : 0;
@@ -1187,7 +1194,7 @@ export default function AddActivityWizard({
                 className="input"
               >
                 <option value="">— Zone de l&apos;hôtel —</option>
-                {ZONES_TRANSFERT.map((z) => (
+                {zonesTransfertDisponibles.map((z) => (
                   <option key={z}>{z}</option>
                 ))}
               </select>

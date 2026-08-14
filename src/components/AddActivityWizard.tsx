@@ -1010,7 +1010,7 @@ export default function AddActivityWizard({
               label={
                 isMontgolfiereActivity(catalogueItem?.nom || r.nom_activite)
                   ? "Enfants 4-7 ans (visites)"
-                  : "Enfants 3 ans"
+                  : "Enfants 2-3 ans"
               }
             >
               <input
@@ -1307,7 +1307,7 @@ export default function AddActivityWizard({
                   label={
                     isMontgolfiereActivity(catalogueItem?.nom || r.nom_activite)
                       ? "PU 4-7 ans, visites sans montgolfière (€)"
-                      : "PU enfant 3 ans (€)"
+                      : "PU enfant 2-3 ans (€)"
                   }
                 >
                   <input

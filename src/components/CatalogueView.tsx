@@ -80,7 +80,7 @@ function PriceSummary({ a }: { a: CatalogueItem }) {
         (isMontgolfiereActivity(a) ? (
           <span>4 à 7 ans (visites, sans montgolfière) {euros(a.pu_enfant_3ans)}€</span>
         ) : (
-          <span>Enfant 3 ans {euros(a.pu_enfant_3ans)}€</span>
+          <span>Enfant 2-3 ans {euros(a.pu_enfant_3ans)}€</span>
         ))}
       {!isQuadActivity(a) && !isSpaActivity(a) && !isMontgolfiereActivity(a) && (
         <span>Bébé {euros(a.pu_bebe)}€</span>
@@ -1062,7 +1062,7 @@ export default function CatalogueView({
                       label={
                         isMontgolfiereActivity(a)
                           ? "PU 4-7 ans, visites sans montgolfière (€)"
-                          : "PU enfant 3 ans (€)"
+                          : "PU enfant 2-3 ans (€)"
                       }
                     >
                       <input
@@ -1985,7 +1985,7 @@ export default function CatalogueView({
                             </RowIcon>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm text-neutral-700">
-                                {isMontgolfiereActivity(a) ? "4 à 7 ans" : "Enfant 3 ans"}
+                                {isMontgolfiereActivity(a) ? "4 à 7 ans" : "Enfant 2-3 ans"}
                               </p>
                               {isMontgolfiereActivity(a) && (
                                 <p className="text-[11px] font-medium text-red-600">

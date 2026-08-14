@@ -726,7 +726,7 @@ export default function ReservationCard({
               label={
                 isMontgolfiereActivity(nomPourDetection)
                   ? "PU 4-7 ans, visites sans montgolfière (€)"
-                  : "PU enfant 3 ans (€)"
+                  : "PU enfant 2-3 ans (€)"
               }
             >
               <input
@@ -905,7 +905,7 @@ export default function ReservationCard({
             </Field>
             <Field
               label={
-                isMontgolfiereActivity(nomPourDetection) ? "Enfants 4-7 ans (visites)" : "Enfants 3 ans"
+                isMontgolfiereActivity(nomPourDetection) ? "Enfants 4-7 ans (visites)" : "Enfants 2-3 ans"
               }
             >
               <input

@@ -173,28 +173,44 @@ function suggererProgramme({
   const hasJeunesEnfants = ages.some((a) => a < 12) || (nbEnfants > 0 && ages.length === 0);
   const hasEnfants = nbEnfants > 0;
 
-  const motsCles = interets
+  // Kommo écrit parfois une envie avec une note entre parenthèses ("Caire en
+  // avion (GEM)", "Louxor (hésite)") — exiger que le segment entier
+  // apparaisse tel quel dans le nom catalogue ratait tout dès qu'il y avait
+  // cette annotation. On compare maintenant mot par mot (parenthèses et
+  // mots vides ignorés) : le segment matche si tous ses mots significatifs
+  // se retrouvent dans le nom/catégorie/tags de l'activité.
+  const MOTS_VIDES = new Set([
+    "de", "du", "des", "le", "la", "les", "en", "et", "un", "une", "à", "a", "au",
+    "aux", "avec", "sur", "pour", "dans", "ou", "d", "l", "the",
+  ]);
+  const motsSignificatifs = (segment: string): string[] =>
+    segment
+      .replace(/\([^)]*\)/g, " ")
+      .toLowerCase()
+      .replace(/[^a-zà-öø-ÿ0-9\s-]/g, " ")
+      .split(/\s+/)
+      .map((m) => m.trim())
+      .filter((m) => m.length > 2 && !MOTS_VIDES.has(m));
+
+  const groupesInteret = interets
     .split(",")
-    .map((m) => m.trim().toLowerCase())
-    .filter(Boolean);
-  const motsAEviter = activitesAEviter
+    .map(motsSignificatifs)
+    .filter((g) => g.length > 0);
+  const groupesAEviter = activitesAEviter
     .split(",")
-    .map((m) => m.trim().toLowerCase())
-    .filter(Boolean);
-  const matchEviter = (item: CatalogueItem) => {
-    if (motsAEviter.length === 0) return false;
-    const hay = [item.nom, item.categorie, ...(item.tags || [])].join(" ").toLowerCase();
-    return motsAEviter.some((m) => hay.includes(m));
-  };
+    .map(motsSignificatifs)
+    .filter((g) => g.length > 0);
 
   const jours = datesInRange(dateDebut, dateFin);
   const joursSemaineDispo = new Set(jours.map((d) => WEEKDAY_FR[new Date(d + "T00:00:00").getDay()]));
 
-  const matchInteret = (item: CatalogueItem) => {
-    if (motsCles.length === 0) return false;
+  const matchGroupes = (item: CatalogueItem, groupes: string[][]) => {
+    if (groupes.length === 0) return false;
     const hay = [item.nom, item.categorie, ...(item.tags || [])].join(" ").toLowerCase();
-    return motsCles.some((m) => hay.includes(m) || m.includes(item.nom.toLowerCase()));
+    return groupes.some((mots) => mots.every((m) => hay.includes(m)));
   };
+  const matchInteret = (item: CatalogueItem) => matchGroupes(item, groupesInteret);
+  const matchEviter = (item: CatalogueItem) => matchGroupes(item, groupesAEviter);
 
   const candidats = catalogue
     .filter((a) => a.valide)

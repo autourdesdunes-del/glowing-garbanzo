@@ -31,7 +31,7 @@ import {
 } from "@/lib/constants";
 import { hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
-import { matchHotel } from "@/lib/hotelHelp";
+import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
 import ItineraryView from "@/components/ItineraryView";
@@ -420,8 +420,10 @@ export function SejourStep({
   };
 
   const hotelMatch = matchHotel(client.hotel, hotelsRef);
-  const taxeMatch = hotelMatch
-    ? taxesRef.find((t) => t.ville.trim().toLowerCase() === hotelMatch.ville.trim().toLowerCase())
+  // La taxe dépend de la tranche adultes/enfants (voir HELP > Taxes de
+  // transfert) — jamais une seule ligne "ville → montant" comme avant.
+  const taxeResultat = hotelMatch
+    ? matchTransfertTaxe(taxesRef, hotelMatch.ville, client.adultes, client.enfants)
     : null;
 
   const copyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
@@ -486,7 +488,8 @@ export function SejourStep({
             <div className="rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
               ⚠ Attention, cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut
               comporter une taxe de transfert
-              {taxeMatch ? ` (${euros(taxeMatch.montant)} €)` : ""}.{" "}
+              {taxeResultat?.type === "montant" ? ` (${euros(taxeResultat.montant)} €)` : ""}
+              {taxeResultat?.type === "a_demander" ? ` (${taxeResultat.note})` : ""}.{" "}
               <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
                 Vérifier le montant de la taxe pour cette destination
               </button>

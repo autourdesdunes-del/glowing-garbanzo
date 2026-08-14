@@ -229,6 +229,7 @@ export default function DashboardView({
   onOpenAvisClients,
   onOpenProspectsARelancer,
   onOpenBilletsAvion,
+  onOpenActivitesEnAttente,
   onOpenPaypalPaiements,
   paypalPaiementsNonRattaches,
   onCreateClient,
@@ -249,6 +250,7 @@ export default function DashboardView({
   onOpenAvisClients: () => void;
   onOpenProspectsARelancer: () => void;
   onOpenBilletsAvion: () => void;
+  onOpenActivitesEnAttente: () => void;
   onOpenPaypalPaiements: () => void;
   paypalPaiementsNonRattaches: number;
   onCreateClient: (fields: {
@@ -805,9 +807,7 @@ export default function DashboardView({
                     : "Rien en attente"
                 }
                 count={activitesEnAttente.length}
-                onClick={
-                  activitesEnAttente[0] ? () => onOpenClient(activitesEnAttente[0].client_id) : undefined
-                }
+                onClick={activitesEnAttente.length > 0 ? onOpenActivitesEnAttente : undefined}
               />
               <ActionRow
                 icon="check"

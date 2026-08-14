@@ -34,6 +34,7 @@ import {
   isSafariQuadBase,
   isSpeedboatPriveMaisonDauphins,
   joursDisponiblesMismatch,
+  missingChampsFor,
   momentBadge,
   pointureBadge,
   volBadge,
@@ -153,49 +154,10 @@ export default function ReservationCard({
   const quadPourDetection = isQuad(nomPourDetection);
   const ileType = speedboatIleType(nomPourDetection);
   const needsMoment = needsMomentSpeedboat(nomPourDetection);
-  const missingChamps: string[] = [];
-  if (ileType && !r.ile_selectionnee) missingChamps.push("Île");
-  if (needsMoment && !r.moment) missingChamps.push("Moment (matin / après-midi)");
-  if (champsRequis.includes("Pointure") && !r.pointure.trim()) missingChamps.push("Pointure");
-  if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
-    missingChamps.push("Créneau");
-  }
-  if (
-    champsRequis.includes("Conducteurs & passagers") &&
-    (r.nb_conducteurs == null || r.nb_passagers == null)
-  ) {
-    missingChamps.push("Conducteurs & passagers");
-  }
-  if (
-    champsRequis.includes("Vol & horaire") &&
-    (!r.numero_vol.trim() || !r.horaire_vol.trim() || !r.photo_vol_path)
-  ) {
-    missingChamps.push("Vol & horaire");
-  }
-  if (
-    champsRequis.includes(
-      "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)"
-    ) &&
-    !r.site_caire
-  ) {
-    missingChamps.push("Site visité");
-  }
+  const missingChamps = missingChampsFor(r, catalogueItem, assouanVerification);
   const champsRequisPersonnalises = champsRequis.filter(
     (c) => !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c)
   );
-  champsRequisPersonnalises.forEach((c) => {
-    if (!(r.champs_requis_coches || []).includes(c)) missingChamps.push(c);
-  });
-  // Contrairement aux autres champs manquants, celui-ci ne se coche pas
-  // tout seul : il faut que Sylvie/Direction ait validé la vérification
-  // (voir AssouanVerificationCenter) — "en_attente" ou "refusee" bloquent
-  // toujours la confirmation de l'activité.
-  if (
-    catalogueItem?.necessite_verif_hebergement_assouan &&
-    assouanVerification?.statut !== "validee"
-  ) {
-    missingChamps.push("Vérification hébergement Assouan (Sylvie)");
-  }
   const pickFromCatalogue = async (id: string) => {
     const item = catalogue.find((a) => a.id === id);
     if (!item) return;

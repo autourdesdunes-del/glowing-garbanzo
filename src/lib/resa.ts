@@ -1,5 +1,13 @@
-import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import {
+  AssouanVerification,
+  CatalogueItem,
+  Client,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
 import { weekdayFr } from "@/lib/dates";
+import { CHAMPS_REQUIS_PRESETS } from "@/lib/constants";
 
 // Le solde reste unique par séjour (règle métier — jamais un solde par
 // activité), mais l'équipe doit pouvoir choisir explicitement son statut de
@@ -250,6 +258,57 @@ export function volBadge(r: Reservation) {
 export function pointureBadge(r: Reservation) {
   if (!r.pointure.trim()) return "";
   return `👟 ${r.pointure.trim()}`;
+}
+
+// Champs requis pas encore remplis pour cette activité — logique partagée
+// entre ReservationCard (bloque "Valider") et le tableau de bord/Suivis
+// (liste "Activités en attente de validation"), pour ne jamais diverger.
+export function missingChampsFor(
+  r: Reservation,
+  catalogueItem: CatalogueItem | undefined,
+  assouanVerification?: AssouanVerification | null
+): string[] {
+  const champsRequis = catalogueItem?.champs_requis_liste || [];
+  const nomPourDetection = catalogueItem?.nom || r.nom_activite;
+  const ileType = speedboatIleType(nomPourDetection);
+  const needsMoment = needsMomentSpeedboat(nomPourDetection);
+  const missingChamps: string[] = [];
+  if (ileType && !r.ile_selectionnee) missingChamps.push("Île");
+  if (needsMoment && !r.moment) missingChamps.push("Moment (matin / après-midi)");
+  if (champsRequis.includes("Pointure") && !r.pointure.trim()) missingChamps.push("Pointure");
+  if (champsRequis.includes("Créneau (matin / après-midi / coucher de soleil)") && !r.creneau) {
+    missingChamps.push("Créneau");
+  }
+  if (
+    champsRequis.includes("Conducteurs & passagers") &&
+    (r.nb_conducteurs == null || r.nb_passagers == null)
+  ) {
+    missingChamps.push("Conducteurs & passagers");
+  }
+  if (
+    champsRequis.includes("Vol & horaire") &&
+    (!r.numero_vol.trim() || !r.horaire_vol.trim() || !r.photo_vol_path)
+  ) {
+    missingChamps.push("Vol & horaire");
+  }
+  if (
+    champsRequis.includes(
+      "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)"
+    ) &&
+    !r.site_caire
+  ) {
+    missingChamps.push("Site visité");
+  }
+  const champsRequisPersonnalises = champsRequis.filter(
+    (c) => !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c)
+  );
+  champsRequisPersonnalises.forEach((c) => {
+    if (!(r.champs_requis_coches || []).includes(c)) missingChamps.push(c);
+  });
+  if (catalogueItem?.necessite_verif_hebergement_assouan && assouanVerification?.statut !== "validee") {
+    missingChamps.push("Vérification hébergement Assouan (Sylvie)");
+  }
+  return missingChamps;
 }
 
 // Villes utilisées dans les noms catalogue de transferts privatifs (ex.

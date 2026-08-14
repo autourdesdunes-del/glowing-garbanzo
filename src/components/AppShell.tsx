@@ -564,6 +564,11 @@ function AppShellInner({
     setSuivisSub("billets");
   };
 
+  const openActivitesEnAttente = () => {
+    setMode("suivis");
+    setSuivisSub("activites");
+  };
+
   const openPaypalPaiements = () => {
     setMode("suivis");
     setSuivisSub("paypal");
@@ -1513,6 +1518,7 @@ function AppShellInner({
               onOpenAvisClients={openAvisClients}
               onOpenProspectsARelancer={openProspectsARelancer}
               onOpenBilletsAvion={openBilletsAvion}
+              onOpenActivitesEnAttente={openActivitesEnAttente}
               onOpenPaypalPaiements={openPaypalPaiements}
               paypalPaiementsNonRattaches={paypalPaiementsNonRattaches}
               onCreateClient={addClient}

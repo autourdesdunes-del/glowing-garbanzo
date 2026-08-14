@@ -22,6 +22,7 @@ import {
   hideMoment,
   hossamBilletMessage,
   isLeCaireEnAvion,
+  missingChampsFor,
   paiementBadge,
   participantsFor,
   resaTotalMontant,
@@ -222,6 +223,7 @@ export const SUIVIS_SUBS = [
   { key: "avis", label: "Avis clients" },
   { key: "remb", label: "Remboursements" },
   { key: "billets", label: "Billets d'avion" },
+  { key: "activites", label: "Activités en attente" },
   { key: "paypal", label: "Paiements PayPal" },
 ] as const;
 
@@ -495,6 +497,65 @@ function BilletDetailModal({
             {copiedKey === "nom-" + key ? "Copié ✓" : "Copier les noms clients"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ActiviteEnAttenteDetailModal({
+  r,
+  client,
+  catalogue,
+  onOpenClient,
+  onClose,
+}: {
+  r: Reservation;
+  client: Client;
+  catalogue: CatalogueItem[];
+  onOpenClient: (id: string) => void;
+  onClose: () => void;
+}) {
+  const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+  const missing = missingChampsFor(r, catalogueItem);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between">
+          <h3 className="font-heading text-base font-semibold text-[#171717]">
+            {client.nom || "Sans nom"}
+          </h3>
+          <button type="button" onClick={onClose} className="text-neutral-400 hover:text-[#171717]">
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-2">
+          <PropertyRow label="Activité">{cleanActivityTitle(r.nom_activite) || "Activité"}</PropertyRow>
+          <PropertyRow label="Date">{r.date_debut ? fmtDate(r.date_debut) : "Date ?"}</PropertyRow>
+          <PropertyRow label="Statut">Brouillon — pas encore validée</PropertyRow>
+          {missing.length > 0 && (
+            <PropertyRow label="Champs manquants">
+              <span className="text-red-600">{missing.join(", ")}</span>
+            </PropertyRow>
+          )}
+        </div>
+
+        <button
+          onClick={() => {
+            onOpenClient(client.id);
+            onClose();
+          }}
+          className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+        >
+          Ouvrir le dossier client
+        </button>
       </div>
     </div>
   );
@@ -1014,6 +1075,7 @@ export default function SuivisView({
   const [rdvKanbanView, setRdvKanbanView] = useState<string>("demain");
   const [billetsMonthFilter, setBilletsMonthFilter] = useState<string>("a_venir");
   const [selectedBilletId, setSelectedBilletId] = useState<string | null>(null);
+  const [selectedActiviteEnAttenteId, setSelectedActiviteEnAttenteId] = useState<string | null>(null);
   // Retour depuis "Voir l'activité" (ouverte dans Réservations) — même
   // pattern de synchronisation que lastConsumedRdvId ci-dessus.
   const [lastConsumedBilletId, setLastConsumedBilletId] = useState<string | null | undefined>(undefined);
@@ -1169,6 +1231,10 @@ export default function SuivisView({
     billetsMonthFilter === "a_venir"
       ? billetsAllRows
       : billetsAllRows.filter((r) => (r.billet_date || "").slice(0, 7) === billetsMonthFilter);
+
+  const activitesEnAttenteRows = reservations
+    .filter((r) => r.statut_resa === "Brouillon")
+    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
 
   // Personne assignée à un appel : déduite du planning équipe (qui travaille
   // à cette date, à cette heure), pas une saisie manuelle — plusieurs noms
@@ -2161,6 +2227,90 @@ export default function SuivisView({
                   onUpdateReservation={onUpdateReservation}
                   onOpenActivity={() => onOpenReservationActivity(r.id)}
                   onClose={() => setSelectedBilletId(null)}
+                />
+              );
+            })()}
+        </div>
+      )}
+
+      {sub === "activites" && (
+        <div>
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+            Activités en attente de validation
+          </h3>
+          <p className="mb-3 text-xs text-neutral-500">
+            Activités encore en Brouillon — souvent parce qu&apos;une info requise a été passée à
+            l&apos;ajout (pointure, vol du client…) et jamais complétée depuis.
+          </p>
+
+          {activitesEnAttenteRows.length === 0 && (
+            <div className="text-sm text-neutral-400">Aucune activité en attente.</div>
+          )}
+          {activitesEnAttenteRows.length > 0 && (
+            <div className="overflow-x-auto rounded-[6px] border border-[#eaeaea] bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
+                    <th className="px-3 pb-2 pt-3 font-medium">Date</th>
+                    <th className="px-3 pb-2 pt-3 font-medium">Client</th>
+                    <th className="px-3 pb-2 pt-3 font-medium">Activité</th>
+                    <th className="px-3 pb-2 pt-3 font-medium">Champs manquants</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activitesEnAttenteRows.map((r, i) => {
+                    const client = clients.find((c) => c.id === r.client_id);
+                    if (!client) return null;
+                    const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+                    const missing = missingChampsFor(r, catalogueItem);
+                    const sameDateAsPrev =
+                      i > 0 && activitesEnAttenteRows[i - 1].date_debut === r.date_debut;
+                    return (
+                      <tr
+                        key={r.id}
+                        onClick={() => setSelectedActiviteEnAttenteId(r.id)}
+                        className={`cursor-pointer hover:bg-[#fafafa] ${sameDateAsPrev ? "border-t border-dashed border-[#eaeaea]" : "border-t-2 border-[#eaeaea]"}`}
+                      >
+                        <td className="whitespace-nowrap px-3 py-2.5 align-top text-[#666666]">
+                          {!sameDateAsPrev && (r.date_debut ? fmtDate(r.date_debut) : "Date ?")}
+                        </td>
+                        <td className="px-3 py-2.5 align-top">
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenClient(client.id);
+                            }}
+                            className="cursor-pointer font-medium text-[#171717] hover:underline"
+                          >
+                            {client.nom || "Sans nom"}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 align-top text-neutral-600">
+                          {cleanActivityTitle(r.nom_activite) || "Activité"}
+                        </td>
+                        <td className="px-3 py-2.5 align-top text-red-600">
+                          {missing.length > 0 ? missing.join(", ") : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {selectedActiviteEnAttenteId &&
+            (() => {
+              const r = reservations.find((row) => row.id === selectedActiviteEnAttenteId);
+              const client = r && clients.find((c) => c.id === r.client_id);
+              if (!r || !client) return null;
+              return (
+                <ActiviteEnAttenteDetailModal
+                  r={r}
+                  client={client}
+                  catalogue={catalogue}
+                  onOpenClient={onOpenClient}
+                  onClose={() => setSelectedActiviteEnAttenteId(null)}
                 />
               );
             })()}

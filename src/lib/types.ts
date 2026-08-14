@@ -181,6 +181,7 @@ export type Reservation = {
   nb_passagers: number | null;
   numero_vol: string;
   horaire_vol: string;
+  photo_vol_path: string | null;
   champs_requis_coches: string[];
   statut_resa: "Brouillon" | "Confirmée" | "Annulée";
   annulation_raison: string;

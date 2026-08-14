@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import {
   acompteWaitingWarning,
@@ -15,6 +16,7 @@ import {
   resaBreakdown,
   resaTotalMontant,
   reservationsActives,
+  volBadge,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 import { buildPaxEnglish } from "@/components/client-steps";
@@ -202,6 +204,12 @@ function ReservationSummaryCard({
               {momentBadge(r)}
             </span>
           )}
+          {volBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
+              {volBadge(r)}
+              {r.photo_vol_path ? " 📷" : ""}
+            </span>
+          )}
           {chevalChameauBadge(r, client) && (
             <span className="whitespace-nowrap rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
               {chevalChameauBadge(r, client)}
@@ -258,6 +266,12 @@ function ReservationSummaryCard({
             {cleanActivityTitle(r.nom_activite) || "Activité"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </p>
+          {volBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
+              {volBadge(r)}
+              {r.photo_vol_path ? " 📷" : ""}
+            </span>
+          )}
           {chevalChameauBadge(r, client) && (
             <span className="rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
               {chevalChameauBadge(r, client)}
@@ -311,6 +325,12 @@ function ReservationSummaryCard({
         {momentBadge(r) && (
           <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
             {momentBadge(r)}
+          </span>
+        )}
+        {volBadge(r) && (
+          <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+            {volBadge(r)}
+            {r.photo_vol_path ? " 📷" : ""}
           </span>
         )}
         {chevalChameauBadge(r, client) && (
@@ -398,6 +418,18 @@ function ActivityDetailModal({
 }) {
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
+  const [photoVolUrl, setPhotoVolUrl] = useState("");
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      if (!r.photo_vol_path) {
+        setPhotoVolUrl("");
+        return;
+      }
+      const { data } = await supabase.storage.from("photos-vol").createSignedUrl(r.photo_vol_path, 3600);
+      setPhotoVolUrl(data?.signedUrl ?? "");
+    })();
+  }, [r.photo_vol_path]);
   const options = resaOptions[r.id] || [];
   const tarifs = resaTarifs[r.id] || [];
   const total = resaTotalMontant(r, client, options, tarifs);
@@ -541,6 +573,12 @@ function ActivityDetailModal({
                 {momentBadge(r)}
               </span>
             )}
+            {volBadge(r) && (
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+                {volBadge(r)}
+                {r.photo_vol_path ? " 📷" : ""}
+              </span>
+            )}
             {chevalChameauBadge(r, client) && (
               <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-xs font-semibold text-white">
                 {chevalChameauBadge(r, client)}
@@ -586,6 +624,23 @@ function ActivityDetailModal({
           {r.pickup_reel && (
             <DetailRow label="Pick-up">
               <span className="text-[#0F5C56]">🚐 {r.pickup_reel}</span>
+            </DetailRow>
+          )}
+          {(r.numero_vol.trim() || r.horaire_vol.trim() || r.photo_vol_path) && (
+            <DetailRow label="Vol du client">
+              <div className="flex flex-col items-end gap-0.5">
+                <span>{[r.numero_vol.trim(), r.horaire_vol.trim()].filter(Boolean).join(" · ") || "—"}</span>
+                {r.photo_vol_path && photoVolUrl && (
+                  <a
+                    href={photoVolUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs font-normal text-[#0F5C56] underline"
+                  >
+                    Voir la photo du vol
+                  </a>
+                )}
+              </div>
             </DetailRow>
           )}
           <DetailRow label="PAX">

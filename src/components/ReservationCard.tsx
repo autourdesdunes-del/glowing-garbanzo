@@ -34,6 +34,7 @@ import {
   isSpeedboatPriveMaisonDauphins,
   joursDisponiblesMismatch,
   momentBadge,
+  volBadge,
   needsMomentSpeedboat,
   paiementStatutKey,
   participantsFor,
@@ -46,6 +47,7 @@ import {
 import { weekdayFr } from "@/lib/dates";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
 import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
+import PhotoVolUpload from "@/components/PhotoVolUpload";
 
 const MOMENTS_SPEEDBOAT = ["Matin", "Après-midi"] as const;
 const MAISON_DAUPHINS_TEXT =
@@ -133,6 +135,7 @@ export default function ReservationCard({
   const toast = useToast();
   const confirm = useConfirm();
   const [showMomentModal, setShowMomentModal] = useState(false);
+  const [showVolModal, setShowVolModal] = useState(false);
   const [showAnnulerModal, setShowAnnulerModal] = useState(false);
   const [assouanAlertOpen, setAssouanAlertOpen] = useState(false);
   const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
@@ -162,7 +165,7 @@ export default function ReservationCard({
   }
   if (
     champsRequis.includes("Vol & horaire") &&
-    (!r.numero_vol.trim() || !r.horaire_vol.trim())
+    (!r.numero_vol.trim() || !r.horaire_vol.trim() || !r.photo_vol_path)
   ) {
     missingChamps.push("Vol & horaire");
   }
@@ -339,6 +342,12 @@ export default function ReservationCard({
                 {momentBadge(r)}
               </span>
             )}
+            {volBadge(r) && (
+              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+                {volBadge(r)}
+                {r.photo_vol_path ? " 📷" : ""}
+              </span>
+            )}
             {options
               .filter((o) => !isDeuxiemeIleOption(o.nom))
               .map((o) => (
@@ -394,6 +403,12 @@ export default function ReservationCard({
           {momentBadge(r) && (
             <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
               {momentBadge(r)}
+            </span>
+          )}
+          {volBadge(r) && (
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
+              {volBadge(r)}
+              {r.photo_vol_path ? " 📷" : ""}
             </span>
           )}
           {options
@@ -482,6 +497,7 @@ export default function ReservationCard({
             if (missingChamps.length > 0) {
               setValidationError(true);
               if (needsMoment && !r.moment) setShowMomentModal(true);
+              if (missingChamps.includes("Vol & horaire")) setShowVolModal(true);
               return;
             }
             setValidationError(false);
@@ -514,6 +530,29 @@ export default function ReservationCard({
             });
           }}
           onClose={() => setShowMomentModal(false)}
+        />
+      )}
+
+      {showVolModal && (
+        <MissingInfoModal
+          message={`vous n'avez pas rempli ces informations (${[
+            !r.numero_vol.trim() && "numéro de vol",
+            !r.horaire_vol.trim() && "horaire d'arrivée",
+            !r.photo_vol_path && "photo du vol",
+          ]
+            .filter(Boolean)
+            .join(", ")}).`}
+          actionLabel="Je complète maintenant"
+          onAction={() => {
+            setShowVolModal(false);
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                const el = document.getElementById(`field-numero-vol-${r.id}`);
+                el?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }, 50);
+            });
+          }}
+          onClose={() => setShowVolModal(false)}
         />
       )}
 
@@ -1078,6 +1117,7 @@ export default function ReservationCard({
               <>
                 <Field label="Numéro de vol *">
                   <input
+                    id={`field-numero-vol-${r.id}`}
                     value={r.numero_vol}
                     onChange={(e) => onUpdate({ numero_vol: e.target.value })}
                     className={`input ${
@@ -1087,8 +1127,9 @@ export default function ReservationCard({
                     }`}
                   />
                 </Field>
-                <Field label="Horaire de vol *">
+                <Field label="Horaire d'arrivée *">
                   <input
+                    id={`field-horaire-vol-${r.id}`}
                     value={r.horaire_vol}
                     onChange={(e) => onUpdate({ horaire_vol: e.target.value })}
                     className={`input ${
@@ -1098,6 +1139,17 @@ export default function ReservationCard({
                     }`}
                   />
                 </Field>
+                <div id={`field-photo-vol-${r.id}`} className="col-span-2">
+                  <PhotoVolUpload
+                    path={r.photo_vol_path}
+                    onChange={(path) => onUpdate({ photo_vol_path: path })}
+                  />
+                  {validationError && !r.photo_vol_path && (
+                    <p className="mt-1 text-xs font-medium text-red-600">
+                      ⚠ Photo du vol manquante
+                    </p>
+                  )}
+                </div>
               </>
             )}
             {champsRequis.includes(

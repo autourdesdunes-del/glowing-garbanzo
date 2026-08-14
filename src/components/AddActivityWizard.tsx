@@ -42,6 +42,7 @@ import { Field } from "@/components/Field";
 import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
 import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
+import PhotoVolUpload from "@/components/PhotoVolUpload";
 
 function joursAvant(dateStr: string | null) {
   if (!dateStr) return null;
@@ -256,9 +257,14 @@ export default function AddActivityWizard({
     !!catalogueItem && isQuad(catalogueItem.nom) && (nbEnfantsParticipants > 0 || client.ados_presents);
   const showPaxHint = showChevalPaxHint || showQuadPaxHint;
 
+  // Pour les transferts aéroport (et autres activités où le numéro de vol
+  // du CLIENT est demandé), l'étape "Informations requises" n'a de sens
+  // qu'une fois la date connue — on la déplace donc après plutôt qu'avant.
+  const specifsApresDate = champsRequis.includes("Vol & horaire");
   const steps: Step[] = ["choix"];
-  if (champsRequis.length > 0) steps.push("specifs");
+  if (champsRequis.length > 0 && !specifsApresDate) steps.push("specifs");
   steps.push("date");
+  if (specifsApresDate) steps.push("specifs");
   if (catalogueItem && speedboatIleType(catalogueItem.nom)) steps.push("ile");
   if (catalogueItem && needsMomentSpeedboat(catalogueItem.nom)) steps.push("moment");
   steps.push("participants");
@@ -302,7 +308,10 @@ export default function AddActivityWizard({
       });
       setDraftId(id);
       setValidationError(false);
-      setStep((item.champs_requis_liste || []).length > 0 ? "specifs" : "date");
+      const champsItem = item.champs_requis_liste || [];
+      setStep(
+        champsItem.length > 0 && !champsItem.includes("Vol & horaire") ? "specifs" : "date"
+      );
     }
     setCreating(false);
     return id;
@@ -326,7 +335,10 @@ export default function AddActivityWizard({
       });
       setDraftId(id);
       setValidationError(false);
-      setStep(linked && (linked.champs_requis_liste || []).length > 0 ? "specifs" : "date");
+      const champsLinked = linked?.champs_requis_liste || [];
+      setStep(
+        champsLinked.length > 0 && !champsLinked.includes("Vol & horaire") ? "specifs" : "date"
+      );
     }
     setCreating(false);
   };
@@ -487,9 +499,10 @@ export default function AddActivityWizard({
     ) {
       missing.push("Conducteurs & passagers");
     }
-    if (champsRequis.includes("Vol & horaire") && (!r.numero_vol.trim() || !r.horaire_vol.trim())) {
-      missing.push("Vol & horaire");
-    }
+    // Contrairement aux autres champs requis, le vol du client peut se
+    // remplir plus tard (le client ne l'a pas toujours donné dès la
+    // réservation) — on ne bloque pas "Suivant" ici, seulement "Valider"
+    // plus tard sur la fiche (voir ReservationCard).
     if (
       champsRequis.includes("Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)") &&
       !r.site_caire
@@ -500,13 +513,14 @@ export default function AddActivityWizard({
       if (!(r.champs_requis_coches || []).includes(c)) missing.push(c);
     });
 
+    const specifsNextStep = steps[steps.indexOf("specifs") + 1];
     const goNext = () => {
       if (missing.length > 0) {
         setValidationError(true);
         return;
       }
       setValidationError(false);
-      setStep("date");
+      setStep(specifsNextStep);
     };
 
     return wrap(
@@ -597,24 +611,31 @@ export default function AddActivityWizard({
           )}
           {champsRequis.includes("Vol & horaire") && (
             <>
-              <Field label="Numéro de vol *">
+              <Field label="Numéro de vol du client">
                 <input
                   value={r.numero_vol}
                   onChange={(e) => onUpdateReservation(r.id, { numero_vol: e.target.value })}
-                  className={`input ${
-                    validationError && !r.numero_vol.trim() ? "border-red-300 focus:border-red-400" : ""
-                  }`}
+                  className="input"
                 />
               </Field>
-              <Field label="Horaire de vol *">
+              <Field label="Horaire d'arrivée">
                 <input
                   value={r.horaire_vol}
                   onChange={(e) => onUpdateReservation(r.id, { horaire_vol: e.target.value })}
-                  className={`input ${
-                    validationError && !r.horaire_vol.trim() ? "border-red-300 focus:border-red-400" : ""
-                  }`}
+                  className="input"
                 />
               </Field>
+              <div className="col-span-2">
+                <PhotoVolUpload
+                  path={r.photo_vol_path}
+                  onChange={(path) => onUpdateReservation(r.id, { photo_vol_path: path })}
+                />
+              </div>
+              <p className="col-span-2 text-xs text-neutral-400">
+                Tu peux passer cette étape si le client ne t&apos;a pas encore donné ces infos —
+                l&apos;activité restera en attente tant qu&apos;elles ne sont pas remplies, avec un
+                rappel au moment de la valider.
+              </p>
             </>
           )}
           {champsRequis.includes(
@@ -677,7 +698,16 @@ export default function AddActivityWizard({
           </div>
         )}
 
-        {navButtons(goNext, "Suivant — Date")}
+        {navButtons(
+          goNext,
+          specifsNextStep === "date"
+            ? "Suivant — Date"
+            : specifsNextStep === "ile"
+              ? "Suivant — Île"
+              : specifsNextStep === "moment"
+                ? "Suivant — Matin/après-midi"
+                : "Suivant — Participants"
+        )}
       </>
     );
   }
@@ -694,7 +724,9 @@ export default function AddActivityWizard({
         ? "Suivant — Île"
         : nextStep === "moment"
           ? "Suivant — Matin/après-midi"
-          : "Suivant — Participants";
+          : nextStep === "specifs"
+            ? "Suivant — Informations requises"
+            : "Suivant — Participants";
 
     // Ce qui se passe une fois la date acceptée (jour valide, ou jour
     // refusé mais l'employée a demandé/obtenu l'autorisation) — factorisé

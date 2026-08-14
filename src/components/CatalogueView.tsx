@@ -66,7 +66,10 @@ function PriceSummary({ a }: { a: CatalogueItem }) {
       {isSpaActivity(a) ? (
         <span>À partir de 10 ans</span>
       ) : (
-        <span>Enfant {euros(a.pu_enfant)}€</span>
+        <span>
+          Enfant {euros(a.pu_enfant)}€
+          {animal ? ` — à partir de 5 ans si seul à ${animal}` : ""}
+        </span>
       )}
       {!!a.pu_enfant_3ans && <span>Enfant 3 ans {euros(a.pu_enfant_3ans)}€</span>}
       {!isQuadActivity(a) && !isSpaActivity(a) && <span>Bébé {euros(a.pu_bebe)}€</span>}

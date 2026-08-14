@@ -230,7 +230,11 @@ function suggererProgramme({
         interetMatch,
       };
     })
-    .filter((c) => c.disponibleSurSejour && c.dureeJours !== null)
+    // Ne jamais suggérer une activité que le prospect n'a pas demandée —
+    // le générateur propose, il n'invente pas d'envies à sa place. Sans
+    // aucune envie exprimée dans la conversation, il ne propose donc rien
+    // automatiquement (l'employée ajoute alors à la main).
+    .filter((c) => c.disponibleSurSejour && c.dureeJours !== null && c.interetMatch)
     .sort((a, b) => b.score - a.score);
 
   const nbNuits = jours.length > 0 ? jours.length - 1 : 0;

@@ -324,6 +324,8 @@ export default function DashboardView({
     (c) => !c.chambre || c.infos_manquantes.includes("Room number")
   );
 
+  const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);
+
   const billetsEnAttente = reservations
     .filter((r) => r.billet_requis && r.billet_etape !== "termine" && (!r.billet_date || r.billet_date >= todayStr))
     .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
@@ -534,17 +536,24 @@ export default function DashboardView({
               File d&apos;attente prioritaire
             </h2>
             <span className="font-amounts text-xs font-medium text-[#666666]">
-              {priorityQueue.length + (paypalPaiementsNonRattaches > 0 ? 1 : 0)} dossier(s)
+              {priorityQueue.length +
+                (paypalPaiementsNonRattaches > 0 ? 1 : 0) +
+                (doublonsNonTraites.length > 0 ? 1 : 0)}{" "}
+              dossier(s)
             </span>
           </div>
           <div
             className={
-              priorityQueue.length === 0 && paypalPaiementsNonRattaches === 0
+              priorityQueue.length === 0 &&
+              paypalPaiementsNonRattaches === 0 &&
+              doublonsNonTraites.length === 0
                 ? "py-10 text-center text-sm text-[#666666]"
                 : "overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white"
             }
           >
-            {priorityQueue.length === 0 && paypalPaiementsNonRattaches === 0 ? (
+            {priorityQueue.length === 0 &&
+            paypalPaiementsNonRattaches === 0 &&
+            doublonsNonTraites.length === 0 ? (
               "Rien de prioritaire pour l'instant."
             ) : (
               <table className="w-full text-sm">
@@ -557,6 +566,32 @@ export default function DashboardView({
                   </tr>
                 </thead>
                 <tbody>
+                  {doublonsNonTraites.length > 0 && (
+                    <tr
+                      onClick={() => onOpenClient(doublonsNonTraites[0].id)}
+                      className="cursor-pointer border-t border-[#eaeaea] hover:bg-[#fafafa]"
+                    >
+                      <td className="px-5 py-3" colSpan={2}>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[#171717] text-base text-white">
+                            ⚠
+                          </div>
+                          <p className="font-medium text-[#171717]">
+                            {doublonsNonTraites.length} doublon{doublonsNonTraites.length > 1 ? "s" : ""}{" "}
+                            probable{doublonsNonTraites.length > 1 ? "s" : ""} à vérifier
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          <span className="whitespace-nowrap rounded-[4px] border border-[#eaeaea] bg-[#fafafa] px-2 py-0.5 text-[11px] text-[#171717]">
+                            Doublon
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3" />
+                    </tr>
+                  )}
                   {paypalPaiementsNonRattaches > 0 && (
                     <tr
                       onClick={onOpenPaypalPaiements}

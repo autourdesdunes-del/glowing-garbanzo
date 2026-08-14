@@ -331,6 +331,8 @@ export type Client = {
   kommo_programme_envoye_resume: string;
   annulation_raison: string;
   annulation_date: string | null;
+  doublon_possible_id: string | null;
+  doublon_traite: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -414,6 +416,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   kommo_programme_envoye_resume: "",
   annulation_raison: "",
   annulation_date: null,
+  doublon_possible_id: null,
+  doublon_traite: false,
 };
 
 export type UserShift = {

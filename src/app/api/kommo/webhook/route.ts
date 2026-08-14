@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchKommoLeadContactInfo } from "@/lib/kommoApi";
 import { localDateStr } from "@/lib/dates";
+import { normText } from "@/lib/duplicates";
 import {
     cleanKommoName,
     detectKommoEventType,
@@ -10,6 +11,23 @@ import {
     parseKommoFormBody,
       KOMMO_STATUS_MAP,
 } from "@/lib/kommoWebhook";
+
+// Kommo ne matche une fiche existante que par kommo_lead_id/téléphone/email
+// — jamais par nom, trop risqué de rapprocher deux personnes différentes
+// sans validation humaine. Quand aucun de ces signaux ne suffit, on crée
+// quand même la fiche (ne jamais bloquer la synchro) mais on cherche un nom
+// proche parmi les clients existants pour la marquer "à vérifier" — voir
+// migration 0068 et DoublonPossibleAlert (pop-up) côté app.
+async function findPossibleDuplicateByName(
+  admin: ReturnType<typeof createAdminClient>,
+  nom: string
+): Promise<string | null> {
+  const target = normText(nom);
+  if (!target) return null;
+  const { data } = await admin.from("clients").select("id, nom");
+  const match = (data as { id: string; nom: string }[] | null)?.find((c) => normText(c.nom) === target);
+  return match?.id ?? null;
+}
 
 // Id du statut Kommo "Demande d'infos envoyée" (cf. KOMMO_STATUS_MAP) — sert
 // à horodater l'entrée dans cette étape, une seule fois côté webhook
@@ -177,6 +195,7 @@ async function processLeadEvent(
                                     .eq("id", matchedId);
                         lastClientId = matchedId;
               } else {
+                        const doublonPossibleId = await findPossibleDuplicateByName(admin, nom);
                         const { data: created } = await admin
                                     .from("clients")
                                     .insert({
@@ -188,6 +207,7 @@ async function processLeadEvent(
                                                   kommo_pipeline_status_id: statusId,
                                                   kommo_pipeline_status_nom: statusNom,
                                                   kommo_synced_at: new Date().toISOString(),
+                                                  doublon_possible_id: doublonPossibleId,
                                     })
                                     .select("id")
                                     .single();
@@ -256,6 +276,7 @@ async function processContactEvent(
                 .eq("id", matchedId);
               lastClientId = matchedId;
       } else {
+              const doublonPossibleId = await findPossibleDuplicateByName(admin, nom);
               const { data: created } = await admin
                 .from("clients")
                 .insert({
@@ -265,6 +286,7 @@ async function processContactEvent(
                             email: email || "",
                             kommo_contact_id: contactId,
                             kommo_synced_at: new Date().toISOString(),
+                            doublon_possible_id: doublonPossibleId,
                 })
                 .select("id")
                 .single();

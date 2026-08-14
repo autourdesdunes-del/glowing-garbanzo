@@ -2,8 +2,17 @@ import { Client } from "./types";
 
 export type DuplicateMatch = { client: Client; reasons: string[] };
 
-function normText(s: string | null | undefined): string {
-  return (s || "").trim().toLowerCase();
+// Les employées ajoutent parfois un ✅/⚠️/✔️ etc. devant un nom (pour se
+// signaler quelque chose à elles-mêmes) — sans ce nettoyage, deux fiches de
+// la même personne ("⚠️Cindy Paturaux" vs "Cindy Paturaux") ne sont jamais
+// reconnues comme identiques et le détecteur de doublons les laisse passer.
+export function normText(s: string | null | undefined): string {
+  return (s || "")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 }
 function normPhone(s: string | null | undefined): string {
   return (s || "").replace(/\D/g, "");

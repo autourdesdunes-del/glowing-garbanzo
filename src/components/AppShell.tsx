@@ -1234,6 +1234,11 @@ function AppShellInner({
         onRattacher={rattacherPaypalPaiement}
       />
       <AnnulationHossamAlert reservations={allReservations} clients={clients} userEmail={userEmail} />
+      <DoublonPossibleAlert
+        clients={clients}
+        onOpenClient={openClient}
+        onResoudre={(id) => updateClientById(id, { doublon_traite: true })}
+      />
       {prospectSummaryId &&
         (() => {
           const c = clients.find((cl) => cl.id === prospectSummaryId);

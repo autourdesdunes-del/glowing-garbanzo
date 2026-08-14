@@ -885,6 +885,7 @@ function CalendarMonthView({
           const inMonth = d.getMonth() === currentMonthIndex;
           const isToday = day === todayStr;
           const count = (byDate.get(day) || []).length;
+          const countAnnulees = (byDateAnnulees.get(day) || []).length;
           return (
             <button
               key={day}
@@ -904,7 +905,12 @@ function CalendarMonthView({
               >
                 {d.getDate()}
               </span>
-              {count > 0 && <span className="h-1.5 w-1.5 rounded-full bg-[#C9973E]" />}
+              {(count > 0 || countAnnulees > 0) && (
+                <span className="flex items-center gap-1">
+                  {count > 0 && <span className="h-1.5 w-1.5 rounded-full bg-[#C9973E]" />}
+                  {countAnnulees > 0 && <span className="h-1.5 w-1.5 rounded-full bg-red-300" />}
+                </span>
+              )}
             </button>
           );
         })}

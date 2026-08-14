@@ -70,6 +70,18 @@ function parseDureeJours(nom: string): number | null {
   return total > 0 ? total : null;
 }
 
+// Pour varier le programme plutôt que d'enchaîner deux journées "mer"
+// (îles, plongée, catamaran...) ou deux journées "désert" (quad, buggy,
+// safari...) d'affilée — seuls ces deux tags catalogue sont assez fiables
+// pour ranger une activité dans l'une ou l'autre catégorie ; le reste
+// (culture, transferts, spa...) n'entre pas dans cette logique.
+function categorieMerDesert(item: CatalogueItem): "mer" | "desert" | null {
+  const tags = item.tags || [];
+  if (tags.includes("Activités en mer")) return "mer";
+  if (tags.includes("Activités désert")) return "desert";
+  return null;
+}
+
 // Tags qui désignent une destination/un grand thème de séjour plutôt qu'un
 // simple type d'activité — une fois couverts par une activité choisie (en
 // particulier un séjour multi-jours), on ne repropose pas une deuxième
@@ -192,16 +204,31 @@ function suggererProgramme({
       // circuits à l'ajout manuel plutôt que de mal les placer.
       const dureeJours = isMultiJour ? parseDureeJours(item.nom) : 1;
 
-      let score = (item.marge_pct || 0) * 0.5;
-      if (matchInteret(item)) score += 50;
+      const interetMatch = matchInteret(item);
+      // La marge sert de départage, jamais de critère principal — le
+      // programme doit d'abord refléter ce que le prospect a dit vouloir
+      // faire, pas ce qui rapporte le plus à l'agence.
+      let score = (item.marge_pct || 0) * 0.2;
+      if (interetMatch) score += 50;
       if (hasJeunesEnfants && enfantsFriendly) score += 20;
       if (hasJeunesEnfants && !enfantsFriendly && item.pu_enfant === 0 && item.pu_adulte > 0) score -= 15;
       if (hasAdos && (item.categorie === "Excursion" || item.categorie === "Séjour multi-jours")) score += 5;
 
       const prixParPersonne = item.pu_adulte || 0;
       const destinationTags = (item.tags || []).filter((t) => DESTINATION_TAGS.has(t));
+      const categorieMD = categorieMerDesert(item);
 
-      return { item, score, disponibleSurSejour, joursItem, prixParPersonne, dureeJours, destinationTags };
+      return {
+        item,
+        score,
+        disponibleSurSejour,
+        joursItem,
+        prixParPersonne,
+        dureeJours,
+        destinationTags,
+        categorieMD,
+        interetMatch,
+      };
     })
     .filter((c) => c.disponibleSurSejour && c.dureeJours !== null)
     .sort((a, b) => b.score - a.score);
@@ -210,6 +237,7 @@ function suggererProgramme({
   const cible = jours.length > 0 ? Math.min(6, Math.max(2, Math.round(nbNuits / 2))) : 4;
 
   const usedDates = new Set<string>();
+  const usedCatalogueIds = new Set<string>();
   // Comparaison par inclusion (pas d'égalité stricte) car deux tags
   // désignant la même destination ne s'écrivent pas toujours pareil
   // ("Assouan" vs "Assouan & Abu Simbel") — l'un doit quand même bloquer
@@ -222,35 +250,14 @@ function suggererProgramme({
       )
     );
   const lignes: Ligne[] = [];
-  for (const c of candidats) {
-    if (lignes.length >= cible) break;
-    // Une destination déjà couverte (ex. une croisière incluant Louxor) ne
-    // doit pas ressortir une deuxième fois sous une autre activité.
-    if (destinationDejaCouverte(c.destinationTags)) continue;
 
-    const dureeJours = c.dureeJours || 1;
-    let date = "";
+  const placer = (c: (typeof candidats)[number], date: string) => {
     if (jours.length > 0) {
-      // Cherche un jour de départ autorisé pour l'activité dont toute la
-      // durée (ex. 5 jours et 4 nuits) tient dans le séjour sans chevaucher
-      // un autre jour déjà occupé.
-      const jourDepart = jours.find((d, idx) => {
-        if (usedDates.has(d)) return false;
-        if (c.joursItem.length > 0 && !c.joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()])) {
-          return false;
-        }
-        if (idx + dureeJours > jours.length) return false;
-        for (let k = 0; k < dureeJours; k++) {
-          if (usedDates.has(jours[idx + k])) return false;
-        }
-        return true;
-      });
-      if (!jourDepart) continue;
-      date = jourDepart;
       const startIdx = jours.indexOf(date);
-      for (let k = 0; k < dureeJours; k++) usedDates.add(jours[startIdx + k]);
+      for (let k = 0; k < (c.dureeJours || 1); k++) usedDates.add(jours[startIdx + k]);
     }
     c.destinationTags.forEach((t) => usedDestinationTags.push(t));
+    usedCatalogueIds.add(c.item.id);
     lignes.push({
       id: nextLigneId(),
       catalogueItemId: c.item.id,
@@ -261,7 +268,77 @@ function suggererProgramme({
       remise: 0,
       remiseLabel: "",
     });
+  };
+
+  // Étape 1 — place d'abord les activités multi-jours (croisières, circuits)
+  // qui structurent le séjour et bloquent plusieurs jours d'un coup — mais
+  // seulement si le prospect en a exprimé l'envie : une croisière (ou tout
+  // autre gros morceau) ne doit jamais être proposée par défaut juste parce
+  // qu'elle rapporte bien, uniquement si elle correspond à ce qu'il a dit.
+  for (const c of candidats) {
+    if (lignes.length >= cible) break;
+    if (!c.dureeJours || c.dureeJours <= 1) continue;
+    if (!c.interetMatch) continue;
+    if (destinationDejaCouverte(c.destinationTags)) continue;
+    if (jours.length === 0) continue;
+    const dureeJours = c.dureeJours;
+    const jourDepart = jours.find((d, idx) => {
+      if (usedDates.has(d)) return false;
+      if (c.joursItem.length > 0 && !c.joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()])) {
+        return false;
+      }
+      if (idx + dureeJours > jours.length) return false;
+      for (let k = 0; k < dureeJours; k++) {
+        if (usedDates.has(jours[idx + k])) return false;
+      }
+      return true;
+    });
+    if (!jourDepart) continue;
+    placer(c, jourDepart);
   }
+
+  // Étape 2 — remplit les jours restants un par un, chronologiquement, en
+  // alternant à chaque fois avec une activité de l'autre catégorie
+  // (mer/désert) quand c'est possible ; sinon on prend simplement la
+  // meilleure activité dispo ce jour-là plutôt que de laisser un trou.
+  let derniereCategorie: "mer" | "desert" | null = null;
+  if (jours.length > 0) {
+    for (const d of jours) {
+      if (lignes.length >= cible) break;
+      if (usedDates.has(d)) continue;
+      const weekday = WEEKDAY_FR[new Date(d + "T00:00:00").getDay()];
+      const dispoCeJour = candidats.filter(
+        (c) =>
+          (c.dureeJours || 1) === 1 &&
+          !usedCatalogueIds.has(c.item.id) &&
+          !destinationDejaCouverte(c.destinationTags) &&
+          (c.joursItem.length === 0 || c.joursItem.includes(weekday))
+      );
+      if (dispoCeJour.length === 0) continue;
+      const categorieSouhaitee: "mer" | "desert" | null =
+        derniereCategorie === "mer" ? "desert" : derniereCategorie === "desert" ? "mer" : null;
+      const prefs: typeof dispoCeJour = categorieSouhaitee
+        ? dispoCeJour.filter((c) => c.categorieMD === categorieSouhaitee)
+        : [];
+      const choix: (typeof dispoCeJour)[number] = (prefs.length > 0 ? prefs : dispoCeJour)[0];
+      placer(choix, d);
+      if (choix.categorieMD) derniereCategorie = choix.categorieMD;
+    }
+  } else {
+    // Pas de dates de séjour connues : on ne peut pas raisonner jour par
+    // jour, on garde le classement par score en respectant quand même
+    // l'alternance mer/désert dans l'ordre choisi.
+    for (const c of candidats) {
+      if (lignes.length >= cible) break;
+      if (usedCatalogueIds.has(c.item.id) || (c.dureeJours || 1) !== 1) continue;
+      if (destinationDejaCouverte(c.destinationTags)) continue;
+      const categorieSouhaitee = derniereCategorie === "mer" ? "desert" : derniereCategorie === "desert" ? "mer" : null;
+      if (categorieSouhaitee && c.categorieMD && c.categorieMD !== categorieSouhaitee) continue;
+      placer(c, "");
+      if (c.categorieMD) derniereCategorie = c.categorieMD;
+    }
+  }
+
   return lignes;
 }
 

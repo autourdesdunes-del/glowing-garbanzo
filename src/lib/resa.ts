@@ -717,11 +717,26 @@ export function isGrandEgyptianMuseum(siteCaire: string) {
 // jours_disponibles vide veut dire "tous les jours", jamais "aucun jour".
 export function joursDisponiblesMismatch(dateStr: string | null, joursDisponibles: string[]) {
   if (!dateStr || !joursDisponibles || joursDisponibles.length === 0) return false;
-  return !joursDisponibles.includes(weekdayFr(dateStr));
+  return !normalizeJoursDisponibles(joursDisponibles).includes(weekdayFr(dateStr));
+}
+
+// Certaines fiches catalogue ont accumulé le même jour en double casse
+// ("lundi" et "Lundi") au fil des ressaisies — on ne veut jamais l'afficher
+// deux fois ni comparer les jours en étant sensible à la casse.
+export function normalizeJoursDisponibles(joursDisponibles: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  (joursDisponibles || []).forEach((j) => {
+    const key = j.trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(key.charAt(0).toUpperCase() + key.slice(1));
+  });
+  return out;
 }
 
 export function joursDisponiblesLabel(joursDisponibles: string[]) {
-  return joursDisponibles.join(", ");
+  return normalizeJoursDisponibles(joursDisponibles).join(", ");
 }
 
 function fmtEuros(n: number) {

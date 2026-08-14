@@ -87,11 +87,14 @@ const PAYMENT_MODE_EN: Record<string, string> = {
   "Virement bancaire": "bank transfer",
   PayPal: "PayPal",
 };
-function resaActiveOn(r: Reservation, dateStr: string) {
+function dateRangeIncludes(r: Reservation, dateStr: string) {
   if (!r.date_debut) return false;
-  if (r.statut_resa === "Annulée") return false;
   const end = r.date_fin || r.date_debut;
   return dateStr >= r.date_debut && dateStr <= end;
+}
+function resaActiveOn(r: Reservation, dateStr: string) {
+  if (r.statut_resa === "Annulée") return false;
+  return dateRangeIncludes(r, dateStr);
 }
 function rangesOverlap(rStart: string | null, rEnd: string | null, fStart: string, fEnd: string) {
   if (!rStart) return false;
@@ -790,6 +793,7 @@ function CalendarMonthView({
   const todayStr = toStr(new Date());
   const [monthCursor, setMonthCursor] = useState(() => monthStartOf(todayStr));
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [showAnnulees, setShowAnnulees] = useState(false);
 
   const clientById = useMemo(() => {
     const map = new Map<string, Client>();
@@ -815,8 +819,29 @@ function CalendarMonthView({
     return map;
   }, [gridDays, reservations, clientById]);
 
+  // Les activités annulées n'apparaissent plus sur la pastille du jour, mais
+  // restent consultables au clic — repliées par défaut, pour retrouver une
+  // annulation sans polluer la vue du jour au quotidien.
+  const byDateAnnulees = useMemo(() => {
+    const map = new Map<string, Row[]>();
+    gridDays.forEach((day) => {
+      const rows: Row[] = [];
+      reservations.forEach((r) => {
+        if (r.statut_resa !== "Annulée") return;
+        if (!dateRangeIncludes(r, day)) return;
+        const client = clientById.get(r.client_id);
+        if (!client) return;
+        rows.push({ client, r });
+      });
+      rows.sort((a, b) => (a.r.moment || "").localeCompare(b.r.moment || ""));
+      map.set(day, rows);
+    });
+    return map;
+  }, [gridDays, reservations, clientById]);
+
   const currentMonthIndex = new Date(monthCursor + "T00:00:00").getMonth();
   const selectedRows = selectedDay ? byDate.get(selectedDay) || [] : [];
+  const selectedRowsAnnulees = selectedDay ? byDateAnnulees.get(selectedDay) || [] : [];
 
   return (
     <div>
@@ -864,7 +889,10 @@ function CalendarMonthView({
             <button
               key={day}
               type="button"
-              onClick={() => setSelectedDay(day)}
+              onClick={() => {
+                setSelectedDay(day);
+                setShowAnnulees(false);
+              }}
               className={`flex min-h-[60px] flex-col items-center gap-1 bg-white py-2 hover:bg-[#fafafa] ${
                 inMonth ? "" : "opacity-40"
               }`}
@@ -919,6 +947,55 @@ function CalendarMonthView({
                   onOpenClient={onOpenClient}
                 />
               ))}
+
+              {selectedRowsAnnulees.length > 0 && (
+                <div className="border-t border-neutral-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAnnulees((v) => !v)}
+                    className="flex w-full items-center justify-between text-sm font-medium text-neutral-500 hover:text-[#171717]"
+                  >
+                    <span>
+                      {selectedRowsAnnulees.length} activité{selectedRowsAnnulees.length > 1 ? "s" : ""} annulée
+                      {selectedRowsAnnulees.length > 1 ? "s" : ""} ce jour-là
+                    </span>
+                    <span className="text-neutral-400">{showAnnulees ? "▲" : "▼"}</span>
+                  </button>
+                  {showAnnulees && (
+                    <div className="mt-2 space-y-2">
+                      {selectedRowsAnnulees.map((row) => (
+                        <div
+                          key={row.r.id}
+                          onClick={() => onOpenActivity(row)}
+                          className="cursor-pointer rounded-md border border-red-100 bg-red-50/40 p-2.5 text-sm"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="min-w-0 truncate font-medium text-[#171717] line-through decoration-red-400">
+                              {cleanActivityTitle(row.r.nom_activite) || "Activité"}
+                            </p>
+                            <span className="shrink-0 whitespace-nowrap rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
+                              Annulée
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenClient(row.client.id);
+                            }}
+                            className="mt-0.5 text-xs font-medium text-[#171717] hover:underline"
+                          >
+                            {row.client.nom || "Sans nom"}
+                          </button>
+                          {row.r.annulation_raison && (
+                            <p className="mt-0.5 text-xs text-neutral-500">{row.r.annulation_raison}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

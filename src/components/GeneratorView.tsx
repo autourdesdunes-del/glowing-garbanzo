@@ -633,6 +633,21 @@ function suggererProgramme({
   return { lignes, activitesTarifGroupeIgnorees };
 }
 
+// Mêmes villes que HelpView (référence hôtels) — Autre en dernier pour la
+// saisie libre quand aucune des zones connues ne convient.
+const VILLES = [
+  "Hurghada",
+  "El Gouna",
+  "Makadi Bay",
+  "Soma Bay",
+  "Sahl Hasheesh",
+  "Marsa Alam",
+  "Le Caire",
+  "Louxor",
+  "Assouan",
+  "Autre",
+];
+
 export default function GeneratorView({
   catalogue,
   clients,
@@ -664,6 +679,9 @@ export default function GeneratorView({
   const [copied, setCopied] = useState(false);
   const [hotels, setHotels] = useState<HotelReference[]>([]);
   const [transfertTaxes, setTransfertTaxes] = useState<TransfertTaxe[]>([]);
+  const [popupHotelInconnu, setPopupHotelInconnu] = useState(false);
+  const [nouvelHotelVille, setNouvelHotelVille] = useState("Hurghada");
+  const [nouvelHotelVilleAutre, setNouvelHotelVilleAutre] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -697,6 +715,38 @@ export default function GeneratorView({
   );
   const taxeTransfertMontant = taxeResultat.type === "montant" ? taxeResultat.montant : 0;
 
+  // Un hôtel non reconnu (donc absent de hotels_reference) empêche de
+  // détecter sa zone — la taxe de transfert éventuelle serait alors
+  // oubliée silencieusement (cf. matchHotel). On le signale à l'employée
+  // (via un événement explicite — saisie ou choix d'un prospect — jamais
+  // depuis un effet, cf. règle react-hooks/set-state-in-effect) plutôt que
+  // de laisser passer sans rien dire. Ignoré tant que la référence hôtels
+  // n'a pas fini de charger, sinon tout hôtel semblerait inconnu.
+  const verifierHotelConnu = (valeur: string = hotel) => {
+    if (hotels.length > 0 && valeur.trim() && !matchHotel(valeur, hotels)) {
+      setNouvelHotelVille("Hurghada");
+      setNouvelHotelVilleAutre("");
+      setPopupHotelInconnu(true);
+    }
+  };
+
+  const ajouterHotelInconnu = async () => {
+    const ville = nouvelHotelVille === "Autre" ? nouvelHotelVilleAutre.trim() : nouvelHotelVille;
+    if (!hotel.trim() || !ville) return;
+    const { data, error } = await supabase
+      .from("hotels_reference")
+      .insert({ nom: hotel.trim(), ville, sur_hurghada: ville === "Hurghada" })
+      .select()
+      .single();
+    if (error || !data) {
+      toast("Impossible d'ajouter cet hôtel (déjà présent ?).");
+      return;
+    }
+    setHotels((prev) => [...prev, data as HotelReference]);
+    setPopupHotelInconnu(false);
+    toast("Hôtel ajouté à la référence.", "success");
+  };
+
   const applyProspect = (id: string) => {
     setProspectId(id);
     // La réponse au popup Caire/Louxor ne vaut que pour le prospect pour
@@ -711,7 +761,10 @@ export default function GeneratorView({
     setAgesEnfants(c.kommo_ages_enfants_estime || "");
     setInterets(c.kommo_activites_interet || "");
     setActivitesAEviter(c.kommo_activites_a_eviter || "");
-    setHotel(c.kommo_hotel_estime || c.hotel || "");
+    const hotelValue = c.kommo_hotel_estime || c.hotel || "";
+    setHotel(hotelValue);
+    setPopupHotelInconnu(false);
+    verifierHotelConnu(hotelValue);
   };
 
   const lancerGeneration = (preference: "excursions" | "circuit" | null) => {
@@ -957,7 +1010,13 @@ export default function GeneratorView({
           </label>
           <label className="col-span-2 text-xs text-neutral-500">
             Hôtel
-            <input type="text" value={hotel} onChange={(e) => setHotel(e.target.value)} className="input mt-1" />
+            <input
+              type="text"
+              value={hotel}
+              onChange={(e) => setHotel(e.target.value)}
+              onBlur={() => verifierHotelConnu()}
+              className="input mt-1"
+            />
             {villeClient && villeClient.toLowerCase() !== "hurghada" && (
               <span className="mt-1 block text-[11px] text-[#8B4531]">
                 {taxeResultat.type === "montant" &&
@@ -1194,6 +1253,53 @@ export default function GeneratorView({
                 className="rounded-md bg-[#171717] px-3 py-2 text-left text-sm font-medium text-white hover:opacity-90"
               >
                 Option 3 — Je demande au client
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {popupHotelInconnu && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl">
+            <h2 className="font-heading text-base font-semibold text-[#171717]">Hôtel non reconnu</h2>
+            <p className="mt-3 text-sm text-[#171717]">
+              &laquo;&nbsp;{hotel}&nbsp;&raquo; ne correspond à aucun hôtel de la liste de référence — sa
+              zone (et une éventuelle taxe de transfert) ne peut donc pas être détectée automatiquement.
+              Vérifie l&apos;orthographe, ou ajoute-le à la référence :
+            </p>
+            <label className="mt-4 block text-xs font-medium text-neutral-500">
+              Localisation de &laquo;&nbsp;{hotel}&nbsp;&raquo;
+              <select
+                value={nouvelHotelVille}
+                onChange={(e) => setNouvelHotelVille(e.target.value)}
+                className="input mt-1"
+              >
+                {VILLES.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </label>
+            {nouvelHotelVille === "Autre" && (
+              <input
+                value={nouvelHotelVilleAutre}
+                onChange={(e) => setNouvelHotelVilleAutre(e.target.value)}
+                placeholder="Nom de la ville"
+                className="input mt-2"
+              />
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setPopupHotelInconnu(false)}
+                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-[#fafafa]"
+              >
+                Ignorer
+              </button>
+              <button
+                onClick={ajouterHotelInconnu}
+                className="flex-1 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Ajouter à la référence
               </button>
             </div>
           </div>

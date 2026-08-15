@@ -84,7 +84,11 @@ const PROSPECTS_SUBS = [
 ] as const;
 type ProspectsSub = (typeof PROSPECTS_SUBS)[number]["key"];
 
-const MANAGER_SUBS = [{ key: "attente", label: "En attente" }] as const;
+const MANAGER_SUBS = [
+  { key: "attente", label: "En attente" },
+  { key: "equipe", label: "Gestion équipe" },
+  { key: "suivi", label: "Suivi clients" },
+] as const;
 type ManagerSub = (typeof MANAGER_SUBS)[number]["key"];
 
 function IconHome() {
@@ -589,11 +593,11 @@ function AppShellInner({
     if (viewAsTeam && (mode === "direction" || mode === "manager")) setMode("dashboard");
   }, [viewAsTeam, mode]);
 
-  // Total toutes catégories "en attente" confondues (autorisations,
-  // clients confirmés Kommo non pris en charge, activités en Brouillon) —
-  // affiché en cloche sur le sous-menu Manager > En attente. Les demandes de
-  // modification de tarifs (catalogue/taxes) ne sont volontairement pas
-  // comptées ici : elles concernent uniquement la Direction et restent
+  // Comptes "en attente" par catégorie (autorisations, clients confirmés
+  // Kommo non pris en charge, activités en Brouillon, doublons, prospects
+  // stagnants) — répartis en badges par sous-menu Manager ci-dessous. Les
+  // demandes de modification de tarifs (catalogue/taxes) sont volontairement
+  // pas comptées ici : elles concernent uniquement la Direction et restent
   // dans l'onglet Direction (voir ManagerView.tsx).
   const managerAutorisationsCount =
     busEscalationsPending.length + jourEscalationsPending.length + assouanVerificationsPending.length;
@@ -601,12 +605,13 @@ function AppShellInner({
   const managerActivitesCount = allReservations.filter((r) => r.statut_resa === "Brouillon").length;
   const managerDoublonsCount = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite).length;
   const managerProspectsStagnantsCount = clients.filter(prospectStagnantNav).length;
-  const managerPendingTotal =
-    managerAutorisationsCount +
-    managerClientsCount +
-    managerActivitesCount +
-    managerDoublonsCount +
-    managerProspectsStagnantsCount;
+  // Badges par sous-menu (pas un total global) : "Gestion équipe" n'a pas
+  // de badge, rien à traiter en urgence de ce côté.
+  const managerSubCounts: Record<ManagerSub, number> = {
+    attente: managerAutorisationsCount + managerClientsCount + managerActivitesCount,
+    equipe: 0,
+    suivi: managerDoublonsCount + managerProspectsStagnantsCount,
+  };
 
   const activeStatuts =
     mode === "prospects"
@@ -1589,9 +1594,9 @@ function AppShellInner({
                         }`}
                       >
                         <span>{s.label}</span>
-                        {managerPendingTotal > 0 && (
+                        {managerSubCounts[s.key] > 0 && (
                           <span className="flex items-center gap-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                            +{managerPendingTotal}
+                            +{managerSubCounts[s.key]}
                           </span>
                         )}
                       </button>
@@ -2059,6 +2064,7 @@ function AppShellInner({
             <Spinner />
           ) : (
             <ManagerView
+              sub={managerSub}
               clients={clients}
               reservations={allReservations}
               catalogue={catalogue}

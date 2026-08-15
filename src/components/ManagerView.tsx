@@ -57,7 +57,13 @@ type Autorisation = {
 // Ici c'est en lecture seule : les popups bloquantes restent le moyen de
 // résoudre — cette page sert à voir d'un coup d'œil ce qui est en attente
 // et pourquoi.
+// Doit rester synchronisé avec MANAGER_SUBS dans AppShell.tsx (même
+// convention que PlanningSub/PlanningView : la liste des clés vit côté
+// AppShell pour le sous-menu, redéclarée ici pour typer la prop).
+type ManagerSub = "attente" | "equipe" | "suivi";
+
 export default function ManagerView({
+  sub,
   clients,
   reservations,
   catalogue,
@@ -70,6 +76,7 @@ export default function ManagerView({
   remarquesEmploye,
   onRemarqueSent,
 }: {
+  sub: ManagerSub;
   clients: Client[];
   reservations: Reservation[];
   catalogue: CatalogueItem[];
@@ -173,246 +180,264 @@ export default function ManagerView({
     <div className="mx-auto max-w-3xl space-y-8 p-8">
       <h1 className="font-heading text-[26px] font-semibold text-[#171717]">Manager</h1>
 
-      <div>
-        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-          Autorisations en attente
-        </h2>
-        {autorisations.length === 0 ? (
-          <p className="text-sm text-neutral-400">Rien en attente.</p>
-        ) : (
-          <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-            {autorisations.map((a) => (
-              <div
-                key={a.id}
-                onClick={a.clientId ? () => onOpenClient(a.clientId as string) : undefined}
-                className={`px-4 py-3 ${a.clientId ? "cursor-pointer hover:bg-[#fafafa]" : ""}`}
-              >
-                <p className="text-sm text-[#171717]">
-                  <span className="mr-1.5">{a.icon}</span>
-                  {a.texte}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-          Clients confirmés en attente
-        </h2>
-        {clientsEnAttenteConfirmation.length === 0 ? (
-          <p className="text-sm text-neutral-400">Rien en attente.</p>
-        ) : (
-          <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-            {clientsEnAttenteConfirmation.map((c) => (
-              <div
-                key={c.id}
-                onClick={() => onOpenClient(c.id)}
-                className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
-              >
-                <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
-                <p className="text-xs text-[#666666]">
-                  Confirmé automatiquement depuis Kommo — dossier à vérifier et compléter (hôtel, dates,
-                  activités réelles).
-                </p>
-                <p className="mt-0.5 text-xs font-medium text-[#0F5C56]">
-                  {c.confirmation_assignee_a
-                    ? `Renvoyé à ${c.confirmation_assignee_a}`
-                    : "Pas encore pris en charge"}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-          Activités en attente de validation
-        </h2>
-        {activitesEnAttente.length === 0 ? (
-          <p className="text-sm text-neutral-400">Rien en attente.</p>
-        ) : (
-          <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-            {activitesEnAttente.map((r) => {
-              const c = clients.find((cl) => cl.id === r.client_id);
-              const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
-              const raisons = activiteEnAttenteRaisons(r, catalogueItem);
-              return (
-                <div
-                  key={r.id}
-                  onClick={() => onOpenClient(r.client_id)}
-                  className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-[#171717]">{c?.nom || "Sans nom"}</p>
-                    <span className="whitespace-nowrap text-xs text-[#666666]">
-                      {fmtDate(r.date_debut)}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#666666]">{cleanActivityTitle(r.nom_activite) || "Activité"}</p>
-                  <p className="mt-0.5 text-xs text-red-600">
-                    {raisons.length > 0
-                      ? `Manque : ${raisons.join(", ")}`
-                      : "Rien de manquant détecté — juste pas encore cliqué sur Valider"}
-                  </p>
-                  <p className="mt-0.5 text-[11px] text-neutral-400">
-                    Ajoutée il y a {daysSince(r.created_at)} jour{daysSince(r.created_at) > 1 ? "s" : ""}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-          Doublons clients non traités
-        </h2>
-        {doublonsNonTraites.length === 0 ? (
-          <p className="text-sm text-neutral-400">Rien en attente.</p>
-        ) : (
-          <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-            {doublonsNonTraites.map((c) => {
-              const autre = clients.find((cl) => cl.id === c.doublon_possible_id);
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => onOpenClient(c.id)}
-                  className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
-                >
-                  <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
-                  <p className="text-xs text-[#666666]">
-                    Pourrait être le même client que{" "}
-                    <span className="font-medium text-[#171717]">{autre?.nom || "un autre dossier"}</span>
-                    .
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-          Prospects qui stagnent
-        </h2>
-        {prospectsStagnants.length === 0 ? (
-          <p className="text-sm text-neutral-400">Rien en attente.</p>
-        ) : (
-          <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-            {prospectsStagnants.map((c) => (
-              <div
-                key={c.id}
-                onClick={() => onOpenClient(c.id)}
-                className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
-                  <span className="whitespace-nowrap text-xs text-[#666666]">
-                    Arrivée {fmtDate(c.date_debut)}
-                  </span>
-                </div>
-                <p className="text-xs text-[#666666]">{c.statut}</p>
-                <p className="mt-0.5 text-xs text-red-600">
-                  Pas de contact depuis {daysSince(c.dernier_contact_date || c.created_at)} jour
-                  {daysSince(c.dernier_contact_date || c.created_at) > 1 ? "s" : ""}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-          Faire une remarque à une employée
-        </h2>
-        <p className="mb-3 text-xs text-[#666666]">
-          Reste privé : seule l&apos;employée choisie verra ce message, à sa prochaine connexion.
-        </p>
-        <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select
-              value={remarqueEmployeId}
-              onChange={(e) => setRemarqueEmployeId(e.target.value)}
-              className="input sm:w-48"
-            >
-              <option value="">Choisir une employée</option>
-              {employeesEligibles.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.prenom || p.email}
-                </option>
-              ))}
-            </select>
-            <textarea
-              value={remarqueMessage}
-              onChange={(e) => setRemarqueMessage(e.target.value)}
-              placeholder="Ex. : Ces derniers jours vous avez envoyé plus de 10 flyers. Préférez un vocal et un vrai échange avec le client plutôt que de « balancer » des flyers."
-              rows={2}
-              className="input flex-1"
-            />
-          </div>
-          <button
-            type="button"
-            disabled={!remarqueEmployeId || !remarqueMessage.trim() || sendingRemarque}
-            onClick={envoyerRemarque}
-            className="mt-2 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-          >
-            Envoyer la remarque
-          </button>
-        </div>
-        {remarquesRecentes.length > 0 && (
-          <div className="mt-3 divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-            {remarquesRecentes.map((r) => (
-              <div key={r.id} className="px-4 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-[#171717]">{r.employe_nom}</p>
-                  <span
-                    className={`whitespace-nowrap text-xs ${r.lu ? "text-[#0F5C56]" : "text-[#666666]"}`}
+      {sub === "attente" && (
+        <>
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Autorisations en attente
+            </h2>
+            {autorisations.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien en attente.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {autorisations.map((a) => (
+                  <div
+                    key={a.id}
+                    onClick={a.clientId ? () => onOpenClient(a.clientId as string) : undefined}
+                    className={`px-4 py-3 ${a.clientId ? "cursor-pointer hover:bg-[#fafafa]" : ""}`}
                   >
-                    {r.lu ? "Vue" : "Pas encore vue"}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-xs text-[#666666]">{r.message}</p>
+                    <p className="text-sm text-[#171717]">
+                      <span className="mr-1.5">{a.icon}</span>
+                      {a.texte}
+                    </p>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
 
-      <div>
-        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-          Rapports par employée
-        </h2>
-        <p className="mb-3 text-xs text-[#666666]">
-          Comptage à partir de maintenant seulement — l&apos;historique avant la mise en place de ce
-          suivi n&apos;est pas repris.
-        </p>
-        <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-[#eaeaea] text-xs text-[#666666]">
-                <th className="px-4 py-2 font-medium">Employée</th>
-                <th className="px-4 py-2 font-medium">Réservations créées</th>
-                <th className="px-4 py-2 font-medium">Remarques reçues</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#eaeaea]">
-              {rapportsParEmploye.map(({ profile, resasCreees, remarquesRecues }) => (
-                <tr key={profile.id}>
-                  <td className="px-4 py-2 font-medium text-[#171717]">{profile.prenom || profile.email}</td>
-                  <td className="px-4 py-2 text-[#171717]">{resasCreees}</td>
-                  <td className="px-4 py-2 text-[#171717]">{remarquesRecues}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Clients confirmés en attente
+            </h2>
+            {clientsEnAttenteConfirmation.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien en attente.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {clientsEnAttenteConfirmation.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => onOpenClient(c.id)}
+                    className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+                  >
+                    <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
+                    <p className="text-xs text-[#666666]">
+                      Confirmé automatiquement depuis Kommo — dossier à vérifier et compléter (hôtel,
+                      dates, activités réelles).
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-[#0F5C56]">
+                      {c.confirmation_assignee_a
+                        ? `Renvoyé à ${c.confirmation_assignee_a}`
+                        : "Pas encore pris en charge"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Activités en attente de validation
+            </h2>
+            {activitesEnAttente.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien en attente.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {activitesEnAttente.map((r) => {
+                  const c = clients.find((cl) => cl.id === r.client_id);
+                  const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+                  const raisons = activiteEnAttenteRaisons(r, catalogueItem);
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => onOpenClient(r.client_id)}
+                      className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-medium text-[#171717]">{c?.nom || "Sans nom"}</p>
+                        <span className="whitespace-nowrap text-xs text-[#666666]">
+                          {fmtDate(r.date_debut)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#666666]">
+                        {cleanActivityTitle(r.nom_activite) || "Activité"}
+                      </p>
+                      <p className="mt-0.5 text-xs text-red-600">
+                        {raisons.length > 0
+                          ? `Manque : ${raisons.join(", ")}`
+                          : "Rien de manquant détecté — juste pas encore cliqué sur Valider"}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-neutral-400">
+                        Ajoutée il y a {daysSince(r.created_at)} jour{daysSince(r.created_at) > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {sub === "suivi" && (
+        <>
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Doublons clients non traités
+            </h2>
+            {doublonsNonTraites.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien en attente.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {doublonsNonTraites.map((c) => {
+                  const autre = clients.find((cl) => cl.id === c.doublon_possible_id);
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => onOpenClient(c.id)}
+                      className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+                    >
+                      <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
+                      <p className="text-xs text-[#666666]">
+                        Pourrait être le même client que{" "}
+                        <span className="font-medium text-[#171717]">
+                          {autre?.nom || "un autre dossier"}
+                        </span>
+                        .
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Prospects qui stagnent
+            </h2>
+            {prospectsStagnants.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien en attente.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {prospectsStagnants.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => onOpenClient(c.id)}
+                    className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
+                      <span className="whitespace-nowrap text-xs text-[#666666]">
+                        Arrivée {fmtDate(c.date_debut)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#666666]">{c.statut}</p>
+                    <p className="mt-0.5 text-xs text-red-600">
+                      Pas de contact depuis {daysSince(c.dernier_contact_date || c.created_at)} jour
+                      {daysSince(c.dernier_contact_date || c.created_at) > 1 ? "s" : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {sub === "equipe" && (
+        <>
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Faire une remarque à une employée
+            </h2>
+            <p className="mb-3 text-xs text-[#666666]">
+              Reste privé : seule l&apos;employée choisie verra ce message, à sa prochaine connexion.
+            </p>
+            <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <select
+                  value={remarqueEmployeId}
+                  onChange={(e) => setRemarqueEmployeId(e.target.value)}
+                  className="input sm:w-48"
+                >
+                  <option value="">Choisir une employée</option>
+                  {employeesEligibles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.prenom || p.email}
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  value={remarqueMessage}
+                  onChange={(e) => setRemarqueMessage(e.target.value)}
+                  placeholder="Ex. : Ces derniers jours vous avez envoyé plus de 10 flyers. Préférez un vocal et un vrai échange avec le client plutôt que de « balancer » des flyers."
+                  rows={2}
+                  className="input flex-1"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={!remarqueEmployeId || !remarqueMessage.trim() || sendingRemarque}
+                onClick={envoyerRemarque}
+                className="mt-2 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                Envoyer la remarque
+              </button>
+            </div>
+            {remarquesRecentes.length > 0 && (
+              <div className="mt-3 divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {remarquesRecentes.map((r) => (
+                  <div key={r.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-[#171717]">{r.employe_nom}</p>
+                      <span
+                        className={`whitespace-nowrap text-xs ${r.lu ? "text-[#0F5C56]" : "text-[#666666]"}`}
+                      >
+                        {r.lu ? "Vue" : "Pas encore vue"}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-xs text-[#666666]">{r.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Rapports par employée
+            </h2>
+            <p className="mb-3 text-xs text-[#666666]">
+              Comptage à partir de maintenant seulement — l&apos;historique avant la mise en place de ce
+              suivi n&apos;est pas repris.
+            </p>
+            <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-[#eaeaea] text-xs text-[#666666]">
+                    <th className="px-4 py-2 font-medium">Employée</th>
+                    <th className="px-4 py-2 font-medium">Réservations créées</th>
+                    <th className="px-4 py-2 font-medium">Remarques reçues</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#eaeaea]">
+                  {rapportsParEmploye.map(({ profile, resasCreees, remarquesRecues }) => (
+                    <tr key={profile.id}>
+                      <td className="px-4 py-2 font-medium text-[#171717]">
+                        {profile.prenom || profile.email}
+                      </td>
+                      <td className="px-4 py-2 text-[#171717]">{resasCreees}</td>
+                      <td className="px-4 py-2 text-[#171717]">{remarquesRecues}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

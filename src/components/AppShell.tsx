@@ -1784,7 +1784,11 @@ function AppShellInner({
                   {filtered.map((c) => (
                     <button
                       key={c.id}
-                      onClick={() => setSelectedId(c.id)}
+                      onClick={() => {
+                        setSelectedId(c.id);
+                        setQuery("");
+                        setClientListExpanded(false);
+                      }}
                       className={`block w-full border-b border-[#666666]/10 px-4 py-3 text-left ${
                         c.id === selectedId ? "bg-[#fafafa]" : "hover:bg-[#fafafa]/50"
                       }`}

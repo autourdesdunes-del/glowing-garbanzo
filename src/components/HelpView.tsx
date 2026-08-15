@@ -192,45 +192,41 @@ export default function HelpView() {
           </div>
         </div>
 
-        {[
-          { key: true, label: "Sans taxe (Hurghada)" },
-          { key: false, label: "Hôtels avec taxe de transfert" },
-        ].map(({ key, label }) => {
+        {Array.from(new Set(hotels.map((h) => h.ville))).map((ville) => {
+          const q = hotelSearch.trim().toLowerCase();
           const list = hotels
-            .filter((h) => h.sur_hurghada === key)
-            .filter((h) => {
-              const q = hotelSearch.trim().toLowerCase();
-              return !q || h.nom.toLowerCase().includes(q) || h.ville.toLowerCase().includes(q);
-            })
+            .filter((h) => h.ville === ville)
+            .filter((h) => !q || h.nom.toLowerCase().includes(q) || h.ville.toLowerCase().includes(q))
             .sort((a, b) => a.nom.localeCompare(b.nom));
           if (list.length === 0) return null;
-          const expanded = expandedGroups[label] || false;
-          const shown = expanded ? list : list.slice(0, 5);
+          const ouvert = expandedGroups[ville] ?? !!q;
           return (
-            <div key={label} className="mt-5">
-              <h3 className="mb-2 text-sm font-semibold text-[#666666]">{label}</h3>
-              <div className="divide-y divide-neutral-100 rounded-md border border-neutral-200 bg-white">
-                {shown.map((h) => (
-                  <div key={h.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                    <span className="text-neutral-700">
-                      {h.nom} <span className="text-neutral-400">— {h.ville}</span>
-                    </span>
-                    <button
-                      onClick={() => deleteHotel(h.id)}
-                      className="flex-shrink-0 text-xs text-red-600 hover:underline"
-                    >
-                      Retirer
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {list.length > 5 && (
-                <button
-                  onClick={() => setExpandedGroups((prev) => ({ ...prev, [label]: !expanded }))}
-                  className="mt-1.5 text-xs text-[#171717] hover:underline"
-                >
-                  {expanded ? "Voir moins" : `Voir les ${list.length - 5} autres`}
-                </button>
+            <div key={ville} className="mt-3 rounded-md border border-neutral-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setExpandedGroups((prev) => ({ ...prev, [ville]: !ouvert }))}
+                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-semibold text-[#171717]"
+              >
+                <span>
+                  📍{ville.toUpperCase()}{" "}
+                  <span className="font-normal text-neutral-400">({list.length})</span>
+                </span>
+                <span className="text-neutral-400">{ouvert ? "▲" : "▼"}</span>
+              </button>
+              {ouvert && (
+                <div className="divide-y divide-neutral-100 border-t border-neutral-100">
+                  {list.map((h) => (
+                    <div key={h.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+                      <span className="text-neutral-700">{h.nom}</span>
+                      <button
+                        onClick={() => deleteHotel(h.id)}
+                        className="flex-shrink-0 text-xs text-red-600 hover:underline"
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           );

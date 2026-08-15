@@ -850,6 +850,7 @@ export default function ClientDetail({
           client={client}
           onChange={onChange}
           reservations={reservations}
+          totalSejour={totalSejourHeader}
           onNeedsField={(message, focusId) =>
             setMissingInfo({
               message,

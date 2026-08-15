@@ -121,6 +121,13 @@ const PROP_ICON_PATHS: Record<string, React.ReactNode> = {
       <path d="M13 7l2 2M15.2 4.8l2 2" strokeLinecap="round" />
     </>
   ),
+  wallet: (
+    <>
+      <rect x="2.5" y="5.5" width="15" height="10" rx="2" />
+      <path d="M2.5 8.5h15" />
+      <circle cx="14.5" cy="11.5" r="1" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 function PropIcon({ name }: { name: keyof typeof PROP_ICON_PATHS }) {
   return (
@@ -140,15 +147,18 @@ export function ContactStep({
   onChange,
   onNeedsField,
   reservations,
+  totalSejour,
 }: StepProps & {
   onNeedsField: (message: string, focusId: string) => void;
   reservations: Reservation[];
+  totalSejour?: number;
 }) {
   const supabase = createClient();
   const toast = useToast();
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [infoManquanteOpen, setInfoManquanteOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -216,25 +226,6 @@ export function ContactStep({
 
   return (
     <div className="space-y-1.5">
-      <PropertyRow label="Nom du client" icon={<PropIcon name="person" />}>
-        <input
-          value={client.nom}
-          onChange={(e) => onChange({ nom: e.target.value })}
-          className="input-flat font-medium"
-        />
-      </PropertyRow>
-
-      <PropertyRow label="Statut" icon={<PropIcon name="flag" />}>
-        <select
-          value={client.statut}
-          onChange={(e) => handleStatutChange(e.target.value)}
-          className="input-flat"
-        >
-          {STATUTS.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-      </PropertyRow>
       <PropertyRow label="Contact via" icon={<PropIcon name="phone" />}>
         <select
           value={client.canal}
@@ -267,24 +258,11 @@ export function ContactStep({
         </PropertyRow>
       )}
 
-      <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
-        <select
-          value={client.relation_grace_a}
-          onChange={(e) => onChange({ relation_grace_a: e.target.value })}
-          className="input-flat"
-        >
-          {RELATIONS.map((r) => (
-            <option key={r}>{r}</option>
-          ))}
-        </select>
-      </PropertyRow>
-      {client.relation_grace_a === "Autre" && (
-        <PropertyRow label="Préciser la relation">
-          <input
-            value={client.relation_autre}
-            onChange={(e) => onChange({ relation_autre: e.target.value })}
-            className="input-flat"
-          />
+      {typeof totalSejour === "number" && (
+        <PropertyRow label="Total du séjour" icon={<PropIcon name="wallet" />}>
+          <span className="font-amounts text-sm font-semibold text-[#171717]">
+            {totalSejour.toLocaleString("fr-FR")} €
+          </span>
         </PropertyRow>
       )}
 
@@ -292,15 +270,6 @@ export function ContactStep({
         <input
           value={client.telephone}
           onChange={(e) => onChange({ telephone: e.target.value })}
-          className="input-flat"
-        />
-      </PropertyRow>
-
-      <PropertyRow label="Email *" icon={<PropIcon name="mail" />}>
-        <input
-          type="email"
-          value={client.email}
-          onChange={(e) => onChange({ email: e.target.value })}
           className="input-flat"
         />
       </PropertyRow>
@@ -396,6 +365,58 @@ export function ContactStep({
           </div>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={() => setMoreOpen((v) => !v)}
+        className="flex items-center gap-1.5 pt-1 text-xs text-neutral-400 hover:text-neutral-600"
+      >
+        <span className={`inline-block transition-transform ${moreOpen ? "rotate-90" : ""}`}>›</span>
+        {moreOpen ? "Moins de propriétés" : "Autres propriétés (statut, relation, email…)"}
+      </button>
+      {moreOpen && (
+        <>
+          <PropertyRow label="Statut" icon={<PropIcon name="flag" />}>
+            <select
+              value={client.statut}
+              onChange={(e) => handleStatutChange(e.target.value)}
+              className="input-flat"
+            >
+              {STATUTS.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </PropertyRow>
+          <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
+            <select
+              value={client.relation_grace_a}
+              onChange={(e) => onChange({ relation_grace_a: e.target.value })}
+              className="input-flat"
+            >
+              {RELATIONS.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </PropertyRow>
+          {client.relation_grace_a === "Autre" && (
+            <PropertyRow label="Préciser la relation">
+              <input
+                value={client.relation_autre}
+                onChange={(e) => onChange({ relation_autre: e.target.value })}
+                className="input-flat"
+              />
+            </PropertyRow>
+          )}
+          <PropertyRow label="Email *" icon={<PropIcon name="mail" />}>
+            <input
+              type="email"
+              value={client.email}
+              onChange={(e) => onChange({ email: e.target.value })}
+              className="input-flat"
+            />
+          </PropertyRow>
+        </>
+      )}
     </div>
   );
 }
@@ -416,6 +437,7 @@ export function SejourStep({
   const confirm = useConfirm();
   const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
   const [showCircuit, setShowCircuit] = useState(false);
+  const [voyageursOpen, setVoyageursOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -512,19 +534,21 @@ export function SejourStep({
         />
       </PropertyRow>
 
-      <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
-        <input
-          value={client.hotel}
-          onChange={(e) => onChange({ hotel: e.target.value })}
-          className="input-flat font-medium"
-        />
-      </PropertyRow>
-      <PropertyRow label="N° de chambre" icon={<PropIcon name="key" />}>
-        <input
-          value={client.chambre}
-          onChange={(e) => onChange({ chambre: e.target.value })}
-          className="input-flat max-w-[160px]"
-        />
+      <PropertyRow label="Hôtel / Chambre" icon={<PropIcon name="hotel" />}>
+        <div className="flex items-center gap-2">
+          <input
+            value={client.hotel}
+            onChange={(e) => onChange({ hotel: e.target.value })}
+            placeholder="Hôtel"
+            className="input-flat flex-1 font-medium"
+          />
+          <input
+            value={client.chambre}
+            onChange={(e) => onChange({ chambre: e.target.value })}
+            placeholder="N° chambre"
+            className="input-flat w-24 flex-shrink-0"
+          />
+        </div>
       </PropertyRow>
 
       {client.hotel.trim() &&
@@ -672,48 +696,60 @@ export function SejourStep({
         </PropertyRow>
       )}
 
-      <PropertyRow label="Bébés (0 à 3 ans)" icon={<PropIcon name="person" />}>
-        <input
-          type="number"
-          min={0}
-          value={client.bebes}
-          onChange={(e) => onChange({ bebes: Number(e.target.value) })}
-          className="input-flat max-w-[140px]"
-        />
-      </PropertyRow>
-      {client.bebes > 0 && (
-        <PropertyRow label="Âge des bébés">
-          <input
-            value={client.ages_bebes}
-            onChange={(e) => onChange({ ages_bebes: e.target.value })}
-            placeholder="ex. 1 an"
-            className="input-flat"
-          />
-        </PropertyRow>
-      )}
-
-      <div>
-        <label className="flex items-center gap-2 text-sm text-neutral-700">
-          <input
-            type="checkbox"
-            checked={client.ados_presents}
-            onChange={(e) => onChange({ ados_presents: e.target.checked })}
-          />
-          Ados de moins de 16 ans présents parmi les adultes
-        </label>
-        {client.ados_presents && (
-          <div className="mt-1 max-w-xs">
-            <PropertyRow label="Âge des ados">
+      <button
+        type="button"
+        onClick={() => setVoyageursOpen((v) => !v)}
+        className="flex items-center gap-1.5 pt-1 text-xs text-neutral-400 hover:text-neutral-600"
+      >
+        <span className={`inline-block transition-transform ${voyageursOpen ? "rotate-90" : ""}`}>›</span>
+        {voyageursOpen ? "Moins de propriétés" : "Bébés / ados"}
+      </button>
+      {voyageursOpen && (
+        <>
+          <PropertyRow label="Bébés (0 à 3 ans)" icon={<PropIcon name="person" />}>
+            <input
+              type="number"
+              min={0}
+              value={client.bebes}
+              onChange={(e) => onChange({ bebes: Number(e.target.value) })}
+              className="input-flat max-w-[140px]"
+            />
+          </PropertyRow>
+          {client.bebes > 0 && (
+            <PropertyRow label="Âge des bébés">
               <input
-                value={client.ages_ados}
-                onChange={(e) => onChange({ ages_ados: e.target.value })}
-                placeholder="ex. 13 et 14 ans"
+                value={client.ages_bebes}
+                onChange={(e) => onChange({ ages_bebes: e.target.value })}
+                placeholder="ex. 1 an"
                 className="input-flat"
               />
             </PropertyRow>
+          )}
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-neutral-700">
+              <input
+                type="checkbox"
+                checked={client.ados_presents}
+                onChange={(e) => onChange({ ados_presents: e.target.checked })}
+              />
+              Ados de moins de 16 ans présents parmi les adultes
+            </label>
+            {client.ados_presents && (
+              <div className="mt-1 max-w-xs">
+                <PropertyRow label="Âge des ados">
+                  <input
+                    value={client.ages_ados}
+                    onChange={(e) => onChange({ ages_ados: e.target.value })}
+                    placeholder="ex. 13 et 14 ans"
+                    className="input-flat"
+                  />
+                </PropertyRow>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       <div className="rounded-md border border-[#666666]/20 bg-white p-4">
         <h3 className="font-heading text-sm font-semibold text-[#171717]">

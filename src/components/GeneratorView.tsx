@@ -119,6 +119,30 @@ const DESTINATION_TAGS = new Set([
   "Circuits",
 ]);
 
+// "Le Caire et/ou Louxor" dans un résumé Kommo peut vouloir dire deux
+// choses très différentes pour le programme : des excursions à la journée
+// depuis Hurghada, ou un circuit multi-villes (vol vers Le Caire, tournée
+// Caire/Louxor). Rien dans les envies ne permet de trancher, et proposer
+// l'un plutôt que l'autre au hasard serait faux une fois sur deux — on
+// détecte le cas et on laisse l'employée choisir (cf. popupAmbiguite dans
+// le composant) plutôt que de deviner.
+function detecterAmbiguiteCircuit(
+  catalogue: CatalogueItem[],
+  interets: string
+): { villes: string[] } | null {
+  const texte = interets.toLowerCase();
+  if (!/caire/.test(texte) || !/louxor/.test(texte)) return null;
+  const circuitExiste = catalogue.some(
+    (a) =>
+      a.valide &&
+      a.categorie === "Séjour multi-jours" &&
+      (a.tags || []).includes("Circuits") &&
+      /caire/i.test(a.nom) &&
+      /louxor/i.test(a.nom)
+  );
+  return circuitExiste ? { villes: ["Le Caire", "Louxor"] } : null;
+}
+
 let ligneSeq = 0;
 function nextLigneId() {
   ligneSeq += 1;
@@ -207,6 +231,7 @@ function suggererProgramme({
   activitesAEviter,
   villeClient,
   taxeTransfertMontant,
+  preferenceCircuit,
 }: {
   catalogue: CatalogueItem[];
   dateDebut: string;
@@ -218,6 +243,9 @@ function suggererProgramme({
   activitesAEviter: string;
   villeClient: string;
   taxeTransfertMontant: number;
+  // Résolution de l'ambiguïté Caire/Louxor (cf. detecterAmbiguiteCircuit) —
+  // null tant que l'employée n'a pas répondu au popup.
+  preferenceCircuit: "excursions" | "circuit" | null;
 }): { lignes: Ligne[]; activitesTarifGroupeIgnorees: string[] } {
   const nbPersonnes = nbAdultes + nbEnfants;
   const ages = extractAges(agesEnfants);
@@ -394,6 +422,23 @@ function suggererProgramme({
     .filter((a) => {
       const ville = dejaSurPlaceVille(a.nom) || departDepuisVille(a.nom);
       return !ville || ville.toLowerCase() === villeClient.trim().toLowerCase();
+    })
+    // Ambiguïté Caire/Louxor tranchée par l'employée (popup) : soit des
+    // excursions à la journée (on écarte le circuit multi-villes), soit un
+    // circuit (on écarte les excursions simples de ces deux villes) — sans
+    // ça les deux itinéraires, incompatibles, pouvaient se mélanger.
+    .filter((a) => {
+      if (!preferenceCircuit) return true;
+      const estCircuitCaireLouxor =
+        a.categorie === "Séjour multi-jours" &&
+        (a.tags || []).includes("Circuits") &&
+        /caire/i.test(a.nom) &&
+        /louxor/i.test(a.nom);
+      if (preferenceCircuit === "excursions") return !estCircuitCaireLouxor;
+      const estExcursionCaireOuLouxor =
+        a.categorie === "Excursion" &&
+        ((a.tags || []).includes("Le Caire") || (a.tags || []).includes("Louxor"));
+      return !estExcursionCaireOuLouxor;
     })
     .map((item) => {
       const joursItem = normalizeJoursDisponibles(item.jours_disponibles);
@@ -601,6 +646,8 @@ export default function GeneratorView({
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [picker, setPicker] = useState("");
   const [detailOuvert, setDetailOuvert] = useState(false);
+  const [popupAmbiguiteVilles, setPopupAmbiguiteVilles] = useState<string[] | null>(null);
+  const [preferenceCircuit, setPreferenceCircuit] = useState<"excursions" | "circuit" | null>(null);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hotels, setHotels] = useState<HotelReference[]>([]);
@@ -640,6 +687,9 @@ export default function GeneratorView({
 
   const applyProspect = (id: string) => {
     setProspectId(id);
+    // La réponse au popup Caire/Louxor ne vaut que pour le prospect pour
+    // lequel elle a été donnée — un autre dossier repart de zéro.
+    setPreferenceCircuit(null);
     const c = clients.find((cl) => cl.id === id);
     if (!c) return;
     setDateDebut(c.kommo_sejour_debut_estime || "");
@@ -652,7 +702,7 @@ export default function GeneratorView({
     setHotel(c.kommo_hotel_estime || c.hotel || "");
   };
 
-  const genererAuto = () => {
+  const lancerGeneration = (preference: "excursions" | "circuit" | null) => {
     if (taxeResultat.type === "a_demander") {
       toast(`Taxe de transfert (${villeClient}) : ${taxeResultat.note} — non ajoutée automatiquement.`);
     }
@@ -667,6 +717,7 @@ export default function GeneratorView({
       activitesAEviter,
       villeClient,
       taxeTransfertMontant,
+      preferenceCircuit: preference,
     });
     if (activitesTarifGroupeIgnorees.length > 0) {
       toast(
@@ -680,6 +731,31 @@ export default function GeneratorView({
       return;
     }
     setLignes(suggestions);
+  };
+
+  const genererAuto = () => {
+    // "Le Caire et/ou Louxor" sans savoir si le prospect part en excursions
+    // depuis Hurghada ou en circuit multi-villes change complètement le
+    // programme — on ne devine pas, on demande à l'employée avant de
+    // générer quoi que ce soit.
+    if (!preferenceCircuit) {
+      const ambiguite = detecterAmbiguiteCircuit(catalogue, interets);
+      if (ambiguite) {
+        setPopupAmbiguiteVilles(ambiguite.villes);
+        return;
+      }
+    }
+    lancerGeneration(preferenceCircuit);
+  };
+
+  const choisirOptionAmbiguite = (option: "excursions" | "circuit" | "demander") => {
+    setPopupAmbiguiteVilles(null);
+    if (option === "demander") {
+      toast("Demande d'abord la précision au client avant de générer.");
+      return;
+    }
+    setPreferenceCircuit(option);
+    lancerGeneration(option);
   };
 
   const addLigne = (catalogueItemId: string) => {
@@ -885,7 +961,10 @@ export default function GeneratorView({
             <input
               type="text"
               value={interets}
-              onChange={(e) => setInterets(e.target.value)}
+              onChange={(e) => {
+                setInterets(e.target.value);
+                setPreferenceCircuit(null);
+              }}
               placeholder="ex. plongée, îles, culture"
               className="input mt-1"
             />
@@ -1067,6 +1146,44 @@ export default function GeneratorView({
             >
               {saving ? "Ajout…" : `Ajouter ${lignes.length} activité(s) au dossier du prospect`}
             </button>
+          </div>
+        </div>
+      )}
+
+      {popupAmbiguiteVilles && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl">
+            <h2 className="font-heading text-base font-semibold text-[#171717]">
+              Le Caire et Louxor — excursions ou circuit ?
+            </h2>
+            <p className="mt-3 text-sm text-[#171717]">
+              Le prospect a mentionné {popupAmbiguiteVilles.join(" et ")} sans qu&apos;on sache s&apos;il compte
+              les visiter en excursions à la journée depuis Hurghada, ou en circuit multi-villes (vol vers Le
+              Caire, tournée des deux). Le programme proposé sera très différent selon le cas.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => choisirOptionAmbiguite("excursions")}
+                className="rounded-md border border-[#171717]/20 px-3 py-2 text-left text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
+              >
+                Option 1 — Excursions à la journée depuis Hurghada
+              </button>
+              <button
+                type="button"
+                onClick={() => choisirOptionAmbiguite("circuit")}
+                className="rounded-md border border-[#171717]/20 px-3 py-2 text-left text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
+              >
+                Option 2 — Circuit multi-villes
+              </button>
+              <button
+                type="button"
+                onClick={() => choisirOptionAmbiguite("demander")}
+                className="rounded-md bg-[#171717] px-3 py-2 text-left text-sm font-medium text-white hover:opacity-90"
+              >
+                Option 3 — Je demande au client
+              </button>
+            </div>
           </div>
         </div>
       )}

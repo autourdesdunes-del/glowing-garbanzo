@@ -161,10 +161,16 @@ export function ContactStep({
   onNeedsField,
   reservations,
   totalSejour,
+  hotelsRef,
+  taxesRef,
+  onOpenHelp,
 }: StepProps & {
   onNeedsField: (message: string, focusId: string) => void;
   reservations: Reservation[];
   totalSejour?: number;
+  hotelsRef: HotelReference[];
+  taxesRef: TransfertTaxe[];
+  onOpenHelp: () => void;
 }) {
   const supabase = createClient();
   const toast = useToast();
@@ -224,6 +230,13 @@ export function ContactStep({
     }
     setNewInfoLabel("");
   };
+
+  const hotelMatch = matchHotel(client.hotel, hotelsRef);
+  // La taxe dépend de la tranche adultes/enfants (voir HELP > Taxes de
+  // transfert) — jamais une seule ligne "ville → montant" comme avant.
+  const taxeResultat = hotelMatch
+    ? matchTransfertTaxe(taxesRef, hotelMatch.ville, client.adultes, client.enfants)
+    : null;
 
   return (
     <div className="space-y-1.5">
@@ -301,6 +314,35 @@ export function ContactStep({
           />
         </div>
       </PropertyRow>
+
+      {client.hotel.trim() && (
+        <div className="-mt-1 pl-[180px] text-xs">
+          {hotelMatch ? (
+            hotelMatch.sur_hurghada ? (
+              <span className="text-emerald-600">
+                ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
+              </span>
+            ) : (
+              <span className="text-orange-600">
+                ⚠ Cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut comporter une
+                taxe de transfert
+                {taxeResultat?.type === "montant" ? ` (${euros(taxeResultat.montant)} €)` : ""}
+                {taxeResultat?.type === "a_demander" ? ` (${taxeResultat.note})` : ""}.{" "}
+                <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+                  Vérifier le montant
+                </button>
+              </span>
+            )
+          ) : (
+            <span className="text-neutral-400">
+              Hôtel non répertorié dans HELP.{" "}
+              <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+                L&apos;ajouter
+              </button>
+            </span>
+          )}
+        </div>
+      )}
 
       <PropertyRow label="What's app" icon={<PropIcon name="phone" />}>
         <div className="flex items-center gap-2">
@@ -525,13 +567,6 @@ export function SejourStep({
     reordered.forEach((h) => supabase.from("client_hotels").update({ ordre: h.ordre }).eq("id", h.id));
   };
 
-  const hotelMatch = matchHotel(client.hotel, hotelsRef);
-  // La taxe dépend de la tranche adultes/enfants (voir HELP > Taxes de
-  // transfert) — jamais une seule ligne "ville → montant" comme avant.
-  const taxeResultat = hotelMatch
-    ? matchTransfertTaxe(taxesRef, hotelMatch.ville, client.adultes, client.enfants)
-    : null;
-
   const copyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
     client.hotel || "—"
   }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
@@ -548,34 +583,9 @@ export function SejourStep({
 
   return (
     <div className="space-y-1.5">
-      {/* Dates du séjour et Hôtel/Chambre : se modifient désormais depuis
-          le bandeau/Contact en haut de la fiche, plus ici. */}
-      {client.hotel.trim() &&
-        (hotelMatch ? (
-          hotelMatch.sur_hurghada ? (
-            <div className="rounded-md bg-[#171717]/10 px-3 py-2 text-xs text-[#171717]">
-              ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
-            </div>
-          ) : (
-            <div className="rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
-              ⚠ Attention, cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut
-              comporter une taxe de transfert
-              {taxeResultat?.type === "montant" ? ` (${euros(taxeResultat.montant)} €)` : ""}
-              {taxeResultat?.type === "a_demander" ? ` (${taxeResultat.note})` : ""}.{" "}
-              <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
-                Vérifier le montant de la taxe pour cette destination
-              </button>
-            </div>
-          )
-        ) : (
-          <div className="rounded-md bg-neutral-100 px-3 py-2 text-xs text-neutral-500">
-            Hôtel non répertorié dans HELP.{" "}
-            <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
-              L&apos;ajouter
-            </button>
-          </div>
-        ))}
-
+      {/* Dates du séjour, Hôtel/Chambre et le message Hurghada/taxe de
+          transfert : se modifient/s'affichent désormais depuis Contact en
+          haut de la fiche, plus ici. */}
       {clientHotels.length === 0 && !showCircuit ? (
         <button
           type="button"

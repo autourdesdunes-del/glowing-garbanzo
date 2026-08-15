@@ -846,6 +846,9 @@ export default function ClientDetail({
           onChange={onChange}
           reservations={reservations}
           totalSejour={totalSejourHeader}
+          hotelsRef={hotelsRef}
+          taxesRef={taxesRef}
+          onOpenHelp={onOpenHelp}
           onNeedsField={(message, focusId) =>
             setMissingInfo({
               message,

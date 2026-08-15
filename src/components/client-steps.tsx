@@ -271,18 +271,20 @@ export function ContactStep({
       )}
 
       <PropertyRow label="Hôtel / Chambre" icon={<PropIcon name="hotel" />}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <input
             value={client.hotel}
             onChange={(e) => onChange({ hotel: e.target.value })}
             placeholder="Hôtel"
-            className="input-flat flex-1 font-medium"
+            size={Math.max(client.hotel.length, 8)}
+            className="input-flat w-auto flex-shrink-0 font-medium"
           />
+          <span className="text-neutral-400">-</span>
           <input
             value={client.chambre}
             onChange={(e) => onChange({ chambre: e.target.value })}
-            placeholder="N° chambre"
-            className="input-flat w-24 flex-shrink-0"
+            placeholder="N° chambre(s)"
+            className="input-flat min-w-0 flex-1"
           />
         </div>
       </PropertyRow>

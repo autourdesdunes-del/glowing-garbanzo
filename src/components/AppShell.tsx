@@ -287,7 +287,6 @@ function AppShellInner({
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [clientListExpanded, setClientListExpanded] = useState(false);
-  const [clientSidebarCollapsed, setClientSidebarCollapsed] = useState(false);
   // Liste/Pipeline est un toggle par onglet : Clients démarre en Liste,
   // Prospects démarre en Pipeline (vue Kommo par défaut) — chacun garde son
   // propre choix ensuite si l'utilisateur bascule.
@@ -1667,26 +1666,8 @@ function AppShellInner({
             />
           ) : (
         <div className="flex flex-1 overflow-hidden">
-          {clientSidebarCollapsed ? (
-            <aside className="flex w-10 flex-col items-center border-r border-[#666666]/20 bg-white pt-3">
-              <button
-                onClick={() => setClientSidebarCollapsed(false)}
-                title="Afficher le panneau clients"
-                className="flex h-8 w-8 items-center justify-center rounded-md text-neutral-500 hover:bg-[#fafafa]"
-              >
-                ›
-              </button>
-            </aside>
-          ) : (
           <aside className="flex w-72 flex-col border-r border-[#666666]/20 bg-white">
             <div className="flex gap-2 border-b border-[#666666]/10 p-3">
-              <button
-                onClick={() => setClientSidebarCollapsed(true)}
-                title="Replier le panneau clients"
-                className="flex h-[34px] w-8 flex-shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-[#fafafa]"
-              >
-                ‹
-              </button>
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -1776,7 +1757,6 @@ function AppShellInner({
               </>
             )}
           </aside>
-          )}
 
           <main className="flex-1 overflow-y-auto p-6">
             {!selected || !activeStatuts.includes(selected.statut) ? (

@@ -140,9 +140,11 @@ function ResultModal({
 export default function AssouanVerificationCenter({
   profiles,
   currentUserId,
+  onPendingChange,
 }: {
   profiles: Profile[];
   currentUserId: string;
+  onPendingChange?: (items: AssouanVerification[]) => void;
 }) {
   const [pending, setPending] = useState<AssouanVerification[]>([]);
   const [myResults, setMyResults] = useState<AssouanVerification[]>([]);
@@ -151,6 +153,11 @@ export default function AssouanVerificationCenter({
   const myProfile = profiles.find((p) => p.id === currentUserId);
   const canResolve = isEscalationRecipient(myProfile);
   const resolverName = myProfile?.prenom || "Quelqu'un de l'équipe";
+
+  useEffect(() => {
+    onPendingChange?.(pending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
 
   useEffect(() => {
     if (!currentUserId) return;

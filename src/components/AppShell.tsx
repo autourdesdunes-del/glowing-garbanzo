@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
+  AssouanVerification,
+  BusEscalation,
   CatalogueFaq,
   CatalogueItem,
   CatalogueJour,
@@ -13,6 +15,7 @@ import {
   CatalogueTransfertTarif,
   Client,
   EMPTY_CLIENT,
+  JourEscalation,
   PaypalPaiement,
   PlanningShift,
   Profile,
@@ -78,6 +81,9 @@ const PROSPECTS_SUBS = [
   { key: "Client perdu", label: "Client perdu" },
 ] as const;
 type ProspectsSub = (typeof PROSPECTS_SUBS)[number]["key"];
+
+const MANAGER_SUBS = [{ key: "attente", label: "En attente" }] as const;
+type ManagerSub = (typeof MANAGER_SUBS)[number]["key"];
 
 function IconHome() {
   return (
@@ -279,6 +285,7 @@ function AppShellInner({
   const [focusReservationId, setFocusReservationId] = useState<string | null>(null);
   const [billetAutoOpenId, setBilletAutoOpenId] = useState<string | null>(null);
   const [prospectsSub, setProspectsSub] = useState<ProspectsSub>("toutes");
+  const [managerSub, setManagerSub] = useState<ManagerSub>("attente");
   const [clients, setClients] = useState<Client[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -310,6 +317,14 @@ function AppShellInner({
   const [transfertTaxeModificationRequests, setTransfertTaxeModificationRequests] = useState<
     TransfertTaxeModificationRequest[]
   >([]);
+  // Rapportés par les Centers (mêmes composants que les popups bloquantes
+  // bus/jour/Assouan) via onPendingChange — pour la cloche de la rubrique
+  // Manager, sans refaire les requêtes en double.
+  const [busEscalationsPending, setBusEscalationsPending] = useState<BusEscalation[]>([]);
+  const [jourEscalationsPending, setJourEscalationsPending] = useState<JourEscalation[]>([]);
+  const [assouanVerificationsPending, setAssouanVerificationsPending] = useState<AssouanVerification[]>(
+    []
+  );
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [modifsLoaded, setModifsLoaded] = useState(false);
   const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
@@ -545,6 +560,19 @@ function AppShellInner({
   useEffect(() => {
     if (viewAsTeam && (mode === "direction" || mode === "manager")) setMode("dashboard");
   }, [viewAsTeam, mode]);
+
+  // Total toutes catégories "en attente" confondues (autorisations,
+  // clients confirmés Kommo non pris en charge, activités en Brouillon) —
+  // affiché en cloche sur le sous-menu Manager > En attente.
+  const managerAutorisationsCount =
+    busEscalationsPending.length +
+    jourEscalationsPending.length +
+    assouanVerificationsPending.length +
+    catalogueModificationRequests.filter((r) => r.statut === "En attente").length +
+    transfertTaxeModificationRequests.filter((r) => r.statut === "En attente").length;
+  const managerClientsCount = clients.filter((c) => c.confirmation_a_traiter).length;
+  const managerActivitesCount = allReservations.filter((r) => r.statut_resa === "Brouillon").length;
+  const managerPendingTotal = managerAutorisationsCount + managerClientsCount + managerActivitesCount;
 
   const activeStatuts =
     mode === "prospects"
@@ -1288,9 +1316,21 @@ function AppShellInner({
         planningShifts={teamPlanningShifts}
         currentUserId={userId}
       />
-      <BusEscalationCenter profiles={teamProfiles} currentUserId={userId} />
-      <JourEscalationCenter profiles={teamProfiles} currentUserId={userId} />
-      <AssouanVerificationCenter profiles={teamProfiles} currentUserId={userId} />
+      <BusEscalationCenter
+        profiles={teamProfiles}
+        currentUserId={userId}
+        onPendingChange={setBusEscalationsPending}
+      />
+      <JourEscalationCenter
+        profiles={teamProfiles}
+        currentUserId={userId}
+        onPendingChange={setJourEscalationsPending}
+      />
+      <AssouanVerificationCenter
+        profiles={teamProfiles}
+        currentUserId={userId}
+        onPendingChange={setAssouanVerificationsPending}
+      />
       <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />
       <BilletEnvoiRappels
         reservations={allReservations}
@@ -1497,6 +1537,28 @@ function AppShellInner({
                         }`}
                       >
                         {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {t.key === "manager" && active && (
+                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                    {MANAGER_SUBS.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setManagerSub(s.key)}
+                        className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                          managerSub === s.key
+                            ? "bg-[#fafafa] text-[#171717]"
+                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                        }`}
+                      >
+                        <span>{s.label}</span>
+                        {managerPendingTotal > 0 && (
+                          <span className="flex items-center gap-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            +{managerPendingTotal}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -1967,6 +2029,11 @@ function AppShellInner({
               reservations={allReservations}
               catalogue={catalogue}
               onOpenClient={openClient}
+              busEscalations={busEscalationsPending}
+              jourEscalations={jourEscalationsPending}
+              assouanVerifications={assouanVerificationsPending}
+              catalogueModificationRequests={catalogueModificationRequests}
+              transfertTaxeModificationRequests={transfertTaxeModificationRequests}
             />
           )}
         </div>

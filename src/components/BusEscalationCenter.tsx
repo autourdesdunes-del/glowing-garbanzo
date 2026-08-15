@@ -128,9 +128,11 @@ function ResultModal({ escalation, onClose }: { escalation: BusEscalation; onClo
 export default function BusEscalationCenter({
   profiles,
   currentUserId,
+  onPendingChange,
 }: {
   profiles: Profile[];
   currentUserId: string;
+  onPendingChange?: (items: BusEscalation[]) => void;
 }) {
   const [pending, setPending] = useState<BusEscalation[]>([]);
   const [myResults, setMyResults] = useState<BusEscalation[]>([]);
@@ -139,6 +141,13 @@ export default function BusEscalationCenter({
   const myProfile = profiles.find((p) => p.id === currentUserId);
   const canResolve = isEscalationRecipient(myProfile);
   const resolverName = myProfile?.prenom || "Quelqu'un de l'équipe";
+
+  // Rapporté à AppShell pour la cloche de la rubrique Manager (liste des
+  // autorisations en attente) — évite de refaire une requête identique.
+  useEffect(() => {
+    onPendingChange?.(pending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
 
   useEffect(() => {
     if (!currentUserId) return;

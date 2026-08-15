@@ -133,9 +133,11 @@ function ResultModal({ escalation, onClose }: { escalation: JourEscalation; onCl
 export default function JourEscalationCenter({
   profiles,
   currentUserId,
+  onPendingChange,
 }: {
   profiles: Profile[];
   currentUserId: string;
+  onPendingChange?: (items: JourEscalation[]) => void;
 }) {
   const [pending, setPending] = useState<JourEscalation[]>([]);
   const [myResults, setMyResults] = useState<JourEscalation[]>([]);
@@ -144,6 +146,11 @@ export default function JourEscalationCenter({
   const myProfile = profiles.find((p) => p.id === currentUserId);
   const canResolve = isEscalationRecipient(myProfile);
   const resolverName = myProfile?.prenom || "Quelqu'un de l'équipe";
+
+  useEffect(() => {
+    onPendingChange?.(pending);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
 
   useEffect(() => {
     if (!currentUserId) return;

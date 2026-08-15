@@ -110,7 +110,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
       style={{
         width: FLYER_WIDTH,
         background: "#F2E6D2",
-        fontFamily: "var(--font-poppins)",
+        fontFamily: "var(--font-quicksand)",
         color: "#2B211C",
         display: "flex",
         flexDirection: "column",
@@ -169,65 +169,86 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
       </div>
 
       <div style={{ position: "relative", padding: "56px 60px 50px" }}>
-        <div
-          style={{
-            position: "absolute",
-            top: -60,
-            right: 60,
-            width: 150,
-            height: 150,
-            borderRadius: "50%",
-            background: "#FBF6EC",
-            boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div style={{ fontFamily: "var(--font-space-mono)", fontSize: 30, fontWeight: 700, color: "#5C2A1D" }}>
-            {montant}
+        {/* Rond de prix avec un anneau "dessiné" (léger décalage + trait
+            fin, comme sur le flyer réel) plutôt qu'un simple cercle plat. */}
+        <div style={{ position: "absolute", top: -66, right: 54, width: 168, height: 168 }}>
+          <svg width="168" height="168" style={{ position: "absolute", inset: 0 }}>
+            <ellipse
+              cx="84"
+              cy="82"
+              rx="82"
+              ry="80"
+              fill="none"
+              stroke="#8B4531"
+              strokeWidth="1.5"
+              opacity="0.55"
+            />
+            <ellipse
+              cx="86"
+              cy="86"
+              rx="79"
+              ry="81"
+              fill="none"
+              stroke="#8B4531"
+              strokeWidth="1"
+              opacity="0.35"
+            />
+          </svg>
+          <div
+            style={{
+              position: "absolute",
+              inset: 9,
+              borderRadius: "50%",
+              background: "#FBF6EC",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <div style={{ fontFamily: "var(--font-space-mono)", fontSize: 30, fontWeight: 700, color: "#5C2A1D" }}>
+              {montant}
+            </div>
+            <div style={{ fontSize: 16, color: "#5C2A1D" }}>{unite}</div>
           </div>
-          <div style={{ fontSize: 16, color: "#5C2A1D" }}>{unite}</div>
         </div>
 
-        {programme.length > 0 && (
-          <div style={{ marginTop: 20 }}>
-            <SectionLabel>PROGRAMME</SectionLabel>
-            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-              {programme.map((p, i) => (
-                <div key={i} style={{ fontSize: 22 }}>
-                  • {p}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Deux colonnes côte à côte : disponibilités à gauche, inclus à
-            droite (demande du 2026-08-14, repositionnées sous le programme
-            le 2026-08-15) — plus d'encadré/fond blanc (jugé "pas joli"
-            le 2026-08-15), juste le bandeau de titre comme sur le flyer
-            d'origine. */}
-        <div style={{ display: "flex", gap: 40, marginTop: 36 }}>
-          <div style={{ flex: 1 }}>
-            <SectionLabel>DISPONIBILITÉS</SectionLabel>
-            <div style={{ marginTop: 14, fontSize: 19, lineHeight: 1.5 }}>
-              {dispo && <div>{dispo}</div>}
-              {item.horaire_approx && <div>{item.horaire_approx}</div>}
-              {item.duree && <div>Durée : {item.duree}</div>}
-            </div>
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <SectionLabel>INCLUS</SectionLabel>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
+        {/* Deux colonnes : inclus + programme à gauche, horaires/dispo à
+            droite (calé sur le vrai flyer "Louxor en bus" envoyé le
+            2026-08-15 — pas de bloc "Réservez maintenant", retiré sur
+            demande explicite). */}
+        <div style={{ display: "flex", gap: 40 }}>
+          <div style={{ flex: 1.3 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {inclus.map((label, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 18 }}>
-                  <span style={{ fontSize: 20, width: 26, textAlign: "center" }}>{iconForInclus(label)}</span>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 21 }}>
+                  <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>{iconForInclus(label)}</span>
                   <span>{label}</span>
                 </div>
               ))}
+            </div>
+
+            {programme.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <SectionLabel>PROGRAMME</SectionLabel>
+                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {programme.map((p, i) => (
+                    <div key={i} style={{ fontSize: 20 }}>
+                      • {p}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div style={{ flex: 1, marginTop: 110 }}>
+            <SectionLabel>HORAIRES &amp; DISPONIBILITÉS</SectionLabel>
+            <div style={{ marginTop: 14, fontSize: 19, lineHeight: 1.5 }}>
+              {dispo && <div>Disponibilité : {dispo}</div>}
+              {item.horaire_approx && <div>{item.horaire_approx}</div>}
+              {item.duree && <div>Durée : {item.duree}</div>}
             </div>
           </div>
         </div>

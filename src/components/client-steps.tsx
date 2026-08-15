@@ -75,6 +75,61 @@ function fmtDateDMY(dateStr: string | null) {
 
 export { Field };
 
+// Icônes minimalistes pour les PropertyRow de ContactStep/SejourStep —
+// même style trait fin (viewBox 20, stroke 1.5) que le reste de l'appli.
+const PROP_ICON_PATHS: Record<string, React.ReactNode> = {
+  person: (
+    <>
+      <circle cx="10" cy="7" r="3" />
+      <path d="M3.5 17c0-3 2.9-5.3 6.5-5.3s6.5 2.3 6.5 5.3" strokeLinecap="round" />
+    </>
+  ),
+  flag: (
+    <>
+      <path d="M5 3v14" strokeLinecap="round" />
+      <path d="M5 4h9l-2.2 3L14 10H5" strokeLinejoin="round" />
+    </>
+  ),
+  phone: (
+    <path d="M4.5 3.5h2.7l1 3.3-1.7 1.4a10 10 0 0 0 4.3 4.3l1.4-1.7 3.3 1v2.7c0 .8-.7 1.4-1.5 1.3C8.6 15.2 4.8 11.4 4 5.9c-.1-.8.5-1.4 1.3-1.4Z" strokeLinejoin="round" />
+  ),
+  mail: (
+    <>
+      <rect x="2.5" y="4.5" width="15" height="11" rx="1.5" />
+      <path d="M3 5.5l7 5.5 7-5.5" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  megaphone: (
+    <path d="M3 8.5v3l2 .5 8 3v-10l-8 3-2 .5Z M13 8.5a2.5 2.5 0 0 1 0 3M16 6.5a5.5 5.5 0 0 1 0 7" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  calendar: (
+    <>
+      <rect x="3" y="4.5" width="14" height="12" rx="1.5" />
+      <path d="M3 8h14M7 3v3M13 3v3" strokeLinecap="round" />
+    </>
+  ),
+  hotel: (
+    <>
+      <rect x="2.5" y="5.5" width="15" height="10" rx="2" />
+      <path d="M2.5 8.5h15" />
+    </>
+  ),
+  key: (
+    <>
+      <circle cx="7" cy="13" r="3" />
+      <path d="M9.1 10.9 16 4" strokeLinecap="round" />
+      <path d="M13 7l2 2M15.2 4.8l2 2" strokeLinecap="round" />
+    </>
+  ),
+};
+function PropIcon({ name }: { name: keyof typeof PROP_ICON_PATHS }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-full w-full">
+      {PROP_ICON_PATHS[name]}
+    </svg>
+  );
+}
+
 type StepProps = {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
@@ -161,30 +216,30 @@ export function ContactStep({
 
   return (
     <div className="space-y-1.5">
-      <PropertyRow label="Nom du client">
+      <PropertyRow label="Nom du client" icon={<PropIcon name="person" />}>
         <input
           value={client.nom}
           onChange={(e) => onChange({ nom: e.target.value })}
-          className="input"
+          className="input-flat font-medium"
         />
       </PropertyRow>
 
-      <PropertyRow label="Statut">
+      <PropertyRow label="Statut" icon={<PropIcon name="flag" />}>
         <select
           value={client.statut}
           onChange={(e) => handleStatutChange(e.target.value)}
-          className="input"
+          className="input-flat"
         >
           {STATUTS.map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
       </PropertyRow>
-      <PropertyRow label="Contact via">
+      <PropertyRow label="Contact via" icon={<PropIcon name="phone" />}>
         <select
           value={client.canal}
           onChange={(e) => onChange({ canal: e.target.value })}
-          className="input"
+          className="input-flat"
         >
           {CANAUX.map((c) => (
             <option key={c}>{c}</option>
@@ -197,7 +252,7 @@ export function ContactStep({
           <input
             value={client.canal_autre}
             onChange={(e) => onChange({ canal_autre: e.target.value })}
-            className="input"
+            className="input-flat"
           />
         </PropertyRow>
       )}
@@ -207,16 +262,16 @@ export function ContactStep({
           <input
             value={client.pseudo_contact}
             onChange={(e) => onChange({ pseudo_contact: e.target.value })}
-            className="input"
+            className="input-flat"
           />
         </PropertyRow>
       )}
 
-      <PropertyRow label="Relation grâce à">
+      <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
         <select
           value={client.relation_grace_a}
           onChange={(e) => onChange({ relation_grace_a: e.target.value })}
-          className="input"
+          className="input-flat"
         >
           {RELATIONS.map((r) => (
             <option key={r}>{r}</option>
@@ -228,25 +283,25 @@ export function ContactStep({
           <input
             value={client.relation_autre}
             onChange={(e) => onChange({ relation_autre: e.target.value })}
-            className="input"
+            className="input-flat"
           />
         </PropertyRow>
       )}
 
-      <PropertyRow label="Téléphone / WhatsApp">
+      <PropertyRow label="Téléphone / WhatsApp" icon={<PropIcon name="phone" />}>
         <input
           value={client.telephone}
           onChange={(e) => onChange({ telephone: e.target.value })}
-          className="input"
+          className="input-flat"
         />
       </PropertyRow>
 
-      <PropertyRow label="Email *">
+      <PropertyRow label="Email *" icon={<PropIcon name="mail" />}>
         <input
           type="email"
           value={client.email}
           onChange={(e) => onChange({ email: e.target.value })}
-          className="input"
+          className="input-flat"
         />
       </PropertyRow>
 
@@ -440,35 +495,35 @@ export function SejourStep({
 
   return (
     <div className="space-y-1.5">
-      <PropertyRow label="Date début séjour">
+      <PropertyRow label="Date début séjour" icon={<PropIcon name="calendar" />}>
         <input
           type="date"
           value={client.date_debut ?? ""}
           onChange={(e) => onChange({ date_debut: e.target.value || null })}
-          className="input"
+          className="input-flat"
         />
       </PropertyRow>
-      <PropertyRow label="Date fin séjour">
+      <PropertyRow label="Date fin séjour" icon={<PropIcon name="calendar" />}>
         <input
           type="date"
           value={client.date_fin ?? ""}
           onChange={(e) => onChange({ date_fin: e.target.value || null })}
-          className="input"
+          className="input-flat"
         />
       </PropertyRow>
 
-      <PropertyRow label="Hôtel">
+      <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
         <input
           value={client.hotel}
           onChange={(e) => onChange({ hotel: e.target.value })}
-          className="input"
+          className="input-flat font-medium"
         />
       </PropertyRow>
-      <PropertyRow label="N° de chambre">
+      <PropertyRow label="N° de chambre" icon={<PropIcon name="key" />}>
         <input
           value={client.chambre}
           onChange={(e) => onChange({ chambre: e.target.value })}
-          className="input max-w-[160px]"
+          className="input-flat max-w-[160px]"
         />
       </PropertyRow>
 
@@ -587,22 +642,22 @@ export function SejourStep({
         </div>
       )}
 
-      <PropertyRow label="Adultes">
+      <PropertyRow label="Adultes" icon={<PropIcon name="person" />}>
         <input
           type="number"
           min={0}
           value={client.adultes}
           onChange={(e) => onChange({ adultes: Number(e.target.value) })}
-          className="input max-w-[140px]"
+          className="input-flat max-w-[140px]"
         />
       </PropertyRow>
-      <PropertyRow label="Enfants">
+      <PropertyRow label="Enfants" icon={<PropIcon name="person" />}>
         <input
           type="number"
           min={0}
           value={client.enfants}
           onChange={(e) => onChange({ enfants: Number(e.target.value) })}
-          className="input max-w-[140px]"
+          className="input-flat max-w-[140px]"
         />
       </PropertyRow>
       {client.enfants > 0 && (
@@ -612,18 +667,18 @@ export function SejourStep({
             value={client.ages_enfants}
             onChange={(e) => onChange({ ages_enfants: e.target.value })}
             placeholder="ex. 7 et 4 ans"
-            className="input"
+            className="input-flat"
           />
         </PropertyRow>
       )}
 
-      <PropertyRow label="Bébés (0 à 3 ans)">
+      <PropertyRow label="Bébés (0 à 3 ans)" icon={<PropIcon name="person" />}>
         <input
           type="number"
           min={0}
           value={client.bebes}
           onChange={(e) => onChange({ bebes: Number(e.target.value) })}
-          className="input max-w-[140px]"
+          className="input-flat max-w-[140px]"
         />
       </PropertyRow>
       {client.bebes > 0 && (
@@ -632,7 +687,7 @@ export function SejourStep({
             value={client.ages_bebes}
             onChange={(e) => onChange({ ages_bebes: e.target.value })}
             placeholder="ex. 1 an"
-            className="input"
+            className="input-flat"
           />
         </PropertyRow>
       )}
@@ -653,7 +708,7 @@ export function SejourStep({
                 value={client.ages_ados}
                 onChange={(e) => onChange({ ages_ados: e.target.value })}
                 placeholder="ex. 13 et 14 ans"
-                className="input"
+                className="input-flat"
               />
             </PropertyRow>
           </div>

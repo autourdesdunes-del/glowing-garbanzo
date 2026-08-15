@@ -418,27 +418,30 @@ function suggererProgramme({
     .filter((a) => !matchEviter(a))
     // "(déjà sur place)" ne concerne que les clients déjà logés dans la
     // ville de l'excursion elle-même — sinon il faut la version "depuis
-    // Hurghada" (en mini-bus, en voiture privée...).
+    // Hurghada" (en mini-bus, en voiture privée...). Exception : un circuit
+    // Caire/Louxor (cf. popup d'ambiguïté ci-dessous) amène justement le
+    // prospect physiquement dans ces deux villes, "déjà sur place" y
+    // redevient donc pertinent même si son hôtel est ailleurs.
     .filter((a) => {
       const ville = dejaSurPlaceVille(a.nom) || departDepuisVille(a.nom);
-      return !ville || ville.toLowerCase() === villeClient.trim().toLowerCase();
+      if (!ville) return true;
+      if (preferenceCircuit === "circuit" && (ville === "Le Caire" || ville === "Louxor")) return true;
+      return ville.toLowerCase() === villeClient.trim().toLowerCase();
     })
     // Ambiguïté Caire/Louxor tranchée par l'employée (popup) : soit des
-    // excursions à la journée (on écarte le circuit multi-villes), soit un
-    // circuit (on écarte les excursions simples de ces deux villes) — sans
-    // ça les deux itinéraires, incompatibles, pouvaient se mélanger.
+    // excursions payantes à la journée depuis Hurghada, soit un circuit —
+    // le prospect est alors déjà sur place, les excursions "depuis
+    // Hurghada" (en bus/mini-bus/avion/voiture) n'ont plus lieu d'être,
+    // seules les variantes "(déjà sur place)" (débloquées ci-dessus) le
+    // remplacent. Sans ce tri les deux itinéraires, incompatibles,
+    // pouvaient se mélanger.
     .filter((a) => {
-      if (!preferenceCircuit) return true;
-      const estCircuitCaireLouxor =
-        a.categorie === "Séjour multi-jours" &&
-        (a.tags || []).includes("Circuits") &&
-        /caire/i.test(a.nom) &&
-        /louxor/i.test(a.nom);
-      if (preferenceCircuit === "excursions") return !estCircuitCaireLouxor;
-      const estExcursionCaireOuLouxor =
+      if (preferenceCircuit !== "circuit") return true;
+      const estExcursionDepuisHurghada =
         a.categorie === "Excursion" &&
-        ((a.tags || []).includes("Le Caire") || (a.tags || []).includes("Louxor"));
-      return !estExcursionCaireOuLouxor;
+        ((a.tags || []).includes("Le Caire") || (a.tags || []).includes("Louxor")) &&
+        !/déjà sur place/i.test(a.nom);
+      return !estExcursionDepuisHurghada;
     })
     .map((item) => {
       const joursItem = normalizeJoursDisponibles(item.jours_disponibles);

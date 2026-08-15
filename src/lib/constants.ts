@@ -214,7 +214,7 @@ export const STATUT_COLORS: Record<string, string> = {
   "À relancer": "#E8D96B",
   "Programme envoyé": "#F0C368",
   "Demande d'infos envoyée": "#F3B8BE",
-  "Client confirmé": "#171717",
+  "Client confirmé": "#059669",
   "Client perdu": "#9CA3AF",
   "Client annulé": "#C4453A",
 };

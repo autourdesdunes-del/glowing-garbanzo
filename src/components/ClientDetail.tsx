@@ -665,32 +665,32 @@ export default function ClientDetail({
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div className="rounded-[6px] border border-[#eaeaea] bg-white p-5">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <input
             value={client.nom}
             onChange={(e) => onChange({ nom: e.target.value })}
             placeholder="Nom du client"
-            className="font-heading min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
+            className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
           />
-          <div className="flex flex-shrink-0 gap-2">
+          <div className="flex flex-shrink-0 items-center gap-1.5">
             <button
               onClick={() => handleDownload("devis")}
               disabled={generatingDoc !== null}
-              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-3 py-1.5 text-sm text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-2 py-1 text-xs text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
             >
               {generatingDoc === "devis" ? "Génération…" : "Devis (PDF)"}
             </button>
             <button
               onClick={() => handleDownload("facture")}
               disabled={generatingDoc !== null}
-              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-3 py-1.5 text-sm text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-2 py-1 text-xs text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
             >
               {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
             </button>
             {client.statut !== "Client annulé" && (
               <button
                 onClick={() => setShowAnnulerClientModal(true)}
-                className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                className="whitespace-nowrap rounded-md border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
               >
                 Annuler ce client
               </button>
@@ -698,9 +698,12 @@ export default function ClientDetail({
             {canDelete && (
               <button
                 onClick={onDelete}
-                className="whitespace-nowrap rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                title="Supprimer ce client"
+                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-red-300 text-red-600 hover:bg-red-50"
               >
-                Supprimer ce client
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5">
+                  <path d="M4 6h12M8 6V4.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6m-7 0 .6 10.2a1 1 0 0 0 1 .8h5.8a1 1 0 0 0 1-.8L15 6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             )}
           </div>

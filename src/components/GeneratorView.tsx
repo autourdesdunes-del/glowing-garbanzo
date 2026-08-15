@@ -259,9 +259,9 @@ function suggererProgramme({
   // Kommo écrit parfois une envie avec une note entre parenthèses ("Caire en
   // avion (GEM)", "Louxor (hésite)") — exiger que le segment entier
   // apparaisse tel quel dans le nom catalogue ratait tout dès qu'il y avait
-  // cette annotation. On compare maintenant mot par mot (parenthèses et
-  // mots vides ignorés) : le segment matche si tous ses mots significatifs
-  // se retrouvent dans le nom/catégorie/tags de l'activité.
+  // cette annotation. On compare maintenant mot par mot (mots vides
+  // ignorés) : le segment matche si tous ses mots significatifs se
+  // retrouvent dans le nom/catégorie/tags de l'activité.
   const MOTS_VIDES = new Set([
     "de", "du", "des", "le", "la", "les", "en", "et", "un", "une", "à", "a", "au",
     "aux", "avec", "sur", "pour", "dans", "ou", "d", "l", "the",
@@ -285,7 +285,13 @@ function suggererProgramme({
       .split(/\s+/)
       .map((m) => m.trim())
       .filter((m) => m.length > 2 && !MOTS_VIDES.has(m));
-  const motsSignificatifs = (segment: string): string[] => tokenize(segment.replace(/\([^)]*\)/g, " "));
+  // Ne plus retirer le contenu entre parenthèses ici : une note Kommo pure
+  // ("hésite", "GEM" — déjà traité par ALIAS_ENVIES plus bas) est de toute
+  // façon écartée ensuite par le filtre catalogueVocab (mot inconnu du
+  // catalogue). Mais une parenthèse peut aussi contenir un vrai nom de
+  // lieu précis ("île snorkeling (Ozirea)") — le supprimer aveuglément
+  // perdait cette info alors que "Oziréa Island" existe bien au catalogue.
+  const motsSignificatifs = (segment: string): string[] => tokenize(segment);
 
   // Kommo ne sépare pas toujours deux envies distinctes par une virgule
   // (ex. "Speedboat White Island + Hula Hula" — deux activités du catalogue

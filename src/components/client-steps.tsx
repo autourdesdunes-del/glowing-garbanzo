@@ -250,6 +250,18 @@ export function ContactStep({
               />
             </div>
           )}
+          {client.canal === "Email" && (
+            <div className="flex flex-1 items-center gap-1 text-neutral-400">
+              <span>—</span>
+              <input
+                type="email"
+                value={client.email}
+                onChange={(e) => onChange({ email: e.target.value })}
+                placeholder="email"
+                className="input-flat flex-1 text-[#171717]"
+              />
+            </div>
+          )}
         </div>
       </PropertyRow>
 
@@ -298,27 +310,28 @@ export function ContactStep({
             size={Math.max(client.telephone.length, 10)}
             className="input-flat w-auto min-w-0 flex-shrink"
           />
-          {emailOpen ? (
-            <>
-              <span className="flex-shrink-0 text-neutral-300">·</span>
-              <input
-                type="email"
-                value={client.email}
-                onChange={(e) => onChange({ email: e.target.value })}
-                placeholder="Email"
-                size={Math.max(client.email.length, 10)}
-                className="input-flat w-auto min-w-0 flex-shrink"
-              />
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setEmailOpen(true)}
-              className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
-            >
-              + Ajouter un e-mail
-            </button>
-          )}
+          {client.canal !== "Email" &&
+            (emailOpen ? (
+              <>
+                <span className="flex-shrink-0 text-neutral-300">·</span>
+                <input
+                  type="email"
+                  value={client.email}
+                  onChange={(e) => onChange({ email: e.target.value })}
+                  placeholder="Email"
+                  size={Math.max(client.email.length, 10)}
+                  className="input-flat w-auto min-w-0 flex-shrink"
+                />
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEmailOpen(true)}
+                className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
+              >
+                + Ajouter un e-mail
+              </button>
+            ))}
         </div>
       </PropertyRow>
 

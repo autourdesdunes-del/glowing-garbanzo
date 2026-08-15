@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   AssouanVerification,
@@ -93,7 +93,7 @@ type Autorisation = {
 // Doit rester synchronisé avec MANAGER_SUBS dans AppShell.tsx (même
 // convention que PlanningSub/PlanningView : la liste des clés vit côté
 // AppShell pour le sous-menu, redéclarée ici pour typer la prop).
-type ManagerSub = "attente" | "equipe" | "suivi";
+type ManagerSub = "attente" | "equipe" | "suivi" | "stats";
 
 export default function ManagerView({
   sub,
@@ -237,6 +237,45 @@ export default function ManagerView({
   const remarquesRecentes = [...remarquesEmploye]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, 10);
+
+  // Chiffre d'affaires uniquement (jamais de coût/marge ici) : calculable
+  // côté client sans passer par le serveur, contrairement au classement
+  // rentabilité ci-dessous. Annulées exclues, comme pour le panier moyen.
+  const ventesActives = reservations.filter((r) => r.statut_resa !== "Annulée");
+  const caParActivite = new Map<string, { total: number; count: number }>();
+  const caParClient = new Map<string, number>();
+  ventesActives.forEach((r) => {
+    const client = clients.find((c) => c.id === r.client_id);
+    if (!client) return;
+    const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+    const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+    const nomActivite = cleanActivityTitle(catalogueItem?.nom || r.nom_activite) || "Sans nom";
+    const entry = caParActivite.get(nomActivite) || { total: 0, count: 0 };
+    caParActivite.set(nomActivite, { total: entry.total + total, count: entry.count + 1 });
+    caParClient.set(client.nom || "Sans nom", (caParClient.get(client.nom || "Sans nom") || 0) + total);
+  });
+  const activitesPlusVendues = Array.from(caParActivite.entries())
+    .sort((a, b) => b[1].total - a[1].total)
+    .slice(0, 8);
+  const clientsPlusGrosCa = Array.from(caParClient.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  // Classement par bénéfice — jamais calculable côté client (la marge est
+  // réservée à la Direction en base, RLS). Vient de
+  // /api/manager/classement-rentabilite, qui ne renvoie que l'ordre des
+  // noms, jamais les montants.
+  const [classementRentabilite, setClassementRentabilite] = useState<{
+    activites: string[];
+    clients: string[];
+  } | null>(null);
+  useEffect(() => {
+    if (sub !== "stats" || classementRentabilite) return;
+    fetch("/api/manager/classement-rentabilite")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data && setClassementRentabilite(data));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub]);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-8">
@@ -517,6 +556,101 @@ export default function ManagerView({
                 </tbody>
               </table>
             </div>
+          </div>
+        </>
+      )}
+
+      {sub === "stats" && (
+        <>
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Activités les plus vendues
+            </h2>
+            {activitesPlusVendues.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien à afficher pour l&apos;instant.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {activitesPlusVendues.map(([nom, { total, count }]) => (
+                  <div key={nom} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-[#171717]">{nom}</p>
+                      <p className="text-xs text-[#666666]">
+                        {count} vente{count > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    <span className="whitespace-nowrap text-sm font-medium text-[#171717]">
+                      {euros(Math.round(total))} €
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Plus gros clients (chiffre d&apos;affaires)
+            </h2>
+            {clientsPlusGrosCa.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien à afficher pour l&apos;instant.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {clientsPlusGrosCa.map(([nom, total]) => (
+                  <div key={nom} className="flex items-center justify-between gap-3 px-4 py-3">
+                    <p className="text-sm font-medium text-[#171717]">{nom}</p>
+                    <span className="whitespace-nowrap text-sm font-medium text-[#171717]">
+                      {euros(Math.round(total))} €
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Activités les plus rentables
+            </h2>
+            <p className="mb-3 text-xs text-[#666666]">
+              Classement seulement — les montants de marge restent réservés à la Direction.
+            </p>
+            {!classementRentabilite ? (
+              <p className="text-sm text-neutral-400">Chargement…</p>
+            ) : classementRentabilite.activites.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien à afficher pour l&apos;instant.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {classementRentabilite.activites.map((nom, i) => (
+                  <div key={nom} className="flex items-center gap-3 px-4 py-3">
+                    <span className="w-5 text-sm font-medium text-[#C9973E]">{i + 1}</span>
+                    <p className="text-sm font-medium text-[#171717]">{nom}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Plus gros clients (bénéfice)
+            </h2>
+            <p className="mb-3 text-xs text-[#666666]">
+              Classement seulement — les montants de marge restent réservés à la Direction.
+            </p>
+            {!classementRentabilite ? (
+              <p className="text-sm text-neutral-400">Chargement…</p>
+            ) : classementRentabilite.clients.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien à afficher pour l&apos;instant.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {classementRentabilite.clients.map((nom, i) => (
+                  <div key={nom} className="flex items-center gap-3 px-4 py-3">
+                    <span className="w-5 text-sm font-medium text-[#C9973E]">{i + 1}</span>
+                    <p className="text-sm font-medium text-[#171717]">{nom}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

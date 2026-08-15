@@ -89,6 +89,7 @@ const MANAGER_SUBS = [
   { key: "attente", label: "En attente" },
   { key: "equipe", label: "Gestion équipe" },
   { key: "suivi", label: "Suivi clients" },
+  { key: "stats", label: "Statistiques" },
 ] as const;
 type ManagerSub = (typeof MANAGER_SUBS)[number]["key"];
 
@@ -637,6 +638,7 @@ function AppShellInner({
     attente: managerAutorisationsCount + managerClientsCount + managerActivitesCount,
     equipe: 0,
     suivi: managerDoublonsCount + managerProspectsStagnantsCount,
+    stats: 0,
   };
 
   const activeStatuts =

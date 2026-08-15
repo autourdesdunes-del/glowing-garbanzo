@@ -35,7 +35,7 @@ import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
 import ItineraryView from "@/components/ItineraryView";
-import { Field } from "@/components/Field";
+import { Field, PropertyRow } from "@/components/Field";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import RibScreenshotUpload from "@/components/RibScreenshotUpload";
@@ -161,60 +161,58 @@ export function ContactStep({
 
   return (
     <div className="space-y-1.5">
-      <Field label="Nom du client">
+      <PropertyRow label="Nom du client">
         <input
           value={client.nom}
           onChange={(e) => onChange({ nom: e.target.value })}
           className="input"
         />
-      </Field>
+      </PropertyRow>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Statut">
-          <select
-            value={client.statut}
-            onChange={(e) => handleStatutChange(e.target.value)}
-            className="input"
-          >
-            {STATUTS.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Contact via">
-          <select
-            value={client.canal}
-            onChange={(e) => onChange({ canal: e.target.value })}
-            className="input"
-          >
-            {CANAUX.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      <PropertyRow label="Statut">
+        <select
+          value={client.statut}
+          onChange={(e) => handleStatutChange(e.target.value)}
+          className="input"
+        >
+          {STATUTS.map((s) => (
+            <option key={s}>{s}</option>
+          ))}
+        </select>
+      </PropertyRow>
+      <PropertyRow label="Contact via">
+        <select
+          value={client.canal}
+          onChange={(e) => onChange({ canal: e.target.value })}
+          className="input"
+        >
+          {CANAUX.map((c) => (
+            <option key={c}>{c}</option>
+          ))}
+        </select>
+      </PropertyRow>
 
       {client.canal === "Autre" && (
-        <Field label="Préciser le canal">
+        <PropertyRow label="Préciser le canal">
           <input
             value={client.canal_autre}
             onChange={(e) => onChange({ canal_autre: e.target.value })}
             className="input"
           />
-        </Field>
+        </PropertyRow>
       )}
 
       {(client.canal === "Instagram" || client.canal === "TikTok") && (
-        <Field label={`Pseudo ${client.canal}`}>
+        <PropertyRow label={`Pseudo ${client.canal}`}>
           <input
             value={client.pseudo_contact}
             onChange={(e) => onChange({ pseudo_contact: e.target.value })}
             className="input"
           />
-        </Field>
+        </PropertyRow>
       )}
 
-      <Field label="Relation grâce à">
+      <PropertyRow label="Relation grâce à">
         <select
           value={client.relation_grace_a}
           onChange={(e) => onChange({ relation_grace_a: e.target.value })}
@@ -224,33 +222,33 @@ export function ContactStep({
             <option key={r}>{r}</option>
           ))}
         </select>
-      </Field>
+      </PropertyRow>
       {client.relation_grace_a === "Autre" && (
-        <Field label="Préciser la relation">
+        <PropertyRow label="Préciser la relation">
           <input
             value={client.relation_autre}
             onChange={(e) => onChange({ relation_autre: e.target.value })}
             className="input"
           />
-        </Field>
+        </PropertyRow>
       )}
 
-      <Field label="Téléphone / WhatsApp">
+      <PropertyRow label="Téléphone / WhatsApp">
         <input
           value={client.telephone}
           onChange={(e) => onChange({ telephone: e.target.value })}
           className="input"
         />
-      </Field>
+      </PropertyRow>
 
-      <Field label="Email *">
+      <PropertyRow label="Email *">
         <input
           type="email"
           value={client.email}
           onChange={(e) => onChange({ email: e.target.value })}
           className="input"
         />
-      </Field>
+      </PropertyRow>
 
       <PassportPhotosUpload
         paths={client.passeport_photos || []}
@@ -442,41 +440,37 @@ export function SejourStep({
 
   return (
     <div className="space-y-1.5">
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Date début séjour">
-          <input
-            type="date"
-            value={client.date_debut ?? ""}
-            onChange={(e) => onChange({ date_debut: e.target.value || null })}
-            className="input"
-          />
-        </Field>
-        <Field label="Date fin séjour">
-          <input
-            type="date"
-            value={client.date_fin ?? ""}
-            onChange={(e) => onChange({ date_fin: e.target.value || null })}
-            className="input"
-          />
-        </Field>
-      </div>
+      <PropertyRow label="Date début séjour">
+        <input
+          type="date"
+          value={client.date_debut ?? ""}
+          onChange={(e) => onChange({ date_debut: e.target.value || null })}
+          className="input"
+        />
+      </PropertyRow>
+      <PropertyRow label="Date fin séjour">
+        <input
+          type="date"
+          value={client.date_fin ?? ""}
+          onChange={(e) => onChange({ date_fin: e.target.value || null })}
+          className="input"
+        />
+      </PropertyRow>
 
-      <div className="grid grid-cols-[1fr_160px] gap-4">
-        <Field label="Hôtel">
-          <input
-            value={client.hotel}
-            onChange={(e) => onChange({ hotel: e.target.value })}
-            className="input"
-          />
-        </Field>
-        <Field label="N° de chambre">
-          <input
-            value={client.chambre}
-            onChange={(e) => onChange({ chambre: e.target.value })}
-            className="input"
-          />
-        </Field>
-      </div>
+      <PropertyRow label="Hôtel">
+        <input
+          value={client.hotel}
+          onChange={(e) => onChange({ hotel: e.target.value })}
+          className="input"
+        />
+      </PropertyRow>
+      <PropertyRow label="N° de chambre">
+        <input
+          value={client.chambre}
+          onChange={(e) => onChange({ chambre: e.target.value })}
+          className="input max-w-[160px]"
+        />
+      </PropertyRow>
 
       {client.hotel.trim() &&
         (hotelMatch ? (
@@ -593,28 +587,26 @@ export function SejourStep({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Adultes">
-          <input
-            type="number"
-            min={0}
-            value={client.adultes}
-            onChange={(e) => onChange({ adultes: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
-        <Field label="Enfants">
-          <input
-            type="number"
-            min={0}
-            value={client.enfants}
-            onChange={(e) => onChange({ enfants: Number(e.target.value) })}
-            className="input"
-          />
-        </Field>
-      </div>
+      <PropertyRow label="Adultes">
+        <input
+          type="number"
+          min={0}
+          value={client.adultes}
+          onChange={(e) => onChange({ adultes: Number(e.target.value) })}
+          className="input max-w-[140px]"
+        />
+      </PropertyRow>
+      <PropertyRow label="Enfants">
+        <input
+          type="number"
+          min={0}
+          value={client.enfants}
+          onChange={(e) => onChange({ enfants: Number(e.target.value) })}
+          className="input max-w-[140px]"
+        />
+      </PropertyRow>
       {client.enfants > 0 && (
-        <Field label="Âge des enfants (4 à 10 ans)">
+        <PropertyRow label="Âge des enfants (4 à 10 ans)">
           <input
             id="field-ages-enfants"
             value={client.ages_enfants}
@@ -622,10 +614,10 @@ export function SejourStep({
             placeholder="ex. 7 et 4 ans"
             className="input"
           />
-        </Field>
+        </PropertyRow>
       )}
 
-      <Field label="Bébés (0 à 3 ans)">
+      <PropertyRow label="Bébés (0 à 3 ans)">
         <input
           type="number"
           min={0}
@@ -633,16 +625,16 @@ export function SejourStep({
           onChange={(e) => onChange({ bebes: Number(e.target.value) })}
           className="input max-w-[140px]"
         />
-      </Field>
+      </PropertyRow>
       {client.bebes > 0 && (
-        <Field label="Âge des bébés">
+        <PropertyRow label="Âge des bébés">
           <input
             value={client.ages_bebes}
             onChange={(e) => onChange({ ages_bebes: e.target.value })}
             placeholder="ex. 1 an"
             className="input"
           />
-        </Field>
+        </PropertyRow>
       )}
 
       <div>
@@ -655,15 +647,15 @@ export function SejourStep({
           Ados de moins de 16 ans présents parmi les adultes
         </label>
         {client.ados_presents && (
-          <div className="mt-2 max-w-xs">
-            <Field label="Âge des ados">
+          <div className="mt-1 max-w-xs">
+            <PropertyRow label="Âge des ados">
               <input
                 value={client.ages_ados}
                 onChange={(e) => onChange({ ages_ados: e.target.value })}
                 placeholder="ex. 13 et 14 ans"
                 className="input"
               />
-            </Field>
+            </PropertyRow>
           </div>
         )}
       </div>

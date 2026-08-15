@@ -81,6 +81,16 @@ function dejaSurPlaceVille(nom: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+// Même logique que dejaSurPlaceVille pour l'autre tournure catalogue
+// ("Louxor 2 jours Montgolfière (depuis Louxor et transfert vers
+// Hurghada)") : le circuit part physiquement de cette ville-là, il ne
+// convient qu'à un client déjà sur place. Sans ce filtre, un client basé à
+// Hurghada se voyait proposer un aller simple depuis Louxor.
+function departDepuisVille(nom: string): string | null {
+  const m = nom.match(/\(depuis\s+(.+?)\s+et\s+transfert\s+vers/i);
+  return m ? m[1].trim() : null;
+}
+
 // Pour varier le programme plutôt que d'enchaîner deux journées "mer"
 // (îles, plongée, catamaran...) ou deux journées "désert" (quad, buggy,
 // safari...) d'affilée — seuls ces deux tags catalogue sont assez fiables
@@ -250,7 +260,21 @@ function suggererProgramme({
     const hay = [item.nom, item.categorie, ...(item.tags || [])].join(" ").toLowerCase();
     return groupes.some((mots) => mots.every((m) => hay.includes(m)));
   };
-  const matchInteret = (item: CatalogueItem) => matchGroupes(item, groupesInteret);
+
+  // Certains tags désignent un supplément optionnel qui s'ajoute à une
+  // simple visite de destination (montgolfière, croisière) plutôt qu'un
+  // type d'activité comme les autres — un intérêt générique pour la
+  // destination ("Louxor") ne doit jamais suffire à les proposer, sinon on
+  // se retrouve à suggérer une montgolfière (ou une croisière à 800€+) que
+  // le prospect n'a jamais demandée juste parce qu'elle couvre la même
+  // ville. Il faut que le mot lui-même apparaisse dans ses envies.
+  const TAGS_PREMIUM_REQUIS = ["Montgolfière", "Croisière"];
+  const motsInteretTous = new Set(groupesInteret.flat());
+  const matchInteret = (item: CatalogueItem) => {
+    if (!matchGroupes(item, groupesInteret)) return false;
+    const tagsPremium = (item.tags || []).filter((t) => TAGS_PREMIUM_REQUIS.includes(t));
+    return tagsPremium.every((t) => tokenize(t).every((m) => motsInteretTous.has(m)));
+  };
   const matchEviter = (item: CatalogueItem) => matchGroupes(item, groupesAEviter);
 
   // Une envie peut correspondre à une activité tarifée "au groupe" (bateau
@@ -280,7 +304,7 @@ function suggererProgramme({
     // ville de l'excursion elle-même — sinon il faut la version "depuis
     // Hurghada" (en mini-bus, en voiture privée...).
     .filter((a) => {
-      const ville = dejaSurPlaceVille(a.nom);
+      const ville = dejaSurPlaceVille(a.nom) || departDepuisVille(a.nom);
       return !ville || ville.toLowerCase() === villeClient.trim().toLowerCase();
     })
     .map((item) => {

@@ -116,7 +116,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
         flexDirection: "column",
       }}
     >
-      <div style={{ position: "relative", width: FLYER_WIDTH, height: 980, background: "#D8C7A8" }}>
+      <div style={{ position: "relative", width: FLYER_WIDTH, height: 700, background: "#D8C7A8" }}>
         {photoUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -168,7 +168,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
         </div>
       </div>
 
-      <div style={{ position: "relative", padding: "56px 60px 50px" }}>
+      <div style={{ position: "relative", padding: "36px 60px 50px" }}>
         {/* Rond de prix avec un anneau "dessiné" (léger décalage + trait
             fin, comme sur le flyer réel) plutôt qu'un simple cercle plat. */}
         <div style={{ position: "absolute", top: -66, right: 54, width: 168, height: 168 }}>
@@ -219,7 +219,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
             "Horaires & disponibilités" plutôt qu'en haut à gauche — pas de
             bloc "Réservez maintenant", retiré sur demande explicite). */}
         <div style={{ display: "flex", gap: 40 }}>
-          <div style={{ flex: 1.3, marginTop: 70 }}>
+          <div style={{ flex: 1.3, marginTop: 90 }}>
             {programme.length > 0 && (
               <div>
                 <SectionLabel>PROGRAMME</SectionLabel>
@@ -234,7 +234,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
             )}
           </div>
 
-          <div style={{ flex: 1, marginTop: 70 }}>
+          <div style={{ flex: 1, marginTop: 90 }}>
             <SectionLabel>HORAIRES &amp; DISPONIBILITÉS</SectionLabel>
             <div style={{ marginTop: 14, fontSize: 19, lineHeight: 1.5 }}>
               {dispo && <div>Disponibilité : {dispo}</div>}

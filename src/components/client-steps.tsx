@@ -227,15 +227,25 @@ export function ContactStep({
   return (
     <div className="space-y-1.5">
       <PropertyRow label="Contact via" icon={<PropIcon name="phone" />}>
-        <select
-          value={client.canal}
-          onChange={(e) => onChange({ canal: e.target.value })}
-          className="input-flat"
-        >
-          {CANAUX.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            value={client.canal}
+            onChange={(e) => onChange({ canal: e.target.value })}
+            className="input-flat w-32 flex-shrink-0"
+          >
+            {CANAUX.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          {(client.canal === "Instagram" || client.canal === "TikTok") && (
+            <input
+              value={client.pseudo_contact}
+              onChange={(e) => onChange({ pseudo_contact: e.target.value })}
+              placeholder="Pseudo"
+              className="input-flat flex-1"
+            />
+          )}
+        </div>
       </PropertyRow>
 
       {client.canal === "Autre" && (
@@ -248,23 +258,30 @@ export function ContactStep({
         </PropertyRow>
       )}
 
-      {(client.canal === "Instagram" || client.canal === "TikTok") && (
-        <PropertyRow label={`Pseudo ${client.canal}`}>
-          <input
-            value={client.pseudo_contact}
-            onChange={(e) => onChange({ pseudo_contact: e.target.value })}
-            className="input-flat"
-          />
-        </PropertyRow>
-      )}
-
       {typeof totalSejour === "number" && (
         <PropertyRow label="Total du séjour" icon={<PropIcon name="wallet" />}>
-          <span className="font-amounts text-sm font-semibold text-[#171717]">
+          <span className="font-heading text-sm font-semibold text-[#171717]">
             {totalSejour.toLocaleString("fr-FR")} €
           </span>
         </PropertyRow>
       )}
+
+      <PropertyRow label="Hôtel / Chambre" icon={<PropIcon name="hotel" />}>
+        <div className="flex items-center gap-2">
+          <input
+            value={client.hotel}
+            onChange={(e) => onChange({ hotel: e.target.value })}
+            placeholder="Hôtel"
+            className="input-flat flex-1 font-medium"
+          />
+          <input
+            value={client.chambre}
+            onChange={(e) => onChange({ chambre: e.target.value })}
+            placeholder="N° chambre"
+            className="input-flat w-24 flex-shrink-0"
+          />
+        </div>
+      </PropertyRow>
 
       <PropertyRow label="Téléphone / WhatsApp" icon={<PropIcon name="phone" />}>
         <input
@@ -517,25 +534,8 @@ export function SejourStep({
 
   return (
     <div className="space-y-1.5">
-      {/* Dates du séjour : se modifient désormais directement dans le
-          bandeau en haut de la fiche (badge or), plus ici. */}
-      <PropertyRow label="Hôtel / Chambre" icon={<PropIcon name="hotel" />}>
-        <div className="flex items-center gap-2">
-          <input
-            value={client.hotel}
-            onChange={(e) => onChange({ hotel: e.target.value })}
-            placeholder="Hôtel"
-            className="input-flat flex-1 font-medium"
-          />
-          <input
-            value={client.chambre}
-            onChange={(e) => onChange({ chambre: e.target.value })}
-            placeholder="N° chambre"
-            className="input-flat w-24 flex-shrink-0"
-          />
-        </div>
-      </PropertyRow>
-
+      {/* Dates du séjour et Hôtel/Chambre : se modifient désormais depuis
+          le bandeau/Contact en haut de la fiche, plus ici. */}
       {client.hotel.trim() &&
         (hotelMatch ? (
           hotelMatch.sur_hurghada ? (

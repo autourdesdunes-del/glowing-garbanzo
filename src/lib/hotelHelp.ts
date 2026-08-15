@@ -3,7 +3,19 @@ import { HotelReference, TransfertTaxe } from "@/lib/types";
 export function matchHotel(hotelName: string, hotels: HotelReference[]): HotelReference | null {
   const clean = hotelName.trim().toLowerCase();
   if (!clean) return null;
-  return hotels.find((h) => h.nom.trim().toLowerCase() === clean) || null;
+  const exact = hotels.find((h) => h.nom.trim().toLowerCase() === clean);
+  if (exact) return exact;
+  // Kommo donne souvent le nom officiel complet ("Club Jumbo Bellagio Beach
+  // Resort and Spa") alors que la référence hôtel est un nom court/usuel
+  // ("Bellagio") — sans repli, la zone (et donc la taxe de transfert) ne
+  // serait jamais détectée pour ces hôtels-là. minLength évite qu'un nom
+  // de référence trop court fasse un faux positif par sous-chaîne.
+  return (
+    hotels.find((h) => {
+      const nom = h.nom.trim().toLowerCase();
+      return nom.length > 3 && (clean.includes(nom) || nom.includes(clean));
+    }) || null
+  );
 }
 
 function dansTranche(n: number, min: number | null, max: number | null) {

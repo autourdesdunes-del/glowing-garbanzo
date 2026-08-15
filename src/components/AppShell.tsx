@@ -1695,7 +1695,31 @@ function AppShellInner({
       {mode === "team" && (
         <div className="flex flex-1 flex-col">
           <div className="flex items-center justify-between gap-2 border-b border-[#666666]/10 bg-white px-3 py-1.5">
-            <span />
+            <div className="flex flex-1 items-center gap-2">
+              <button
+                onClick={() => setClientListExpanded((v) => !v)}
+                title={clientListExpanded ? "Masquer la liste des clients" : "Afficher la liste des clients"}
+                className="flex h-[30px] w-7 flex-shrink-0 items-center justify-center rounded-md text-neutral-500 hover:bg-[#fafafa]"
+              >
+                <span className={`inline-block transition-transform ${clientListExpanded ? "rotate-90" : ""}`}>
+                  ›
+                </span>
+              </button>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Rechercher un client…"
+                className="w-56 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#171717] focus:outline-none"
+              />
+              <QuickAddClient
+                onCreate={addClient}
+                onUpdateClient={updateClientById}
+                clients={clients}
+                onDeleteClient={deleteClient}
+                onOpenClient={openClient}
+                defaultStatut="Client confirmé"
+              />
+            </div>
             <div className="flex gap-1">
             <button
               onClick={() => setTeamView("liste")}
@@ -1733,37 +1757,8 @@ function AppShellInner({
             />
           ) : (
         <div className="flex flex-1 overflow-hidden">
+          {(clientListExpanded || query.trim()) && (
           <aside className="flex w-72 flex-col border-r border-[#666666]/20 bg-white">
-            <div className="flex gap-2 border-b border-[#666666]/10 p-3">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher un client…"
-                className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#171717] focus:outline-none"
-              />
-              <QuickAddClient
-                onCreate={addClient}
-                onUpdateClient={updateClientById}
-                clients={clients}
-                onDeleteClient={deleteClient}
-                onOpenClient={openClient}
-                defaultStatut="Client confirmé"
-              />
-            </div>
-            <button
-              onClick={() => setClientListExpanded((v) => !v)}
-              className="flex items-center justify-between border-b border-[#666666]/10 px-3 py-2 text-left text-xs font-medium text-neutral-500 hover:bg-[#fafafa]"
-            >
-              <span>
-                {clientListExpanded || query.trim()
-                  ? `${filtered.length} client${filtered.length > 1 ? "s" : ""}`
-                  : "Afficher la liste des clients"}
-              </span>
-              <span className={`transition-transform ${clientListExpanded || query.trim() ? "rotate-180" : ""}`}>
-                ⌄
-              </span>
-            </button>
-            {(clientListExpanded || query.trim()) && (
               <>
                 {allTags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 border-b border-[#666666]/10 p-2">
@@ -1822,8 +1817,8 @@ function AppShellInner({
                   ))}
                 </div>
               </>
-            )}
           </aside>
+          )}
 
           <main className="flex-1 overflow-y-auto p-6">
             {!selected || !activeStatuts.includes(selected.statut) ? (

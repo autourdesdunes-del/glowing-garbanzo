@@ -517,23 +517,8 @@ export function SejourStep({
 
   return (
     <div className="space-y-1.5">
-      <PropertyRow label="Date début séjour" icon={<PropIcon name="calendar" />}>
-        <input
-          type="date"
-          value={client.date_debut ?? ""}
-          onChange={(e) => onChange({ date_debut: e.target.value || null })}
-          className="input-flat"
-        />
-      </PropertyRow>
-      <PropertyRow label="Date fin séjour" icon={<PropIcon name="calendar" />}>
-        <input
-          type="date"
-          value={client.date_fin ?? ""}
-          onChange={(e) => onChange({ date_fin: e.target.value || null })}
-          className="input-flat"
-        />
-      </PropertyRow>
-
+      {/* Dates du séjour : se modifient désormais directement dans le
+          bandeau en haut de la fiche (badge or), plus ici. */}
       <PropertyRow label="Hôtel / Chambre" icon={<PropIcon name="hotel" />}>
         <div className="flex items-center gap-2">
           <input

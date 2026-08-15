@@ -734,16 +734,31 @@ export default function ClientDetail({
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUT_COLORS[client.statut] }} />
             {client.statut}
           </span>
-          {client.hotel && (
-            <span className="flex items-center gap-1 rounded-full bg-[#0F5C56] px-3 py-1 text-white">
-              ⌂ {client.hotel}
-            </span>
-          )}
-          {(client.date_debut || client.date_fin) && (
-            <span className="font-amounts rounded-full bg-[#C9973E] px-3 py-1 text-[#3A2A0F]">
-              {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
-            </span>
-          )}
+          <span className="flex items-center gap-1 rounded-full bg-[#0F5C56] px-3 py-1 text-white">
+            ⌂
+            <input
+              value={client.hotel}
+              onChange={(e) => onChange({ hotel: e.target.value })}
+              placeholder="Hôtel"
+              size={Math.max(client.hotel.length, 6)}
+              className="border-none bg-transparent p-0 text-white placeholder-white/60 focus:outline-none"
+            />
+          </span>
+          <span className="font-amounts flex items-center gap-1 rounded-full bg-[#C9973E] px-3 py-1 text-[#3A2A0F]">
+            <input
+              type="date"
+              value={client.date_debut ?? ""}
+              onChange={(e) => onChange({ date_debut: e.target.value || null })}
+              className="border-none bg-transparent p-0 text-[#3A2A0F] focus:outline-none"
+            />
+            →
+            <input
+              type="date"
+              value={client.date_fin ?? ""}
+              onChange={(e) => onChange({ date_fin: e.target.value || null })}
+              className="border-none bg-transparent p-0 text-[#3A2A0F] focus:outline-none"
+            />
+          </span>
         </div>
         {totalPersonnes > 0 && (
           <div className="mt-1.5 text-xs text-neutral-500">

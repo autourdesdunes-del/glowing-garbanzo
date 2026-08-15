@@ -284,7 +284,10 @@ function suggererProgramme({
       .replace(/[^a-z0-9\s-]/g, " ")
       .split(/\s+/)
       .map((m) => m.trim())
-      .filter((m) => m.length > 2 && !MOTS_VIDES.has(m));
+      // >1 et non >2 : une durée comme "4h" ne fait que 2 caractères mais
+      // distingue "Speedboat privé (4h)" de la version journée complète —
+      // la perdre revenait à ne plus savoir laquelle des deux proposer.
+      .filter((m) => m.length > 1 && !MOTS_VIDES.has(m));
   // Ne plus retirer le contenu entre parenthèses ici : une note Kommo pure
   // ("hésite", "GEM" — déjà traité par ALIAS_ENVIES plus bas) est de toute
   // façon écartée ensuite par le filtre catalogueVocab (mot inconnu du
@@ -349,10 +352,18 @@ function suggererProgramme({
   const jours = datesInRange(dateDebut, dateFin);
   const joursSemaineDispo = new Set(jours.map((d) => WEEKDAY_FR[new Date(d + "T00:00:00").getDay()]));
 
+  // Sous-chaîne plutôt que mot exact : "privé" comme substring matchait
+  // aussi "semi-privé" (qui le contient littéralement), un client demandant
+  // un speedboat "privé" se voyait donc proposer une formule "semi-privé"
+  // (avec d'autres clients à bord) — pas du tout ce qui était demandé. On
+  // compare maintenant aux mots du catalogue tokenisés (le tiret garde les
+  // mots composés soudés, "semi-privé" reste un seul token différent de
+  // "privé"), avec juste une tolérance de préfixe pour le pluriel français
+  // ("île" doit quand même matcher le tag "Les îles").
   const matchGroupes = (item: CatalogueItem, groupes: string[][]) => {
     if (groupes.length === 0) return false;
-    const hay = deaccent([item.nom, item.categorie, ...(item.tags || [])].join(" ")).toLowerCase();
-    return groupes.some((mots) => mots.every((m) => hay.includes(m)));
+    const hayMots = tokenize([item.nom, item.categorie, ...(item.tags || [])].join(" "));
+    return groupes.some((mots) => mots.every((m) => hayMots.some((h) => h === m || h.startsWith(m))));
   };
 
   // Certains tags désignent un supplément optionnel qui s'ajoute à une

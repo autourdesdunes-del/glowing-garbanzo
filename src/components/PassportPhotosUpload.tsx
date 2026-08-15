@@ -70,44 +70,37 @@ export default function PassportPhotosUpload({
   }
 
   return (
-    <div>
-      <div className="mb-1 flex items-center gap-1.5">
-        <span className="text-sm font-medium text-neutral-700">Photos du/des passeport(s)</span>
-        <label
-          title="Ajouter une photo"
-          className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-neutral-300 text-xs text-neutral-500 hover:border-[#171717] hover:text-[#171717]"
-        >
-          {uploading ? "…" : "+"}
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFiles}
-            className="hidden"
+    <div className="flex flex-wrap items-center gap-2">
+      {paths.map((p) => (
+        <div key={p} className="group relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={urls[p]}
+            alt=""
+            className="h-10 w-14 rounded-md border border-neutral-200 object-cover"
           />
-        </label>
-      </div>
-      {paths.length > 0 && (
-        <div className="flex flex-wrap gap-3">
-          {paths.map((p) => (
-            <div key={p} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={urls[p]}
-                alt=""
-                className="h-20 w-28 rounded-md border border-neutral-200 object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => handleRemove(p)}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs text-white hover:opacity-90"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+          <button
+            type="button"
+            onClick={() => handleRemove(p)}
+            className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] text-white opacity-0 hover:opacity-100 group-hover:opacity-100"
+          >
+            ✕
+          </button>
         </div>
-      )}
+      ))}
+      <label
+        title="Ajouter une photo"
+        className="flex h-10 w-14 flex-shrink-0 cursor-pointer items-center justify-center rounded-md border border-dashed border-neutral-300 text-sm text-neutral-400 hover:border-[#171717] hover:text-[#171717]"
+      >
+        {uploading ? "…" : "+"}
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFiles}
+          className="hidden"
+        />
+      </label>
     </div>
   );
 }

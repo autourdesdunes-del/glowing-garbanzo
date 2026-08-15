@@ -135,6 +135,12 @@ const PROP_ICON_PATHS: Record<string, React.ReactNode> = {
       <circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none" />
     </>
   ),
+  idcard: (
+    <>
+      <rect x="2.5" y="4.5" width="15" height="11" rx="1.5" />
+      <path d="M2.5 8h15" strokeLinecap="round" />
+    </>
+  ),
 };
 function PropIcon({ name }: { name: keyof typeof PROP_ICON_PATHS }) {
   return (
@@ -289,7 +295,8 @@ export function ContactStep({
           <input
             value={client.telephone}
             onChange={(e) => onChange({ telephone: e.target.value })}
-            className="input-flat flex-1"
+            size={Math.max(client.telephone.length, 10)}
+            className="input-flat w-auto min-w-0 flex-shrink"
           />
           {emailOpen ? (
             <>
@@ -299,7 +306,8 @@ export function ContactStep({
                 value={client.email}
                 onChange={(e) => onChange({ email: e.target.value })}
                 placeholder="Email"
-                className="input-flat flex-1"
+                size={Math.max(client.email.length, 10)}
+                className="input-flat w-auto min-w-0 flex-shrink"
               />
             </>
           ) : (
@@ -314,10 +322,12 @@ export function ContactStep({
         </div>
       </PropertyRow>
 
-      <PassportPhotosUpload
-        paths={client.passeport_photos || []}
-        onChange={(passeport_photos) => onChange({ passeport_photos })}
-      />
+      <PropertyRow label="Passeports" icon={<PropIcon name="idcard" />}>
+        <PassportPhotosUpload
+          paths={client.passeport_photos || []}
+          onChange={(passeport_photos) => onChange({ passeport_photos })}
+        />
+      </PropertyRow>
 
       <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
         <select

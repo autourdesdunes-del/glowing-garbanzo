@@ -80,6 +80,16 @@ function dispoLabel(item: CatalogueItem): string {
   return item.disponibilites || "";
 }
 
+// Certaines activités ont un horaire_approx du type "- Retour prévu vers
+// 22h" (juste la partie retour, sans heure de départ) — un tiret orphelin
+// sans horaire devant n'a pas de sens sur le flyer, on masque la ligne
+// entière plutôt que d'afficher un tiret seul.
+function horaireLine(raw: string): string {
+  const trimmed = (raw || "").trim();
+  if (!trimmed || trimmed.startsWith("-")) return "";
+  return trimmed;
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -126,44 +136,37 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
             crossOrigin="anonymous"
           />
         )}
-        {/* Dégradé large + plaque sombre derrière le texte : le titre doit
-            rester lisible quelle que soit la photo (ciel clair, sable...). */}
+        {/* Dégradé large derrière le texte : le titre doit rester lisible
+            quelle que soit la photo (ciel clair, sable...) — sans encadré
+            visible autour du texte (retiré sur demande, on garde juste le
+            dégradé + l'ombre portée). */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.15) 45%, rgba(0,0,0,0) 65%)",
+            background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.25) 40%, rgba(0,0,0,0) 65%)",
           }}
         />
         <div style={{ position: "absolute", top: 60, left: 40, right: 40, textAlign: "center" }}>
+          <div style={{ fontSize: 20, letterSpacing: 8, color: "#F2E6D2", fontWeight: 600, textShadow: "0 1px 6px rgba(0,0,0,0.6)" }}>
+            AUTOUR DES DUNES
+          </div>
           <div
             style={{
-              display: "inline-block",
-              padding: "28px 40px",
-              borderRadius: 14,
-              background: "rgba(20,14,10,0.4)",
+              marginTop: 14,
+              fontFamily: "var(--font-fraunces)",
+              fontSize: 56,
+              fontWeight: 700,
+              color: "#FFFFFF",
+              letterSpacing: 1,
+              lineHeight: 1.1,
+              textShadow: "0 2px 12px rgba(0,0,0,0.6)",
             }}
           >
-            <div style={{ fontSize: 20, letterSpacing: 8, color: "#F2E6D2", fontWeight: 600 }}>
-              AUTOUR DES DUNES
-            </div>
-            <div
-              style={{
-                marginTop: 14,
-                fontFamily: "var(--font-fraunces)",
-                fontSize: 56,
-                fontWeight: 700,
-                color: "#FFFFFF",
-                letterSpacing: 1,
-                lineHeight: 1.1,
-                textShadow: "0 2px 12px rgba(0,0,0,0.5)",
-              }}
-            >
-              {item.nom.toUpperCase()}
-            </div>
-            <div style={{ marginTop: 12, fontSize: 18, letterSpacing: 4, color: "#F2E6D2" }}>
-              {(item.point_rdv || item.categorie || "").toUpperCase()}
-            </div>
+            {item.nom.toUpperCase()}
+          </div>
+          <div style={{ marginTop: 12, fontSize: 18, letterSpacing: 4, color: "#F2E6D2", textShadow: "0 1px 6px rgba(0,0,0,0.6)" }}>
+            {(item.point_rdv || item.categorie || "").toUpperCase()}
           </div>
         </div>
       </div>
@@ -237,9 +240,9 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
           <div style={{ flex: 1, marginTop: 90 }}>
             <SectionLabel>HORAIRES &amp; DISPONIBILITÉS</SectionLabel>
             <div style={{ marginTop: 14, fontSize: 19, lineHeight: 1.5 }}>
-              {dispo && <div>Disponibilité : {dispo}</div>}
-              {item.horaire_approx && <div>{item.horaire_approx}</div>}
-              {item.duree && <div>Durée : {item.duree}</div>}
+              {dispo && <div>. Disponibilité : {dispo}</div>}
+              {horaireLine(item.horaire_approx) && <div>. {horaireLine(item.horaire_approx)}</div>}
+              {item.duree && <div>. Durée : {item.duree}</div>}
             </div>
 
             {inclus.length > 0 && (

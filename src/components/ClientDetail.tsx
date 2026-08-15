@@ -726,37 +726,37 @@ export default function ClientDetail({
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+        <div className="font-heading mt-3 flex flex-wrap items-center gap-1.5 text-xs">
           <span
-            className="flex items-center gap-1.5 rounded-full px-3 py-1 font-medium"
-            style={{ backgroundColor: `${STATUT_COLORS[client.statut]}22`, color: STATUT_COLORS[client.statut] }}
+            className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
+            style={{ backgroundColor: `${STATUT_COLORS[client.statut]}1a`, color: STATUT_COLORS[client.statut] }}
           >
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUT_COLORS[client.statut] }} />
             {client.statut}
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-[#0F5C56] px-3 py-1 text-white">
+          <span className="flex items-center gap-1 rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-[#0F5C56]">
             ⌂
             <input
               value={client.hotel}
               onChange={(e) => onChange({ hotel: e.target.value })}
               placeholder="Hôtel"
               size={Math.max(client.hotel.length, 6)}
-              className="border-none bg-transparent p-0 text-white placeholder-white/60 focus:outline-none"
+              className="border-none bg-transparent p-0 text-[#0F5C56] placeholder-[#0F5C56]/50 focus:outline-none"
             />
           </span>
-          <span className="font-amounts flex items-center gap-1 rounded-full bg-[#C9973E] px-3 py-1 text-[#3A2A0F]">
+          <span className="flex items-center gap-1 rounded-full bg-[#8B4531]/10 px-2 py-0.5 text-[#8B4531]">
             <input
               type="date"
               value={client.date_debut ?? ""}
               onChange={(e) => onChange({ date_debut: e.target.value || null })}
-              className="border-none bg-transparent p-0 text-[#3A2A0F] focus:outline-none"
+              className="border-none bg-transparent p-0 text-[#8B4531] focus:outline-none"
             />
             →
             <input
               type="date"
               value={client.date_fin ?? ""}
               onChange={(e) => onChange({ date_fin: e.target.value || null })}
-              className="border-none bg-transparent p-0 text-[#3A2A0F] focus:outline-none"
+              className="border-none bg-transparent p-0 text-[#8B4531] focus:outline-none"
             />
           </span>
         </div>

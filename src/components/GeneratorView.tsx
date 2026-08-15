@@ -173,7 +173,10 @@ type Ligne = {
 // dates.
 function libelleJourIndefini(item: CatalogueItem | undefined, n: number): string {
   const jours = item ? normalizeJoursDisponibles(item.jours_disponibles) : [];
-  const dispo = jours.length === 0 ? "tous les jours" : `uniquement ${jours.join(", ")}`;
+  // Certaines fiches catalogue listent les 7 jours au lieu de laisser le
+  // champ vide — ça veut dire la même chose ("tous les jours"), pas la
+  // peine d'énumérer.
+  const dispo = jours.length === 0 || jours.length >= 7 ? "tous les jours" : `uniquement ${jours.join(", ")}`;
   return `Jour ${n} (${dispo})`;
 }
 

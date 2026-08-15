@@ -1884,29 +1884,34 @@ function AppShellInner({
 
       {mode === "preview" && (
         <div className="flex-1 overflow-y-auto">
-          {clients.length === 0 ? (
-            <div className="p-6 text-neutral-400">Créez un client pour voir son aperçu.</div>
-          ) : (
-            <>
-              <div className="mx-auto max-w-xl px-6 pt-6">
-                <select
-                  value={previewId ?? ""}
-                  onChange={(e) => setPreviewId(e.target.value)}
-                  className="input w-full"
-                >
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nom || "Sans nom"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {(() => {
-                const previewClient = clients.find((c) => c.id === previewId) || clients[0];
-                return <ClientPreviewView client={previewClient} catalogue={catalogue} />;
-              })()}
-            </>
-          )}
+          {(() => {
+            // L'aperçu simule ce qu'un client confirmé voit de son propre
+            // dossier — un prospect n'a pas encore de dossier à prévisualiser.
+            const previewableClients = clients.filter((c) => CLIENT_STATUTS.includes(c.statut));
+            if (previewableClients.length === 0) {
+              return <div className="p-6 text-neutral-400">Créez un client pour voir son aperçu.</div>;
+            }
+            const previewClient =
+              previewableClients.find((c) => c.id === previewId) || previewableClients[0];
+            return (
+              <>
+                <div className="mx-auto max-w-xl px-6 pt-6">
+                  <select
+                    value={previewClient.id}
+                    onChange={(e) => setPreviewId(e.target.value)}
+                    className="input w-full"
+                  >
+                    {previewableClients.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nom || "Sans nom"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <ClientPreviewView client={previewClient} catalogue={catalogue} />
+              </>
+            );
+          })()}
         </div>
       )}
 

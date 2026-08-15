@@ -141,7 +141,25 @@ type Ligne = {
 // WhatsApp) — le format a été fourni par Mélanie et ne doit pas être
 // réinterprété : "📍date / nom / prix par personne (N) / [remise] /
 // ➡️Total". Un seul bloc par activité, dans l'ordre chronologique.
-function buildProgrammeText(moisLabel: string, nbPersonnes: number, hotel: string, lignes: Ligne[]) {
+// Quand la date précise d'une ligne n'est pas connue (pas de dates de
+// séjour saisies), "Date à définir" ne dit rien à l'employée sur l'ordre
+// ni la contrainte de jour de l'activité — "Jour N" (sa position dans le
+// programme) suivi de sa disponibilité catalogue (tous les jours, ou
+// seulement certains) est plus exploitable pour caler ensuite les vraies
+// dates.
+function libelleJourIndefini(item: CatalogueItem | undefined, n: number): string {
+  const jours = item ? normalizeJoursDisponibles(item.jours_disponibles) : [];
+  const dispo = jours.length === 0 ? "tous les jours" : `uniquement ${jours.join(", ")}`;
+  return `Jour ${n} (${dispo})`;
+}
+
+function buildProgrammeText(
+  moisLabel: string,
+  nbPersonnes: number,
+  hotel: string,
+  lignes: Ligne[],
+  catalogue: CatalogueItem[]
+) {
   const parts: string[] = [];
   parts.push("Voici ce que nous pouvons vous proposer si vous souhaitez réaliser ces activités :");
   parts.push("");
@@ -153,10 +171,17 @@ function buildProgrammeText(moisLabel: string, nbPersonnes: number, hotel: strin
     .filter((l) => l.nom.trim())
     .sort((a, b) => (a.date || "9999-99-99").localeCompare(b.date || "9999-99-99"));
 
+  let jourIndefiniCompteur = 0;
   sorted.forEach((l) => {
     const total = Math.max(l.prixParPersonne * l.nbPersonnes - (l.remise || 0) + (l.taxeTransfert || 0), 0);
     parts.push("");
-    parts.push(`📍${fmtDDMonth(l.date) || "Date à définir"}`);
+    if (l.date) {
+      parts.push(`📍${fmtDDMonth(l.date)}`);
+    } else {
+      jourIndefiniCompteur += 1;
+      const item = catalogue.find((a) => a.id === l.catalogueItemId);
+      parts.push(`📍${libelleJourIndefini(item, jourIndefiniCompteur)}`);
+    }
     parts.push(l.nom);
     parts.push(`${euros(l.prixParPersonne)} euros par personne (${l.nbPersonnes})`);
     if (l.remise > 0) parts.push(`Remise -${euros(l.remise)} euros (${l.remiseLabel || "geste commercial"})`);
@@ -309,13 +334,26 @@ function suggererProgramme({
   // plupart des prospects qui disent "nager avec les dauphins" pensent au
   // milieu naturel). On ne les propose jamais par défaut, seulement si le
   // prospect l'a explicitement demandée.
-  const VARIANTES_DECONSEILLEES: { estConcerne: (item: CatalogueItem) => boolean; motsRequis: string[] }[] = [
-    { estConcerne: (item) => /\ben bus\b/i.test(item.nom), motsRequis: ["bus"] },
+  // Préfixes plutôt que mots exacts : "certifiés"/"certifiée"/"confirmés"
+  // s'accordent en genre/nombre selon la phrase, un Set.has() sur le mot
+  // exact ratait "certifies" (pluriel) quand seul "certifie" était listé.
+  const contientMotCommencantPar = (mots: Set<string>, prefixes: string[]) =>
+    prefixes.some((p) => Array.from(mots).some((m) => m.startsWith(p)));
+  const VARIANTES_DECONSEILLEES: { estConcerne: (item: CatalogueItem) => boolean; prefixesRequis: string[] }[] = [
+    { estConcerne: (item) => /\ben bus\b/i.test(item.nom), prefixesRequis: ["bus"] },
     {
       estConcerne: (item) => /\(en bassin\)|dolphin world/i.test(item.nom),
       // motsInteretTous est désaccentué (cf. tokenize/deaccent) — inutile
       // d'y lister une forme accentuée, elle ne matcherait jamais.
-      motsRequis: ["bassin", "captivite", "parc", "piscine"],
+      prefixesRequis: ["bassin", "captivit", "parc", "piscine"],
+    },
+    // Par défaut on suppose toujours des débutants — la plongée
+    // "professionnels" (déjà certifiés, avec niveau) n'est proposée que si
+    // le résumé/les envies indiquent explicitement que ce sont des
+    // plongeurs confirmés, sinon c'est systématiquement l'initiation.
+    {
+      estConcerne: (item) => /professionnels/i.test(item.nom),
+      prefixesRequis: ["certifi", "profession", "pro", "niveau", "confirm"],
     },
   ];
   const matchInteret = (item: CatalogueItem) => {
@@ -323,7 +361,7 @@ function suggererProgramme({
     const tagsPremium = (item.tags || []).filter((t) => TAGS_PREMIUM_REQUIS.includes(t));
     if (!tagsPremium.every((t) => tokenize(t).every((m) => motsInteretTous.has(m)))) return false;
     const variantesConcernees = VARIANTES_DECONSEILLEES.filter((v) => v.estConcerne(item));
-    return variantesConcernees.every((v) => v.motsRequis.some((m) => motsInteretTous.has(m)));
+    return variantesConcernees.every((v) => contientMotCommencantPar(motsInteretTous, v.prefixesRequis));
   };
   const matchEviter = (item: CatalogueItem) => matchGroupes(item, groupesAEviter);
 
@@ -427,6 +465,12 @@ function suggererProgramme({
   // font une journée de trop dans le bus pour la famille — jamais deux
   // jours consécutifs, contrairement aux autres catégories.
   const usedDatesCulture = new Set<string>();
+  // Pour varier le séjour (mer/désert, ou plus largement mer/terre), on
+  // retient la catégorie posée à chaque date — sert juste à préférer une
+  // date qui alterne avec la veille, jamais à bloquer un placement s'il
+  // n'y a pas de meilleure option (contrairement à la règle Culture,
+  // stricte celle-là).
+  const categorieParDate = new Map<string, "mer" | "desert">();
   const lignes: Ligne[] = [];
 
   const placer = (c: (typeof candidats)[number], date: string) => {
@@ -435,6 +479,7 @@ function suggererProgramme({
       for (let k = 0; k < (c.dureeJours || 1); k++) {
         usedDates.add(jours[startIdx + k]);
         if ((c.item.tags || []).includes("Culture")) usedDatesCulture.add(jours[startIdx + k]);
+        if (c.categorieMD) categorieParDate.set(jours[startIdx + k], c.categorieMD);
       }
     }
     c.destinationTags.forEach((t) => usedDestinationTags.push(t));
@@ -461,25 +506,35 @@ function suggererProgramme({
     const dureeJours = c.dureeJours || 1;
     if (jours.length === 0) return dureeJours === 1 ? "" : null;
     const estCulture = (c.item.tags || []).includes("Culture");
-    const jourDepart = jours.find((d, idx) => {
-      if (usedDates.has(d)) return false;
-      if (c.joursItem.length > 0 && !c.joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()])) {
-        return false;
-      }
-      if (idx + dureeJours > jours.length) return false;
-      for (let k = 0; k < dureeJours; k++) {
-        if (usedDates.has(jours[idx + k])) return false;
-      }
-      if (estCulture) {
-        const veille = jours[idx - 1];
-        const lendemain = jours[idx + dureeJours];
-        if ((veille && usedDatesCulture.has(veille)) || (lendemain && usedDatesCulture.has(lendemain))) {
+    const datesValides = jours
+      .map((d, idx) => ({ d, idx }))
+      .filter(({ d, idx }) => {
+        if (usedDates.has(d)) return false;
+        if (c.joursItem.length > 0 && !c.joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()])) {
           return false;
         }
-      }
-      return true;
-    });
-    return jourDepart ?? null;
+        if (idx + dureeJours > jours.length) return false;
+        for (let k = 0; k < dureeJours; k++) {
+          if (usedDates.has(jours[idx + k])) return false;
+        }
+        if (estCulture) {
+          const veille = jours[idx - 1];
+          const lendemain = jours[idx + dureeJours];
+          if ((veille && usedDatesCulture.has(veille)) || (lendemain && usedDatesCulture.has(lendemain))) {
+            return false;
+          }
+        }
+        return true;
+      });
+    if (datesValides.length === 0) return null;
+    // Parmi les dates valides, on préfère celle qui varie par rapport à la
+    // veille (mer après désert, désert après mer) — sans jamais bloquer le
+    // placement si aucune ne s'y prête, contrairement à la règle Culture.
+    if (c.categorieMD) {
+      const alternee = datesValides.find(({ idx }) => categorieParDate.get(jours[idx - 1]) !== c.categorieMD);
+      if (alternee) return alternee.d;
+    }
+    return datesValides[0].d;
   };
 
   // Une activité par envie distincte exprimée — ni plus (pour ne pas noyer
@@ -655,10 +710,17 @@ export default function GeneratorView({
     setLignes((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const moisLabel = moisLabelOverride || moisLabelFromDates(lignes.map((l) => l.date)) || moisLabelFromDates([dateDebut, dateFin]);
+  // Les dates exactes du séjour, quand elles sont connues, sont plus
+  // utiles au prospect qu'un simple nom de mois — sauf si l'employée a
+  // explicitement tapé quelque chose dans "Mois affiché" (reste prioritaire).
+  const moisLabel =
+    moisLabelOverride ||
+    (dateDebut && dateFin ? `du ${fmtDDMonth(dateDebut)} au ${fmtDDMonth(dateFin)}` : "") ||
+    moisLabelFromDates(lignes.map((l) => l.date)) ||
+    moisLabelFromDates([dateDebut, dateFin]);
   const texte = useMemo(
-    () => buildProgrammeText(moisLabel, nbPersonnes, hotel, lignes),
-    [moisLabel, nbPersonnes, hotel, lignes]
+    () => buildProgrammeText(moisLabel, nbPersonnes, hotel, lignes, catalogue),
+    [moisLabel, nbPersonnes, hotel, lignes, catalogue]
   );
 
   const totalGeneral = lignes.reduce(

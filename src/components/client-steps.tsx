@@ -160,7 +160,7 @@ export function ContactStep({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1.5">
       <Field label="Nom du client">
         <input
           value={client.nom}
@@ -441,7 +441,7 @@ export function SejourStep({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1.5">
       <div className="grid grid-cols-2 gap-4">
         <Field label="Date début séjour">
           <input
@@ -1410,7 +1410,7 @@ export function PaiementsStep({
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1.5">
 
       <div className="rounded-md bg-white p-3 text-sm text-neutral-600">
         Total séjour : <strong>{euros(totalSejour)} €</strong>
@@ -1805,7 +1805,7 @@ export function SuiviStep({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-1.5">
 
       <div>
         <div className="mb-2 flex items-center justify-between">

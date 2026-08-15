@@ -759,6 +759,12 @@ export default function ClientDetail({
               className="border-none bg-transparent p-0 text-[#8B4531] focus:outline-none"
             />
           </span>
+          <TagStarPicker tags={client.tags || []} onChange={(tags) => onChange({ tags })} />
+          {(client.tags || []).map((tag) => (
+            <span key={tag} className="rounded-full bg-[#171717]/5 px-2 py-0.5 text-[#171717]">
+              {tag}
+            </span>
+          ))}
         </div>
         {totalPersonnes > 0 && (
           <div className="mt-1.5 text-xs text-neutral-500">
@@ -771,8 +777,6 @@ export default function ClientDetail({
               .join(" · ")}
           </div>
         )}
-
-        <TagEditor tags={client.tags || []} onChange={(tags) => onChange({ tags })} />
       </div>
 
       {client.confirmation_a_traiter && (
@@ -1057,61 +1061,72 @@ export default function ClientDetail({
   );
 }
 
-const TAG_SUGGESTIONS = ["VIP", "Récurrent", "Urgent"];
+const TAG_OPTIONS = ["VIP", "Récurrent", "Urgent", "Vigilance"];
 
-function TagEditor({
+// Petite étoile à côté des badges du bandeau (statut/hôtel/dates) : clic
+// pour ouvrir un menu et cocher/décocher les étiquettes — remplace
+// l'ancienne rangée de pastilles en pointillés, toujours visible même
+// sans étiquette.
+function TagStarPicker({
   tags,
   onChange,
 }: {
   tags: string[];
   onChange: (tags: string[]) => void;
 }) {
-  const [input, setInput] = useState("");
+  const [open, setOpen] = useState(false);
 
-  const addTag = (tag: string) => {
-    const clean = tag.trim();
-    if (!clean || tags.includes(clean)) return;
-    onChange([...tags, clean]);
-    setInput("");
+  const toggle = (tag: string) => {
+    onChange(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag]);
   };
-  const removeTag = (tag: string) => onChange(tags.filter((t) => t !== tag));
-
-  const availableSuggestions = TAG_SUGGESTIONS.filter((s) => !tags.includes(s));
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          className="flex items-center gap-1 rounded-full bg-[#171717] px-2.5 py-1 text-xs text-white"
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Étiquettes"
+        className={`flex h-5 w-5 items-center justify-center rounded-full ${
+          tags.length > 0 ? "text-[#C9973E]" : "text-neutral-300 hover:text-neutral-400"
+        }`}
+      >
+        <svg
+          viewBox="0 0 20 20"
+          fill={tags.length > 0 ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="h-4 w-4"
         >
-          {tag}
-          <button onClick={() => removeTag(tag)} className="text-white/70 hover:text-white">
-            ✕
-          </button>
-        </span>
-      ))}
-      {availableSuggestions.map((s) => (
-        <button
-          key={s}
-          onClick={() => addTag(s)}
-          className="rounded-full border border-dashed border-neutral-300 px-2.5 py-1 text-xs text-neutral-400 hover:border-[#171717] hover:text-[#171717]"
-        >
-          + {s}
-        </button>
-      ))}
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            addTag(input);
-          }
-        }}
-        placeholder="+ étiquette…"
-        className="w-24 border-b border-transparent bg-transparent px-1 py-1 text-xs text-neutral-500 outline-none focus:border-neutral-300"
-      />
+          <path
+            d="M10 2.8 12.2 7.6l5.2.6-3.9 3.6 1 5.1-4.5-2.6-4.5 2.6 1-5.1-3.9-3.6 5.2-.6L10 2.8Z"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-6 z-20 w-36 rounded-md border border-[#eaeaea] bg-white p-1 shadow-lg">
+            {TAG_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => toggle(opt)}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-[#fafafa]"
+              >
+                <span
+                  className={`flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-full border ${
+                    tags.includes(opt) ? "border-[#C9973E] bg-[#C9973E]" : "border-neutral-300"
+                  }`}
+                >
+                  {tags.includes(opt) && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                </span>
+                {opt}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

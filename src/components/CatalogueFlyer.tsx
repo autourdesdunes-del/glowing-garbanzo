@@ -204,19 +204,13 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
           </div>
         )}
 
-        {/* Deux encadrés côte à côte : disponibilités à gauche, inclus à
-            droite (demande explicite du 2026-08-14, repositionnés sous le
-            programme le 2026-08-15). */}
-        <div style={{ display: "flex", gap: 20, marginTop: 36 }}>
-          <div
-            style={{
-              flex: 1,
-              border: "1px solid rgba(92,42,29,0.18)",
-              borderRadius: 10,
-              background: "#FBF6EC",
-              padding: 20,
-            }}
-          >
+        {/* Deux colonnes côte à côte : disponibilités à gauche, inclus à
+            droite (demande du 2026-08-14, repositionnées sous le programme
+            le 2026-08-15) — plus d'encadré/fond blanc (jugé "pas joli"
+            le 2026-08-15), juste le bandeau de titre comme sur le flyer
+            d'origine. */}
+        <div style={{ display: "flex", gap: 40, marginTop: 36 }}>
+          <div style={{ flex: 1 }}>
             <SectionLabel>DISPONIBILITÉS</SectionLabel>
             <div style={{ marginTop: 14, fontSize: 19, lineHeight: 1.5 }}>
               {dispo && <div>{dispo}</div>}
@@ -225,15 +219,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
             </div>
           </div>
 
-          <div
-            style={{
-              flex: 1,
-              border: "1px solid rgba(92,42,29,0.18)",
-              borderRadius: 10,
-              background: "#FBF6EC",
-              padding: 20,
-            }}
-          >
+          <div style={{ flex: 1 }}>
             <SectionLabel>INCLUS</SectionLabel>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
               {inclus.map((label, i) => (

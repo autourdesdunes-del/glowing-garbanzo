@@ -687,7 +687,7 @@ export default function ClientDetail({
             value={client.nom}
             onChange={(e) => onChange({ nom: e.target.value })}
             placeholder="Nom du client"
-            className="font-display w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-3xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
+            className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
           />
           <div className="flex flex-shrink-0 items-center gap-1.5">
             <button

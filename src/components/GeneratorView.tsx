@@ -475,6 +475,17 @@ function suggererProgramme({
       // GEM demandé sans moyen de transport précisé : on départage vers la
       // formule qui l'inclut explicitement plutôt que le simple mini-bus.
       if (demandeGEM && item.nom.includes("Grand Egyptian Museum")) score += 8;
+      // Kommo sépare parfois en plusieurs segments ce qui est en fait une
+      // seule envie précise ("safari quad" + "dîner spectacle" plutôt que
+      // "safari quad avec dîner spectacle" en un seul bloc). Une activité
+      // qui répond à PLUSIEURS groupes d'un coup est presque toujours la
+      // bonne réponse la plus précise — sans ce bonus, "Safari Quad Makadi"
+      // (générique) pouvait être choisi pour le groupe "safari quad" avant
+      // que "dîner spectacle" n'ait sa chance, et la dédup "un seul désert
+      // par séjour" empêchait ensuite "Safari quad & dîner spectacle"
+      // d'être proposé du tout.
+      const nbGroupesSatisfaits = groupesInteret.filter((g) => matchGroupes(item, [g])).length;
+      if (nbGroupesSatisfaits > 1) score += (nbGroupesSatisfaits - 1) * 100;
 
       const prixParPersonne = item.pu_adulte || 0;
       const destinationTags = (item.tags || []).filter((t) => DESTINATION_TAGS.has(t));
@@ -490,6 +501,7 @@ function suggererProgramme({
         destinationTags,
         categorieMD,
         interetMatch,
+        nbGroupesSatisfaits,
       };
     })
     // Ne jamais suggérer une activité que le prospect n'a pas demandée —
@@ -616,6 +628,13 @@ function suggererProgramme({
     });
 
   for (const { matches } of groupesOrdonnes) {
+    if (matches.length === 0) continue;
+    // Si la meilleure réponse à ce groupe répondait déjà à un autre groupe
+    // en même temps (score boosté plus haut) et a donc déjà été placée,
+    // c'était une seule envie combinée exprimée en deux segments — pas la
+    // peine de chercher une deuxième activité de repli pour "compléter"
+    // ce groupe, elle n'a pas été demandée séparément.
+    if (usedCatalogueIds.has(matches[0].item.id) && matches[0].nbGroupesSatisfaits > 1) continue;
     const disponibles = matches.filter(
       (c) =>
         !usedCatalogueIds.has(c.item.id) &&

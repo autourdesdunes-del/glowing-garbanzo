@@ -523,6 +523,7 @@ export default function GeneratorView({
   const [hotel, setHotel] = useState("");
   const [lignes, setLignes] = useState<Ligne[]>([]);
   const [picker, setPicker] = useState("");
+  const [detailOuvert, setDetailOuvert] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hotels, setHotels] = useState<HotelReference[]>([]);
@@ -836,7 +837,18 @@ export default function GeneratorView({
       </div>
 
       <div className="rounded-md border border-dashed border-neutral-300 bg-white p-3">
-        <label className="text-xs text-neutral-500">
+        <button
+          type="button"
+          onClick={() => setDetailOuvert((v) => !v)}
+          className="flex w-full items-center justify-between text-left text-xs font-medium text-neutral-500"
+        >
+          <span>Activités du programme{lignes.length > 0 ? ` (${lignes.length})` : ""} — modifier à la main</span>
+          <span className="text-neutral-400">{detailOuvert ? "▲" : "▼"}</span>
+        </button>
+
+        {detailOuvert && (
+        <>
+        <label className="mt-3 block text-xs text-neutral-500">
           + Ajouter une activité au programme
           <select value={picker} onChange={(e) => addLigne(e.target.value)} className="input mt-1">
             <option value="">— Choisir dans le catalogue —</option>
@@ -940,6 +952,8 @@ export default function GeneratorView({
               </div>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
 

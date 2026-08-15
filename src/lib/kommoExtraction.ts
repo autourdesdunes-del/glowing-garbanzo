@@ -60,16 +60,18 @@ const EXTRACTION_TOOL = {
       },
       nb_adultes_estime: {
         type: ["integer", "null"],
-        description: "Nombre d'adultes dans le groupe, ou null si inconnu.",
+        description:
+          "Nombre de voyageurs de 18 ans ou plus dans le groupe, ou null si inconnu. Compte comme adulte toute personne de 18 ans ou plus même si le prospect la présente comme son 'fils'/sa 'fille' — le lien familial ne change pas le tarif appliqué, seul l'âge compte.",
       },
       nb_enfants_estime: {
         type: ["integer", "null"],
-        description: "Nombre d'enfants et/ou d'adolescents dans le groupe, ou null si inconnu ou aucun.",
+        description:
+          "Nombre de voyageurs de moins de 18 ans dans le groupe (enfants et adolescents), ou null si inconnu ou aucun. Un 'fils'/une 'fille' de 18 ans ou plus est un adulte (nb_adultes_estime), pas un enfant, quel que soit le terme utilisé par le prospect.",
       },
       ages_enfants_estime: {
         type: ["string", "null"],
         description:
-          "Âges des enfants/ados mentionnés, en texte libre et concis (ex. '4 ans et 12 ans'), ou null si inconnu.",
+          "Âges des voyageurs de MOINS DE 18 ANS uniquement, en texte libre et concis (ex. '4 ans et 12 ans'), ou null si aucun. N'y mets jamais l'âge d'un voyageur de 18 ans ou plus (compte-le dans nb_adultes_estime à la place).",
       },
       activites_interet: {
         type: ["string", "null"],

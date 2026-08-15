@@ -214,23 +214,14 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
           </div>
         </div>
 
-        {/* Deux colonnes : inclus + programme à gauche, horaires/dispo à
-            droite (calé sur le vrai flyer "Louxor en bus" envoyé le
-            2026-08-15 — pas de bloc "Réservez maintenant", retiré sur
-            demande explicite). */}
+        {/* Deux colonnes : programme à gauche, horaires/dispo puis inclus
+            à droite (demande du 2026-08-15 : inclus repassé sous
+            "Horaires & disponibilités" plutôt qu'en haut à gauche — pas de
+            bloc "Réservez maintenant", retiré sur demande explicite). */}
         <div style={{ display: "flex", gap: 40 }}>
           <div style={{ flex: 1.3 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {inclus.map((label, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 21 }}>
-                  <span style={{ fontSize: 22, width: 28, textAlign: "center" }}>{iconForInclus(label)}</span>
-                  <span>{label}</span>
-                </div>
-              ))}
-            </div>
-
             {programme.length > 0 && (
-              <div style={{ marginTop: 28 }}>
+              <div>
                 <SectionLabel>PROGRAMME</SectionLabel>
                 <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
                   {programme.map((p, i) => (
@@ -250,6 +241,20 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
               {item.horaire_approx && <div>{item.horaire_approx}</div>}
               {item.duree && <div>Durée : {item.duree}</div>}
             </div>
+
+            {inclus.length > 0 && (
+              <div style={{ marginTop: 28 }}>
+                <SectionLabel>INCLUS</SectionLabel>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}>
+                  {inclus.map((label, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 20 }}>
+                      <span style={{ fontSize: 21, width: 26, textAlign: "center" }}>{iconForInclus(label)}</span>
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

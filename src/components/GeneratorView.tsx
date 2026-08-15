@@ -444,6 +444,13 @@ export default function GeneratorView({
 
   const nbPersonnes = adultes + enfants;
 
+  // Résumé texte de la conversation Kommo — la seule source qui peut
+  // contenir une nuance que les champs structurés (dates, envies...) ne
+  // captent pas. Affiché en lecture seule pour que l'employée le voie
+  // sans devoir rouvrir la fiche prospect à côté.
+  const prospectSelectionne = clients.find((c) => c.id === prospectId);
+  const resume = prospectSelectionne?.kommo_resume || "";
+
   // Zone de l'hôtel du prospect (Makadi, Sahl Hasheesh, El Gouna, Soma Bay,
   // Safaga...) et taxe de transfert correspondante — jamais un montant
   // deviné : soit une tranche précise (voir HELP > Taxes de transfert)
@@ -609,6 +616,13 @@ export default function GeneratorView({
             ))}
           </select>
         </label>
+
+        {resume && (
+          <div className="mt-3 rounded-md bg-[#C9973E]/10 p-3 text-sm text-[#8B4531]">
+            <span className="font-medium">Résumé Kommo : </span>
+            {resume}
+          </div>
+        )}
 
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <label className="text-xs text-neutral-500">

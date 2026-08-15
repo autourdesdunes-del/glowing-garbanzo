@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/kommo-reconcile",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/kommo-response-times",
+      "schedule": "30 18 * * *"
     }
   ]
 }

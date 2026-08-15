@@ -8,6 +8,7 @@ import {
   CatalogueItem,
   Client,
   JourEscalation,
+  KommoReponseEmploye,
   Profile,
   RemarqueEmployee,
   Reservation,
@@ -35,6 +36,16 @@ function daysSince(iso: string) {
 
 function euros(n: number) {
   return n.toLocaleString("fr-FR");
+}
+
+// Temps de réponse moyen — calculé côté Kommo (voir cron
+// /api/cron/kommo-response-times), affiché en minutes ou en heures selon
+// l'ordre de grandeur.
+function dureeLabel(secondes: number) {
+  const minutes = Math.round(secondes / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const heures = Math.round(minutes / 6) / 10;
+  return `${heures.toLocaleString("fr-FR")} h`;
 }
 
 // "Dernière activité" du rapport Manager > Gestion équipe — basé sur le
@@ -99,6 +110,7 @@ export default function ManagerView({
   currentUserId,
   remarquesEmploye,
   onRemarqueSent,
+  kommoReponsesEmploye,
 }: {
   sub: ManagerSub;
   clients: Client[];
@@ -114,6 +126,7 @@ export default function ManagerView({
   currentUserId: string;
   remarquesEmploye: RemarqueEmployee[];
   onRemarqueSent: (remarque: RemarqueEmployee) => void;
+  kommoReponsesEmploye: KommoReponseEmploye[];
 }) {
   const supabase = createClient();
   const myProfile = profiles.find((p) => p.id === currentUserId);
@@ -206,12 +219,18 @@ export default function ManagerView({
               return sum + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
             }, 0) / ventes.length
           );
+    const sesReponses = kommoReponsesEmploye.filter((r) => r.employe_id === p.id);
+    const tempsReponseMoyen =
+      sesReponses.length === 0
+        ? null
+        : Math.round(sesReponses.reduce((sum, r) => sum + r.delai_secondes, 0) / sesReponses.length);
     return {
       profile: p,
       resasCreees: resasCreeesParElle.length,
       remarquesRecues: remarquesEmploye.filter((r) => r.employe_id === p.id).length,
       panierMoyen,
       derniereActivite: p.derniere_activite_le,
+      tempsReponseMoyen,
     };
   });
 
@@ -454,7 +473,8 @@ export default function ManagerView({
             </h2>
             <p className="mb-3 text-xs text-[#666666]">
               Comptage à partir de maintenant seulement — l&apos;historique avant la mise en place de ce
-              suivi n&apos;est pas repris.
+              suivi n&apos;est pas repris. Le temps de réponse vient de Kommo et se met à jour une fois par
+              jour, pas en direct.
             </p>
             <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
               <table className="w-full text-left text-sm">
@@ -463,24 +483,37 @@ export default function ManagerView({
                     <th className="px-4 py-2 font-medium">Employée</th>
                     <th className="px-4 py-2 font-medium">Réservations créées</th>
                     <th className="px-4 py-2 font-medium">Panier moyen</th>
+                    <th className="px-4 py-2 font-medium">Temps de réponse moyen</th>
                     <th className="px-4 py-2 font-medium">Remarques reçues</th>
                     <th className="px-4 py-2 font-medium">Dernière activité</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eaeaea]">
-                  {rapportsParEmploye.map(({ profile, resasCreees, remarquesRecues, panierMoyen, derniereActivite }) => (
-                    <tr key={profile.id}>
-                      <td className="px-4 py-2 font-medium text-[#171717]">
-                        {profile.prenom || profile.email}
-                      </td>
-                      <td className="px-4 py-2 text-[#171717]">{resasCreees}</td>
-                      <td className="px-4 py-2 text-[#171717]">
-                        {panierMoyen === null ? "—" : `${euros(panierMoyen)} €`}
-                      </td>
-                      <td className="px-4 py-2 text-[#171717]">{remarquesRecues}</td>
-                      <td className="px-4 py-2 text-[#171717]">{derniereActiviteLabel(derniereActivite)}</td>
-                    </tr>
-                  ))}
+                  {rapportsParEmploye.map(
+                    ({
+                      profile,
+                      resasCreees,
+                      remarquesRecues,
+                      panierMoyen,
+                      derniereActivite,
+                      tempsReponseMoyen,
+                    }) => (
+                      <tr key={profile.id}>
+                        <td className="px-4 py-2 font-medium text-[#171717]">
+                          {profile.prenom || profile.email}
+                        </td>
+                        <td className="px-4 py-2 text-[#171717]">{resasCreees}</td>
+                        <td className="px-4 py-2 text-[#171717]">
+                          {panierMoyen === null ? "—" : `${euros(panierMoyen)} €`}
+                        </td>
+                        <td className="px-4 py-2 text-[#171717]">
+                          {tempsReponseMoyen === null ? "—" : dureeLabel(tempsReponseMoyen)}
+                        </td>
+                        <td className="px-4 py-2 text-[#171717]">{remarquesRecues}</td>
+                        <td className="px-4 py-2 text-[#171717]">{derniereActiviteLabel(derniereActivite)}</td>
+                      </tr>
+                    )
+                  )}
                 </tbody>
               </table>
             </div>

@@ -21,6 +21,7 @@ import {
   Profile,
   Remboursement,
   RemarqueEmployee,
+  KommoReponseEmploye,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -349,6 +350,7 @@ function AppShellInner({
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [modifsLoaded, setModifsLoaded] = useState(false);
   const [remarquesEmploye, setRemarquesEmploye] = useState<RemarqueEmployee[]>([]);
+  const [kommoReponsesEmploye, setKommoReponsesEmploye] = useState<KommoReponseEmploye[]>([]);
   const [remarquesLoaded, setRemarquesLoaded] = useState(false);
   const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
@@ -598,6 +600,16 @@ function AppShellInner({
           .select("*")
           .order("created_at", { ascending: false });
         setRemarquesEmploye((remarques as RemarqueEmployee[]) || []);
+        // Fenêtre de 60 jours seulement : suffisant pour une moyenne
+        // représentative, sans faire grossir indéfiniment le fetch au fil
+        // des mois (voir cron /api/cron/kommo-response-times).
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 60);
+        const { data: kommoReponses } = await supabase
+          .from("kommo_reponses_employe")
+          .select("*")
+          .gte("reponse_at", cutoff.toISOString());
+        setKommoReponsesEmploye((kommoReponses as KommoReponseEmploye[]) || []);
         setRemarquesLoaded(true);
       }
     })();
@@ -2092,6 +2104,7 @@ function AppShellInner({
               currentUserId={userId}
               remarquesEmploye={remarquesEmploye}
               onRemarqueSent={(r) => setRemarquesEmploye((prev) => [r, ...prev])}
+              kommoReponsesEmploye={kommoReponsesEmploye}
             />
           )}
         </div>

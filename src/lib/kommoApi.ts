@@ -73,6 +73,47 @@ export async function fetchKommoLead(leadId: number): Promise<{ status_id?: numb
     }
 }
 
+export type KommoChatEvent = {
+  id: string;
+  type: "incoming_chat_message" | "outgoing_chat_message";
+  entity_id: number;
+  created_by: number;
+  created_at: number;
+};
+
+// Va chercher les événements de messagerie (entrant/sortant) depuis
+// `sinceUnix` — utilisé par /api/cron/kommo-response-times pour calculer le
+// temps de réponse par employée (chaque employée a son propre compte
+// Kommo, `created_by` identifie donc qui a répondu). Pagine jusqu'à
+// épuisement (une page pleine = probablement une page suivante), avec une
+// limite de sécurité pour ne jamais boucler indéfiniment.
+export async function fetchKommoChatEvents(sinceUnix: number): Promise<KommoChatEvent[]> {
+  const base = kommoApiBase();
+  const token = process.env.KOMMO_ACCESS_TOKEN;
+  if (!base || !token) return [];
+
+  const events: KommoChatEvent[] = [];
+  const limit = 250;
+  for (let page = 1; page <= 20; page++) {
+    const params = new URLSearchParams();
+    params.append("filter[type][0]", "incoming_chat_message");
+    params.append("filter[type][1]", "outgoing_chat_message");
+    params.append("filter[created_at][from]", String(sinceUnix));
+    params.append("limit", String(limit));
+    params.append("page", String(page));
+    const res = await fetch(`${base}/events?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 204) break;
+    if (!res.ok) break;
+    const data = (await res.json()) as { _embedded?: { events?: KommoChatEvent[] } };
+    const batch = data._embedded?.events ?? [];
+    events.push(...batch);
+    if (batch.length < limit) break;
+  }
+  return events;
+}
+
 function extractPhoneOrEmail(
     customFields: unknown,
     code: "PHONE" | "EMAIL"

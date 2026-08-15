@@ -456,6 +456,26 @@ export type Profile = {
   // Manager > Gestion équipe. Mis à jour par un heartbeat régulier tant que
   // l'appli reste ouverte, pas à chaque action.
   derniere_activite_le: string | null;
+  // Compte Kommo de l'employée (chacune a le sien) — sert à attribuer les
+  // messages sortants Kommo à la bonne employée pour le temps de réponse.
+  kommo_user_id: number | null;
+};
+
+// Un échange client→équipe apparié côté Kommo (message entrant suivi du
+// prochain message sortant), calculé par /api/cron/kommo-response-times —
+// jamais en direct depuis le navigateur (limite Kommo : 7 requêtes/s).
+export type KommoReponseEmploye = {
+  id: string;
+  kommo_event_id: string;
+  client_id: string | null;
+  kommo_lead_id: number;
+  kommo_user_id: number;
+  employe_id: string | null;
+  employe_nom: string;
+  message_client_at: string;
+  reponse_at: string;
+  delai_secondes: number;
+  created_at: string;
 };
 
 export type PlanningShift = {

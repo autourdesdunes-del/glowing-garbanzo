@@ -687,27 +687,27 @@ export default function ClientDetail({
             value={client.nom}
             onChange={(e) => onChange({ nom: e.target.value })}
             placeholder="Nom du client"
-            className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
+            className="font-display w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-3xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
           />
           <div className="flex flex-shrink-0 items-center gap-1.5">
             <button
               onClick={() => handleDownload("devis")}
               disabled={generatingDoc !== null}
-              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-2 py-1 text-xs text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+              className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
             >
               {generatingDoc === "devis" ? "Génération…" : "Devis (PDF)"}
             </button>
             <button
               onClick={() => handleDownload("facture")}
               disabled={generatingDoc !== null}
-              className="whitespace-nowrap rounded-md border border-[#666666]/30 px-2 py-1 text-xs text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+              className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
             >
               {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
             </button>
             {client.statut !== "Client annulé" && (
               <button
                 onClick={() => setShowAnnulerClientModal(true)}
-                className="whitespace-nowrap rounded-md border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                className="whitespace-nowrap rounded-md border border-[#8B4531]/40 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5"
               >
                 Annuler ce client
               </button>
@@ -716,7 +716,7 @@ export default function ClientDetail({
               <button
                 onClick={onDelete}
                 title="Supprimer ce client"
-                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-red-300 text-red-600 hover:bg-red-50"
+                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-[#8B4531]/40 text-[#8B4531] hover:bg-[#8B4531]/5"
               >
                 <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5">
                   <path d="M4 6h12M8 6V4.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6m-7 0 .6 10.2a1 1 0 0 0 1 .8h5.8a1 1 0 0 0 1-.8L15 6" strokeLinecap="round" strokeLinejoin="round" />
@@ -728,18 +728,19 @@ export default function ClientDetail({
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
           <span
-            className="rounded-full px-3 py-1 font-medium text-white"
-            style={{ backgroundColor: STATUT_COLORS[client.statut] }}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1 font-medium"
+            style={{ backgroundColor: `${STATUT_COLORS[client.statut]}22`, color: STATUT_COLORS[client.statut] }}
           >
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUT_COLORS[client.statut] }} />
             {client.statut}
           </span>
           {client.hotel && (
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-blue-700">
+            <span className="flex items-center gap-1 rounded-full bg-[#0F5C56] px-3 py-1 text-white">
               ⌂ {client.hotel}
             </span>
           )}
           {(client.date_debut || client.date_fin) && (
-            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-3 py-1 text-[#666666]">
+            <span className="font-amounts rounded-full bg-[#C9973E] px-3 py-1 text-[#3A2A0F]">
               {fmtDate(client.date_debut)} → {fmtDate(client.date_fin)}
             </span>
           )}

@@ -40,6 +40,14 @@ h1, h2, h3, h4 {
   font-variant-numeric: tabular-nums;
 }
 
+/* Réservé au nom du client en tête de fiche (cf. ClientDetail.tsx) —
+   Fraunces, déjà chargée pour le flyer catalogue, reprise ici pour se
+   rapprocher de l'aperçu "fiche client condensée" validé. Volontairement
+   pas branché sur --font-heading (qui reste Geist Sans partout ailleurs). */
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
 /* Dans @layer components pour que les utilitaires Tailwind (w-24, flex-1,
    max-w-*…) puissent surcharger width:100% — une règle non "layered" a
    toujours priorité sur toute règle dans un @layer, quel que soit l'ordre

@@ -22,7 +22,7 @@ export function PropertyRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2.5 py-0.5">
+    <div className="flex items-center gap-2.5 border-b border-[#666666]/10 py-1.5 last:border-b-0">
       {icon ? (
         <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-neutral-400">
           {icon}
@@ -31,7 +31,7 @@ export function PropertyRow({
         <span className="w-4 flex-shrink-0" />
       )}
       <span className="w-36 flex-shrink-0 text-sm text-neutral-500">{label}</span>
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 max-w-sm flex-1">{children}</div>
     </div>
   );
 }

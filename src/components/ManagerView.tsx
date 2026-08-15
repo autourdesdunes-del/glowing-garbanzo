@@ -124,6 +124,10 @@ export default function ManagerView({
               >
                 <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
                 <p className="text-xs text-[#666666]">
+                  Confirmé automatiquement depuis Kommo — dossier à vérifier et compléter (hôtel, dates,
+                  activités réelles).
+                </p>
+                <p className="mt-0.5 text-xs font-medium text-[#0F5C56]">
                   {c.confirmation_assignee_a
                     ? `Renvoyé à ${c.confirmation_assignee_a}`
                     : "Pas encore pris en charge"}
@@ -159,9 +163,11 @@ export default function ManagerView({
                     </span>
                   </div>
                   <p className="text-xs text-[#666666]">{cleanActivityTitle(r.nom_activite) || "Activité"}</p>
-                  {missing.length > 0 && (
-                    <p className="mt-0.5 text-xs text-red-600">Manque : {missing.join(", ")}</p>
-                  )}
+                  <p className="mt-0.5 text-xs text-red-600">
+                    {missing.length > 0
+                      ? `Manque : ${missing.join(", ")}`
+                      : "Pas encore validée par l'équipe"}
+                  </p>
                 </div>
               );
             })}

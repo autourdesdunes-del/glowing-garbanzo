@@ -128,6 +128,13 @@ const PROP_ICON_PATHS: Record<string, React.ReactNode> = {
       <circle cx="14.5" cy="11.5" r="1" fill="currentColor" stroke="none" />
     </>
   ),
+  alert: (
+    <>
+      <path d="M10 3 2.5 16h15L10 3Z" strokeLinejoin="round" />
+      <path d="M10 8.5v3.2" strokeLinecap="round" />
+      <circle cx="10" cy="14" r="0.6" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 function PropIcon({ name }: { name: keyof typeof PROP_ICON_PATHS }) {
   return (
@@ -158,7 +165,6 @@ export function ContactStep({
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [infoManquanteOpen, setInfoManquanteOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(!!client.email.trim());
 
   useEffect(() => {
@@ -285,7 +291,18 @@ export function ContactStep({
             onChange={(e) => onChange({ telephone: e.target.value })}
             className="input-flat flex-1"
           />
-          {!emailOpen && (
+          {emailOpen ? (
+            <>
+              <span className="flex-shrink-0 text-neutral-300">·</span>
+              <input
+                type="email"
+                value={client.email}
+                onChange={(e) => onChange({ email: e.target.value })}
+                placeholder="Email"
+                className="input-flat flex-1"
+              />
+            </>
+          ) : (
             <button
               type="button"
               onClick={() => setEmailOpen(true)}
@@ -297,24 +314,33 @@ export function ContactStep({
         </div>
       </PropertyRow>
 
-      {emailOpen && (
-        <PropertyRow label="Email" icon={<PropIcon name="mail" />}>
-          <input
-            type="email"
-            value={client.email}
-            onChange={(e) => onChange({ email: e.target.value })}
-            className="input-flat"
-          />
-        </PropertyRow>
-      )}
-
       <PassportPhotosUpload
         paths={client.passeport_photos || []}
         onChange={(passeport_photos) => onChange({ passeport_photos })}
       />
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="w-36 flex-shrink-0 text-sm text-neutral-500">Infos manquantes</span>
+      <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
+        <select
+          value={client.relation_grace_a}
+          onChange={(e) => onChange({ relation_grace_a: e.target.value })}
+          className="input-flat"
+        >
+          {RELATIONS.map((r) => (
+            <option key={r}>{r}</option>
+          ))}
+        </select>
+      </PropertyRow>
+      {client.relation_grace_a === "Autre" && (
+        <PropertyRow label="Préciser la relation">
+          <input
+            value={client.relation_autre}
+            onChange={(e) => onChange({ relation_autre: e.target.value })}
+            className="input-flat"
+          />
+        </PropertyRow>
+      )}
+
+      <PropertyRow label="Infos manquantes" icon={<PropIcon name="alert" />}>
         <div className="flex flex-1 flex-wrap items-center gap-1.5">
           {autoTags.map((s) => (
             <span
@@ -351,8 +377,9 @@ export function ContactStep({
             {infoManquanteOpen ? "Fermer" : "+ Modifier"}
           </button>
         </div>
+      </PropertyRow>
         {infoManquanteOpen && (
-          <div className="mt-2 w-full rounded-md border border-neutral-300 bg-white p-2">
+          <div className="w-full rounded-md border border-neutral-300 bg-white p-2">
             <div className="max-h-48 space-y-0.5 overflow-y-auto">
               {infoOptions.map((opt) => (
                 <label
@@ -398,40 +425,6 @@ export function ContactStep({
             </button>
           </div>
         )}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setMoreOpen((v) => !v)}
-        className="flex items-center gap-1.5 pt-1 text-xs text-neutral-400 hover:text-neutral-600"
-      >
-        <span className={`inline-block transition-transform ${moreOpen ? "rotate-90" : ""}`}>›</span>
-        {moreOpen ? "Moins de propriétés" : "Autres propriétés (statut, relation, email…)"}
-      </button>
-      {moreOpen && (
-        <>
-          <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
-            <select
-              value={client.relation_grace_a}
-              onChange={(e) => onChange({ relation_grace_a: e.target.value })}
-              className="input-flat"
-            >
-              {RELATIONS.map((r) => (
-                <option key={r}>{r}</option>
-              ))}
-            </select>
-          </PropertyRow>
-          {client.relation_grace_a === "Autre" && (
-            <PropertyRow label="Préciser la relation">
-              <input
-                value={client.relation_autre}
-                onChange={(e) => onChange({ relation_autre: e.target.value })}
-                className="input-flat"
-              />
-            </PropertyRow>
-          )}
-        </>
-      )}
     </div>
   );
 }

@@ -361,9 +361,26 @@ export default function QuickAddClient({
 
   const addReservation = async (): Promise<string | null> => {
     if (!clientId) return null;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    let creeParNom = "";
+    if (user) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("prenom, email")
+        .eq("id", user.id)
+        .single();
+      creeParNom = prof?.prenom || (prof?.email || "").split("@")[0] || "";
+    }
     const { data, error } = await supabase
       .from("reservations")
-      .insert({ client_id: clientId, transfert_inclus: !hotelHorsHurghada })
+      .insert({
+        client_id: clientId,
+        transfert_inclus: !hotelHorsHurghada,
+        cree_par_id: user?.id || null,
+        cree_par_nom: creeParNom,
+      })
       .select()
       .single();
     if (!error && data) {

@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   AssouanVerification,
   BusEscalation,
   CatalogueItem,
   Client,
   JourEscalation,
+  Profile,
+  RemarqueEmployee,
   Reservation,
 } from "@/lib/types";
 import { activiteEnAttenteRaisons, cleanActivityTitle, isFamilySafariBedouin } from "@/lib/resa";
@@ -61,6 +65,10 @@ export default function ManagerView({
   busEscalations,
   jourEscalations,
   assouanVerifications,
+  profiles,
+  currentUserId,
+  remarquesEmploye,
+  onRemarqueSent,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -69,7 +77,44 @@ export default function ManagerView({
   busEscalations: BusEscalation[];
   jourEscalations: JourEscalation[];
   assouanVerifications: AssouanVerification[];
+  profiles: Profile[];
+  currentUserId: string;
+  remarquesEmploye: RemarqueEmployee[];
+  onRemarqueSent: (remarque: RemarqueEmployee) => void;
 }) {
+  const supabase = createClient();
+  const myProfile = profiles.find((p) => p.id === currentUserId);
+  // Sylvie/Direction uniquement (déjà garanti par AppShell pour tout
+  // ManagerView, mais on exclut la personne elle-même de la liste des
+  // destinataires — pas de remarque à soi-même).
+  const employeesEligibles = profiles.filter((p) => p.id !== currentUserId);
+  const [remarqueEmployeId, setRemarqueEmployeId] = useState("");
+  const [remarqueMessage, setRemarqueMessage] = useState("");
+  const [sendingRemarque, setSendingRemarque] = useState(false);
+
+  const envoyerRemarque = async () => {
+    const cible = profiles.find((p) => p.id === remarqueEmployeId);
+    const message = remarqueMessage.trim();
+    if (!cible || !message) return;
+    setSendingRemarque(true);
+    const { data, error } = await supabase
+      .from("remarques_employe")
+      .insert({
+        employe_id: cible.id,
+        employe_nom: cible.prenom || cible.email,
+        auteur_id: currentUserId,
+        auteur_nom: myProfile?.prenom || "",
+        message,
+      })
+      .select()
+      .single();
+    setSendingRemarque(false);
+    if (!error && data) {
+      onRemarqueSent(data as RemarqueEmployee);
+      setRemarqueEmployeId("");
+      setRemarqueMessage("");
+    }
+  };
   const autorisations: Autorisation[] = [
     // Même table pour deux cas distincts (voir AddActivityWizard.tsx) :
     // refus du mini-bus, ou insistance pour le Grand Safari Bédouin malgré
@@ -110,6 +155,19 @@ export default function ManagerView({
   const prospectsStagnants = clients
     .filter(estProspectStagnant)
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
+
+  // Comptage à partir de la mise en place de cree_par_id/cree_par_nom
+  // (migration 0080) et de remarques_employe — pas de reprise rétroactive,
+  // voir le commentaire sur ces colonnes dans types.ts.
+  const rapportsParEmploye = employeesEligibles.map((p) => ({
+    profile: p,
+    resasCreees: reservations.filter((r) => r.cree_par_id === p.id).length,
+    remarquesRecues: remarquesEmploye.filter((r) => r.employe_id === p.id).length,
+  }));
+
+  const remarquesRecentes = [...remarquesEmploye]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 10);
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-8">
@@ -267,6 +325,93 @@ export default function ManagerView({
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+          Faire une remarque à une employée
+        </h2>
+        <p className="mb-3 text-xs text-[#666666]">
+          Reste privé : seule l&apos;employée choisie verra ce message, à sa prochaine connexion.
+        </p>
+        <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select
+              value={remarqueEmployeId}
+              onChange={(e) => setRemarqueEmployeId(e.target.value)}
+              className="input sm:w-48"
+            >
+              <option value="">Choisir une employée</option>
+              {employeesEligibles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.prenom || p.email}
+                </option>
+              ))}
+            </select>
+            <textarea
+              value={remarqueMessage}
+              onChange={(e) => setRemarqueMessage(e.target.value)}
+              placeholder="Ex. : Ces derniers jours vous avez envoyé plus de 10 flyers. Préférez un vocal et un vrai échange avec le client plutôt que de « balancer » des flyers."
+              rows={2}
+              className="input flex-1"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={!remarqueEmployeId || !remarqueMessage.trim() || sendingRemarque}
+            onClick={envoyerRemarque}
+            className="mt-2 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            Envoyer la remarque
+          </button>
+        </div>
+        {remarquesRecentes.length > 0 && (
+          <div className="mt-3 divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+            {remarquesRecentes.map((r) => (
+              <div key={r.id} className="px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-[#171717]">{r.employe_nom}</p>
+                  <span
+                    className={`whitespace-nowrap text-xs ${r.lu ? "text-[#0F5C56]" : "text-[#666666]"}`}
+                  >
+                    {r.lu ? "Vue" : "Pas encore vue"}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-[#666666]">{r.message}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+          Rapports par employée
+        </h2>
+        <p className="mb-3 text-xs text-[#666666]">
+          Comptage à partir de maintenant seulement — l&apos;historique avant la mise en place de ce
+          suivi n&apos;est pas repris.
+        </p>
+        <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#eaeaea] text-xs text-[#666666]">
+                <th className="px-4 py-2 font-medium">Employée</th>
+                <th className="px-4 py-2 font-medium">Réservations créées</th>
+                <th className="px-4 py-2 font-medium">Remarques reçues</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#eaeaea]">
+              {rapportsParEmploye.map(({ profile, resasCreees, remarquesRecues }) => (
+                <tr key={profile.id}>
+                  <td className="px-4 py-2 font-medium text-[#171717]">{profile.prenom || profile.email}</td>
+                  <td className="px-4 py-2 text-[#171717]">{resasCreees}</td>
+                  <td className="px-4 py-2 text-[#171717]">{remarquesRecues}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

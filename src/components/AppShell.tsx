@@ -20,6 +20,7 @@ import {
   PlanningShift,
   Profile,
   Remboursement,
+  RemarqueEmployee,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -57,6 +58,7 @@ import NouveauClientConfirmeAlert from "@/components/NouveauClientConfirmeAlert"
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
 import AssouanVerificationCenter from "@/components/AssouanVerificationCenter";
+import RemarqueEmployeeCenter from "@/components/RemarqueEmployeeCenter";
 
 type Mode =
   | "dashboard"
@@ -342,6 +344,8 @@ function AppShellInner({
   );
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [modifsLoaded, setModifsLoaded] = useState(false);
+  const [remarquesEmploye, setRemarquesEmploye] = useState<RemarqueEmployee[]>([]);
+  const [remarquesLoaded, setRemarquesLoaded] = useState(false);
   const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -569,8 +573,17 @@ function AppShellInner({
         setTransfertTaxeModificationRequests((taxeModifs as TransfertTaxeModificationRequest[]) || []);
         setModifsLoaded(true);
       }
+
+      if (mode === "manager" && !remarquesLoaded) {
+        const { data: remarques } = await supabase
+          .from("remarques_employe")
+          .select("*")
+          .order("created_at", { ascending: false });
+        setRemarquesEmploye((remarques as RemarqueEmployee[]) || []);
+        setRemarquesLoaded(true);
+      }
     })();
-  }, [mode, supabase, isDirection, planningLoaded, suivisLoaded, modifsLoaded]);
+  }, [mode, supabase, isDirection, planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded]);
 
   useEffect(() => {
     if (viewAsTeam && (mode === "direction" || mode === "manager")) setMode("dashboard");
@@ -1352,6 +1365,7 @@ function AppShellInner({
         currentUserId={userId}
         onPendingChange={setAssouanVerificationsPending}
       />
+      <RemarqueEmployeeCenter currentUserId={userId} />
       <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />
       <BilletEnvoiRappels
         reservations={allReservations}
@@ -2052,6 +2066,10 @@ function AppShellInner({
               busEscalations={busEscalationsPending}
               jourEscalations={jourEscalationsPending}
               assouanVerifications={assouanVerificationsPending}
+              profiles={teamProfiles}
+              currentUserId={userId}
+              remarquesEmploye={remarquesEmploye}
+              onRemarqueSent={(r) => setRemarquesEmploye((prev) => [r, ...prev])}
             />
           )}
         </div>

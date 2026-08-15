@@ -202,6 +202,12 @@ export type Reservation = {
   billet_nom_complet: string;
   avoir_utilise: number;
   enfants_monte: string[];
+  // Qui a créé cette activité — pour le rapport "réservations par employée"
+  // du Manager. Rempli seulement à partir de la mise en place (pas de
+  // reprise rétroactive) : peut rester vide sur les activités plus
+  // anciennes.
+  cree_par_id: string | null;
+  cree_par_nom: string;
   created_at: string;
   updated_at: string;
 };
@@ -583,6 +589,24 @@ export type JourEscalation = {
   resolu_par_nom: string;
   resolu_message: string;
   resolu_at: string | null;
+  created_at: string;
+};
+
+// Remarque privée de Sylvie/Direction à une employée (ex : trop de flyers
+// envoyés, réponse pas assez soignée avec un client) — pensée pour éviter
+// la confrontation en personne : seule l'employée visée la voit, à sa
+// prochaine connexion.
+export type RemarqueEmployee = {
+  id: string;
+  employe_id: string;
+  employe_nom: string;
+  auteur_id: string | null;
+  auteur_nom: string;
+  message: string;
+  client_id: string | null;
+  client_nom: string;
+  lu: boolean;
+  lu_at: string | null;
   created_at: string;
 };
 

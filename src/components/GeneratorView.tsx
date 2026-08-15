@@ -663,6 +663,18 @@ export default function GeneratorView({
       return;
     }
     setSaving(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    let creeParNom = "";
+    if (user) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("prenom, email")
+        .eq("id", user.id)
+        .single();
+      creeParNom = prof?.prenom || (prof?.email || "").split("@")[0] || "";
+    }
     for (const l of lignes) {
       const item = catalogue.find((a) => a.id === l.catalogueItemId);
       // La remise éventuelle est répercutée sur le prix unitaire pour que
@@ -687,6 +699,8 @@ export default function GeneratorView({
         transfert_inclus: !(l.taxeTransfert > 0),
         transfert_montant: l.taxeTransfert || 0,
         zone_transfert: villeClient,
+        cree_par_id: user?.id || null,
+        cree_par_nom: creeParNom,
       });
       if (error) {
         toast("Échec de l'ajout d'une activité.");

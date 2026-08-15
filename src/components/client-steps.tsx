@@ -159,6 +159,7 @@ export function ContactStep({
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [infoManquanteOpen, setInfoManquanteOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(!!client.email.trim());
 
   useEffect(() => {
     (async () => {
@@ -210,18 +211,6 @@ export function ContactStep({
       onChange({ infos_manquantes: [...client.infos_manquantes, clean] });
     }
     setNewInfoLabel("");
-  };
-
-  const handleStatutChange = (next: string) => {
-    if (next === "Client confirmé" && !client.email.trim()) {
-      toast("Ajoute l'email du client avant de le passer en Client confirmé.");
-      return;
-    }
-    if (next === "Client confirmé" && client.enfants > 0 && !client.ages_enfants.trim()) {
-      onNeedsField("vous devez rajouter l'âge des enfants.", "field-ages-enfants");
-      return;
-    }
-    onChange({ statut: next });
   };
 
   return (
@@ -290,21 +279,43 @@ export function ContactStep({
       </PropertyRow>
 
       <PropertyRow label="What's app" icon={<PropIcon name="phone" />}>
-        <input
-          value={client.telephone}
-          onChange={(e) => onChange({ telephone: e.target.value })}
-          className="input-flat"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            value={client.telephone}
+            onChange={(e) => onChange({ telephone: e.target.value })}
+            className="input-flat flex-1"
+          />
+          {!emailOpen && (
+            <button
+              type="button"
+              onClick={() => setEmailOpen(true)}
+              className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
+            >
+              + Ajouter un e-mail
+            </button>
+          )}
+        </div>
       </PropertyRow>
+
+      {emailOpen && (
+        <PropertyRow label="Email" icon={<PropIcon name="mail" />}>
+          <input
+            type="email"
+            value={client.email}
+            onChange={(e) => onChange({ email: e.target.value })}
+            className="input-flat"
+          />
+        </PropertyRow>
+      )}
 
       <PassportPhotosUpload
         paths={client.passeport_photos || []}
         onChange={(passeport_photos) => onChange({ passeport_photos })}
       />
 
-      <div>
-        <span className="mb-1 block text-sm font-medium text-neutral-700">Infos manquantes</span>
-        <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="w-36 flex-shrink-0 text-sm text-neutral-500">Infos manquantes</span>
+        <div className="flex flex-1 flex-wrap items-center gap-1.5">
           {autoTags.map((s) => (
             <span
               key={`auto-${s}`}
@@ -341,7 +352,7 @@ export function ContactStep({
           </button>
         </div>
         {infoManquanteOpen && (
-          <div className="mt-2 rounded-md border border-neutral-300 bg-white p-2">
+          <div className="mt-2 w-full rounded-md border border-neutral-300 bg-white p-2">
             <div className="max-h-48 space-y-0.5 overflow-y-auto">
               {infoOptions.map((opt) => (
                 <label
@@ -399,17 +410,6 @@ export function ContactStep({
       </button>
       {moreOpen && (
         <>
-          <PropertyRow label="Statut" icon={<PropIcon name="flag" />}>
-            <select
-              value={client.statut}
-              onChange={(e) => handleStatutChange(e.target.value)}
-              className="input-flat"
-            >
-              {STATUTS.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </PropertyRow>
           <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
             <select
               value={client.relation_grace_a}
@@ -430,14 +430,6 @@ export function ContactStep({
               />
             </PropertyRow>
           )}
-          <PropertyRow label="Email *" icon={<PropIcon name="mail" />}>
-            <input
-              type="email"
-              value={client.email}
-              onChange={(e) => onChange({ email: e.target.value })}
-              className="input-flat"
-            />
-          </PropertyRow>
         </>
       )}
     </div>

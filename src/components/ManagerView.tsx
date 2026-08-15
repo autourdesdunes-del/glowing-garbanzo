@@ -8,7 +8,7 @@ import {
   JourEscalation,
   Reservation,
 } from "@/lib/types";
-import { cleanActivityTitle, missingChampsFor } from "@/lib/resa";
+import { cleanActivityTitle, isFamilySafariBedouin, missingChampsFor } from "@/lib/resa";
 
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "Date ?";
@@ -51,11 +51,16 @@ export default function ManagerView({
   assouanVerifications: AssouanVerification[];
 }) {
   const autorisations: Autorisation[] = [
+    // Même table pour deux cas distincts (voir AddActivityWizard.tsx) :
+    // refus du mini-bus, ou insistance pour le Grand Safari Bédouin malgré
+    // un groupe 100% adultes — distingués par le nom de l'activité.
     ...busEscalations.map((e) => ({
       id: e.id,
       created_at: e.created_at,
-      icon: "🚌",
-      texte: `${e.employe_nom} a indiqué que le client ${e.client_nom} ne souhaite pas la formule mini-bus pour ${e.nom_activite}.`,
+      icon: isFamilySafariBedouin(e.nom_activite) ? "🐪" : "🚌",
+      texte: isFamilySafariBedouin(e.nom_activite)
+        ? `${e.employe_nom} indique que le client ${e.client_nom} préfère quand même le ${e.nom_activite} malgré un groupe 100% adultes (formule pensée pour les familles).`
+        : `${e.employe_nom} a indiqué que le client ${e.client_nom} ne souhaite pas la formule mini-bus pour ${e.nom_activite}.`,
       clientId: e.client_id,
     })),
     ...jourEscalations.map((e) => ({

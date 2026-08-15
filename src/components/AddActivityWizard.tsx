@@ -23,6 +23,8 @@ import {
   hauteSaisonAttendu,
   isChevalOuChameau,
   isDeuxiemeIleOption,
+  isDiscouragedBusActivity,
+  isFamilySafariBedouin,
   isGrandEgyptianMuseum,
   isLeCaireEnAvion,
   needsBilletInterneGenerique,
@@ -72,21 +74,12 @@ const MAISON_DAUPHINS_TEXT =
 // Le Caire/Louxor "en bus" (grand groupe, toutes nationalités mélangées) —
 // on pousse à recommander la formule mini-bus à la place avant de laisser
 // ajouter cette version, sauf si "mini" est déjà dans le nom.
-function isDiscouragedBusActivity(nom: string) {
-  const n = (nom || "").toLowerCase();
-  return (n.includes("caire") || n.includes("louxor")) && n.includes("bus") && !n.includes("mini");
-}
+// (isDiscouragedBusActivity / isFamilySafariBedouin sont exportées depuis
+// resa.ts pour être réutilisées par BusEscalationCenter/ManagerView, qui
+// doivent afficher le bon texte selon le cas.)
 
 const MINI_BUS_TEXT =
   "Nous recommandons davantage la formule en mini-bus : c'est beaucoup plus confortable, avec seulement 8 à 9 personnes maximum, contre une cinquantaine de personnes pour la formule en bus. En mini-bus, l'excursion est aussi majoritairement francophone, alors qu'en bus toutes les nationalités sont mélangées. Le tarif pour la formule en mini-bus est de 85 € par personne.";
-
-// Le Grand Safari Bédouin est pensé pour les familles avec enfants — pour
-// un groupe composé uniquement d'adultes, on pousse plutôt vers le quad,
-// le buggy ou le safari mix.
-function isFamilySafariBedouin(nom: string) {
-  const n = (nom || "").toLowerCase();
-  return n.includes("safari") && n.includes("bédouin");
-}
 
 function isAdultsOnly(client: Client) {
   return (client.enfants || 0) === 0 && (client.bebes || 0) === 0;

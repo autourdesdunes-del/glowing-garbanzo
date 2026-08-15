@@ -311,6 +311,22 @@ export function missingChampsFor(
   return missingChamps;
 }
 
+// Les deux cas qui déclenchent une escalade "bus_escalations" (même table
+// pour les deux, distingués seulement par le nom de l'activité — voir
+// AddActivityWizard.tsx) : le client insiste pour le bus au lieu du
+// mini-bus recommandé, ou pour le Grand Safari Bédouin malgré un groupe
+// 100% adultes (pensé pour les familles). Exportées ici pour que
+// BusEscalationCenter/ManagerView affichent le bon texte selon le cas.
+export function isDiscouragedBusActivity(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return (n.includes("caire") || n.includes("louxor")) && n.includes("bus") && !n.includes("mini");
+}
+
+export function isFamilySafariBedouin(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return n.includes("safari") && n.includes("bédouin");
+}
+
 // Villes utilisées dans les noms catalogue de transferts privatifs (ex.
 // "Transfert privatif Hurghada - Louxor") — sert à retrouver la 2e ville
 // même quand le nom continue après (ex. "... Louxor avec arrêts Edfou et

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { BusEscalation, Profile } from "@/lib/types";
+import { isFamilySafariBedouin } from "@/lib/resa";
 
 function isEscalationRecipient(p: Profile | undefined) {
   if (!p) return false;
@@ -32,12 +33,18 @@ function ActionModal({
     await onResolve(statut, message.trim());
   };
 
+  // Cette même table sert aussi pour le Grand Safari Bédouin demandé par un
+  // groupe 100% adultes (voir AddActivityWizard.tsx) — texte différent
+  // selon le cas, sinon le popup parle de mini-bus pour une escalade qui
+  // n'a rien à voir.
+  const isSafari = isFamilySafariBedouin(escalation.nom_activite);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-lg border-2 border-red-600 bg-white p-5 shadow-xl">
         <div className="flex items-start justify-between">
           <h2 className="font-heading text-base font-semibold text-red-600">
-            Escalade formule bus
+            {isSafari ? "Escalade Grand Safari Bédouin" : "Escalade formule bus"}
           </h2>
           <button
             type="button"
@@ -49,9 +56,20 @@ function ActionModal({
           </button>
         </div>
         <p className="mt-2 text-sm text-[#171717]">
-          <strong>{escalation.employe_nom}</strong> a indiqué que le client{" "}
-          <strong>{escalation.client_nom || "Sans nom"}</strong> ne souhaite pas la formule
-          mini-bus pour <strong>{escalation.nom_activite}</strong>.
+          {isSafari ? (
+            <>
+              <strong>{escalation.employe_nom}</strong> indique que le client{" "}
+              <strong>{escalation.client_nom || "Sans nom"}</strong> préfère quand même le{" "}
+              <strong>{escalation.nom_activite}</strong> malgré un groupe 100% adultes (formule
+              pensée pour les familles).
+            </>
+          ) : (
+            <>
+              <strong>{escalation.employe_nom}</strong> a indiqué que le client{" "}
+              <strong>{escalation.client_nom || "Sans nom"}</strong> ne souhaite pas la formule
+              mini-bus pour <strong>{escalation.nom_activite}</strong>.
+            </>
+          )}
         </p>
         <p className="mt-2 text-sm text-[#666666]">
           Merci de vérifier dans la conversation que cela a bien été demandé par le client.

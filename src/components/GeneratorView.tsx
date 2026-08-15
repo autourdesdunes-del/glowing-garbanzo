@@ -183,7 +183,7 @@ function suggererProgramme({
   activitesAEviter: string;
   villeClient: string;
   taxeTransfertMontant: number;
-}): Ligne[] {
+}): { lignes: Ligne[]; activitesTarifGroupeIgnorees: string[] } {
   const nbPersonnes = nbAdultes + nbEnfants;
   const ages = extractAges(agesEnfants);
   const hasAdos = ages.some((a) => a >= 12 && a <= 17);
@@ -252,6 +252,18 @@ function suggererProgramme({
   };
   const matchInteret = (item: CatalogueItem) => matchGroupes(item, groupesInteret);
   const matchEviter = (item: CatalogueItem) => matchGroupes(item, groupesAEviter);
+
+  // Une envie peut correspondre à une activité tarifée "au groupe" (bateau
+  // privatisé : prix au bateau, pas par personne) — exclue plus bas de la
+  // suggestion auto faute de pu_adulte exploitable. Sans ce repérage,
+  // l'employée ne sait jamais qu'une correspondance existait et pense que
+  // le générateur n'a rien trouvé alors qu'il a juste dû l'écarter.
+  const activitesTarifGroupeIgnorees = catalogue
+    .filter((a) => a.valide)
+    .filter((a) => a.categorie !== "Transfert")
+    .filter((a) => a.tarif_mode === "groupe")
+    .filter((a) => matchInteret(a))
+    .map((a) => a.nom);
 
   const candidats = catalogue
     .filter((a) => a.valide)
@@ -422,7 +434,7 @@ function suggererProgramme({
     }
   }
 
-  return lignes;
+  return { lignes, activitesTarifGroupeIgnorees };
 }
 
 export default function GeneratorView({
@@ -504,7 +516,7 @@ export default function GeneratorView({
     if (taxeResultat.type === "a_demander") {
       toast(`Taxe de transfert (${villeClient}) : ${taxeResultat.note} — non ajoutée automatiquement.`);
     }
-    const suggestions = suggererProgramme({
+    const { lignes: suggestions, activitesTarifGroupeIgnorees } = suggererProgramme({
       catalogue,
       dateDebut,
       dateFin,
@@ -516,8 +528,15 @@ export default function GeneratorView({
       villeClient,
       taxeTransfertMontant,
     });
+    if (activitesTarifGroupeIgnorees.length > 0) {
+      toast(
+        `Correspond aussi à un tarif de groupe (prix au bateau, pas par personne) — à ajouter à la main : ${activitesTarifGroupeIgnorees.join(", ")}.`
+      );
+    }
     if (suggestions.length === 0) {
-      toast("Aucune activité du catalogue ne correspond à ces critères — ajoute-les à la main.");
+      if (activitesTarifGroupeIgnorees.length === 0) {
+        toast("Aucune activité du catalogue ne correspond à ces critères — ajoute-les à la main.");
+      }
       return;
     }
     setLignes(suggestions);

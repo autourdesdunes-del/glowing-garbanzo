@@ -216,10 +216,16 @@ function suggererProgramme({
     // écrit ça, sauf s'il précise "bassin"/"captivité" (cf. plus bas).
     "nage",
   ]);
+  // Un employé (ou Kommo) tape rarement les accents avec constance
+  // ("diner" pour "dîner") — sans ça, une envie comme "safari quad avec
+  // diner spectacle" ne matchait jamais "Safari quad & dîner spectacle"
+  // (le mot "diner" n'existe littéralement nulle part dans le catalogue,
+  // seul "dîner" y figure) et se faisait donc ignorer comme mot inconnu.
+  const deaccent = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const tokenize = (texte: string): string[] =>
-    texte
+    deaccent(texte)
       .toLowerCase()
-      .replace(/[^a-zà-öø-ÿ0-9\s-]/g, " ")
+      .replace(/[^a-z0-9\s-]/g, " ")
       .split(/\s+/)
       .map((m) => m.trim())
       .filter((m) => m.length > 2 && !MOTS_VIDES.has(m));
@@ -254,7 +260,18 @@ function suggererProgramme({
   // ville/thème générique — "Abu Dabbab" (la plage aux tortues de Marsa Alam)
   // n'existe nulle part dans les noms/tags catalogue, donc le mot ne matche
   // rien. On le réécrit vers le vocabulaire catalogue avant tokenisation.
-  const ALIAS_ENVIES: [RegExp, string][] = [[/abu\s*dabbab/gi, "tortues Marsa Alam"]];
+  // "GEM" (Grand Egyptian Museum) ne doit pas devenir une exigence de mot
+  // au même titre que les autres — sinon on écarterait "Le Caire en avion"
+  // ou "en voiture privée" quand ce moyen de transport précis est demandé
+  // en plus du GEM, alors que ces formules incluent aussi le musée. On
+  // retire juste la mention (comme une parenthèse Kommo) et on note à part
+  // si le GEM a été demandé, pour orienter par défaut vers la formule qui
+  // le nomme explicitement ("Le Caire en mini-bus ViP") — cf. plus bas.
+  const demandeGEM = /\bgem\b|grand\s+egyptian\s+museum/i.test(interets);
+  const ALIAS_ENVIES: [RegExp, string][] = [
+    [/abu\s*dabbab/gi, "tortues Marsa Alam"],
+    [/\(?\s*gem\s*\)?/gi, " "],
+  ];
   const appliquerAlias = (texte: string) =>
     ALIAS_ENVIES.reduce((acc, [motif, remplacement]) => acc.replace(motif, remplacement), texte);
 
@@ -272,7 +289,7 @@ function suggererProgramme({
 
   const matchGroupes = (item: CatalogueItem, groupes: string[][]) => {
     if (groupes.length === 0) return false;
-    const hay = [item.nom, item.categorie, ...(item.tags || [])].join(" ").toLowerCase();
+    const hay = deaccent([item.nom, item.categorie, ...(item.tags || [])].join(" ")).toLowerCase();
     return groupes.some((mots) => mots.every((m) => hay.includes(m)));
   };
 
@@ -296,7 +313,9 @@ function suggererProgramme({
     { estConcerne: (item) => /\ben bus\b/i.test(item.nom), motsRequis: ["bus"] },
     {
       estConcerne: (item) => /\(en bassin\)|dolphin world/i.test(item.nom),
-      motsRequis: ["bassin", "captivite", "captivité", "parc", "piscine"],
+      // motsInteretTous est désaccentué (cf. tokenize/deaccent) — inutile
+      // d'y lister une forme accentuée, elle ne matcherait jamais.
+      motsRequis: ["bassin", "captivite", "parc", "piscine"],
     },
   ];
   const matchInteret = (item: CatalogueItem) => {
@@ -358,6 +377,9 @@ function suggererProgramme({
       if (hasJeunesEnfants && enfantsFriendly) score += 20;
       if (hasJeunesEnfants && !enfantsFriendly && item.pu_enfant === 0 && item.pu_adulte > 0) score -= 15;
       if (hasAdos && (item.categorie === "Excursion" || item.categorie === "Séjour multi-jours")) score += 5;
+      // GEM demandé sans moyen de transport précisé : on départage vers la
+      // formule qui l'inclut explicitement plutôt que le simple mini-bus.
+      if (demandeGEM && item.nom.includes("Grand Egyptian Museum")) score += 8;
 
       const prixParPersonne = item.pu_adulte || 0;
       const destinationTags = (item.tags || []).filter((t) => DESTINATION_TAGS.has(t));

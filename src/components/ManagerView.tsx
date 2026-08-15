@@ -11,8 +11,15 @@ import {
   Profile,
   RemarqueEmployee,
   Reservation,
+  ReservationOption,
+  ReservationTarif,
 } from "@/lib/types";
-import { activiteEnAttenteRaisons, cleanActivityTitle, isFamilySafariBedouin } from "@/lib/resa";
+import {
+  activiteEnAttenteRaisons,
+  cleanActivityTitle,
+  isFamilySafariBedouin,
+  resaTotalMontant,
+} from "@/lib/resa";
 import { todayStr } from "@/lib/dates";
 import { PROSPECT_STATUTS } from "@/lib/constants";
 
@@ -24,6 +31,21 @@ function fmtDate(dateStr: string | null) {
 
 function daysSince(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+
+function euros(n: number) {
+  return n.toLocaleString("fr-FR");
+}
+
+// "Dernière activité" du rapport Manager > Gestion équipe — basé sur le
+// heartbeat de présence posé par AppShell, pas sur une vraie dernière
+// action précise.
+function derniereActiviteLabel(iso: string | null) {
+  if (!iso) return "Jamais connectée";
+  const jours = daysSince(iso);
+  if (jours <= 0) return "Aujourd'hui";
+  if (jours === 1) return "Hier";
+  return `Il y a ${jours} jours`;
 }
 
 // Même seuil que "Relances prospects" ailleurs dans l'app (Actions rapides
@@ -66,6 +88,8 @@ export default function ManagerView({
   sub,
   clients,
   reservations,
+  resaOptions,
+  resaTarifs,
   catalogue,
   onOpenClient,
   busEscalations,
@@ -79,6 +103,8 @@ export default function ManagerView({
   sub: ManagerSub;
   clients: Client[];
   reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
   catalogue: CatalogueItem[];
   onOpenClient: (id: string) => void;
   busEscalations: BusEscalation[];
@@ -166,11 +192,28 @@ export default function ManagerView({
   // Comptage à partir de la mise en place de cree_par_id/cree_par_nom
   // (migration 0080) et de remarques_employe — pas de reprise rétroactive,
   // voir le commentaire sur ces colonnes dans types.ts.
-  const rapportsParEmploye = employeesEligibles.map((p) => ({
-    profile: p,
-    resasCreees: reservations.filter((r) => r.cree_par_id === p.id).length,
-    remarquesRecues: remarquesEmploye.filter((r) => r.employe_id === p.id).length,
-  }));
+  const rapportsParEmploye = employeesEligibles.map((p) => {
+    const resasCreeesParElle = reservations.filter((r) => r.cree_par_id === p.id);
+    // Annulées exclues : ça ne représente pas une vente réelle.
+    const ventes = resasCreeesParElle.filter((r) => r.statut_resa !== "Annulée");
+    const panierMoyen =
+      ventes.length === 0
+        ? null
+        : Math.round(
+            ventes.reduce((sum, r) => {
+              const client = clients.find((c) => c.id === r.client_id);
+              if (!client) return sum;
+              return sum + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+            }, 0) / ventes.length
+          );
+    return {
+      profile: p,
+      resasCreees: resasCreeesParElle.length,
+      remarquesRecues: remarquesEmploye.filter((r) => r.employe_id === p.id).length,
+      panierMoyen,
+      derniereActivite: p.derniere_activite_le,
+    };
+  });
 
   const remarquesRecentes = [...remarquesEmploye]
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
@@ -419,17 +462,23 @@ export default function ManagerView({
                   <tr className="border-b border-[#eaeaea] text-xs text-[#666666]">
                     <th className="px-4 py-2 font-medium">Employée</th>
                     <th className="px-4 py-2 font-medium">Réservations créées</th>
+                    <th className="px-4 py-2 font-medium">Panier moyen</th>
                     <th className="px-4 py-2 font-medium">Remarques reçues</th>
+                    <th className="px-4 py-2 font-medium">Dernière activité</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eaeaea]">
-                  {rapportsParEmploye.map(({ profile, resasCreees, remarquesRecues }) => (
+                  {rapportsParEmploye.map(({ profile, resasCreees, remarquesRecues, panierMoyen, derniereActivite }) => (
                     <tr key={profile.id}>
                       <td className="px-4 py-2 font-medium text-[#171717]">
                         {profile.prenom || profile.email}
                       </td>
                       <td className="px-4 py-2 text-[#171717]">{resasCreees}</td>
+                      <td className="px-4 py-2 text-[#171717]">
+                        {panierMoyen === null ? "—" : `${euros(panierMoyen)} €`}
+                      </td>
                       <td className="px-4 py-2 text-[#171717]">{remarquesRecues}</td>
+                      <td className="px-4 py-2 text-[#171717]">{derniereActiviteLabel(derniereActivite)}</td>
                     </tr>
                   ))}
                 </tbody>

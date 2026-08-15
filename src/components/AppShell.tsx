@@ -436,6 +436,20 @@ function AppShellInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Signal de présence pour le rapport Manager > Gestion équipe ("dernière
+  // activité") — pas à chaque action (trop de writes), juste tant que
+  // l'appli reste ouverte dans un onglet actif.
+  useEffect(() => {
+    if (!userId) return;
+    const ping = () => {
+      if (document.visibilityState !== "visible") return;
+      supabase.from("profiles").update({ derniere_activite_le: new Date().toISOString() }).eq("id", userId);
+    };
+    ping();
+    const id = setInterval(ping, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [userId, supabase]);
+
   // Activités partagées (speedboat semi-privé, mini-bus) pas encore
   // remplies dans les 7 prochains jours — requête dédiée et légère (pas le
   // fetch complet de "reservations", inutile de charger toute la table
@@ -2067,6 +2081,8 @@ function AppShellInner({
               sub={managerSub}
               clients={clients}
               reservations={allReservations}
+              resaOptions={allResaOptions}
+              resaTarifs={allResaTarifs}
               catalogue={catalogue}
               onOpenClient={openClient}
               busEscalations={busEscalationsPending}

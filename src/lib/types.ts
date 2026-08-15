@@ -452,6 +452,10 @@ export type Profile = {
   role: "direction" | "equipe";
   email: string;
   prenom: string;
+  // Dernier signal d'activité dans le CRM (pas Kommo) — pour le rapport
+  // Manager > Gestion équipe. Mis à jour par un heartbeat régulier tant que
+  // l'appli reste ouverte, pas à chaque action.
+  derniere_activite_le: string | null;
 };
 
 export type PlanningShift = {

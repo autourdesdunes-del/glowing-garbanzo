@@ -227,7 +227,7 @@ export function ContactStep({
   return (
     <div className="space-y-1.5">
       <PropertyRow label="Contact via" icon={<PropIcon name="phone" />}>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           <select
             value={client.canal}
             onChange={(e) => onChange({ canal: e.target.value })}
@@ -238,12 +238,16 @@ export function ContactStep({
             ))}
           </select>
           {(client.canal === "Instagram" || client.canal === "TikTok") && (
-            <input
-              value={client.pseudo_contact}
-              onChange={(e) => onChange({ pseudo_contact: e.target.value })}
-              placeholder="Pseudo"
-              className="input-flat flex-1"
-            />
+            <div className="flex flex-1 items-center gap-1 text-neutral-400">
+              <span>—</span>
+              <span>@</span>
+              <input
+                value={client.pseudo_contact}
+                onChange={(e) => onChange({ pseudo_contact: e.target.value })}
+                placeholder="pseudo"
+                className="input-flat flex-1 text-[#171717]"
+              />
+            </div>
           )}
         </div>
       </PropertyRow>
@@ -283,7 +287,7 @@ export function ContactStep({
         </div>
       </PropertyRow>
 
-      <PropertyRow label="Téléphone / WhatsApp" icon={<PropIcon name="phone" />}>
+      <PropertyRow label="What's app" icon={<PropIcon name="phone" />}>
         <input
           value={client.telephone}
           onChange={(e) => onChange({ telephone: e.target.value })}

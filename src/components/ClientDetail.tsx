@@ -662,22 +662,6 @@ export default function ClientDetail({
 
   const toggle = (s: (typeof SECTIONS)[number]) =>
     setOpen((prev) => ({ ...CLOSED_SECTIONS, [s]: !prev[s] }));
-  const expandAll = () =>
-    setOpen({
-      Contact: true,
-      Séjour: true,
-      Activités: true,
-      Paiements: true,
-      Suivi: true,
-    });
-  const collapseAll = () =>
-    setOpen({
-      Contact: false,
-      Séjour: false,
-      Activités: false,
-      Paiements: false,
-      Suivi: false,
-    });
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -704,40 +688,48 @@ export default function ClientDetail({
             placeholder="Nom du client"
             className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
           />
-          <div className="flex flex-shrink-0 items-center gap-1.5">
+          <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
             <button
-              onClick={() => handleDownload("devis")}
-              disabled={generatingDoc !== null}
-              className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
+              onClick={() => onDuplicateAsNewStay(client)}
+              className="text-xs text-[#171717] hover:underline"
             >
-              {generatingDoc === "devis" ? "Génération…" : "Devis (PDF)"}
+              + Nouveau séjour pour ce même client
             </button>
-            <button
-              onClick={() => handleDownload("facture")}
-              disabled={generatingDoc !== null}
-              className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
-            >
-              {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
-            </button>
-            {client.statut !== "Client annulé" && (
+            <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setShowAnnulerClientModal(true)}
-                className="whitespace-nowrap rounded-md border border-[#8B4531]/40 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5"
+                onClick={() => handleDownload("devis")}
+                disabled={generatingDoc !== null}
+                className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
               >
-                Annuler ce client
+                {generatingDoc === "devis" ? "Génération…" : "Devis (PDF)"}
               </button>
-            )}
-            {canDelete && (
               <button
-                onClick={onDelete}
-                title="Supprimer ce client"
-                className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-[#8B4531]/40 text-[#8B4531] hover:bg-[#8B4531]/5"
+                onClick={() => handleDownload("facture")}
+                disabled={generatingDoc !== null}
+                className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
               >
-                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5">
-                  <path d="M4 6h12M8 6V4.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6m-7 0 .6 10.2a1 1 0 0 0 1 .8h5.8a1 1 0 0 0 1-.8L15 6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
               </button>
-            )}
+              {client.statut !== "Client annulé" && (
+                <button
+                  onClick={() => setShowAnnulerClientModal(true)}
+                  className="whitespace-nowrap rounded-md border border-[#8B4531]/40 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5"
+                >
+                  Annuler ce client
+                </button>
+              )}
+              {canDelete && (
+                <button
+                  onClick={onDelete}
+                  title="Supprimer ce client"
+                  className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-[#8B4531]/40 text-[#8B4531] hover:bg-[#8B4531]/5"
+                >
+                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5">
+                    <path d="M4 6h12M8 6V4.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6m-7 0 .6 10.2a1 1 0 0 0 1 .8h5.8a1 1 0 0 0 1-.8L15 6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -812,23 +804,6 @@ export default function ClientDetail({
           </div>
         </div>
       )}
-
-      <div className="flex items-center justify-between gap-3 text-xs">
-        <button
-          onClick={() => onDuplicateAsNewStay(client)}
-          className="text-[#171717] hover:underline"
-        >
-          + Nouveau séjour pour ce même client
-        </button>
-        <div className="flex gap-3">
-          <button onClick={expandAll} className="text-[#171717] hover:underline">
-            Tout déplier
-          </button>
-          <button onClick={collapseAll} className="text-neutral-400 hover:underline">
-            Tout replier
-          </button>
-        </div>
-      </div>
 
       <GuidedActivityModal
         open={guidedOpen}

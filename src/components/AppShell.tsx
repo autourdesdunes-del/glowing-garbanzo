@@ -294,19 +294,27 @@ function AppShellInner({
 }) {
   const isDirection = role === "direction";
   // La rubrique Manager (activités en attente de validation, etc.) est
-  // réservée à Sylvie et à la Direction (Mélanie/Hossam veulent aussi
-  // pouvoir la consulter de leur côté).
-  const isManager = isDirection || prenom.trim().toLowerCase() === "sylvie";
+  // réservée à Sylvie — la Direction n'y accède plus automatiquement
+  // depuis "la mienne" (sa vue perso), seulement via le sélecteur "Vue
+  // manager"/"Vue Hossam" ci-dessous, pour ne pas la mélanger à son
+  // quotidien Direction.
+  const isManagerParRole = prenom.trim().toLowerCase() === "sylvie";
   // Simulateur de vue pour la Direction, pour prévisualiser/former sans
   // changer de compte — ne restreint jamais un vrai accès équipe :
   // isDirection reste utilisé tel quel pour les fetch de données sensibles.
   // "bode"/"hossam" n'ont pas encore de permissions propres dans l'appli
   // (Bode n'a pas de compte, Hossam a le même rôle Direction que Mélanie) :
   // en attendant, "bode" = vue équipe simple et "hossam" = vue Direction
-  // complète, à affiner plus tard si leurs permissions divergent.
+  // complète (Manager inclus, comme avant ce changement), à affiner plus
+  // tard si leurs permissions divergent.
   const [viewAs, setViewAs] = useState<"moi" | "equipe" | "manager" | "bode" | "hossam">("moi");
   const effectiveIsDirection = isDirection && (viewAs === "moi" || viewAs === "hossam");
-  const effectiveIsManager = isManager && (viewAs === "moi" || viewAs === "hossam" || viewAs === "manager");
+  const effectiveIsManager =
+    viewAs === "moi"
+      ? isManagerParRole
+      : viewAs === "hossam"
+        ? isDirection || isManagerParRole
+        : viewAs === "manager";
   const confirm = useConfirm();
   const toast = useToast();
   const supabase = useMemo(() => createClient(), []);

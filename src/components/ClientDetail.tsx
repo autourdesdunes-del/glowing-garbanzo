@@ -825,7 +825,10 @@ export default function ClientDetail({
         assouanVerifications={assouanVerifications}
       />
 
-      <Section title="Contact" open={open.Contact} onToggle={() => toggle("Contact")}>
+      {/* Contact + Séjour : toujours visibles, pas de clic pour déplier —
+          contrairement aux autres sections, ce sont les infos qu'on
+          consulte le plus souvent en ouvrant une fiche. */}
+      <div id="section-Contact" className="rounded-[6px] border border-[#eaeaea] bg-white px-5 py-4">
         <ContactStep
           client={client}
           onChange={onChange}
@@ -839,9 +842,9 @@ export default function ClientDetail({
             })
           }
         />
-      </Section>
+      </div>
 
-      <Section title="Séjour" open={open.Séjour} onToggle={() => toggle("Séjour")}>
+      <div id="section-Séjour" className="rounded-[6px] border border-[#eaeaea] bg-white px-5 py-4">
         <SejourStep
           client={client}
           onChange={onChange}
@@ -849,7 +852,7 @@ export default function ClientDetail({
           taxesRef={taxesRef}
           onOpenHelp={onOpenHelp}
         />
-      </Section>
+      </div>
 
       <Section title="Activités réservées" open={open.Activités} onToggle={() => toggle("Activités")}>
         <ActivitesStep

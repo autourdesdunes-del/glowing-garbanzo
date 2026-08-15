@@ -311,6 +311,26 @@ export function missingChampsFor(
   return missingChamps;
 }
 
+// Comme missingChampsFor, mais élargi pour la liste "Activités en attente
+// de validation" du Manager : une activité peut rester en Brouillon même
+// sans aucun champ requis manquant (ex. date jamais choisie, tarif resté à
+// 0€) — Sylvie doit voir la vraie raison plutôt qu'un message générique
+// dans le plus de cas possible.
+export function activiteEnAttenteRaisons(
+  r: Reservation,
+  catalogueItem: CatalogueItem | undefined,
+  assouanVerification?: AssouanVerification | null
+): string[] {
+  const raisons = missingChampsFor(r, catalogueItem, assouanVerification);
+  if (!r.date_debut) raisons.push("Date pas encore choisie");
+  const tarifVide =
+    r.tarif_mode === "groupe"
+      ? r.prix_groupe_base === 0
+      : r.pu_adulte === 0 && r.pu_enfant === 0;
+  if (tarifVide) raisons.push("Tarif pas encore renseigné");
+  return raisons;
+}
+
 // Les deux cas qui déclenchent une escalade "bus_escalations" (même table
 // pour les deux, distingués seulement par le nom de l'activité — voir
 // AddActivityWizard.tsx) : le client insiste pour le bus au lieu du

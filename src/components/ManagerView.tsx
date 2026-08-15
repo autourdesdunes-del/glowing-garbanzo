@@ -8,12 +8,32 @@ import {
   JourEscalation,
   Reservation,
 } from "@/lib/types";
-import { cleanActivityTitle, isFamilySafariBedouin, missingChampsFor } from "@/lib/resa";
+import { activiteEnAttenteRaisons, cleanActivityTitle, isFamilySafariBedouin } from "@/lib/resa";
+import { todayStr } from "@/lib/dates";
+import { PROSPECT_STATUTS } from "@/lib/constants";
 
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "Date ?";
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+function daysSince(iso: string) {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+
+// Même seuil que "Relances prospects" ailleurs dans l'app (Actions rapides
+// du tableau de bord) : un prospect qui arrive bientôt se relance plus
+// vite qu'un prospect dont le séjour est encore loin.
+function joursAvantArrivee(dateStr: string) {
+  return Math.round((Date.parse(dateStr) - Date.parse(todayStr())) / 86400000);
+}
+function estProspectStagnant(c: Client) {
+  if (!PROSPECT_STATUTS.includes(c.statut)) return false;
+  if (!c.date_debut || c.date_debut < todayStr()) return false;
+  const avant = joursAvantArrivee(c.date_debut);
+  const seuilRelance = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
+  return daysSince(c.dernier_contact_date || c.created_at) >= seuilRelance;
 }
 
 type Autorisation = {
@@ -85,6 +105,12 @@ export default function ManagerView({
     .filter((r) => r.statut_resa === "Brouillon")
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
 
+  const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);
+
+  const prospectsStagnants = clients
+    .filter(estProspectStagnant)
+    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
+
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-8">
       <h1 className="font-heading text-[26px] font-semibold text-[#171717]">Manager</h1>
@@ -154,7 +180,7 @@ export default function ManagerView({
             {activitesEnAttente.map((r) => {
               const c = clients.find((cl) => cl.id === r.client_id);
               const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
-              const missing = missingChampsFor(r, catalogueItem);
+              const raisons = activiteEnAttenteRaisons(r, catalogueItem);
               return (
                 <div
                   key={r.id}
@@ -169,13 +195,76 @@ export default function ManagerView({
                   </div>
                   <p className="text-xs text-[#666666]">{cleanActivityTitle(r.nom_activite) || "Activité"}</p>
                   <p className="mt-0.5 text-xs text-red-600">
-                    {missing.length > 0
-                      ? `Manque : ${missing.join(", ")}`
-                      : "Pas encore validée par l'équipe"}
+                    {raisons.length > 0
+                      ? `Manque : ${raisons.join(", ")}`
+                      : "Rien de manquant détecté — juste pas encore cliqué sur Valider"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-neutral-400">
+                    Ajoutée il y a {daysSince(r.created_at)} jour{daysSince(r.created_at) > 1 ? "s" : ""}
                   </p>
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+          Doublons clients non traités
+        </h2>
+        {doublonsNonTraites.length === 0 ? (
+          <p className="text-sm text-neutral-400">Rien en attente.</p>
+        ) : (
+          <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+            {doublonsNonTraites.map((c) => {
+              const autre = clients.find((cl) => cl.id === c.doublon_possible_id);
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => onOpenClient(c.id)}
+                  className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+                >
+                  <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
+                  <p className="text-xs text-[#666666]">
+                    Pourrait être le même client que{" "}
+                    <span className="font-medium text-[#171717]">{autre?.nom || "un autre dossier"}</span>
+                    .
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+          Prospects qui stagnent
+        </h2>
+        {prospectsStagnants.length === 0 ? (
+          <p className="text-sm text-neutral-400">Rien en attente.</p>
+        ) : (
+          <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+            {prospectsStagnants.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => onOpenClient(c.id)}
+                className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
+                  <span className="whitespace-nowrap text-xs text-[#666666]">
+                    Arrivée {fmtDate(c.date_debut)}
+                  </span>
+                </div>
+                <p className="text-xs text-[#666666]">{c.statut}</p>
+                <p className="mt-0.5 text-xs text-red-600">
+                  Pas de contact depuis {daysSince(c.dernier_contact_date || c.created_at)} jour
+                  {daysSince(c.dernier_contact_date || c.created_at) > 1 ? "s" : ""}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </div>

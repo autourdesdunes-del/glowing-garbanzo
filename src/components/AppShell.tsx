@@ -228,6 +228,21 @@ function fmtDate(dateStr: string | null) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
+// Même seuil que "Relances prospects" (DashboardView.tsx) — dupliqué ici
+// (pas exporté) pour la cloche Manager, qui a besoin du total même sans
+// jamais avoir ouvert le tableau de bord.
+function daysSinceNav(iso: string) {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+function prospectStagnantNav(c: Client) {
+  if (!PROSPECT_STATUTS.includes(c.statut)) return false;
+  const todayStrNav = localDateStr(new Date());
+  if (!c.date_debut || c.date_debut < todayStrNav) return false;
+  const avant = Math.round((Date.parse(c.date_debut) - Date.parse(todayStrNav)) / 86400000);
+  const seuilRelance = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
+  return daysSinceNav(c.dernier_contact_date || c.created_at) >= seuilRelance;
+}
+
 export default function AppShell({
   userEmail,
   userId,
@@ -571,7 +586,14 @@ function AppShellInner({
     busEscalationsPending.length + jourEscalationsPending.length + assouanVerificationsPending.length;
   const managerClientsCount = clients.filter((c) => c.confirmation_a_traiter).length;
   const managerActivitesCount = allReservations.filter((r) => r.statut_resa === "Brouillon").length;
-  const managerPendingTotal = managerAutorisationsCount + managerClientsCount + managerActivitesCount;
+  const managerDoublonsCount = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite).length;
+  const managerProspectsStagnantsCount = clients.filter(prospectStagnantNav).length;
+  const managerPendingTotal =
+    managerAutorisationsCount +
+    managerClientsCount +
+    managerActivitesCount +
+    managerDoublonsCount +
+    managerProspectsStagnantsCount;
 
   const activeStatuts =
     mode === "prospects"

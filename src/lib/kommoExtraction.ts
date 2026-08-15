@@ -76,7 +76,7 @@ const EXTRACTION_TOOL = {
       activites_interet: {
         type: ["string", "null"],
         description:
-          "Activités qui intéressent potentiellement le prospect (mentionnées ou clairement sous-entendues par ses questions), séparées par des virgules (ex. 'plongée, excursion désert, Louxor'). null si rien n'est ressorti.",
+          "Activités qui intéressent potentiellement le prospect (mentionnées ou clairement sous-entendues par ses questions), séparées par des virgules (ex. 'plongée, excursion désert, Louxor'). Attention : une virgule signifie que le prospect veut les DEUX (envies cumulables) — si le prospect hésite entre deux options concurrentes ou n'en veut qu'une seule (ex. 'Orange Bay ou Paradise', 'le Caire ou Louxor'), garde le 'ou' entre les deux au lieu d'une virgule ('Orange Bay ou Paradise' comme un seul élément de la liste, jamais 'Orange Bay, Paradise'). null si rien n'est ressorti.",
       },
       activites_a_eviter: {
         type: ["string", "null"],

@@ -346,7 +346,29 @@ function suggererProgramme({
       .map((seg) => motsSignificatifs(seg).filter((m) => catalogueVocab.has(m)))
       .filter((g) => g.length > 0);
 
-  const groupesInteret = groupesFromText(interets);
+  // "Orange Bay ou Paradise" (un choix entre les deux, pas les deux à la
+  // fois) — contrairement à une virgule qui sépare des envies indépendantes
+  // et cumulables, "ou" sépare des alternatives d'un même choix. Chaque
+  // segment devient un groupe distinct comme avant, mais les alternatives
+  // issues d'un même "ou" partagent un altId : dès que l'une est placée,
+  // les autres ne sont plus recherchées (cf. groupesOrdonnes plus bas).
+  let altSeq = 0;
+  const groupesAvecAlternatives = (texte: string): { mots: string[]; altId: number }[] => {
+    const groupes: { mots: string[]; altId: number }[] = [];
+    appliquerAlias(texte)
+      .split(SEPARATEURS_SEGMENTS)
+      .forEach((seg) => {
+        const altId = altSeq++;
+        seg.split(/\s+ou\s+/i).forEach((alt) => {
+          const mots = motsSignificatifs(alt).filter((m) => catalogueVocab.has(m));
+          if (mots.length > 0) groupes.push({ mots, altId });
+        });
+      });
+    return groupes;
+  };
+
+  const groupesInteretDetail = groupesAvecAlternatives(interets);
+  const groupesInteret = groupesInteretDetail.map((g) => g.mots);
   const groupesAEviter = groupesFromText(activitesAEviter);
 
   const jours = datesInRange(dateDebut, dateFin);
@@ -627,10 +649,11 @@ function suggererProgramme({
   // sont traités en premier : ils bloquent plusieurs jours d'un coup, mieux
   // vaut leur laisser le choix de la date avant que les activités d'un
   // jour ne fragmentent le calendrier.
-  const groupesOrdonnes = groupesInteret
-    .map((groupe, idx) => ({
+  const groupesOrdonnes = groupesInteretDetail
+    .map(({ mots, altId }, idx) => ({
       idx,
-      matches: candidats.filter((c) => matchGroupes(c.item, [groupe])).sort((a, b) => b.score - a.score),
+      altId,
+      matches: candidats.filter((c) => matchGroupes(c.item, [mots])).sort((a, b) => b.score - a.score),
     }))
     .sort((a, b) => {
       const aMulti = (a.matches[0]?.dureeJours || 1) > 1 ? 0 : 1;
@@ -638,7 +661,12 @@ function suggererProgramme({
       return aMulti !== bMulti ? aMulti - bMulti : a.idx - b.idx;
     });
 
-  for (const { matches } of groupesOrdonnes) {
+  // Une fois une alternative d'un "ou" placée, les autres alternatives du
+  // même choix ne sont plus recherchées — voir groupesAvecAlternatives.
+  const altGroupesPlacees = new Set<number>();
+
+  for (const { matches, altId } of groupesOrdonnes) {
+    if (altGroupesPlacees.has(altId)) continue;
     if (matches.length === 0) continue;
     // Si la meilleure réponse à ce groupe répondait déjà à un autre groupe
     // en même temps (score boosté plus haut) et a donc déjà été placée,
@@ -656,6 +684,7 @@ function suggererProgramme({
       const date = trouverDateLibre(c);
       if (date === null) continue;
       placer(c, date);
+      altGroupesPlacees.add(altId);
       break;
     }
   }

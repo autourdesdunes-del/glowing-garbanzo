@@ -42,6 +42,7 @@ export default function ManagerView({
   assouanVerifications,
   catalogueModificationRequests,
   transfertTaxeModificationRequests,
+  isDirection,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -52,6 +53,7 @@ export default function ManagerView({
   assouanVerifications: AssouanVerification[];
   catalogueModificationRequests: CatalogueModificationRequest[];
   transfertTaxeModificationRequests: TransfertTaxeModificationRequest[];
+  isDirection: boolean;
 }) {
   const autorisations: Autorisation[] = [
     ...busEscalations.map((e) => ({
@@ -75,26 +77,32 @@ export default function ManagerView({
       texte: `${e.employe_nom} indique avoir informé ${e.client_nom} de vérifier la localisation de son hôtel à Assouan pour ${e.nom_activite}.`,
       clientId: e.client_id,
     })),
-    ...catalogueModificationRequests
-      .filter((r) => r.statut === "En attente")
-      .map((r) => ({
-        id: r.id,
-        created_at: r.created_at,
-        icon: "📋",
-        texte: `${r.demandeur_nom} demande une modification (${
-          r.type_modification === "Autre" ? r.autre_detail || "Autre" : r.type_modification
-        }) pour ${r.catalogue_item_noms.join(", ")} : ${r.explication}`,
-        clientId: null,
-      })),
-    ...transfertTaxeModificationRequests
-      .filter((r) => r.statut === "En attente")
-      .map((r) => ({
-        id: r.id,
-        created_at: r.created_at,
-        icon: "💶",
-        texte: `${r.demandeur_nom} signale une correction pour la taxe de transfert ${r.ville} (${r.tranche_label.split("\n")[0]}) : ${r.explication}`,
-        clientId: null,
-      })),
+    // Les demandes de modification de tarifs (catalogue/taxes) concernent
+    // uniquement la Direction — Sylvie ne les voit pas ici.
+    ...(isDirection
+      ? catalogueModificationRequests
+          .filter((r) => r.statut === "En attente")
+          .map((r) => ({
+            id: r.id,
+            created_at: r.created_at,
+            icon: "📋",
+            texte: `${r.demandeur_nom} demande une modification (${
+              r.type_modification === "Autre" ? r.autre_detail || "Autre" : r.type_modification
+            }) pour ${r.catalogue_item_noms.join(", ")} : ${r.explication}`,
+            clientId: null,
+          }))
+      : []),
+    ...(isDirection
+      ? transfertTaxeModificationRequests
+          .filter((r) => r.statut === "En attente")
+          .map((r) => ({
+            id: r.id,
+            created_at: r.created_at,
+            icon: "💶",
+            texte: `${r.demandeur_nom} signale une correction pour la taxe de transfert ${r.ville} (${r.tranche_label.split("\n")[0]}) : ${r.explication}`,
+            clientId: null,
+          }))
+      : []),
   ].sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   const clientsEnAttenteConfirmation = clients.filter((c) => c.confirmation_a_traiter);

@@ -342,6 +342,7 @@ export type Client = {
   doublon_traite: boolean;
   confirmation_a_traiter: boolean;
   confirmation_assignee_a: string | null;
+  confirmation_assignee_a_le: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -430,6 +431,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   doublon_traite: false,
   confirmation_a_traiter: false,
   confirmation_assignee_a: null,
+  confirmation_assignee_a_le: null,
 };
 
 export type UserShift = {

@@ -1304,8 +1304,17 @@ function AppShellInner({
       />
       <NouveauClientConfirmeAlert
         clients={clients}
+        profiles={teamProfiles}
         onOpenClient={openClient}
-        onAssigner={(id, assignee) => updateClientById(id, { confirmation_assignee_a: assignee })}
+        onAssigner={(id, assignee) =>
+          updateClientById(id, {
+            confirmation_assignee_a: assignee,
+            confirmation_assignee_a_le: new Date().toISOString(),
+          })
+        }
+        onRevert={(id) =>
+          updateClientById(id, { confirmation_assignee_a: null, confirmation_assignee_a_le: null })
+        }
       />
       {prospectSummaryId &&
         (() => {

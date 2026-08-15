@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { createClient } from "@/lib/supabase/client";
 import { CatalogueItem } from "@/lib/types";
-import { AGENCY_CONTACT } from "@/lib/constants";
 
 // Génère le flyer d'une activité du catalogue au même design que les flyers
 // Canva de l'agence (cf. demande du 2026-08-14 — un flyer par activité,
@@ -111,7 +110,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
       style={{
         width: FLYER_WIDTH,
         background: "#F2E6D2",
-        fontFamily: "var(--font-geist-sans)",
+        fontFamily: "var(--font-work-sans)",
         color: "#2B211C",
         display: "flex",
         flexDirection: "column",
@@ -186,15 +185,29 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
             justifyContent: "center",
           }}
         >
-          <div style={{ fontFamily: "var(--font-geist-mono)", fontSize: 34, fontWeight: 700, color: "#5C2A1D" }}>
+          <div style={{ fontFamily: "var(--font-space-mono)", fontSize: 30, fontWeight: 700, color: "#5C2A1D" }}>
             {montant}
           </div>
           <div style={{ fontSize: 16, color: "#5C2A1D" }}>{unite}</div>
         </div>
 
+        {programme.length > 0 && (
+          <div style={{ marginTop: 20 }}>
+            <SectionLabel>PROGRAMME</SectionLabel>
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+              {programme.map((p, i) => (
+                <div key={i} style={{ fontSize: 22 }}>
+                  • {p}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Deux encadrés côte à côte : disponibilités à gauche, inclus à
-            droite (demande explicite du 2026-08-14). */}
-        <div style={{ display: "flex", gap: 20, marginTop: 20 }}>
+            droite (demande explicite du 2026-08-14, repositionnés sous le
+            programme le 2026-08-15). */}
+        <div style={{ display: "flex", gap: 20, marginTop: 36 }}>
           <div
             style={{
               flex: 1,
@@ -230,41 +243,6 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-
-        {programme.length > 0 && (
-          <div style={{ marginTop: 36 }}>
-            <SectionLabel>PROGRAMME</SectionLabel>
-            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-              {programme.map((p, i) => (
-                <div key={i} style={{ fontSize: 22 }}>
-                  • {p}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Mini encadré compact (demande explicite) plutôt qu'un bloc
-            pleine largeur — infos de contact sur une seule ligne. */}
-        <div
-          style={{
-            marginTop: 32,
-            display: "inline-flex",
-            flexDirection: "column",
-            gap: 8,
-            border: "1px solid rgba(92,42,29,0.18)",
-            borderRadius: 10,
-            background: "#FBF6EC",
-            padding: "14px 20px",
-          }}
-        >
-          <SectionLabel>RÉSERVEZ MAINTENANT</SectionLabel>
-          <div style={{ display: "flex", gap: 20, fontSize: 17, flexWrap: "wrap" }}>
-            <span>🌐 {AGENCY_CONTACT.site}</span>
-            <span>💬 {AGENCY_CONTACT.whatsapp}</span>
-            <span>📷 @{AGENCY_CONTACT.instagram}</span>
           </div>
         </div>
       </div>

@@ -200,23 +200,47 @@ function suggererProgramme({
     "de", "du", "des", "le", "la", "les", "en", "et", "un", "une", "à", "a", "au",
     "aux", "avec", "sur", "pour", "dans", "ou", "d", "l", "the",
   ]);
-  const motsSignificatifs = (segment: string): string[] =>
-    segment
-      .replace(/\([^)]*\)/g, " ")
+  const tokenize = (texte: string): string[] =>
+    texte
       .toLowerCase()
       .replace(/[^a-zà-öø-ÿ0-9\s-]/g, " ")
       .split(/\s+/)
       .map((m) => m.trim())
       .filter((m) => m.length > 2 && !MOTS_VIDES.has(m));
+  const motsSignificatifs = (segment: string): string[] => tokenize(segment.replace(/\([^)]*\)/g, " "));
 
-  const groupesInteret = interets
-    .split(",")
-    .map(motsSignificatifs)
-    .filter((g) => g.length > 0);
-  const groupesAEviter = activitesAEviter
-    .split(",")
-    .map(motsSignificatifs)
-    .filter((g) => g.length > 0);
+  // Kommo ne sépare pas toujours deux envies distinctes par une virgule
+  // (ex. "Speedboat White Island + Hula Hula" — deux activités du catalogue
+  // différentes écrites comme un seul segment) — on coupe aussi sur "+",
+  // "/" et " et " pour que chaque envie ait une chance d'être isolée.
+  const SEPARATEURS_SEGMENTS = /\s*(?:,|\+|\/|&|\bet\b)\s*/gi;
+
+  // Vocabulaire de tous les mots significatifs du catalogue (noms,
+  // catégories, tags) — le catalogue ne nomme ses excursions que par ville
+  // + moyen de transport ("Le Caire en avion"), jamais par monument. Une
+  // envie écrite "Excursion Pyramides du Caire" ne matchera donc jamais mot
+  // à mot : "pyramides" n'existe nulle part dans le catalogue. On ignore ces
+  // mots hors-catalogue plutôt que de laisser un seul mot inconnu faire
+  // échouer tout le groupe alors que "excursion" et "caire" suffisaient.
+  // Contrairement à motsSignificatifs (utilisé sur les envies du prospect),
+  // on ne retire pas les parenthèses ici : certains noms catalogue précisent
+  // l'info distinctive dedans (ex. "Paradise Island (côté Hula Hula)"), et
+  // c'est exactement ce texte-là (hay, plus bas) qui sert au matching final.
+  const catalogueVocab = new Set<string>();
+  catalogue.forEach((item) => {
+    tokenize([item.nom, item.categorie, ...(item.tags || [])].join(" ")).forEach((m) =>
+      catalogueVocab.add(m)
+    );
+  });
+
+  const groupesFromText = (texte: string): string[][] =>
+    texte
+      .split(SEPARATEURS_SEGMENTS)
+      .map((seg) => motsSignificatifs(seg).filter((m) => catalogueVocab.has(m)))
+      .filter((g) => g.length > 0);
+
+  const groupesInteret = groupesFromText(interets);
+  const groupesAEviter = groupesFromText(activitesAEviter);
 
   const jours = datesInRange(dateDebut, dateFin);
   const joursSemaineDispo = new Set(jours.map((d) => WEEKDAY_FR[new Date(d + "T00:00:00").getDay()]));

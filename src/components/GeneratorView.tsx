@@ -243,8 +243,17 @@ function suggererProgramme({
     );
   });
 
+  // Certains lieux connus des prospects (plage, spot précis...) n'apparaissent
+  // jamais tels quels dans le catalogue, qui ne nomme ses activités que par
+  // ville/thème générique — "Abu Dabbab" (la plage aux tortues de Marsa Alam)
+  // n'existe nulle part dans les noms/tags catalogue, donc le mot ne matche
+  // rien. On le réécrit vers le vocabulaire catalogue avant tokenisation.
+  const ALIAS_ENVIES: [RegExp, string][] = [[/abu\s*dabbab/gi, "tortues Marsa Alam"]];
+  const appliquerAlias = (texte: string) =>
+    ALIAS_ENVIES.reduce((acc, [motif, remplacement]) => acc.replace(motif, remplacement), texte);
+
   const groupesFromText = (texte: string): string[][] =>
-    texte
+    appliquerAlias(texte)
       .split(SEPARATEURS_SEGMENTS)
       .map((seg) => motsSignificatifs(seg).filter((m) => catalogueVocab.has(m)))
       .filter((g) => g.length > 0);
@@ -351,9 +360,6 @@ function suggererProgramme({
     .filter((c) => c.disponibleSurSejour && c.dureeJours !== null && c.interetMatch)
     .sort((a, b) => b.score - a.score);
 
-  const nbNuits = jours.length > 0 ? jours.length - 1 : 0;
-  const cible = jours.length > 0 ? Math.min(6, Math.max(2, Math.round(nbNuits / 2))) : 4;
-
   const usedDates = new Set<string>();
   const usedCatalogueIds = new Set<string>();
   // Comparaison par inclusion (pas d'égalité stricte) car deux tags
@@ -367,6 +373,12 @@ function suggererProgramme({
         (u) => t.toLowerCase().includes(u.toLowerCase()) || u.toLowerCase().includes(t.toLowerCase())
       )
     );
+  // Les activités "désert" (quad, buggy, safari jeep...) sont des variantes
+  // très proches d'une même expérience — en proposer deux dans le même
+  // séjour fait doublon plutôt que varier le programme. Une seule suffit,
+  // contrairement à "mer" où deux îles différentes restent deux vraies
+  // propositions distinctes.
+  let desertDejaPropose = false;
   const lignes: Ligne[] = [];
 
   const placer = (c: (typeof candidats)[number], date: string) => {
@@ -376,6 +388,7 @@ function suggererProgramme({
     }
     c.destinationTags.forEach((t) => usedDestinationTags.push(t));
     usedCatalogueIds.add(c.item.id);
+    if (c.categorieMD === "desert") desertDejaPropose = true;
     lignes.push({
       id: nextLigneId(),
       catalogueItemId: c.item.id,
@@ -389,18 +402,13 @@ function suggererProgramme({
     });
   };
 
-  // Étape 1 — place d'abord les activités multi-jours (croisières, circuits)
-  // qui structurent le séjour et bloquent plusieurs jours d'un coup — mais
-  // seulement si le prospect en a exprimé l'envie : une croisière (ou tout
-  // autre gros morceau) ne doit jamais être proposée par défaut juste parce
-  // qu'elle rapporte bien, uniquement si elle correspond à ce qu'il a dit.
-  for (const c of candidats) {
-    if (lignes.length >= cible) break;
-    if (!c.dureeJours || c.dureeJours <= 1) continue;
-    if (!c.interetMatch) continue;
-    if (destinationDejaCouverte(c.destinationTags)) continue;
-    if (jours.length === 0) continue;
-    const dureeJours = c.dureeJours;
+  // Cherche la première date libre pour ce candidat (bloc de dureeJours
+  // jours consécutifs, en respectant ses jours de disponibilité) — ou null
+  // si aucune date ne convient. Sans dates de séjour connues, seules les
+  // activités d'un jour peuvent être placées (pas de date précise).
+  const trouverDateLibre = (c: (typeof candidats)[number]): string | null => {
+    const dureeJours = c.dureeJours || 1;
+    if (jours.length === 0) return dureeJours === 1 ? "" : null;
     const jourDepart = jours.find((d, idx) => {
       if (usedDates.has(d)) return false;
       if (c.joursItem.length > 0 && !c.joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()])) {
@@ -412,49 +420,42 @@ function suggererProgramme({
       }
       return true;
     });
-    if (!jourDepart) continue;
-    placer(c, jourDepart);
-  }
+    return jourDepart ?? null;
+  };
 
-  // Étape 2 — remplit les jours restants un par un, chronologiquement, en
-  // alternant à chaque fois avec une activité de l'autre catégorie
-  // (mer/désert) quand c'est possible ; sinon on prend simplement la
-  // meilleure activité dispo ce jour-là plutôt que de laisser un trou.
-  let derniereCategorie: "mer" | "desert" | null = null;
-  if (jours.length > 0) {
-    for (const d of jours) {
-      if (lignes.length >= cible) break;
-      if (usedDates.has(d)) continue;
-      const weekday = WEEKDAY_FR[new Date(d + "T00:00:00").getDay()];
-      const dispoCeJour = candidats.filter(
-        (c) =>
-          (c.dureeJours || 1) === 1 &&
-          !usedCatalogueIds.has(c.item.id) &&
-          !destinationDejaCouverte(c.destinationTags) &&
-          (c.joursItem.length === 0 || c.joursItem.includes(weekday))
-      );
-      if (dispoCeJour.length === 0) continue;
-      const categorieSouhaitee: "mer" | "desert" | null =
-        derniereCategorie === "mer" ? "desert" : derniereCategorie === "desert" ? "mer" : null;
-      const prefs: typeof dispoCeJour = categorieSouhaitee
-        ? dispoCeJour.filter((c) => c.categorieMD === categorieSouhaitee)
-        : [];
-      const choix: (typeof dispoCeJour)[number] = (prefs.length > 0 ? prefs : dispoCeJour)[0];
-      placer(choix, d);
-      if (choix.categorieMD) derniereCategorie = choix.categorieMD;
-    }
-  } else {
-    // Pas de dates de séjour connues : on ne peut pas raisonner jour par
-    // jour, on garde le classement par score en respectant quand même
-    // l'alternance mer/désert dans l'ordre choisi.
-    for (const c of candidats) {
-      if (lignes.length >= cible) break;
-      if (usedCatalogueIds.has(c.item.id) || (c.dureeJours || 1) !== 1) continue;
-      if (destinationDejaCouverte(c.destinationTags)) continue;
-      const categorieSouhaitee = derniereCategorie === "mer" ? "desert" : derniereCategorie === "desert" ? "mer" : null;
-      if (categorieSouhaitee && c.categorieMD && c.categorieMD !== categorieSouhaitee) continue;
-      placer(c, "");
-      if (c.categorieMD) derniereCategorie = c.categorieMD;
+  // Une activité par envie distincte exprimée — ni plus (pour ne pas noyer
+  // le programme sous plusieurs variantes très proches d'une même envie,
+  // ex. quatre îles différentes alors qu'une seule "îles" a été demandée),
+  // ni moins (tout ce qui a été demandé doit se retrouver dans le
+  // programme écrit, cf. Louxor oublié faute de place quand un plafond
+  // arbitraire coupait la liste avant d'y arriver). Les groupes qui
+  // matchent en priorité une activité multi-jours (croisière, circuit...)
+  // sont traités en premier : ils bloquent plusieurs jours d'un coup, mieux
+  // vaut leur laisser le choix de la date avant que les activités d'un
+  // jour ne fragmentent le calendrier.
+  const groupesOrdonnes = groupesInteret
+    .map((groupe, idx) => ({
+      idx,
+      matches: candidats.filter((c) => matchGroupes(c.item, [groupe])).sort((a, b) => b.score - a.score),
+    }))
+    .sort((a, b) => {
+      const aMulti = (a.matches[0]?.dureeJours || 1) > 1 ? 0 : 1;
+      const bMulti = (b.matches[0]?.dureeJours || 1) > 1 ? 0 : 1;
+      return aMulti !== bMulti ? aMulti - bMulti : a.idx - b.idx;
+    });
+
+  for (const { matches } of groupesOrdonnes) {
+    const disponibles = matches.filter(
+      (c) =>
+        !usedCatalogueIds.has(c.item.id) &&
+        !destinationDejaCouverte(c.destinationTags) &&
+        !(desertDejaPropose && c.categorieMD === "desert")
+    );
+    for (const c of disponibles) {
+      const date = trouverDateLibre(c);
+      if (date === null) continue;
+      placer(c, date);
+      break;
     }
   }
 

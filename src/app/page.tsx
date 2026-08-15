@@ -12,9 +12,16 @@ export default async function Home() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, prenom")
     .eq("id", user.id)
     .single();
 
-  return <AppShell userEmail={user.email ?? ""} userId={user.id} role={profile?.role ?? "equipe"} />;
+  return (
+    <AppShell
+      userEmail={user.email ?? ""}
+      userId={user.id}
+      role={profile?.role ?? "equipe"}
+      prenom={profile?.prenom ?? ""}
+    />
+  );
 }

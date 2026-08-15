@@ -37,6 +37,7 @@ import PlanningView from "@/components/PlanningView";
 import SuivisView, { SUIVIS_SUBS, SuivisSub } from "@/components/SuivisView";
 import ClientPreviewView from "@/components/ClientPreviewView";
 import DirectionView from "@/components/DirectionView";
+import ManagerView from "@/components/ManagerView";
 import HelpView from "@/components/HelpView";
 import PlanningRHView from "@/components/PlanningRHView";
 import GeneratorView from "@/components/GeneratorView";
@@ -64,6 +65,7 @@ type Mode =
   | "preview"
   | "help"
   | "direction"
+  | "manager"
   | "rh"
   | "generateur";
 
@@ -174,6 +176,16 @@ function IconHelp() {
     </svg>
   );
 }
+function IconStar() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+      <path
+        d="M10 2.8 12.3 7.6 17.5 8.4 13.8 12 14.7 17.2 10 14.7 5.3 17.2 6.2 12 2.5 8.4 7.7 7.6 10 2.8Z"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 const PLANNING_SUBS = [
   { key: "aujourdhui", label: "Aujourd'hui" },
@@ -195,6 +207,7 @@ const TABS: { key: Mode; label: string; icon: () => React.ReactElement }[] = [
   { key: "preview", label: "Aperçu client", icon: IconEye },
   { key: "help", label: "HELP", icon: IconHelp },
   { key: "direction", label: "Direction", icon: IconShield },
+  { key: "manager", label: "Manager", icon: IconStar },
 ];
 
 function fmtDate(dateStr: string | null) {
@@ -207,15 +220,17 @@ export default function AppShell({
   userEmail,
   userId,
   role,
+  prenom,
 }: {
   userEmail: string;
   userId: string;
   role: "direction" | "equipe";
+  prenom: string;
 }) {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <AppShellInner userEmail={userEmail} userId={userId} role={role} />
+        <AppShellInner userEmail={userEmail} userId={userId} role={role} prenom={prenom} />
       </ConfirmProvider>
     </ToastProvider>
   );
@@ -225,12 +240,18 @@ function AppShellInner({
   userEmail,
   userId,
   role,
+  prenom,
 }: {
   userEmail: string;
   userId: string;
   role: "direction" | "equipe";
+  prenom: string;
 }) {
   const isDirection = role === "direction";
+  // La rubrique Manager (activités en attente de validation, etc.) est
+  // réservée à Sylvie et à la Direction (Mélanie/Hossam veulent aussi
+  // pouvoir la consulter de leur côté).
+  const isManager = isDirection || prenom.trim().toLowerCase() === "sylvie";
   const [viewAsTeam, setViewAsTeam] = useState(false);
   // La Direction voit tout ce que voit l'équipe, plus quelques options en
   // plus (marge, onglet Direction…) — ce toggle masque ces options en plus
@@ -238,6 +259,7 @@ function AppShellInner({
   // jamais un vrai accès équipe : isDirection reste utilisé tel quel pour
   // les fetch de données sensibles.
   const effectiveIsDirection = isDirection && !viewAsTeam;
+  const effectiveIsManager = isManager && !viewAsTeam;
   const confirm = useConfirm();
   const toast = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -423,6 +445,7 @@ function AppShellInner({
       mode !== "planning" &&
       mode !== "suivis" &&
       mode !== "direction" &&
+      mode !== "manager" &&
       mode !== "dashboard" &&
       mode !== "catalogue"
     )
@@ -514,7 +537,7 @@ function AppShellInner({
   }, [mode, supabase, isDirection, planningLoaded, suivisLoaded, modifsLoaded]);
 
   useEffect(() => {
-    if (viewAsTeam && mode === "direction") setMode("dashboard");
+    if (viewAsTeam && (mode === "direction" || mode === "manager")) setMode("dashboard");
   }, [viewAsTeam, mode]);
 
   const activeStatuts =
@@ -1367,7 +1390,11 @@ function AppShellInner({
         </div>
 
         <nav className="flex-1 space-y-0.5 px-2.5">
-          {TABS.filter((t) => t.key !== "direction" || effectiveIsDirection).map((t) => {
+          {TABS.filter(
+            (t) =>
+              (t.key !== "direction" || effectiveIsDirection) &&
+              (t.key !== "manager" || effectiveIsManager)
+          ).map((t) => {
             const Icon = t.icon;
             const active = mode === t.key;
             return (
@@ -1906,6 +1933,27 @@ function AppShellInner({
         </div>
       )}
 
+      {mode === "manager" && (
+        <div className="flex-1 overflow-y-auto">
+          {!effectiveIsManager ? (
+            <div className="flex flex-1 items-center justify-center p-10">
+              <div className="w-full max-w-sm rounded-md bg-white p-6 text-center">
+                <p className="text-sm text-neutral-500">Cette section est réservée aux managers.</p>
+              </div>
+            </div>
+          ) : !planningLoaded ? (
+            <Spinner />
+          ) : (
+            <ManagerView
+              clients={clients}
+              reservations={allReservations}
+              catalogue={catalogue}
+              onOpenClient={openClient}
+            />
+          )}
+        </div>
+      )}
+
       {mode !== "dashboard" &&
         mode !== "team" &&
         mode !== "prospects" &&
@@ -1916,7 +1964,8 @@ function AppShellInner({
         mode !== "generateur" &&
         mode !== "preview" &&
         mode !== "help" &&
-        mode !== "direction" && (
+        mode !== "direction" &&
+        mode !== "manager" && (
           <div className="flex flex-1 items-center justify-center text-neutral-400">
             Bientôt disponible.
           </div>

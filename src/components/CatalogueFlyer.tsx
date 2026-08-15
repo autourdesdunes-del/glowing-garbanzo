@@ -110,7 +110,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
       style={{
         width: FLYER_WIDTH,
         background: "#F2E6D2",
-        fontFamily: "var(--font-work-sans)",
+        fontFamily: "var(--font-poppins)",
         color: "#2B211C",
         display: "flex",
         flexDirection: "column",

@@ -545,7 +545,7 @@ function AppShellInner({
         setSuivisLoaded(true);
       }
 
-      if ((mode === "suivis" || mode === "direction" || mode === "manager") && !modifsLoaded) {
+      if ((mode === "suivis" || mode === "direction") && !modifsLoaded) {
         const { data: modifs } = await supabase.from("catalogue_modification_requests").select("*");
         setCatalogueModificationRequests((modifs as CatalogueModificationRequest[]) || []);
         const { data: taxeModifs } = await supabase
@@ -564,17 +564,11 @@ function AppShellInner({
   // Total toutes catégories "en attente" confondues (autorisations,
   // clients confirmés Kommo non pris en charge, activités en Brouillon) —
   // affiché en cloche sur le sous-menu Manager > En attente. Les demandes de
-  // modification de tarifs (catalogue/taxes) concernent uniquement la
-  // Direction — Sylvie ne les voit pas, donc elles ne comptent pas dans son
-  // total non plus.
+  // modification de tarifs (catalogue/taxes) ne sont volontairement pas
+  // comptées ici : elles concernent uniquement la Direction et restent
+  // dans l'onglet Direction (voir ManagerView.tsx).
   const managerAutorisationsCount =
-    busEscalationsPending.length +
-    jourEscalationsPending.length +
-    assouanVerificationsPending.length +
-    (isDirection
-      ? catalogueModificationRequests.filter((r) => r.statut === "En attente").length +
-        transfertTaxeModificationRequests.filter((r) => r.statut === "En attente").length
-      : 0);
+    busEscalationsPending.length + jourEscalationsPending.length + assouanVerificationsPending.length;
   const managerClientsCount = clients.filter((c) => c.confirmation_a_traiter).length;
   const managerActivitesCount = allReservations.filter((r) => r.statut_resa === "Brouillon").length;
   const managerPendingTotal = managerAutorisationsCount + managerClientsCount + managerActivitesCount;
@@ -2036,9 +2030,6 @@ function AppShellInner({
               busEscalations={busEscalationsPending}
               jourEscalations={jourEscalationsPending}
               assouanVerifications={assouanVerificationsPending}
-              catalogueModificationRequests={catalogueModificationRequests}
-              transfertTaxeModificationRequests={transfertTaxeModificationRequests}
-              isDirection={isDirection}
             />
           )}
         </div>

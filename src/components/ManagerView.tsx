@@ -4,11 +4,9 @@ import {
   AssouanVerification,
   BusEscalation,
   CatalogueItem,
-  CatalogueModificationRequest,
   Client,
   JourEscalation,
   Reservation,
-  TransfertTaxeModificationRequest,
 } from "@/lib/types";
 import { cleanActivityTitle, missingChampsFor } from "@/lib/resa";
 
@@ -28,10 +26,13 @@ type Autorisation = {
 
 // Réservé à Sylvie et à la Direction — vue d'ensemble de tout ce qui
 // attend une décision ou une action, éparpillé ailleurs dans l'app entre
-// popups bloquantes (bus/jour/Assouan), l'onglet Direction (catalogue/
-// taxes) et le tableau de bord (clients confirmés Kommo). Ici c'est en
-// lecture seule : les popups bloquantes restent le moyen de résoudre —
-// cette page sert à voir d'un coup d'œil ce qui est en attente et pourquoi.
+// popups bloquantes (bus/jour/Assouan) et le tableau de bord (clients
+// confirmés Kommo). Les demandes de modification de tarifs (catalogue/
+// taxes de transfert) ne sont volontairement PAS reprises ici : elles
+// concernent uniquement la Direction et restent dans l'onglet Direction.
+// Ici c'est en lecture seule : les popups bloquantes restent le moyen de
+// résoudre — cette page sert à voir d'un coup d'œil ce qui est en attente
+// et pourquoi.
 export default function ManagerView({
   clients,
   reservations,
@@ -40,9 +41,6 @@ export default function ManagerView({
   busEscalations,
   jourEscalations,
   assouanVerifications,
-  catalogueModificationRequests,
-  transfertTaxeModificationRequests,
-  isDirection,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -51,9 +49,6 @@ export default function ManagerView({
   busEscalations: BusEscalation[];
   jourEscalations: JourEscalation[];
   assouanVerifications: AssouanVerification[];
-  catalogueModificationRequests: CatalogueModificationRequest[];
-  transfertTaxeModificationRequests: TransfertTaxeModificationRequest[];
-  isDirection: boolean;
 }) {
   const autorisations: Autorisation[] = [
     ...busEscalations.map((e) => ({
@@ -77,32 +72,6 @@ export default function ManagerView({
       texte: `${e.employe_nom} indique avoir informé ${e.client_nom} de vérifier la localisation de son hôtel à Assouan pour ${e.nom_activite}.`,
       clientId: e.client_id,
     })),
-    // Les demandes de modification de tarifs (catalogue/taxes) concernent
-    // uniquement la Direction — Sylvie ne les voit pas ici.
-    ...(isDirection
-      ? catalogueModificationRequests
-          .filter((r) => r.statut === "En attente")
-          .map((r) => ({
-            id: r.id,
-            created_at: r.created_at,
-            icon: "📋",
-            texte: `${r.demandeur_nom} demande une modification (${
-              r.type_modification === "Autre" ? r.autre_detail || "Autre" : r.type_modification
-            }) pour ${r.catalogue_item_noms.join(", ")} : ${r.explication}`,
-            clientId: null,
-          }))
-      : []),
-    ...(isDirection
-      ? transfertTaxeModificationRequests
-          .filter((r) => r.statut === "En attente")
-          .map((r) => ({
-            id: r.id,
-            created_at: r.created_at,
-            icon: "💶",
-            texte: `${r.demandeur_nom} signale une correction pour la taxe de transfert ${r.ville} (${r.tranche_label.split("\n")[0]}) : ${r.explication}`,
-            clientId: null,
-          }))
-      : []),
   ].sort((a, b) => a.created_at.localeCompare(b.created_at));
 
   const clientsEnAttenteConfirmation = clients.filter((c) => c.confirmation_a_traiter);

@@ -219,7 +219,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
             "Horaires & disponibilités" plutôt qu'en haut à gauche — pas de
             bloc "Réservez maintenant", retiré sur demande explicite). */}
         <div style={{ display: "flex", gap: 40 }}>
-          <div style={{ flex: 1.3, marginTop: 110 }}>
+          <div style={{ flex: 1.3, marginTop: 70 }}>
             {programme.length > 0 && (
               <div>
                 <SectionLabel>PROGRAMME</SectionLabel>
@@ -234,7 +234,7 @@ function FlyerTemplate({ item, photoUrl }: { item: CatalogueItem; photoUrl: stri
             )}
           </div>
 
-          <div style={{ flex: 1, marginTop: 110 }}>
+          <div style={{ flex: 1, marginTop: 70 }}>
             <SectionLabel>HORAIRES &amp; DISPONIBILITÉS</SectionLabel>
             <div style={{ marginTop: 14, fontSize: 19, lineHeight: 1.5 }}>
               {dispo && <div>Disponibilité : {dispo}</div>}

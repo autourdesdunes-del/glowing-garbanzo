@@ -209,6 +209,12 @@ function suggererProgramme({
   const MOTS_VIDES = new Set([
     "de", "du", "des", "le", "la", "les", "en", "et", "un", "une", "à", "a", "au",
     "aux", "avec", "sur", "pour", "dans", "ou", "d", "l", "the",
+    // "nage" n'existe dans le catalogue que sur la variante bassin ("Nage
+    // avec les dauphins (en bassin)") — l'exiger empêchait "Maison des
+    // dauphins" (milieu naturel) de matcher "nage avec les dauphins", alors
+    // que c'est très majoritairement ce que veut dire un prospect qui
+    // écrit ça, sauf s'il précise "bassin"/"captivité" (cf. plus bas).
+    "nage",
   ]);
   const tokenize = (texte: string): string[] =>
     texte
@@ -279,10 +285,26 @@ function suggererProgramme({
   // ville. Il faut que le mot lui-même apparaisse dans ses envies.
   const TAGS_PREMIUM_REQUIS = ["Montgolfière", "Croisière"];
   const motsInteretTous = new Set(groupesInteret.flat());
+
+  // Certaines formules existent en version "déconseillée" à côté d'une
+  // version recommandée par l'agence (le bus pour Louxor/Le Caire — moins
+  // confortable que le mini-bus ; les dauphins "en bassin"/captivité — la
+  // plupart des prospects qui disent "nager avec les dauphins" pensent au
+  // milieu naturel). On ne les propose jamais par défaut, seulement si le
+  // prospect l'a explicitement demandée.
+  const VARIANTES_DECONSEILLEES: { estConcerne: (item: CatalogueItem) => boolean; motsRequis: string[] }[] = [
+    { estConcerne: (item) => /\ben bus\b/i.test(item.nom), motsRequis: ["bus"] },
+    {
+      estConcerne: (item) => /\(en bassin\)|dolphin world/i.test(item.nom),
+      motsRequis: ["bassin", "captivite", "captivité", "parc", "piscine"],
+    },
+  ];
   const matchInteret = (item: CatalogueItem) => {
     if (!matchGroupes(item, groupesInteret)) return false;
     const tagsPremium = (item.tags || []).filter((t) => TAGS_PREMIUM_REQUIS.includes(t));
-    return tagsPremium.every((t) => tokenize(t).every((m) => motsInteretTous.has(m)));
+    if (!tagsPremium.every((t) => tokenize(t).every((m) => motsInteretTous.has(m)))) return false;
+    const variantesConcernees = VARIANTES_DECONSEILLEES.filter((v) => v.estConcerne(item));
+    return variantesConcernees.every((v) => v.motsRequis.some((m) => motsInteretTous.has(m)));
   };
   const matchEviter = (item: CatalogueItem) => matchGroupes(item, groupesAEviter);
 
@@ -379,12 +401,19 @@ function suggererProgramme({
   // contrairement à "mer" où deux îles différentes restent deux vraies
   // propositions distinctes.
   let desertDejaPropose = false;
+  // Deux excursions culturelles (Louxor, Le Caire, Assouan...) à la suite
+  // font une journée de trop dans le bus pour la famille — jamais deux
+  // jours consécutifs, contrairement aux autres catégories.
+  const usedDatesCulture = new Set<string>();
   const lignes: Ligne[] = [];
 
   const placer = (c: (typeof candidats)[number], date: string) => {
     if (jours.length > 0) {
       const startIdx = jours.indexOf(date);
-      for (let k = 0; k < (c.dureeJours || 1); k++) usedDates.add(jours[startIdx + k]);
+      for (let k = 0; k < (c.dureeJours || 1); k++) {
+        usedDates.add(jours[startIdx + k]);
+        if ((c.item.tags || []).includes("Culture")) usedDatesCulture.add(jours[startIdx + k]);
+      }
     }
     c.destinationTags.forEach((t) => usedDestinationTags.push(t));
     usedCatalogueIds.add(c.item.id);
@@ -409,6 +438,7 @@ function suggererProgramme({
   const trouverDateLibre = (c: (typeof candidats)[number]): string | null => {
     const dureeJours = c.dureeJours || 1;
     if (jours.length === 0) return dureeJours === 1 ? "" : null;
+    const estCulture = (c.item.tags || []).includes("Culture");
     const jourDepart = jours.find((d, idx) => {
       if (usedDates.has(d)) return false;
       if (c.joursItem.length > 0 && !c.joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()])) {
@@ -417,6 +447,13 @@ function suggererProgramme({
       if (idx + dureeJours > jours.length) return false;
       for (let k = 0; k < dureeJours; k++) {
         if (usedDates.has(jours[idx + k])) return false;
+      }
+      if (estCulture) {
+        const veille = jours[idx - 1];
+        const lendemain = jours[idx + dureeJours];
+        if ((veille && usedDatesCulture.has(veille)) || (lendemain && usedDatesCulture.has(lendemain))) {
+          return false;
+        }
       }
       return true;
     });
@@ -818,6 +855,11 @@ export default function GeneratorView({
                     Retirer
                   </button>
                 </div>
+                {/\ben bus\b/i.test(l.nom) && (
+                  <p className="mt-1 text-xs font-medium text-red-600">
+                    Déconseillé — formule mini-bus recommandée par l&apos;agence.
+                  </p>
+                )}
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   <label className="text-[11px] text-neutral-500">
                     Date

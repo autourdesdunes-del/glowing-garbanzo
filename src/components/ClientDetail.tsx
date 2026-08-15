@@ -681,6 +681,21 @@ export default function ClientDetail({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      {client.confirmation_a_traiter && (
+        <div className="flex items-center justify-between gap-2 rounded-md border border-[#0F5C56]/40 bg-[#0F5C56]/10 px-3 py-1.5">
+          <p className="text-xs text-[#171717]">
+            🆕 Confirmée automatiquement depuis Kommo{client.confirmation_assignee_a ? ` (renvoyée à ${client.confirmation_assignee_a})` : ""} —
+            vérifiez et complétez la fiche (hôtel, dates, activités réelles).
+          </p>
+          <button
+            onClick={() => onChange({ confirmation_a_traiter: false, confirmation_assignee_a: null })}
+            className="shrink-0 rounded-md bg-[#0F5C56] px-2 py-1 text-[11px] font-medium text-white hover:opacity-90"
+          >
+            Marquer comme traité
+          </button>
+        </div>
+      )}
+
       <div className="rounded-[6px] border border-[#eaeaea] bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <input
@@ -778,21 +793,6 @@ export default function ClientDetail({
           </div>
         )}
       </div>
-
-      {client.confirmation_a_traiter && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-[#0F5C56]/40 bg-[#0F5C56]/10 p-4">
-          <p className="text-sm text-[#171717]">
-            🆕 Confirmée automatiquement depuis Kommo{client.confirmation_assignee_a ? ` (renvoyée à ${client.confirmation_assignee_a})` : ""} —
-            vérifiez et complétez la fiche (hôtel, dates, activités réelles).
-          </p>
-          <button
-            onClick={() => onChange({ confirmation_a_traiter: false, confirmation_assignee_a: null })}
-            className="shrink-0 rounded-md bg-[#0F5C56] px-3 py-2 text-xs font-medium text-white hover:opacity-90"
-          >
-            Marquer comme traité
-          </button>
-        </div>
-      )}
 
       {autresSejours.length > 0 && (
         <div className="rounded-lg border border-[#C9973E]/40 bg-[#C9973E]/10 p-4">

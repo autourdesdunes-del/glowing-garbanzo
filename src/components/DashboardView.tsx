@@ -2,8 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Client, PlanningShift, Reservation, ReservationOption, ReservationTarif, UserShift } from "@/lib/types";
-import { cleanActivityTitle, resaTotalMontant } from "@/lib/resa";
+import {
+  CatalogueItem,
+  Client,
+  PlanningShift,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+  UserShift,
+} from "@/lib/types";
+import { cleanActivityTitle, missingChampsFor, resaTotalMontant } from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
@@ -229,12 +237,12 @@ export default function DashboardView({
   onOpenAvisClients,
   onOpenProspectsARelancer,
   onOpenBilletsAvion,
-  onOpenActivitesEnAttente,
   onOpenPaypalPaiements,
   paypalPaiementsNonRattaches,
   onCreateClient,
   onUpdateClient,
   onDeleteClient,
+  catalogue,
 }: {
   userEmail: string;
   clients: Client[];
@@ -250,7 +258,6 @@ export default function DashboardView({
   onOpenAvisClients: () => void;
   onOpenProspectsARelancer: () => void;
   onOpenBilletsAvion: () => void;
-  onOpenActivitesEnAttente: () => void;
   onOpenPaypalPaiements: () => void;
   paypalPaiementsNonRattaches: number;
   onCreateClient: (fields: {
@@ -261,6 +268,7 @@ export default function DashboardView({
   }) => Promise<Client | null>;
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
   onDeleteClient: (id: string) => Promise<boolean>;
+  catalogue: CatalogueItem[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
@@ -268,6 +276,7 @@ export default function DashboardView({
   const [editingShift, setEditingShift] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
   const [shiftFin, setShiftFin] = useState("");
+  const [showActivitesEnAttenteModal, setShowActivitesEnAttenteModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -807,7 +816,9 @@ export default function DashboardView({
                     : "Rien en attente"
                 }
                 count={activitesEnAttente.length}
-                onClick={activitesEnAttente.length > 0 ? onOpenActivitesEnAttente : undefined}
+                onClick={
+                  activitesEnAttente.length > 0 ? () => setShowActivitesEnAttenteModal(true) : undefined
+                }
               />
               <ActionRow
                 icon="check"
@@ -868,6 +879,59 @@ export default function DashboardView({
           )}
         </div>
       </div>
+
+      {showActivitesEnAttenteModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setShowActivitesEnAttenteModal(false)}
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-start justify-between">
+              <h3 className="font-heading text-base font-semibold text-[#171717]">
+                Activités en attente de validation
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowActivitesEnAttenteModal(false)}
+                className="text-neutral-400 hover:text-[#171717]"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea]">
+              {activitesEnAttente.map((r) => {
+                const c = clients.find((cl) => cl.id === r.client_id);
+                const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+                const missing = missingChampsFor(r, catalogueItem);
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => {
+                      setShowActivitesEnAttenteModal(false);
+                      onOpenClient(r.client_id);
+                    }}
+                    className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-[#171717]">{c?.nom || "Sans nom"}</p>
+                      <span className="whitespace-nowrap text-xs text-[#666666]">
+                        {r.date_debut ? fmtDate(r.date_debut) : "Date ?"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#666666]">{cleanActivityTitle(r.nom_activite) || "Activité"}</p>
+                    {missing.length > 0 && (
+                      <p className="mt-0.5 text-xs text-red-600">Manque : {missing.join(", ")}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,7 +20,7 @@ const VILLES = [
   "Autre",
 ];
 
-export default function HelpView() {
+export default function HelpView({ tab }: { tab: "hotels" | "taxes" }) {
   const supabase = createClient();
   const confirm = useConfirm();
   const toast = useToast();
@@ -113,34 +113,11 @@ export default function HelpView() {
     if (error) toast("Échec de la suppression.");
   };
 
-  const [tab, setTab] = useState<"hotels" | "taxes">("hotels");
 
   if (!loaded) return null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div className="flex gap-2">
-        <button
-          onClick={() => setTab("hotels")}
-          className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-            tab === "hotels"
-              ? "border-[#171717] bg-[#171717] text-white"
-              : "border-neutral-300 text-neutral-600"
-          }`}
-        >
-          Localisation des hôtels
-        </button>
-        <button
-          onClick={() => setTab("taxes")}
-          className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-            tab === "taxes"
-              ? "border-[#171717] bg-[#171717] text-white"
-              : "border-neutral-300 text-neutral-600"
-          }`}
-        >
-          Taxes de transfert
-        </button>
-      </div>
 
       {tab === "hotels" && (
       <div>

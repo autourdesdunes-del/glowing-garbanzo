@@ -195,6 +195,12 @@ const PLANNING_SUBS = [
 ] as const;
 type PlanningSub = (typeof PLANNING_SUBS)[number]["key"];
 
+const HELP_SUBS = [
+  { key: "hotels", label: "Localisation des hôtels" },
+  { key: "taxes", label: "Taxes de transfert" },
+] as const;
+type HelpSub = (typeof HELP_SUBS)[number]["key"];
+
 const TABS: { key: Mode; label: string; icon: () => React.ReactElement }[] = [
   { key: "dashboard", label: "Tableau de bord", icon: IconHome },
   { key: "team", label: "Clients", icon: IconUsers },
@@ -268,6 +274,7 @@ function AppShellInner({
   const [mode, setMode] = useState<Mode>("dashboard");
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
   const [planningSub, setPlanningSub] = useState<PlanningSub>("aujourdhui");
+  const [helpSub, setHelpSub] = useState<HelpSub>("hotels");
   const [rdvAutoOpenClientId, setRdvAutoOpenClientId] = useState<string | null>(null);
   const [focusReservationId, setFocusReservationId] = useState<string | null>(null);
   const [billetAutoOpenId, setBilletAutoOpenId] = useState<string | null>(null);
@@ -1461,6 +1468,23 @@ function AppShellInner({
                     ))}
                   </div>
                 )}
+                {t.key === "help" && active && (
+                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                    {HELP_SUBS.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setHelpSub(s.key)}
+                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                          helpSub === s.key
+                            ? "bg-[#fafafa] text-[#171717]"
+                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {t.key === "prospects" && active && (
                   <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
                     {PROSPECTS_SUBS.map((s) => (
@@ -1908,7 +1932,7 @@ function AppShellInner({
 
       {mode === "help" && (
         <div className="flex-1 overflow-y-auto">
-          <HelpView />
+          <HelpView tab={helpSub} />
         </div>
       )}
 

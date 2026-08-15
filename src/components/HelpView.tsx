@@ -32,6 +32,7 @@ export default function HelpView() {
   const [newHotelNom, setNewHotelNom] = useState("");
   const [newHotelVille, setNewHotelVille] = useState("Hurghada");
   const [newHotelVilleAutre, setNewHotelVilleAutre] = useState("");
+  const [addHotelOpen, setAddHotelOpen] = useState(false);
   const [taxesOuvertes, setTaxesOuvertes] = useState<Record<string, boolean>>({});
   const [taxeRequestOpen, setTaxeRequestOpen] = useState(false);
 
@@ -98,6 +99,7 @@ export default function HelpView() {
       setNewHotelNom("");
       setNewHotelVille("Hurghada");
       setNewHotelVilleAutre("");
+      setAddHotelOpen(false);
     } else {
       toast("Impossible d'ajouter cet hôtel (déjà présent ?).");
     }
@@ -150,49 +152,24 @@ export default function HelpView() {
           s&apos;applique (hors Hurghada : El Gouna, Makadi, Soma Bay…).
         </p>
 
-        <input
-          value={hotelSearch}
-          onChange={(e) => setHotelSearch(e.target.value)}
-          placeholder="Rechercher un hôtel ou une ville…"
-          className="input mt-4"
-        />
-
-        <div className="mt-4 rounded-md border border-dashed border-neutral-300 p-3">
-          <p className="mb-2 text-sm font-medium text-neutral-700">Ajouter un hôtel</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <input
-              value={newHotelNom}
-              onChange={(e) => setNewHotelNom(e.target.value)}
-              placeholder="Nom de l'hôtel"
-              className="input min-w-[200px] flex-1"
-            />
-            <select
-              value={newHotelVille}
-              onChange={(e) => setNewHotelVille(e.target.value)}
-              className="input w-40"
-            >
-              {VILLES.map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </select>
-            {newHotelVille === "Autre" && (
-              <input
-                value={newHotelVilleAutre}
-                onChange={(e) => setNewHotelVilleAutre(e.target.value)}
-                placeholder="Nom de la ville"
-                className="input w-40"
-              />
-            )}
-            <button
-              onClick={addHotel}
-              className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-            >
-              + Ajouter
-            </button>
-          </div>
+        <div className="mt-4 flex items-center gap-3">
+          <input
+            value={hotelSearch}
+            onChange={(e) => setHotelSearch(e.target.value)}
+            placeholder="Rechercher un hôtel ou une ville…"
+            className="input flex-1"
+          />
+          <button
+            onClick={() => setAddHotelOpen(true)}
+            className="whitespace-nowrap rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            + Ajouter un hôtel
+          </button>
         </div>
 
-        {Array.from(new Set(hotels.map((h) => h.ville))).map((ville) => {
+        {Array.from(new Set(hotels.map((h) => h.ville)))
+          .sort((a, b) => (a === "Hurghada" ? -1 : b === "Hurghada" ? 1 : 0))
+          .map((ville) => {
           const q = hotelSearch.trim().toLowerCase();
           const list = hotels
             .filter((h) => h.ville === ville)
@@ -288,6 +265,67 @@ export default function HelpView() {
           );
         })}
       </div>
+      )}
+
+      {addHotelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setAddHotelOpen(false)}>
+          <div
+            className="w-full max-w-sm rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="font-heading text-base font-semibold text-[#171717]">Ajouter un hôtel</h2>
+              <button type="button" onClick={() => setAddHotelOpen(false)} className="text-neutral-400 hover:text-[#171717]">
+                ✕
+              </button>
+            </div>
+            <label className="mt-4 block text-xs font-medium text-neutral-500">
+              Nom de l&apos;hôtel
+              <input
+                value={newHotelNom}
+                onChange={(e) => setNewHotelNom(e.target.value)}
+                placeholder="Nom de l'hôtel"
+                autoFocus
+                className="input mt-1"
+              />
+            </label>
+            <label className="mt-3 block text-xs font-medium text-neutral-500">
+              Localisation
+              <select
+                value={newHotelVille}
+                onChange={(e) => setNewHotelVille(e.target.value)}
+                className="input mt-1"
+              >
+                {VILLES.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </label>
+            {newHotelVille === "Autre" && (
+              <input
+                value={newHotelVilleAutre}
+                onChange={(e) => setNewHotelVilleAutre(e.target.value)}
+                placeholder="Nom de la ville"
+                className="input mt-2"
+              />
+            )}
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setAddHotelOpen(false)}
+                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-[#fafafa]"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={addHotel}
+                disabled={!newHotelNom.trim()}
+                className="flex-1 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                Ajouter
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {taxeRequestOpen && (

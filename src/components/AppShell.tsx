@@ -93,6 +93,16 @@ const MANAGER_SUBS = [
 ] as const;
 type ManagerSub = (typeof MANAGER_SUBS)[number]["key"];
 
+// Simulateur de vue réservé à la Direction (voir "viewAs" plus bas) — pour
+// prévisualiser/former sans changer de compte.
+const VIEW_AS_OPTIONS = [
+  { key: "moi", label: "La mienne" },
+  { key: "equipe", label: "Vue équipe" },
+  { key: "manager", label: "Vue manager" },
+  { key: "bode", label: "Vue Bode" },
+  { key: "hossam", label: "Vue Hossam" },
+] as const;
+
 function IconHome() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
@@ -287,14 +297,16 @@ function AppShellInner({
   // réservée à Sylvie et à la Direction (Mélanie/Hossam veulent aussi
   // pouvoir la consulter de leur côté).
   const isManager = isDirection || prenom.trim().toLowerCase() === "sylvie";
-  const [viewAsTeam, setViewAsTeam] = useState(false);
-  // La Direction voit tout ce que voit l'équipe, plus quelques options en
-  // plus (marge, onglet Direction…) — ce toggle masque ces options en plus
-  // pour prévisualiser/former sans changer de compte. Ça ne restreint
-  // jamais un vrai accès équipe : isDirection reste utilisé tel quel pour
-  // les fetch de données sensibles.
-  const effectiveIsDirection = isDirection && !viewAsTeam;
-  const effectiveIsManager = isManager && !viewAsTeam;
+  // Simulateur de vue pour la Direction, pour prévisualiser/former sans
+  // changer de compte — ne restreint jamais un vrai accès équipe :
+  // isDirection reste utilisé tel quel pour les fetch de données sensibles.
+  // "bode"/"hossam" n'ont pas encore de permissions propres dans l'appli
+  // (Bode n'a pas de compte, Hossam a le même rôle Direction que Mélanie) :
+  // en attendant, "bode" = vue équipe simple et "hossam" = vue Direction
+  // complète, à affiner plus tard si leurs permissions divergent.
+  const [viewAs, setViewAs] = useState<"moi" | "equipe" | "manager" | "bode" | "hossam">("moi");
+  const effectiveIsDirection = isDirection && (viewAs === "moi" || viewAs === "hossam");
+  const effectiveIsManager = isManager && (viewAs === "moi" || viewAs === "hossam" || viewAs === "manager");
   const confirm = useConfirm();
   const toast = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -617,8 +629,9 @@ function AppShellInner({
   }, [mode, supabase, isDirection, planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded]);
 
   useEffect(() => {
-    if (viewAsTeam && (mode === "direction" || mode === "manager")) setMode("dashboard");
-  }, [viewAsTeam, mode]);
+    if (!effectiveIsDirection && mode === "direction") setMode("dashboard");
+    if (!effectiveIsManager && mode === "manager") setMode("dashboard");
+  }, [effectiveIsDirection, effectiveIsManager, mode]);
 
   // Comptes "en attente" par catégorie (autorisations, clients confirmés
   // Kommo non pris en charge, activités en Brouillon, doublons, prospects
@@ -1638,23 +1651,24 @@ function AppShellInner({
 
         {isDirection && (
           <div className="border-t border-[#eaeaea] px-2.5 py-3">
-            <button
-              onClick={() => setViewAsTeam((v) => !v)}
-              className={`flex w-full items-center justify-between rounded-[6px] px-2.5 py-2 text-xs font-medium transition ${
-                viewAsTeam
-                  ? "bg-[#C9973E] text-white"
-                  : "bg-[#fafafa] text-[#666666] hover:bg-[#eaeaea]"
+            <label className="mb-1 block px-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+              Aperçu vu par
+            </label>
+            <select
+              value={viewAs}
+              onChange={(e) => setViewAs(e.target.value as typeof viewAs)}
+              className={`w-full rounded-[6px] border-0 px-2.5 py-2 text-xs font-medium transition ${
+                viewAs === "moi"
+                  ? "bg-[#fafafa] text-[#666666] hover:bg-[#eaeaea]"
+                  : "bg-[#C9973E] text-white"
               }`}
             >
-              <span>{viewAsTeam ? "Vue équipe (aperçu)" : "Voir comme l'équipe"}</span>
-              <span
-                className={`flex h-4 w-7 flex-shrink-0 items-center rounded-full px-0.5 transition ${
-                  viewAsTeam ? "justify-end bg-[#171717]/40" : "justify-start bg-[#171717]/20"
-                }`}
-              >
-                <span className="h-3 w-3 rounded-full bg-white" />
-              </span>
-            </button>
+              {VIEW_AS_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 

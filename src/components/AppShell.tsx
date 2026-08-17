@@ -41,7 +41,7 @@ import CatalogueView from "@/components/CatalogueView";
 import PlanningView from "@/components/PlanningView";
 import SuivisView, { SUIVIS_SUBS, SuivisSub } from "@/components/SuivisView";
 import ClientPreviewView from "@/components/ClientPreviewView";
-import DirectionView from "@/components/DirectionView";
+import DirectionView, { DIRECTION_SUBS, DirectionSub } from "@/components/DirectionView";
 import ManagerView from "@/components/ManagerView";
 import HelpView from "@/components/HelpView";
 import PlanningRHView from "@/components/PlanningRHView";
@@ -323,6 +323,7 @@ function AppShellInner({
   const [mode, setMode] = useState<Mode>("dashboard");
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
   const [planningSub, setPlanningSub] = useState<PlanningSub>("aujourdhui");
+  const [directionSub, setDirectionSub] = useState<DirectionSub>("dashboard");
   const [helpSub, setHelpSub] = useState<HelpSub>("hotels");
   const [rdvAutoOpenClientId, setRdvAutoOpenClientId] = useState<string | null>(null);
   const [focusReservationId, setFocusReservationId] = useState<string | null>(null);
@@ -1596,6 +1597,23 @@ function AppShellInner({
                     ))}
                   </div>
                 )}
+                {t.key === "direction" && active && effectiveIsDirection && (
+                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                    {DIRECTION_SUBS.map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setDirectionSub(s.key)}
+                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                          directionSub === s.key
+                            ? "bg-[#fafafa] text-[#171717]"
+                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {t.key === "help" && active && (
                   <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
                     {HELP_SUBS.map((s) => (
@@ -2086,6 +2104,7 @@ function AppShellInner({
             <Spinner />
           ) : (
             <DirectionView
+              sub={directionSub}
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}

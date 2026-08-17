@@ -66,7 +66,31 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url);
 }
 
+// Sous-menu de gauche pour l'onglet Direction — même pattern que
+// SUIVIS_SUBS/PLANNING_SUBS (cf. SuivisView.tsx) : le libellé est affiché
+// tel quel dans la barre latérale d'AppShell.tsx, la clé pilote quel bloc
+// de contenu s'affiche ici.
+export const DIRECTION_SUBS = [
+  { key: "dashboard", label: "Tableau de bord direction" },
+  { key: "comptabilite", label: "Comptabilité" },
+  { key: "marketing", label: "Digital marketing" },
+  { key: "statsAgences", label: "Stat agences" },
+  { key: "statsEmployes", label: "Stat employés" },
+  { key: "parametres", label: "Paramètres" },
+] as const;
+export type DirectionSub = (typeof DIRECTION_SUBS)[number]["key"];
+
+function DirectionSubPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="mx-auto max-w-3xl p-6">
+      <h2 className="font-heading text-lg font-semibold text-[#171717]">{label}</h2>
+      <p className="mt-3 text-sm text-neutral-500">Bientôt disponible.</p>
+    </div>
+  );
+}
+
 export default function DirectionView({
+  sub,
   clients,
   reservations,
   resaOptions,
@@ -79,6 +103,7 @@ export default function DirectionView({
   transfertTaxeModificationRequests,
   onResolveTransfertTaxeModificationRequest,
 }: {
+  sub: DirectionSub;
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -204,6 +229,10 @@ export default function DirectionView({
       topClients: topClients.map(([nom, total]) => ({ nom, total })),
     });
   };
+
+  if (sub !== "dashboard") {
+    return <DirectionSubPlaceholder label={DIRECTION_SUBS.find((s) => s.key === sub)?.label ?? ""} />;
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-6">

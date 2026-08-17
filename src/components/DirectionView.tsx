@@ -143,7 +143,7 @@ export default function DirectionView({
         nom: catalogueMatch?.nom || r.nom_activite || "Sans nom",
         date: r.date_debut,
         total,
-        marge: total - cout,
+        marge: total - cout, coutManquant: cout === 0,
         clientNom: client?.nom || "Sans nom",
       };
     });
@@ -189,7 +189,7 @@ export default function DirectionView({
 
   const caTotal = rows.reduce((s, r) => s + r.total, 0);
   const margeTotal = rows.reduce((s, r) => s + r.marge, 0);
-  const margePct = caTotal > 0 ? Math.round((margeTotal / caTotal) * 100) : 0;
+  const margePct = caTotal > 0 ? Math.round((margeTotal / caTotal) * 100) : 0; const nbCoutManquant = rows.filter((r) => r.coutManquant).length;
 
   const exportPdf = () => {
     generateMonthlyReport({
@@ -383,7 +383,7 @@ export default function DirectionView({
       <div className="grid grid-cols-3 gap-4">
         <StatTile label="CA total" value={`${euros(caTotal)} €`} />
         <StatTile label="Marge totale" value={`${euros(margeTotal)} €`} />
-        <StatTile label="Marge" value={`${margePct}%`} />
+        <StatTile label="Marge" value={`${margePct}%`} />{nbCoutManquant > 0 && (<p className="col-span-3 text-xs text-amber-600">Attention : {nbCoutManquant} reservation(s) sans cout reel renseigne, la marge affichee est surestimee pour ces dossiers.</p>)}
       </div>
 
       <section>

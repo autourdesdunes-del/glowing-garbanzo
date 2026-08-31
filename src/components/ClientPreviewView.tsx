@@ -15,6 +15,13 @@ import MarqueeAlongSvgPath from "@/components/ui/marquee-along-svg-path";
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
+function suggestionPriceLabel(a: CatalogueItem) {
+  if (a.tarif_mode === "groupe") {
+    if (!a.prix_groupe_base) return "Forfait sur demande";
+    return `${euros(a.prix_groupe_base)} € (${a.prix_groupe_base_pax} pers.)`;
+  }
+  return `${euros(a.pu_adulte)} € / pers.`;
+}
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
   const d = new Date(dateStr + "T00:00:00");
@@ -487,7 +494,7 @@ export default function ClientPreviewView({
                 <p className="text-xs text-neutral-400">
                   {a.disponibilites || "Disponibilités sur demande"}
                 </p>
-                <p className="font-amounts mt-1 text-sm">{euros(a.pu_adulte)} € / pers.</p>
+                <p className="font-amounts mt-1 text-sm">{suggestionPriceLabel(a)}</p>
                 <button
                   disabled={!!interests[a.id]}
                   onClick={() => setInterests({ ...interests, [a.id]: true })}

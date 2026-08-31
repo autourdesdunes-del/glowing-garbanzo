@@ -292,20 +292,24 @@ function avisMessage(nom: string) {
 }
 // Bloc copié-collé pour Hossam — le nom complet doit être recopié tel quel
 // (comme au passeport) pour éviter toute faute transmise au prestataire.
+// Deux niveaux : "important" doit sauter aux yeux tout de suite (ça touche
+// le client directement, ou c'est urgent), "suivi_du_suivi" est du
+// contrôle/admin en second plan — pas moins nécessaire, juste pas la
+// première chose à regarder en ouvrant Suivis.
 export const SUIVIS_SUBS = [
-  { key: "j1", label: "Pick-ups (J-1)" },
-  { key: "chambres", label: "Numéros de chambre" },
-  { key: "rdv", label: "RDV paiements" },
-  { key: "appels", label: "Appels" },
-  { key: "aurevoir", label: "Au revoir" },
-  { key: "avis", label: "Avis clients" },
-  { key: "verifs", label: "Vérification de dossier" },
-  { key: "remb", label: "Remboursements" },
-  { key: "incidents", label: "Incidents" },
-  { key: "attente48h", label: "En attente >48h" },
-  { key: "billets", label: "Billets d'avion" },
-  { key: "activites", label: "Activités en attente" },
-  { key: "paypal", label: "Paiements PayPal" },
+  { key: "j1", label: "Pick-ups (J-1)", groupe: "important" },
+  { key: "chambres", label: "Numéros de chambre", groupe: "important" },
+  { key: "rdv", label: "RDV paiements", groupe: "important" },
+  { key: "appels", label: "Appels", groupe: "important" },
+  { key: "billets", label: "Billets d'avion", groupe: "important" },
+  { key: "paypal", label: "Paiements PayPal", groupe: "important" },
+  { key: "incidents", label: "Incidents", groupe: "important" },
+  { key: "verifs", label: "Vérification de dossier", groupe: "suivi_du_suivi" },
+  { key: "activites", label: "Activités en attente", groupe: "suivi_du_suivi" },
+  { key: "attente48h", label: "Client sans réponse depuis 48h", groupe: "suivi_du_suivi" },
+  { key: "remb", label: "Remboursements", groupe: "suivi_du_suivi" },
+  { key: "aurevoir", label: "Au revoir", groupe: "suivi_du_suivi" },
+  { key: "avis", label: "Avis clients", groupe: "suivi_du_suivi" },
 ] as const;
 
 export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"];

@@ -1841,7 +1841,7 @@ function AppShellInner({
                 </button>
                 {t.key === "suivis" && active && (
                   <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                    {SUIVIS_SUBS.map((s) => (
+                    {SUIVIS_SUBS.filter((s) => s.groupe === "important").map((s) => (
                       <button
                         key={s.key}
                         onClick={() => setSuivisSub(s.key)}
@@ -1857,6 +1857,22 @@ function AppShellInner({
                             +{paypalPaiementsNonRattaches}
                           </span>
                         )}
+                      </button>
+                    ))}
+                    <div className="mb-0.5 mt-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                      Suivi du suivi
+                    </div>
+                    {SUIVIS_SUBS.filter((s) => s.groupe === "suivi_du_suivi").map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => setSuivisSub(s.key)}
+                        className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                          suivisSub === s.key
+                            ? "bg-[#fafafa] text-[#171717]"
+                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                        }`}
+                      >
+                        <span>{s.label}</span>
                       </button>
                     ))}
                   </div>

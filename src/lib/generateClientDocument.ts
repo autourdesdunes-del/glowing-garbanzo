@@ -1,10 +1,11 @@
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { participantsFor, resaTotalMontant } from "@/lib/resa";
+import { participantsFor, isGrandEgyptianMuseum } from "@/lib/resa";
 import { todayStr } from "@/lib/dates";
 
 function euros(n: number) {
-  return `${(Number(n) || 0).toLocaleString("fr-FR")} €`;
+  return `${(Number(n) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 }
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -12,8 +13,118 @@ function fmtDate(dateStr: string | null) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 
-const MARGIN = 18;
-const PAGE_BOTTOM = 280;
+const MARGIN = 14;
+const PAGE_WIDTH = 210;
+
+// Infos légales de la société (registre du commerce égyptien + ETA, voir
+// documents fournis par Mélanie le 31/08/2026) — à corriger ici seulement
+// si la société change de forme, d'adresse ou de TRN.
+const RAISON_SOCIALE = "Autour Des Dunes Hurghada for Tourism Management and Marketing";
+const ADRESSE_LEGALE = "Red Sea – Hurghada, Flat No. 17, 3rd Floor, Dow Heights, Elmohamady Square, Égypte";
+const TRN_EGYPTIEN = "758172326";
+
+// Numéro de document lisible (ex. 26-08-473) : année-mois + un suffixe basé
+// sur l'heure de génération. Pas de compteur séquentiel en base aujourd'hui
+// (voir brief section 6) — ce numéro sert d'identifiant à peu près unique
+// et daté, pas d'un vrai numéro de facturation comptable.
+function numeroDocument(docType: "devis" | "facture") {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(2);
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const suffixe = String((now.getHours() * 60 + now.getMinutes()) % 1000).padStart(3, "0");
+  return `${docType === "devis" ? "D" : "F"}${yy}-${mm}-${suffixe}`;
+}
+
+type Ligne = {
+  designation: string;
+  quantite: number;
+  puVente: number;
+  montantHT: number;
+};
+
+// Découpe chaque activité en une ligne par tranche de prix (adulte / enfant
+// / bébé / accompagnateur, ou une seule ligne forfait pour le tarif groupe),
+// puis une ligne par poste additionnel (options, tarifs complémentaires,
+// transfert, suppléments île/GEM) — la somme de ces lignes reconstitue
+// exactement resaTotalMontant, pour que le total du tableau et "Total
+// séjour" ne divergent jamais.
+function lignesPourReservation(
+  r: Reservation,
+  client: Client,
+  options: ReservationOption[],
+  tarifs: ReservationTarif[]
+): Ligne[] {
+  const lignes: Ligne[] = [];
+  const dateLabel = fmtDate(r.date_debut);
+  let premiereLigne = true;
+  const designation = (suffixe?: string) => {
+    const nom = suffixe ? `${r.nom_activite || "Activité sans nom"} (${suffixe})` : r.nom_activite || "Activité sans nom";
+    const label = premiereLigne ? `${nom}\n${dateLabel}` : nom;
+    premiereLigne = false;
+    return label;
+  };
+
+  const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+
+  if (r.tarif_mode === "groupe") {
+    const base =
+      (Number(r.prix_groupe_base) || 0) +
+      (Number(r.participants_extra1) || 0) * (Number(r.prix_groupe_extra1) || 0) +
+      (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0);
+    lignes.push({ designation: designation(), quantite: 1, puVente: base, montantHT: base });
+  } else {
+    const tranches = [
+      { suffixe: undefined as string | undefined, nb: nbAd, pu: Number(r.pu_adulte) || 0 },
+      { suffixe: "Enfant", nb: nbEnf, pu: Number(r.pu_enfant) || 0 },
+      { suffixe: "Bébé", nb: nbEnf3, pu: Number(r.pu_enfant_3ans) || 0 },
+      { suffixe: "Accompagnateur", nb: nbAcc, pu: Number(r.pu_accompagnateur) || 0 },
+    ].filter((t) => t.nb > 0);
+
+    if (tranches.length === 0) {
+      lignes.push({ designation: designation(), quantite: 1, puVente: 0, montantHT: 0 });
+    } else {
+      tranches.forEach((t) => {
+        lignes.push({ designation: designation(t.suffixe), quantite: t.nb, puVente: t.pu, montantHT: t.nb * t.pu });
+      });
+    }
+  }
+
+  const optionsTotal = options.reduce((s, o) => s + (Number(o.prix) || 0) * (Number(o.quantite) || 1), 0);
+  if (optionsTotal > 0) {
+    lignes.push({
+      designation: `Options : ${options.map((o) => o.nom).join(", ")}`,
+      quantite: 1,
+      puVente: optionsTotal,
+      montantHT: optionsTotal,
+    });
+  }
+
+  tarifs.forEach((t) => {
+    const montant = (Number(t.quantite) || 0) * (Number(t.pu) || 0);
+    if (Number(t.quantite) || 0) {
+      lignes.push({
+        designation: t.label || "Tarif complémentaire",
+        quantite: Number(t.quantite) || 0,
+        puVente: Number(t.pu) || 0,
+        montantHT: montant,
+      });
+    }
+  });
+
+  const transfert = r.transfert_inclus ? 0 : Number(r.transfert_montant) || 0;
+  if (transfert > 0) {
+    lignes.push({ designation: "Transfert", quantite: 1, puVente: transfert, montantHT: transfert });
+  }
+
+  const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
+  const supplementGEM = isGrandEgyptianMuseum(r.site_caire) ? nbAd * 20 + nbEnf * 10 : 0;
+  const supplements = supplementIle + supplementGEM;
+  if (supplements > 0) {
+    lignes.push({ designation: "Suppléments (île / site)", quantite: 1, puVente: supplements, montantHT: supplements });
+  }
+
+  return lignes;
+}
 
 export function generateClientDocument(
   docType: "devis" | "facture",
@@ -25,230 +136,186 @@ export function generateClientDocument(
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = MARGIN;
 
-  const ensureSpace = (needed: number) => {
-    if (y + needed > PAGE_BOTTOM) {
-      doc.addPage();
-      y = MARGIN;
-    }
-  };
-
-  // -- Header -----------------------------------------------------------
+  // -- En-tête : société (gauche) / client (droite) ----------------------
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
+  doc.setFontSize(16);
   doc.setTextColor(92, 42, 29); // terracotta
-  doc.text("Autour des Dunes", MARGIN, y);
-  y += 6;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(90, 90, 90);
-  doc.text("Hurghada, Égypte · autourdesduneshurghada.com · WhatsApp +20 155 622 1115", MARGIN, y);
-  y += 10;
+  doc.text("AUTOUR DES DUNES", MARGIN, y);
 
+  const rightColX = PAGE_WIDTH - MARGIN;
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(11);
+  doc.setTextColor(20, 20, 20);
+  doc.text(client.nom || "Sans nom", rightColX, y, { align: "right" });
+  y += 5.5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(90, 90, 90);
+  const legalLines = doc.splitTextToSize(RAISON_SOCIALE, 95);
+  legalLines.forEach((line: string) => {
+    doc.text(line, MARGIN, y);
+    y += 3.6;
+  });
+  const adresseLines = doc.splitTextToSize(ADRESSE_LEGALE, 95);
+  adresseLines.forEach((line: string) => {
+    doc.text(line, MARGIN, y);
+    y += 3.6;
+  });
+  doc.text(`Tax Registration Number (ETA) : ${TRN_EGYPTIEN}`, MARGIN, y);
+  y += 3.6;
+  doc.text("autourdesduneshurghada.com · WhatsApp +20 155 622 1115", MARGIN, y);
+
+  // Bloc client, aligné à droite en vis-à-vis du bloc société
+  let yRight = MARGIN + 5.5;
+  doc.setFontSize(8.5);
+  doc.setTextColor(60, 60, 60);
+  const infoLinesClient = [
+    client.telephone && `Tél. : ${client.telephone}`,
+    client.email && `Email : ${client.email}`,
+    (client.date_debut || client.date_fin) && `Séjour : ${fmtDate(client.date_debut)} - ${fmtDate(client.date_fin)}`,
+    client.hotel && `Hôtel : ${client.hotel}${client.chambre ? ` — Ch. ${client.chambre}` : ""}`,
+    `Voyageurs : ${client.adultes} adulte(s)${client.enfants ? `, ${client.enfants} enfant(s)` : ""}`,
+  ].filter(Boolean) as string[];
+  infoLinesClient.forEach((line) => {
+    doc.text(line, rightColX, yRight, { align: "right" });
+    yRight += 4;
+  });
+
+  y = Math.max(y, yRight) + 6;
+
+  // -- Titre + numéro/date -------------------------------------------------
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
   doc.setTextColor(20, 20, 20);
   doc.text(docType === "devis" ? "DEVIS" : "FACTURE", MARGIN, y);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(90, 90, 90);
-  doc.text(`Émis le ${fmtDate(todayStr())}`, 210 - MARGIN, y, {
-    align: "right",
-  });
-  y += 8;
-  doc.setDrawColor(230, 220, 200);
-  doc.line(MARGIN, y, 210 - MARGIN, y);
+  doc.text(`N° ${numeroDocument(docType)}`, rightColX, y - 3, { align: "right" });
+  doc.text(`Le ${fmtDate(todayStr())}`, rightColX, y + 2, { align: "right" });
   y += 8;
 
-  // -- Client block -------------------------------------------------------
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(92, 42, 29);
-  doc.text(client.nom || "Sans nom", MARGIN, y);
-  y += 6;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(60, 60, 60);
-  const infoLines = [
-    client.telephone && `Téléphone : ${client.telephone}`,
-    client.email && `Email : ${client.email}`,
-    client.hotel && `Hôtel : ${client.hotel}${client.chambre ? ` — Chambre ${client.chambre}` : ""}`,
-    (client.date_debut || client.date_fin) &&
-      // "→" (U+2192) ne s'affiche pas correctement avec la police de base
-      // de jsPDF (helvetica) — pas de glyphe, ça sort en mojibake sur le PDF.
-      `Séjour : ${fmtDate(client.date_debut)} - ${fmtDate(client.date_fin)}`,
-    `Voyageurs : ${client.adultes} adulte(s)${client.enfants ? `, ${client.enfants} enfant(s)` : ""}`,
-  ].filter(Boolean) as string[];
-  infoLines.forEach((line) => {
-    doc.text(line, MARGIN, y);
+  if (docType === "facture") {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 110, 100);
+    doc.text("e-Invoicing (ETA) — document conforme au système de facturation électronique égyptien.", MARGIN, y);
     y += 5;
-  });
-  y += 4;
+  }
 
-  // -- Activities table ---------------------------------------------------
+  // -- Tableau des activités -----------------------------------------------
   const relevantResas =
     docType === "facture" ? reservations.filter((r) => r.statut_resa === "Confirmée") : reservations;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(20, 20, 20);
-  doc.text("Activités", MARGIN, y);
-  y += 6;
+  const lignes: Ligne[] = relevantResas.flatMap((r) =>
+    lignesPourReservation(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || [])
+  );
+  const totalHT = lignes.reduce((s, l) => s + l.montantHT, 0);
 
-  const colX = { nom: MARGIN, total: 210 - MARGIN };
+  const body =
+    lignes.length > 0
+      ? lignes.map((l) => [
+          l.designation,
+          l.quantite.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          euros(l.puVente),
+          "0,00 %",
+          euros(l.montantHT),
+        ])
+      : [["Aucune activité.", "", "", "", ""]];
 
-  let sejourTotal = 0;
-  if (relevantResas.length === 0) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(140, 140, 140);
-    doc.text("Aucune activité.", MARGIN, y);
-    y += 6;
-  } else {
-    relevantResas.forEach((r, i) => {
-      ensureSpace(20);
-      const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
-      sejourTotal += total;
-      // Le "bébé" facturable n'existe pas comme catégorie à part sur une
-      // réservation — c'est la 3e tranche de prix (pu_enfant_3ans /
-      // participants_enfants_3ans) qui joue ce rôle au cas par cas (ex. Le
-      // Caire en avion, où les bébés sont bien facturés), donc c'est elle
-      // qu'on affiche comme "bébé" sur le document plutôt qu'un champ qui
-      // n'existe pas.
-      const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [["Désignation", "Quantité", "PU Vente", "TVA", "Montant HT"]],
+    body,
+    theme: "grid",
+    styles: { font: "helvetica", fontSize: 8.5, cellPadding: 2.2, textColor: [30, 30, 30], lineColor: [230, 220, 200] },
+    headStyles: { fillColor: [245, 240, 230], textColor: [92, 42, 29], fontStyle: "bold" },
+    columnStyles: {
+      0: { cellWidth: "auto" },
+      1: { cellWidth: 22, halign: "right" },
+      2: { cellWidth: 26, halign: "right" },
+      3: { cellWidth: 20, halign: "right" },
+      4: { cellWidth: 28, halign: "right" },
+    },
+  });
 
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-      doc.setTextColor(20, 20, 20);
-      doc.text(r.nom_activite || "Activité sans nom", colX.nom, y, { maxWidth: 130 });
-      doc.text(euros(total), colX.total, y, { align: "right" });
-      y += 5;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  y = (doc as any).lastAutoTable.finalY + 8;
 
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(120, 110, 100);
-      doc.text(fmtDate(r.date_debut), colX.nom, y);
-      y += 5;
-
-      if (r.tarif_mode === "groupe") {
-        doc.setFontSize(9);
-        doc.setTextColor(60, 60, 60);
-        doc.text(
-          r.pax_override || `Forfait groupe — ${nbAd} ad.${nbEnf ? ` + ${nbEnf} enf.` : ""}`,
-          colX.nom,
-          y,
-          { maxWidth: 174 }
-        );
-        y += 5.5;
-      } else {
-        const tranches: { label: string; nb: number; pu: number }[] = [
-          { label: "Adulte", nb: nbAd, pu: Number(r.pu_adulte) || 0 },
-          { label: "Enfant", nb: nbEnf, pu: Number(r.pu_enfant) || 0 },
-          { label: "Bébé", nb: nbEnf3, pu: Number(r.pu_enfant_3ans) || 0 },
-          { label: "Accompagnateur", nb: nbAcc, pu: Number(r.pu_accompagnateur) || 0 },
-        ].filter((t) => t.nb > 0);
-
-        if (tranches.length > 0) {
-          doc.setFontSize(9);
-          doc.setTextColor(60, 60, 60);
-          tranches.forEach((t) => {
-            doc.text(`${t.label} (${t.nb})`, colX.nom, y);
-            doc.text(t.pu > 0 ? `${euros(t.pu)} / pers.` : "Gratuit", colX.nom + 90, y);
-            y += 5;
-          });
-        }
-      }
-
-      const options = resaOptions[r.id] || [];
-      if (options.length > 0) {
-        doc.setFontSize(8);
-        doc.setTextColor(120, 110, 100);
-        doc.text(`Options : ${options.map((o) => o.nom).join(", ")}`, colX.nom, y, { maxWidth: 174 });
-        y += 5;
-      }
-
-      y += 2;
-      if (i < relevantResas.length - 1) {
-        doc.setDrawColor(240, 235, 225);
-        doc.line(MARGIN, y, 210 - MARGIN, y);
-        y += 5;
-      }
-    });
-  }
-
-  ensureSpace(10);
+  // -- Total HT / TVA / TTC (0% — activités touristiques hors TVA) --------
+  const boxW = 70;
+  const boxX = rightColX - boxW;
   doc.setDrawColor(230, 220, 200);
-  doc.line(MARGIN, y, 210 - MARGIN, y);
-  y += 6;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(20, 20, 20);
-  doc.text("Total séjour", colX.nom, y);
-  doc.text(euros(sejourTotal), colX.total, y, { align: "right" });
-  y += 10;
-
-  // -- Payments -------------------------------------------------------
-  ensureSpace(20);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("Paiements", MARGIN, y);
-  y += 6;
-
+  doc.setFillColor(250, 247, 240);
+  doc.rect(boxX, y - 4.5, boxW, 20, "FD");
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(60, 60, 60);
-  const totalAcomptes = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  if (client.paiement_type !== "acompte" || !client.acompte_montant) {
-    doc.setTextColor(140, 140, 140);
-    doc.text("Aucun acompte enregistré.", MARGIN, y);
-    y += 5;
-  } else {
-    doc.setTextColor(60, 60, 60);
-    doc.text(
-      `Acompte — ${client.acompte_paye ? `encaissé le ${fmtDate(client.acompte_date_encaissement)}` : "à régler"} (${client.acompte_mode})`,
-      MARGIN,
-      y
-    );
-    doc.text(euros(client.acompte_montant), colX.total, y, { align: "right" });
-    y += 5;
-  }
+  doc.text("Total HT", boxX + 3, y);
+  doc.text(euros(totalHT), rightColX - 3, y, { align: "right" });
+  doc.text("TVA (0 %)", boxX + 3, y + 5);
+  doc.text("0,00 €", rightColX - 3, y + 5, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(20, 20, 20);
+  doc.text("Total TTC", boxX + 3, y + 12);
+  doc.text(euros(totalHT), rightColX - 3, y + 12, { align: "right" });
+  y += 24;
 
-  // Le solde n'est plus un montant saisi à la main : c'est toujours le reste
-  // du séjour une fois l'acompte déduit.
-  const soldeRestant = Math.max(sejourTotal - totalAcomptes, 0);
-
-  ensureSpace(6);
-  doc.text(
-    `Solde — ${client.solde_paye ? "encaissé" : "à régler"}${client.solde_date ? `, ${fmtDate(client.solde_date)}` : ""} (${client.solde_mode})`,
-    MARGIN,
-    y
-  );
-  doc.text(euros(soldeRestant), colX.total, y, { align: "right" });
-  y += 8;
-
+  // -- Paiements ------------------------------------------------------------
+  const totalAcomptes =
+    client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  const soldeRestant = Math.max(totalHT - totalAcomptes, 0);
   const totalPaye = totalAcomptes + (client.solde_paye ? soldeRestant : 0);
-  const reste = sejourTotal - totalPaye;
+  const reste = totalHT - totalPaye;
 
-  ensureSpace(14);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(20, 20, 20);
+  doc.text("Conditions de paiement", MARGIN, y);
+  y += 5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(60, 60, 60);
+  const conditions: string[] = [];
+  if (client.paiement_type === "acompte" && client.acompte_montant) {
+    conditions.push(
+      `${euros(client.acompte_montant)} ${client.acompte_paye ? `payé (${client.acompte_mode}) le ${fmtDate(client.acompte_date_encaissement)}` : `à régler (${client.acompte_mode})`}`
+    );
+  }
+  conditions.push(
+    `${euros(soldeRestant)} ${client.solde_paye ? "encaissé" : "à payer"}${client.solde_date ? ` (${client.solde_mode}) le ${fmtDate(client.solde_date)}` : ` (${client.solde_mode})`}`
+  );
+  conditions.forEach((c) => {
+    doc.text(`•  ${c}`, MARGIN, y);
+    y += 4.5;
+  });
+  y += 3;
+
   doc.setDrawColor(230, 220, 200);
-  doc.line(MARGIN, y, 210 - MARGIN, y);
+  doc.line(MARGIN, y, rightColX, y);
   y += 6;
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(20, 20, 20);
   doc.text("Payé", MARGIN, y);
-  doc.text(euros(totalPaye), colX.total, y, { align: "right" });
-  y += 6;
+  doc.text(euros(totalPaye), rightColX, y, { align: "right" });
+  y += 5;
   doc.text("Reste à payer", MARGIN, y);
-  doc.text(euros(reste), colX.total, y, { align: "right" });
-  y += 12;
+  doc.text(euros(reste), rightColX, y, { align: "right" });
+  y += 10;
 
-  // -- Footer -----------------------------------------------------------
-  ensureSpace(10);
+  // -- Pied de page -----------------------------------------------------
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(140, 140, 140);
   doc.text(
     docType === "devis"
-      ? "Ce devis est indicatif et ne constitue pas une facture. Autour des Dunes — Hurghada, Égypte."
-      : "Document récapitulatif — Autour des Dunes, Hurghada, Égypte.",
+      ? "Ce devis est indicatif et ne constitue pas une facture."
+      : "MERCI DE VOTRE CONFIANCE",
     MARGIN,
     y
   );

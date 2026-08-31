@@ -853,7 +853,7 @@ export default function ClientDetail({
           </div>
         </div>
 
-        <div className="font-heading mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+        <div className="font-heading mt-1 flex flex-wrap items-center gap-1.5 text-xs">
           <span
             className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
             style={{ backgroundColor: `${STATUT_COLORS[client.statut]}1a`, color: STATUT_COLORS[client.statut] }}
@@ -869,7 +869,7 @@ export default function ClientDetail({
           ))}
         </div>
         {toutesInfosManquantes.length > 0 && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
             {autoInfosManquantes.map((s) => (
               <span
                 key={`auto-${s}`}

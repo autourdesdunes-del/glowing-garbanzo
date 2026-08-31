@@ -152,41 +152,6 @@ export default function ItineraryView({
     : reservations.filter((r) => r.statut_resa !== "Annulée");
 
   const renderCard = (r: Reservation, day?: string) => {
-    if (expandedId === r.id) {
-      return (
-        <ReservationCard
-          key={r.id}
-          r={r}
-          client={client}
-          options={resaOptions[r.id] || []}
-          tarifs={resaTarifs[r.id] || []}
-          expanded
-          onToggleExpanded={(v) => onToggleExpand(v ? r.id : null)}
-          onUpdate={(patch) => onUpdateReservation(r.id, patch)}
-          onDelete={() => onDeleteReservation(r.id)}
-          onAddOption={(seed) => onAddOption(r.id, seed)}
-          onUpdateOption={(optId, patch) => onUpdateOption(r.id, optId, patch)}
-          onDeleteOption={(optId) => onDeleteOption(r.id, optId)}
-          onAddTarif={(seed) => onAddTarif(r.id, seed)}
-          onUpdateTarif={(tarifId, patch) => onUpdateTarif(r.id, tarifId, patch)}
-          onDeleteTarif={(tarifId) => onDeleteTarif(r.id, tarifId)}
-          onUpdateClient={onUpdateClient}
-          catalogue={catalogue}
-          catalogueTarifs={r.catalogue_item_id ? catalogueTarifs[r.catalogue_item_id] || [] : []}
-          transfertTarifs={r.catalogue_item_id ? transfertTarifs[r.catalogue_item_id] || [] : []}
-          catalogueOptions={r.catalogue_item_id ? catalogueOptions[r.catalogue_item_id] || [] : []}
-          canSeeMargins={canSeeMargins}
-          hotelHorsHurghada={hotelHorsHurghada}
-          coutReel={coutsMap[r.id] || 0}
-          onUpdateCoutReel={(v) => onUpdateCoutReel(r.id, v)}
-          onJourEscalation={(dateChoisie, jourChoisi, joursDisponibles) =>
-            onJourEscalation(r.nom_activite, r.id, dateChoisie, jourChoisi, joursDisponibles)
-          }
-          onAssouanVerification={() => onAssouanVerification(r.nom_activite, r.id)}
-          assouanVerification={assouanVerifications.find((v) => v.reservation_id === r.id) || null}
-        />
-      );
-    }
 
     const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
     const badge = paiementBadge(client, r);
@@ -325,8 +290,75 @@ export default function ItineraryView({
     return <div className="text-sm text-neutral-400">Aucune activité planifiée pour l&apos;instant.</div>;
   }
 
+  const expandedReservation = reservationsAffichees.find((r) => r.id === expandedId) || null;
+
   return (
     <div className="space-y-4">
+      {expandedReservation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => onToggleExpand(null)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ReservationCard
+              key={expandedReservation.id}
+              r={expandedReservation}
+              client={client}
+              options={resaOptions[expandedReservation.id] || []}
+              tarifs={resaTarifs[expandedReservation.id] || []}
+              expanded
+              onToggleExpanded={(v) => onToggleExpand(v ? expandedReservation.id : null)}
+              onUpdate={(patch) => onUpdateReservation(expandedReservation.id, patch)}
+              onDelete={() => onDeleteReservation(expandedReservation.id)}
+              onAddOption={(seed) => onAddOption(expandedReservation.id, seed)}
+              onUpdateOption={(optId, patch) => onUpdateOption(expandedReservation.id, optId, patch)}
+              onDeleteOption={(optId) => onDeleteOption(expandedReservation.id, optId)}
+              onAddTarif={(seed) => onAddTarif(expandedReservation.id, seed)}
+              onUpdateTarif={(tarifId, patch) => onUpdateTarif(expandedReservation.id, tarifId, patch)}
+              onDeleteTarif={(tarifId) => onDeleteTarif(expandedReservation.id, tarifId)}
+              onUpdateClient={onUpdateClient}
+              catalogue={catalogue}
+              catalogueTarifs={
+                expandedReservation.catalogue_item_id
+                  ? catalogueTarifs[expandedReservation.catalogue_item_id] || []
+                  : []
+              }
+              transfertTarifs={
+                expandedReservation.catalogue_item_id
+                  ? transfertTarifs[expandedReservation.catalogue_item_id] || []
+                  : []
+              }
+              catalogueOptions={
+                expandedReservation.catalogue_item_id
+                  ? catalogueOptions[expandedReservation.catalogue_item_id] || []
+                  : []
+              }
+              canSeeMargins={canSeeMargins}
+              hotelHorsHurghada={hotelHorsHurghada}
+              coutReel={coutsMap[expandedReservation.id] || 0}
+              onUpdateCoutReel={(v) => onUpdateCoutReel(expandedReservation.id, v)}
+              onJourEscalation={(dateChoisie, jourChoisi, joursDisponibles) =>
+                onJourEscalation(
+                  expandedReservation.nom_activite,
+                  expandedReservation.id,
+                  dateChoisie,
+                  jourChoisi,
+                  joursDisponibles
+                )
+              }
+              onAssouanVerification={() =>
+                onAssouanVerification(expandedReservation.nom_activite, expandedReservation.id)
+              }
+              assouanVerification={
+                assouanVerifications.find((v) => v.reservation_id === expandedReservation.id) || null
+              }
+            />
+          </div>
+        </div>
+      )}
       {nbAnnulees > 0 && (
         <button
           onClick={() => setVoirAnnulees((v) => !v)}

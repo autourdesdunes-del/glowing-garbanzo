@@ -150,6 +150,68 @@ function PropIcon({ name }: { name: keyof typeof PROP_ICON_PATHS }) {
   );
 }
 
+// Les âges restent stockés dans le champ texte existant (ages_enfants,
+// ages_bebes, ages_ados) pour ne rien casser ailleurs dans l'appli (Aperçu
+// client, itinéraire, Suivis...) qui affichent directement cette chaîne —
+// seule la saisie devient une liste de puces validées par tranche d'âge.
+function parseAges(text: string): number[] {
+  const matches = text.match(/\d+/g);
+  return matches ? matches.map(Number) : [];
+}
+
+function AgeChips({
+  ages,
+  min,
+  max,
+  onChange,
+}: {
+  ages: number[];
+  min: number;
+  max: number;
+  onChange: (ages: number[]) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {ages.map((a, i) => (
+        <span
+          key={i}
+          className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white pl-2 pr-1 py-0.5 text-xs text-neutral-600"
+        >
+          <input
+            type="number"
+            min={min}
+            max={max}
+            value={a}
+            onChange={(e) => {
+              const raw = Number(e.target.value);
+              const v = Number.isFinite(raw) ? Math.min(max, Math.max(min, raw)) : min;
+              const next = [...ages];
+              next[i] = v;
+              onChange(next);
+            }}
+            className="w-7 border-none bg-transparent text-xs focus:outline-none"
+          />
+          <span className="text-neutral-400">ans</span>
+          <button
+            type="button"
+            onClick={() => onChange(ages.filter((_, idx) => idx !== i))}
+            className="text-neutral-300 hover:text-red-600"
+          >
+            ✕
+          </button>
+        </span>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange([...ages, min])}
+        className="rounded-full border border-dashed border-neutral-300 px-2 py-0.5 text-xs text-neutral-400 hover:border-neutral-400 hover:text-neutral-600"
+      >
+        + âge
+      </button>
+    </div>
+  );
+}
+
 type StepProps = {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
@@ -296,52 +358,111 @@ export function ContactStep({
         </PropertyRow>
       )}
 
-      <PropertyRow label="Hôtel / Chambre" icon={<PropIcon name="hotel" />}>
-        <div className="flex items-center gap-1.5">
-          <input
-            value={client.hotel}
-            onChange={(e) => onChange({ hotel: e.target.value })}
-            placeholder="Hôtel"
-            size={Math.max(client.hotel.length, 8)}
-            className="input-flat w-auto flex-shrink-0 font-medium"
-          />
-          <span className="text-neutral-400">-</span>
-          <input
-            value={client.chambre}
-            onChange={(e) => onChange({ chambre: e.target.value })}
-            placeholder="N° chambre(s)"
-            className="input-flat min-w-0 flex-1"
-          />
-        </div>
-      </PropertyRow>
-
-      {client.hotel.trim() && (
-        <div className="-mt-1 pl-[180px] text-xs">
-          {hotelMatch ? (
-            hotelMatch.sur_hurghada ? (
-              <span className="text-emerald-600">
-                ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
-              </span>
-            ) : (
-              <span className="text-orange-600">
-                ⚠ Cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut comporter une
-                taxe de transfert
-                {taxeResultat?.type === "montant" ? ` (${euros(taxeResultat.montant)} €)` : ""}
-                {taxeResultat?.type === "a_demander" ? ` (${taxeResultat.note})` : ""}.{" "}
-                <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
-                  Vérifier le montant
-                </button>
-              </span>
-            )
-          ) : (
-            <span className="text-neutral-400">
-              Hôtel non répertorié dans HELP.{" "}
-              <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
-                L&apos;ajouter
+      {client.type_hebergement === "airbnb" ? (
+        <>
+          <PropertyRow label="Airbnb" icon={<PropIcon name="hotel" />}>
+            <div className="flex items-center gap-2">
+              <input
+                value={client.hotel}
+                onChange={(e) => onChange({ hotel: e.target.value })}
+                placeholder="Nom / lien de l'Airbnb"
+                className="input-flat flex-1 font-medium"
+              />
+              <button
+                type="button"
+                onClick={() => onChange({ type_hebergement: "hotel" })}
+                className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
+              >
+                Revenir à un hôtel
               </button>
-            </span>
+            </div>
+          </PropertyRow>
+          <PropertyRow label="Adresse / GPS">
+            <input
+              value={client.airbnb_adresse}
+              onChange={(e) => onChange({ airbnb_adresse: e.target.value })}
+              placeholder="Adresse ou lien Google Maps"
+              className="input-flat"
+            />
+          </PropertyRow>
+          <PropertyRow label="Appart / Bâtiment">
+            <div className="flex items-center gap-2">
+              <input
+                value={client.airbnb_appartement}
+                onChange={(e) => onChange({ airbnb_appartement: e.target.value })}
+                placeholder="N° appartement (si besoin)"
+                className="input-flat flex-1"
+              />
+              <input
+                value={client.airbnb_building}
+                onChange={(e) => onChange({ airbnb_building: e.target.value })}
+                placeholder="Bâtiment (si besoin)"
+                className="input-flat flex-1"
+              />
+            </div>
+          </PropertyRow>
+        </>
+      ) : (
+        <>
+          <PropertyRow label="Hôtel / Chambre" icon={<PropIcon name="hotel" />}>
+            <div className="flex items-center gap-1.5">
+              <input
+                value={client.hotel}
+                onChange={(e) => onChange({ hotel: e.target.value })}
+                placeholder="Hôtel"
+                size={Math.max(client.hotel.length, 8)}
+                className="input-flat w-auto flex-shrink-0 font-medium"
+              />
+              {client.hotel.trim() && (
+                <>
+                  <span className="text-neutral-400">-</span>
+                  <input
+                    value={client.chambre}
+                    onChange={(e) => onChange({ chambre: e.target.value })}
+                    placeholder="N° chambre(s)"
+                    className="input-flat min-w-0 flex-1"
+                  />
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => onChange({ type_hebergement: "airbnb" })}
+                className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
+              >
+                Loger en Airbnb ?
+              </button>
+            </div>
+          </PropertyRow>
+
+          {client.hotel.trim() && (
+            <div className="-mt-1 pl-[180px] text-xs">
+              {hotelMatch ? (
+                hotelMatch.sur_hurghada ? (
+                  <span className="text-emerald-600">
+                    ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
+                  </span>
+                ) : (
+                  <span className="text-orange-600">
+                    ⚠ Cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut comporter une
+                    taxe de transfert
+                    {taxeResultat?.type === "montant" ? ` (${euros(taxeResultat.montant)} €)` : ""}
+                    {taxeResultat?.type === "a_demander" ? ` (${taxeResultat.note})` : ""}.{" "}
+                    <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+                      Vérifier le montant
+                    </button>
+                  </span>
+                )
+              ) : (
+                <span className="text-neutral-400">
+                  Hôtel non répertorié dans HELP.{" "}
+                  <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+                    L&apos;ajouter
+                  </button>
+                </span>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
 
       <PropertyRow label="What's app" icon={<PropIcon name="phone" />}>
@@ -510,7 +631,6 @@ export function SejourStep({
   const confirm = useConfirm();
   const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
   const [showCircuit, setShowCircuit] = useState(false);
-  const [voyageursOpen, setVoyageursOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -684,81 +804,69 @@ export function SejourStep({
           className="input-flat max-w-[140px]"
         />
       </PropertyRow>
-      <PropertyRow label="Enfants" icon={<PropIcon name="person" />}>
-        <input
-          type="number"
-          min={0}
-          value={client.enfants}
-          onChange={(e) => onChange({ enfants: Number(e.target.value) })}
-          className="input-flat max-w-[140px]"
-        />
-      </PropertyRow>
+
       {client.enfants > 0 && (
-        <PropertyRow label="Âge des enfants (4 à 10 ans)">
-          <input
-            id="field-ages-enfants"
-            value={client.ages_enfants}
-            onChange={(e) => onChange({ ages_enfants: e.target.value })}
-            placeholder="ex. 7 et 4 ans"
-            className="input-flat"
+        <PropertyRow label="Enfants (3-10 ans)" icon={<PropIcon name="person" />}>
+          <AgeChips
+            ages={parseAges(client.ages_enfants)}
+            min={3}
+            max={10}
+            onChange={(ages) => onChange({ enfants: ages.length, ages_enfants: ages.join(", ") })}
+          />
+        </PropertyRow>
+      )}
+      {client.bebes > 0 && (
+        <PropertyRow label="Bébés (0-2 ans)" icon={<PropIcon name="person" />}>
+          <AgeChips
+            ages={parseAges(client.ages_bebes)}
+            min={0}
+            max={2}
+            onChange={(ages) => onChange({ bebes: ages.length, ages_bebes: ages.join(", ") })}
+          />
+        </PropertyRow>
+      )}
+      {client.ados_presents && (
+        <PropertyRow label="Ados (11-17 ans)" icon={<PropIcon name="person" />}>
+          <AgeChips
+            ages={parseAges(client.ages_ados)}
+            min={11}
+            max={17}
+            onChange={(ages) =>
+              onChange({ ados_presents: ages.length > 0, ages_ados: ages.join(", ") })
+            }
           />
         </PropertyRow>
       )}
 
-      <button
-        type="button"
-        onClick={() => setVoyageursOpen((v) => !v)}
-        className="flex items-center gap-1.5 pt-1 text-xs text-neutral-400 hover:text-neutral-600"
-      >
-        <span className={`inline-block transition-transform ${voyageursOpen ? "rotate-90" : ""}`}>›</span>
-        {voyageursOpen ? "Moins de propriétés" : "Bébés / ados"}
-      </button>
-      {voyageursOpen && (
-        <>
-          <PropertyRow label="Bébés (0 à 3 ans)" icon={<PropIcon name="person" />}>
-            <input
-              type="number"
-              min={0}
-              value={client.bebes}
-              onChange={(e) => onChange({ bebes: Number(e.target.value) })}
-              className="input-flat max-w-[140px]"
-            />
-          </PropertyRow>
-          {client.bebes > 0 && (
-            <PropertyRow label="Âge des bébés">
-              <input
-                value={client.ages_bebes}
-                onChange={(e) => onChange({ ages_bebes: e.target.value })}
-                placeholder="ex. 1 an"
-                className="input-flat"
-              />
-            </PropertyRow>
-          )}
-
-          <div>
-            <label className="flex items-center gap-2 text-sm text-neutral-700">
-              <input
-                type="checkbox"
-                checked={client.ados_presents}
-                onChange={(e) => onChange({ ados_presents: e.target.checked })}
-              />
-              Ados de moins de 16 ans présents parmi les adultes
-            </label>
-            {client.ados_presents && (
-              <div className="mt-1 max-w-xs">
-                <PropertyRow label="Âge des ados">
-                  <input
-                    value={client.ages_ados}
-                    onChange={(e) => onChange({ ages_ados: e.target.value })}
-                    placeholder="ex. 13 et 14 ans"
-                    className="input-flat"
-                  />
-                </PropertyRow>
-              </div>
-            )}
-          </div>
-        </>
-      )}
+      <div className="flex gap-3 pl-[26px] pt-0.5 text-xs text-neutral-400">
+        {client.enfants === 0 && (
+          <button
+            type="button"
+            onClick={() => onChange({ enfants: 1, ages_enfants: "3" })}
+            className="hover:text-neutral-600"
+          >
+            + Enfant
+          </button>
+        )}
+        {client.bebes === 0 && (
+          <button
+            type="button"
+            onClick={() => onChange({ bebes: 1, ages_bebes: "0" })}
+            className="hover:text-neutral-600"
+          >
+            + Bébé
+          </button>
+        )}
+        {!client.ados_presents && (
+          <button
+            type="button"
+            onClick={() => onChange({ ados_presents: true, ages_ados: "11" })}
+            className="hover:text-neutral-600"
+          >
+            + Ado
+          </button>
+        )}
+      </div>
 
       <div className="rounded-md border border-[#666666]/20 bg-white p-4">
         <h3 className="font-heading text-sm font-semibold text-[#171717]">

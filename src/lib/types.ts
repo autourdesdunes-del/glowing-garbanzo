@@ -303,6 +303,12 @@ export type Client = {
   email: string;
   hotel: string;
   chambre: string;
+  // "hotel" (par défaut) ou "airbnb" — remplace la ligne Hôtel/Chambre par
+  // Airbnb + adresse/GPS + appartement/bâtiment quand c'est "airbnb".
+  type_hebergement: string;
+  airbnb_adresse: string;
+  airbnb_appartement: string;
+  airbnb_building: string;
   date_debut: string | null;
   date_fin: string | null;
   adultes: number;
@@ -396,6 +402,10 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   email: "",
   hotel: "",
   chambre: "",
+  type_hebergement: "hotel",
+  airbnb_adresse: "",
+  airbnb_appartement: "",
+  airbnb_building: "",
   date_debut: null,
   date_fin: null,
   adultes: 0,

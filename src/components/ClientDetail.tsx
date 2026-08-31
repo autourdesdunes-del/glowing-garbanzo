@@ -52,12 +52,14 @@ function euros(n: number) {
 function Section({
   title,
   titleExtra,
+  endBadge,
   open,
   onToggle,
   children,
 }: {
   title: string;
   titleExtra?: React.ReactNode;
+  endBadge?: React.ReactNode;
   open: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -72,8 +74,11 @@ function Section({
           <span className="font-heading text-sm font-semibold text-[#171717]">{title}</span>
           {titleExtra}
         </span>
-        <span className={`text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}>
-          ⌄
+        <span className="flex items-center gap-2">
+          {endBadge}
+          <span className={`text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}>
+            ⌄
+          </span>
         </span>
       </button>
       {open && <div className="border-t border-[#666666]/10 px-5 py-5">{children}</div>}
@@ -993,7 +998,18 @@ export default function ClientDetail({
         />
       </div>
 
-      <Section title="Activités réservées" open={open.Activités} onToggle={() => toggle("Activités")}>
+      <Section
+        title="Activités réservées"
+        endBadge={
+          reservations.length > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#0F5C56]/10 px-1 text-xs font-semibold text-[#0F5C56]">
+              {reservations.length}
+            </span>
+          )
+        }
+        open={open.Activités}
+        onToggle={() => toggle("Activités")}
+      >
         <ActivitesStep
           client={client}
           onChange={onChange}
@@ -1029,15 +1045,11 @@ export default function ClientDetail({
       <Section
         title="Paiements"
         titleExtra={
-          <span className="flex items-center gap-1.5">
-            <span className="font-amounts rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-semibold text-[#666666]">
-              {euros(totalSejourHeader)} €
-            </span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                paiementFullyPaid ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-              }`}
-            >
+          <span className="flex items-center gap-1.5 rounded-full bg-[#F2E6D2] py-0.5 pl-2.5 pr-2 text-xs font-medium text-[#5C2A1D]">
+            <span className="font-amounts font-semibold">{euros(totalSejourHeader)} €</span>
+            <span className="text-[#5C2A1D]/30">·</span>
+            <span className={`flex items-center gap-1 ${paiementFullyPaid ? "text-[#0F5C56]" : "text-[#C9973E]"}`}>
+              <span className="text-[8px]">●</span>
               {paiementFullyPaid ? "Payé" : "En attente"}
             </span>
           </span>

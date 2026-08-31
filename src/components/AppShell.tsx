@@ -1181,6 +1181,94 @@ function AppShellInner({
     }
   };
 
+  // Rassemble deux fiches identifiées comme doublon (voir DoublonPossibleAlert)
+  // en une seule : tout ce qui est rattaché à la fiche "retirée" (réservations,
+  // paiements PayPal, remboursements, incidents, vérifications...) est
+  // basculé sur la fiche "gardée", puis les champs vides de la fiche gardée
+  // sont complétés avec ceux de la fiche retirée — jamais l'inverse, on ne
+  // veut pas écraser une info déjà saisie par l'équipe. La fiche retirée
+  // n'est pas supprimée (traçabilité, réversible via "Supprimer ce client"
+  // si besoin) : elle passe à "Client annulé" avec une note explicite.
+  const fusionnerClients = async (idGarde: string, idRetire: string) => {
+    const garde = clients.find((c) => c.id === idGarde);
+    const retire = clients.find((c) => c.id === idRetire);
+    if (!garde || !retire) return;
+
+    const TABLES_CLIENT_ID = [
+      "reservations",
+      "remboursements",
+      "incidents",
+      "verifications",
+      "client_hotels",
+      "assouan_verifications",
+      "bus_escalations",
+      "jour_escalations",
+      "kommo_reponses_employe",
+      "remarques_employe",
+      "activity_log",
+    ] as const;
+    for (const table of TABLES_CLIENT_ID) {
+      const { error } = await supabase.from(table).update({ client_id: idGarde }).eq("client_id", idRetire);
+      if (error) {
+        toast(`Échec de la fusion (${table}).`);
+        return;
+      }
+    }
+    const { error: errPaypal } = await supabase
+      .from("paypal_paiements")
+      .update({ rattache_client_id: idGarde })
+      .eq("rattache_client_id", idRetire);
+    if (errPaypal) {
+      toast("Échec de la fusion (paiements PayPal).");
+      return;
+    }
+
+    const completion: Partial<Client> = {};
+    if (!garde.telephone && retire.telephone) completion.telephone = retire.telephone;
+    if (!garde.email && retire.email) completion.email = retire.email;
+    if (!garde.hotel && retire.hotel) completion.hotel = retire.hotel;
+    if (!garde.chambre && retire.chambre) completion.chambre = retire.chambre;
+    if (!garde.pseudo_contact && retire.pseudo_contact) completion.pseudo_contact = retire.pseudo_contact;
+    if (!garde.ages_enfants && retire.ages_enfants) completion.ages_enfants = retire.ages_enfants;
+    if (!garde.ages_bebes && retire.ages_bebes) completion.ages_bebes = retire.ages_bebes;
+    if (!garde.ages_ados && retire.ages_ados) completion.ages_ados = retire.ages_ados;
+    if (!garde.date_debut && retire.date_debut) completion.date_debut = retire.date_debut;
+    if (!garde.date_fin && retire.date_fin) completion.date_fin = retire.date_fin;
+    if (!garde.kommo_contact_id && retire.kommo_contact_id) completion.kommo_contact_id = retire.kommo_contact_id;
+    if (!garde.kommo_lead_id && retire.kommo_lead_id) completion.kommo_lead_id = retire.kommo_lead_id;
+    if (!garde.adultes && retire.adultes) completion.adultes = retire.adultes;
+    if (!garde.enfants && retire.enfants) completion.enfants = retire.enfants;
+    if (!garde.bebes && retire.bebes) completion.bebes = retire.bebes;
+    if (retire.passeport_photos?.length) {
+      completion.passeport_photos = Array.from(
+        new Set([...(garde.passeport_photos || []), ...retire.passeport_photos])
+      );
+    }
+
+    const monPrenom = teamProfiles.find((p) => p.id === userId)?.prenom || "";
+    const dateFusion = localDateStr(new Date());
+    completion.commentaires = [
+      garde.commentaires,
+      `🔀 Fusionné avec la fiche de "${retire.nom}" le ${dateFusion} par ${monPrenom}.`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    completion.doublon_traite = true;
+    if (garde.doublon_possible_id === idRetire) completion.doublon_possible_id = null;
+
+    await updateClientById(idGarde, completion);
+    await updateClientById(idRetire, {
+      statut: "Client annulé",
+      doublon_traite: true,
+      commentaires: [retire.commentaires, `🔀 Fusionné dans la fiche de "${garde.nom}" — voir cette fiche.`]
+        .filter(Boolean)
+        .join("\n"),
+    });
+
+    toast(`Fiches fusionnées : "${retire.nom}" a été rattaché à "${garde.nom}".`);
+    await refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection });
+  };
+
   // Rattache un paiement PayPal reçu (via IPN, voir /api/paypal/ipn) au
   // client concerné — remplit directement l'acompte du dossier plutôt que
   // de laisser l'employée ressaisir montant/mode/date à la main.
@@ -1716,6 +1804,7 @@ function AppShellInner({
         clients={clients}
         onOpenClient={openClient}
         onResoudre={(id) => updateClientById(id, { doublon_traite: true })}
+        onFusionner={fusionnerClients}
       />
       {NOUVEAU_CLIENT_CONFIRME_ALERT_ACTIVE && (
         <NouveauClientConfirmeAlert

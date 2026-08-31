@@ -15,12 +15,19 @@ export default function DoublonPossibleAlert({
   clients,
   onOpenClient,
   onResoudre,
+  onFusionner,
 }: {
   clients: Client[];
   onOpenClient: (id: string) => void;
   onResoudre: (id: string) => void;
+  onFusionner: (idGarde: string, idRetire: string) => Promise<void>;
 }) {
   const [alertId, setAlertId] = useState<string | null>(null);
+  // Demande confirmation avant de fusionner (action qui rattache toutes les
+  // réservations/paiements et annule l'autre fiche) plutôt que de fusionner
+  // au premier clic — trop facile à déclencher par erreur sinon.
+  const [confirmationFusion, setConfirmationFusion] = useState<{ idGarde: string; idRetire: string } | null>(null);
+  const [fusionEnCours, setFusionEnCours] = useState(false);
 
   useEffect(() => {
     const check = () => {
@@ -36,6 +43,46 @@ export default function DoublonPossibleAlert({
   const nouveau = clients.find((c) => c.id === alertId);
   if (!nouveau) return null;
   const existant = clients.find((c) => c.id === nouveau.doublon_possible_id);
+
+  if (confirmationFusion) {
+    const garde = clients.find((c) => c.id === confirmationFusion.idGarde);
+    const retire = clients.find((c) => c.id === confirmationFusion.idRetire);
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+          <h2 className="font-heading text-base font-semibold text-[#171717]">Fusionner ces deux fiches ?</h2>
+          <p className="mt-3 text-sm text-[#171717]">
+            Toutes les réservations, tous les paiements et le suivi de <strong>{retire?.nom}</strong> seront
+            rattachés à la fiche de <strong>{garde?.nom}</strong>. Les infos manquantes sur {garde?.nom}{" "}
+            seront complétées avec celles de {retire?.nom} (sans écraser ce qui est déjà rempli). La fiche de{" "}
+            {retire?.nom} passera en &quot;Client annulé&quot; — elle n&apos;est pas supprimée.
+          </p>
+          <div className="mt-4 flex flex-col gap-2">
+            <button
+              disabled={fusionEnCours}
+              onClick={async () => {
+                setFusionEnCours(true);
+                await onFusionner(confirmationFusion.idGarde, confirmationFusion.idRetire);
+                setFusionEnCours(false);
+                setConfirmationFusion(null);
+                setAlertId(null);
+              }}
+              className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {fusionEnCours ? "Fusion en cours…" : "Confirmer la fusion"}
+            </button>
+            <button
+              disabled={fusionEnCours}
+              onClick={() => setConfirmationFusion(null)}
+              className="rounded-md border border-[#171717]/20 px-3 py-2 text-sm font-medium text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -65,6 +112,22 @@ export default function DoublonPossibleAlert({
               className="rounded-md border border-[#171717]/20 px-3 py-2 text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
             >
               Voir la fiche existante
+            </button>
+          )}
+          {existant && (
+            <button
+              onClick={() => setConfirmationFusion({ idGarde: existant.id, idRetire: nouveau.id })}
+              className="rounded-md border border-[#0F5C56]/30 px-3 py-2 text-sm font-medium text-[#0F5C56] hover:bg-[#0F5C56]/5"
+            >
+              Fusionner → garder &quot;{existant.nom}&quot;
+            </button>
+          )}
+          {existant && (
+            <button
+              onClick={() => setConfirmationFusion({ idGarde: nouveau.id, idRetire: existant.id })}
+              className="rounded-md border border-[#0F5C56]/30 px-3 py-2 text-sm font-medium text-[#0F5C56] hover:bg-[#0F5C56]/5"
+            >
+              Fusionner → garder &quot;{nouveau.nom}&quot;
             </button>
           )}
           <button

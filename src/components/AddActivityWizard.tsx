@@ -100,6 +100,7 @@ const SOUS_RUBRIQUE_PAR_ID: Record<string, string> = {
   "1c710f12-1e15-4807-9e2a-2398ad15f3a7": "Les îles", // Oziréa Island
   "83f33ac5-dc90-456c-9cfe-29afd8b1e19c": "Autre", // Parachute ascensionnel
   "f97c6887-9044-48c0-bb43-8ca7ced9ff5d": "Autre", // Seascope
+  "4223c21b-ac1a-439a-8cee-91753fa3abcd": "Autre", // Maison des dauphins
   "58698bea-cc10-4be6-84dc-0fec7fa97e1b": "Yatch",
   "797b3379-3a75-4403-aeb1-a19df6ddeaac": "Yatch",
   "7c6591a4-b5ec-4f16-8a3c-0264fc3b0967": "Catamaran",
@@ -158,8 +159,9 @@ function construireRubriquesCatalogue(items: CatalogueItem[]): RubriqueCatalogue
     .map(([rubrique, { direct, sous }]) => ({
       rubrique,
       direct: [...direct].sort((a, b) => a.nom.localeCompare(b.nom)),
+      // "Autre" toujours en dernier — le reste par ordre alphabétique.
       sous: [...sous.entries()]
-        .sort((a, b) => a[0].localeCompare(b[0]))
+        .sort((a, b) => (a[0] === "Autre" ? 1 : b[0] === "Autre" ? -1 : a[0].localeCompare(b[0])))
         .map(([nom, its]) => [nom, [...its].sort((a, b) => a.nom.localeCompare(b.nom))] as const),
     }));
 }

@@ -44,6 +44,24 @@ function fmtDate(dateStr: string | null) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
+function fmtDateLong(dateStr: string, withYear: boolean) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString(
+    "fr-FR",
+    withYear ? { day: "numeric", month: "long", year: "numeric" } : { day: "numeric", month: "long" }
+  );
+}
+
+// "13 août → 27 août 2026" : l'année n'apparaît qu'une fois, sur la
+// dernière date, sauf si le séjour chevauche deux années civiles.
+function fmtDateRangeFr(debut: string | null, fin: string | null) {
+  if (!debut && !fin) return "Non renseignées";
+  if (debut && !fin) return fmtDateLong(debut, true);
+  if (!debut && fin) return fmtDateLong(fin, true);
+  const sameYear = debut!.slice(0, 4) === fin!.slice(0, 4);
+  return `${fmtDateLong(debut!, !sameYear)} → ${fmtDateLong(fin!, true)}`;
+}
+
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
@@ -125,6 +143,7 @@ export default function ClientDetail({
   };
   const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>(CLOSED_SECTIONS);
   const [guidedOpen, setGuidedOpen] = useState(false);
+  const [headerDatesModalOpen, setHeaderDatesModalOpen] = useState(false);
   const [missingInfo, setMissingInfo] = useState<{
     message: string;
     actionLabel: string;
@@ -866,21 +885,45 @@ export default function ClientDetail({
               className="border-none bg-transparent p-0 font-semibold text-[#0F5C56] placeholder-[#0F5C56]/50 focus:outline-none"
             />
           </span>
-          <span className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2 py-0.5 font-medium text-neutral-600">
-            <input
-              type="date"
-              value={client.date_debut ?? ""}
-              onChange={(e) => onChange({ date_debut: e.target.value || null })}
-              className="border-none bg-transparent p-0 text-neutral-600 focus:outline-none"
-            />
-            →
-            <input
-              type="date"
-              value={client.date_fin ?? ""}
-              onChange={(e) => onChange({ date_fin: e.target.value || null })}
-              className="border-none bg-transparent p-0 text-neutral-600 focus:outline-none"
-            />
-          </span>
+          <button
+            type="button"
+            onClick={() => setHeaderDatesModalOpen(true)}
+            className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2 py-0.5 font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            📅 {fmtDateRangeFr(client.date_debut, client.date_fin)}
+          </button>
+
+          {headerDatesModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+              <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+                <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">
+                  Dates du séjour
+                </h2>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="date"
+                    value={client.date_debut ?? ""}
+                    onChange={(e) => onChange({ date_debut: e.target.value || null })}
+                    className="input w-full"
+                  />
+                  <span className="text-neutral-400">→</span>
+                  <input
+                    type="date"
+                    value={client.date_fin ?? ""}
+                    onChange={(e) => onChange({ date_fin: e.target.value || null })}
+                    className="input w-full"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setHeaderDatesModalOpen(false)}
+                  className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90"
+                >
+                  Valider
+                </button>
+              </div>
+            </div>
+          )}
           <TagStarPicker tags={client.tags || []} onChange={(tags) => onChange({ tags })} />
           {(client.tags || []).map((tag) => (
             <span key={tag} className="rounded-full bg-[#171717]/5 px-2 py-0.5 text-[#171717]">

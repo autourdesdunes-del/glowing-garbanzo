@@ -242,9 +242,20 @@ function hebergementSummary(client: Client) {
   return client.hotel.trim() || "Non renseigné";
 }
 
+// "13 août → 27 août 2026" : l'année n'apparaît qu'une fois, sur la
+// dernière date, sauf si le séjour chevauche deux années civiles.
 function datesSummary(client: Client) {
-  if (!client.date_debut && !client.date_fin) return "Non renseignées";
-  return `${fmtDateDMY(client.date_debut)} → ${fmtDateDMY(client.date_fin)}`;
+  const { date_debut: debut, date_fin: fin } = client;
+  if (!debut && !fin) return "Non renseignées";
+  const fmtLong = (d: string, withYear: boolean) =>
+    new Date(d + "T00:00:00").toLocaleDateString(
+      "fr-FR",
+      withYear ? { day: "numeric", month: "long", year: "numeric" } : { day: "numeric", month: "long" }
+    );
+  if (debut && !fin) return fmtLong(debut, true);
+  if (!debut && fin) return fmtLong(fin, true);
+  const sameYear = debut!.slice(0, 4) === fin!.slice(0, 4);
+  return `${fmtLong(debut!, !sameYear)} → ${fmtLong(fin!, true)}`;
 }
 
 function contactViaSummary(client: Client) {

@@ -12,6 +12,7 @@ import {
   Reservation,
   ReservationOption,
   ReservationTarif,
+  Verification,
 } from "@/lib/types";
 import { addDays, localDateStr, todayStr } from "@/lib/dates";
 import {
@@ -20,6 +21,7 @@ import {
   billetEtapeShortLabel,
   billetUploadPatch,
   cleanActivityTitle,
+  estDossierNonVerifie,
   hideMoment,
   hossamBilletMessage,
   isLeCaireEnAvion,
@@ -297,6 +299,7 @@ export const SUIVIS_SUBS = [
   { key: "appels", label: "Appels" },
   { key: "aurevoir", label: "Au revoir" },
   { key: "avis", label: "Avis clients" },
+  { key: "verifs", label: "Vérification de dossier" },
   { key: "remb", label: "Remboursements" },
   { key: "incidents", label: "Incidents" },
   { key: "attente48h", label: "En attente >48h" },
@@ -1107,9 +1110,11 @@ export default function SuivisView({
   resaTarifs,
   remboursements,
   incidents,
+  verifications,
   paypalPaiements,
   onRattacherPaiement,
   profiles,
+  currentUserId,
   planningShifts,
   catalogue,
   onUpdateClient,
@@ -1126,9 +1131,11 @@ export default function SuivisView({
   resaTarifs: Record<string, ReservationTarif[]>;
   remboursements: Remboursement[];
   incidents: Incident[];
+  verifications: Verification[];
   paypalPaiements: PaypalPaiement[];
   onRattacherPaiement: (paiementId: string, clientId: string) => void;
   profiles: Profile[];
+  currentUserId: string;
   planningShifts: PlanningShift[];
   catalogue: CatalogueItem[];
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
@@ -1138,7 +1145,13 @@ export default function SuivisView({
   initialBilletId?: string | null;
   onOpenReservationActivity: (reservationId: string) => void;
 }) {
+  const supabase = createClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // Retire une carte de la liste dès validation, sans attendre le prochain
+  // rafraîchissement automatique (25s, voir AppShell.tsx) — la vraie source
+  // de vérité reste la table verifications, ceci est juste un affichage
+  // optimiste local.
+  const [dossiersVerifiesMaintenant, setDossiersVerifiesMaintenant] = useState<Set<string>>(new Set());
   const [newAppelClientId, setNewAppelClientId] = useState("");
   const [pickupDrafts, setPickupDrafts] = useState<Record<string, string>>({});
   const [chambreDrafts, setChambreDrafts] = useState<Record<string, string>>({});
@@ -1242,6 +1255,34 @@ export default function SuivisView({
     .filter((c) => c.au_revoir_envoye && c.au_revoir_envoye_le)
     .filter((c) => daysBetween(todayStr, c.au_revoir_envoye_le as string) <= 3)
     .sort((a, b) => (b.au_revoir_envoye_le as string).localeCompare(a.au_revoir_envoye_le as string));
+
+  // Même règle que le rappel personnel (PersonalNudgeAlert) — voir
+  // estDossierNonVerifie dans lib/resa.ts.
+  const clientsVerifies = new Set(verifications.map((v) => v.client_id));
+  const verifsRows = clients
+    .filter((c) => estDossierNonVerifie(c, clientsVerifies) && !dossiersVerifiesMaintenant.has(c.id))
+    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
+
+  const monPrenom = profiles.find((p) => p.id === currentUserId)?.prenom || "";
+
+  const validerVerification = async (c: Client) => {
+    setDossiersVerifiesMaintenant((prev) => new Set(prev).add(c.id));
+    const { error } = await supabase.from("verifications").insert({
+      client_id: c.id,
+      nom: monPrenom,
+      date: todayStr,
+      verifie_par_id: currentUserId,
+    });
+    if (error) {
+      // Échec silencieux mais visible : la carte réapparaît au prochain
+      // rafraîchissement automatique (verifications n'a pas été écrit).
+      setDossiersVerifiesMaintenant((prev) => {
+        const next = new Set(prev);
+        next.delete(c.id);
+        return next;
+      });
+    }
+  };
 
   const auRevoirUpcomingRows = clients
     .filter((c) => c.date_fin && !c.au_revoir_envoye)
@@ -2106,6 +2147,46 @@ export default function SuivisView({
                       onChange={(v) => onUpdateClient(c.id, { avis_statut: v })}
                     />
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sub === "verifs" && (
+        <div className="space-y-8">
+          <div>
+            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">
+              Dossiers à vérifier
+            </h3>
+            <p className="mb-3 text-xs text-neutral-400">
+              Clients confirmés dont le séjour arrive (ou a déjà commencé) et jamais vérifiés.
+            </p>
+            {verifsRows.length === 0 && (
+              <div className="text-sm text-neutral-400">Rien à vérifier pour l&apos;instant.</div>
+            )}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {verifsRows.map((c) => (
+                <div
+                  key={c.id}
+                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ClientNameLink
+                      nom={c.nom}
+                      onClick={() => onOpenClient(c.id)}
+                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                    />
+                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => validerVerification(c)}
+                    className="mt-2 rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                  >
+                    Vérifié — signer {monPrenom || ""}
+                  </button>
                 </div>
               ))}
             </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Client, Verification } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/dates";
 import { PROSPECT_STATUTS } from "@/lib/constants";
+import { estDossierNonVerifie } from "@/lib/resa";
 
 // Remplace l'idée de "responsable de la semaine" (relances / au revoir /
 // avis clients / vérif dossiers, voir Notion) : plutôt qu'une seule
@@ -40,13 +41,6 @@ function estAvisEnAttente(c: Client) {
     c.avis_statut === "À demander" &&
     addDays(c.date_fin, 7) <= todayStr()
   );
-}
-
-function estDossierNonVerifie(c: Client, clientsVerifies: Set<string>) {
-  if (c.statut !== "Client confirmé" || !c.date_debut) return false;
-  if (c.date_debut > addDays(todayStr(), 14)) return false;
-  if (c.date_fin && c.date_fin < todayStr()) return false;
-  return !clientsVerifies.has(c.id);
 }
 
 // Combien de jours d'inactivité personnelle avant de proposer le rappel —

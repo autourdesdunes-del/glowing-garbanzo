@@ -2308,9 +2308,11 @@ function AppShellInner({
               resaTarifs={allResaTarifs}
               remboursements={allRemboursements}
               incidents={allIncidents}
+              verifications={allVerifications}
               paypalPaiements={paypalPaiements}
               onRattacherPaiement={rattacherPaypalPaiement}
               profiles={teamProfiles}
+              currentUserId={userId}
               planningShifts={teamPlanningShifts}
               catalogue={catalogue}
               onUpdateClient={updateClientById}

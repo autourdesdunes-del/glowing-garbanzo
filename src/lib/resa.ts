@@ -6,8 +6,19 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { weekdayFr } from "@/lib/dates";
+import { addDays, todayStr, weekdayFr } from "@/lib/dates";
 import { CHAMPS_REQUIS_PRESETS } from "@/lib/constants";
+
+// Un client confirmé, séjour proche (dans les 14 jours, ou déjà en cours),
+// sans aucune ligne dans "verifications" — utilisé à la fois par le rappel
+// personnel (PersonalNudgeAlert) et par Suivis > Vérification de dossier,
+// pour que les deux s'accordent sur la même définition de "en attente".
+export function estDossierNonVerifie(c: Client, clientsVerifies: Set<string>) {
+  if (c.statut !== "Client confirmé" || !c.date_debut) return false;
+  if (c.date_debut > addDays(todayStr(), 14)) return false;
+  if (c.date_fin && c.date_fin < todayStr()) return false;
+  return !clientsVerifies.has(c.id);
+}
 
 // Le solde reste unique par séjour (règle métier — jamais un solde par
 // activité), mais l'équipe doit pouvoir choisir explicitement son statut de

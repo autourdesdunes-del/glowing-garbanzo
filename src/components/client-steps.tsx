@@ -235,6 +235,37 @@ function paxSummary(client: Client) {
   return parts.join(", ");
 }
 
+function hebergementSummary(client: Client) {
+  if (client.type_hebergement === "airbnb") {
+    return client.hotel.trim() ? `Airbnb — ${client.hotel}` : "Airbnb — non renseigné";
+  }
+  return client.hotel.trim() || "Non renseigné";
+}
+
+function datesSummary(client: Client) {
+  if (!client.date_debut && !client.date_fin) return "Non renseignées";
+  return `${fmtDateDMY(client.date_debut)} → ${fmtDateDMY(client.date_fin)}`;
+}
+
+function contactViaSummary(client: Client) {
+  if (client.canal === "Instagram" || client.canal === "TikTok") {
+    return client.pseudo_contact ? `${client.canal} — @${client.pseudo_contact}` : client.canal;
+  }
+  if (client.canal === "Email") {
+    return client.email ? `Email — ${client.email}` : "Email";
+  }
+  if (client.canal === "Autre") {
+    return client.canal_autre || "Autre";
+  }
+  return client.canal;
+}
+
+function whatsappSummary(client: Client) {
+  const parts = [client.telephone || "Non renseigné"];
+  if (client.email && client.canal !== "Email") parts.push(client.email);
+  return parts.join(" · ");
+}
+
 type StepProps = {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
@@ -249,6 +280,7 @@ export function ContactStep({
   hotelsRef,
   taxesRef,
   onOpenHelp,
+  onJumpToPaiements,
 }: StepProps & {
   onNeedsField: (message: string, focusId: string) => void;
   reservations: Reservation[];
@@ -256,6 +288,7 @@ export function ContactStep({
   hotelsRef: HotelReference[];
   taxesRef: TransfertTaxe[];
   onOpenHelp: () => void;
+  onJumpToPaiements: () => void;
 }) {
   const supabase = createClient();
   const toast = useToast();
@@ -263,11 +296,16 @@ export function ContactStep({
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [infoManquanteOpen, setInfoManquanteOpen] = useState(false);
-  const [emailOpen, setEmailOpen] = useState(!!client.email.trim());
   const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
   const [showCircuit, setShowCircuit] = useState(false);
   const [paxModalOpen, setPaxModalOpen] = useState(false);
-  const [hebergementMenuOpen, setHebergementMenuOpen] = useState(false);
+  const [hotelModalOpen, setHotelModalOpen] = useState(false);
+  const [datesModalOpen, setDatesModalOpen] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [egypteOpen, setEgypteOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -383,301 +421,240 @@ export function ContactStep({
     ? matchTransfertTaxe(taxesRef, hotelMatch.ville, client.adultes, client.enfants)
     : null;
 
+  const nbAutresInfos = 4;
+
+  const egyptCopyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
+    client.hotel || "—"
+  }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
+  const doCopyEgypt = async () => {
+    try {
+      await navigator.clipboard.writeText(egyptCopyBlock);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard unavailable, ignore
+    }
+  };
+
   return (
     <div className="space-y-1.5">
-      <PropertyRow label="Contact via" icon={<PropIcon name="phone" />}>
-        <div className="flex items-center gap-4">
-          <select
-            value={client.canal}
-            onChange={(e) => onChange({ canal: e.target.value })}
-            className="input-flat w-32 flex-shrink-0"
-          >
-            {CANAUX.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-          {(client.canal === "Instagram" || client.canal === "TikTok") && (
-            <div className="flex flex-1 items-center gap-1 text-neutral-400">
-              <span>—</span>
-              <span>@</span>
-              <input
-                value={client.pseudo_contact}
-                onChange={(e) => onChange({ pseudo_contact: e.target.value })}
-                placeholder="pseudo"
-                className="input-flat flex-1 text-[#171717]"
-              />
-            </div>
-          )}
-          {client.canal === "Email" && (
-            <div className="flex flex-1 items-center gap-1 text-neutral-400">
-              <span>—</span>
-              <input
-                type="email"
-                value={client.email}
-                onChange={(e) => onChange({ email: e.target.value })}
-                placeholder="email"
-                className="input-flat flex-1 text-[#171717]"
-              />
-            </div>
-          )}
-        </div>
+      <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
+        <button
+          type="button"
+          onClick={() => setHotelModalOpen(true)}
+          className="text-left text-sm text-[#171717] hover:underline"
+        >
+          {hebergementSummary(client)}
+        </button>
       </PropertyRow>
 
-      {client.canal === "Autre" && (
-        <PropertyRow label="Préciser le canal">
-          <input
-            value={client.canal_autre}
-            onChange={(e) => onChange({ canal_autre: e.target.value })}
-            className="input-flat"
-          />
-        </PropertyRow>
-      )}
-
-      {typeof totalSejour === "number" && (
-        <PropertyRow label="Total du séjour" icon={<PropIcon name="wallet" />}>
-          <span className="font-heading text-sm font-semibold text-[#171717]">
-            {totalSejour.toLocaleString("fr-FR")} €
-          </span>
-        </PropertyRow>
-      )}
-
-      <PropertyRow label="Dates du séjour" icon={<PropIcon name="calendar" />}>
-        <div className="flex items-center gap-1.5">
-          <input
-            type="date"
-            value={client.date_debut ?? ""}
-            onChange={(e) => onChange({ date_debut: e.target.value || null })}
-            className="input-flat w-auto"
-          />
-          <span className="text-neutral-400">→</span>
-          <input
-            type="date"
-            value={client.date_fin ?? ""}
-            onChange={(e) => onChange({ date_fin: e.target.value || null })}
-            className="input-flat w-auto"
-          />
-        </div>
-      </PropertyRow>
-
-      {client.type_hebergement === "airbnb" ? (
-        <>
-          <PropertyRow label="Airbnb" icon={<PropIcon name="hotel" />}>
-            <div className="flex items-center gap-2">
-              <input
-                value={client.hotel}
-                onChange={(e) => onChange({ hotel: e.target.value })}
-                placeholder="Nom / lien de l'Airbnb"
-                className="input-flat flex-1 font-medium"
-              />
-              <button
-                type="button"
-                onClick={() => onChange({ type_hebergement: "hotel" })}
-                className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
-              >
-                Revenir à un hôtel
-              </button>
-            </div>
-          </PropertyRow>
-          <PropertyRow label="Adresse / GPS">
-            <input
-              value={client.airbnb_adresse}
-              onChange={(e) => onChange({ airbnb_adresse: e.target.value })}
-              placeholder="Adresse ou lien Google Maps"
-              className="input-flat"
-            />
-          </PropertyRow>
-          <PropertyRow label="Appart / Bâtiment">
-            <div className="flex items-center gap-2">
-              <input
-                value={client.airbnb_appartement}
-                onChange={(e) => onChange({ airbnb_appartement: e.target.value })}
-                placeholder="N° appartement (si besoin)"
-                className="input-flat flex-1"
-              />
-              <input
-                value={client.airbnb_building}
-                onChange={(e) => onChange({ airbnb_building: e.target.value })}
-                placeholder="Bâtiment (si besoin)"
-                className="input-flat flex-1"
-              />
-            </div>
-          </PropertyRow>
-        </>
-      ) : (
-        <>
-          <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
-            <div className="flex items-center gap-1.5">
-              <input
-                value={client.hotel}
-                onChange={(e) => onChange({ hotel: e.target.value })}
-                placeholder="Hôtel"
-                className="input-flat min-w-0 flex-1 font-medium"
-              />
-              <div className="relative ml-auto flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setHebergementMenuOpen((o) => !o)}
-                  title="Chambre, Airbnb ou circuit d'hôtels"
-                  className="flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-xs leading-none text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
-                >
-                  +
+      {client.type_hebergement !== "airbnb" && client.hotel.trim() && (
+        <div className="-mt-1 pl-[180px] text-xs">
+          {hotelMatch ? (
+            hotelMatch.sur_hurghada ? (
+              <span className="text-emerald-600">
+                ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
+              </span>
+            ) : (
+              <span className="text-orange-600">
+                ⚠ Cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut comporter une
+                taxe de transfert
+                {taxeResultat?.type === "montant" ? ` (${euros(taxeResultat.montant)} €)` : ""}
+                {taxeResultat?.type === "a_demander" ? ` (${taxeResultat.note})` : ""}.{" "}
+                <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+                  Vérifier le montant
                 </button>
-                {hebergementMenuOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setHebergementMenuOpen(false)}
-                    />
-                    <div className="absolute right-0 z-50 mt-1 w-60 rounded-md border border-neutral-200 bg-white p-1 shadow-lg">
-                      <div className="px-2 py-1.5">
-                        <label className="mb-1 block text-[11px] text-neutral-400">N° chambre(s)</label>
-                        <input
-                          value={client.chambre}
-                          onChange={(e) => onChange({ chambre: e.target.value })}
-                          placeholder="N° chambre(s)"
-                          className="input w-full text-sm"
-                        />
-                      </div>
-                      <div className="my-1 border-t border-neutral-100" />
+              </span>
+            )
+          ) : (
+            <span className="text-neutral-400">
+              Hôtel non répertorié dans HELP.{" "}
+              <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+                L&apos;ajouter
+              </button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {hotelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">Hébergement</h2>
+            <div className="space-y-1.5">
+              {client.type_hebergement === "airbnb" ? (
+                <>
+                  <PropertyRow label="Airbnb" icon={<PropIcon name="hotel" />}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={client.hotel}
+                        onChange={(e) => onChange({ hotel: e.target.value })}
+                        placeholder="Nom / lien de l'Airbnb"
+                        className="input-flat flex-1 font-medium"
+                      />
                       <button
                         type="button"
-                        onClick={() => {
-                          onChange({ type_hebergement: "airbnb" });
-                          setHebergementMenuOpen(false);
-                        }}
-                        className="block w-full px-3 py-1.5 text-left text-xs text-neutral-700 hover:bg-[#fafafa]"
+                        onClick={() => onChange({ type_hebergement: "hotel" })}
+                        className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
                       >
-                        Passer en Airbnb
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          addHotelStep();
-                          setHebergementMenuOpen(false);
-                        }}
-                        className="block w-full px-3 py-1.5 text-left text-xs text-neutral-700 hover:bg-[#fafafa]"
-                      >
-                        Ajouter un hôtel (circuit)
+                        Revenir à un hôtel
                       </button>
                     </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </PropertyRow>
-
-          {client.hotel.trim() && (
-            <div className="-mt-1 pl-[180px] text-xs">
-              {hotelMatch ? (
-                hotelMatch.sur_hurghada ? (
-                  <span className="text-emerald-600">
-                    ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
-                  </span>
-                ) : (
-                  <span className="text-orange-600">
-                    ⚠ Cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut comporter une
-                    taxe de transfert
-                    {taxeResultat?.type === "montant" ? ` (${euros(taxeResultat.montant)} €)` : ""}
-                    {taxeResultat?.type === "a_demander" ? ` (${taxeResultat.note})` : ""}.{" "}
-                    <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
-                      Vérifier le montant
-                    </button>
-                  </span>
-                )
+                  </PropertyRow>
+                  <PropertyRow label="Adresse / GPS">
+                    <input
+                      value={client.airbnb_adresse}
+                      onChange={(e) => onChange({ airbnb_adresse: e.target.value })}
+                      placeholder="Adresse ou lien Google Maps"
+                      className="input-flat"
+                    />
+                  </PropertyRow>
+                  <PropertyRow label="Appart / Bâtiment">
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={client.airbnb_appartement}
+                        onChange={(e) => onChange({ airbnb_appartement: e.target.value })}
+                        placeholder="N° appartement (si besoin)"
+                        className="input-flat flex-1"
+                      />
+                      <input
+                        value={client.airbnb_building}
+                        onChange={(e) => onChange({ airbnb_building: e.target.value })}
+                        placeholder="Bâtiment (si besoin)"
+                        className="input-flat flex-1"
+                      />
+                    </div>
+                  </PropertyRow>
+                </>
               ) : (
-                <span className="text-neutral-400">
-                  Hôtel non répertorié dans HELP.{" "}
-                  <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
-                    L&apos;ajouter
+                <>
+                  <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
+                    <input
+                      value={client.hotel}
+                      onChange={(e) => onChange({ hotel: e.target.value })}
+                      placeholder="Hôtel"
+                      className="input-flat w-full font-medium"
+                    />
+                  </PropertyRow>
+                  <PropertyRow label="N° chambre(s)">
+                    <input
+                      value={client.chambre}
+                      onChange={(e) => onChange({ chambre: e.target.value })}
+                      placeholder="N° chambre(s)"
+                      className="input-flat w-full"
+                    />
+                  </PropertyRow>
+                  <button
+                    type="button"
+                    onClick={() => onChange({ type_hebergement: "airbnb" })}
+                    className="pl-[26px] text-left text-xs text-neutral-400 hover:text-neutral-600"
+                  >
+                    › changer vers un airbnb
                   </button>
-                </span>
+
+                  <div className="border-t border-neutral-100 pt-2">
+                    {clientHotels.length === 0 && !showCircuit ? (
+                      <button
+                        type="button"
+                        onClick={addHotelStep}
+                        className="text-xs text-neutral-500 hover:text-neutral-700 hover:underline"
+                      >
+                        + Ajouter d&apos;autres hôtels (circuit)
+                      </button>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-xs font-medium text-neutral-500">
+                          Circuit (Caire, Louxor, Assouan, Marsa Alam, Siwa…)
+                        </p>
+                        {clientHotels.map((h, i) => (
+                          <div key={h.id} className="space-y-1.5 rounded-md border border-neutral-200 p-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  disabled={i === 0}
+                                  onClick={() => moveHotelStep(h.id, -1)}
+                                  className="text-xs text-neutral-500 disabled:opacity-20"
+                                >
+                                  ▲
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={i === clientHotels.length - 1}
+                                  onClick={() => moveHotelStep(h.id, 1)}
+                                  className="text-xs text-neutral-500 disabled:opacity-20"
+                                >
+                                  ▼
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => deleteHotelStep(h.id)}
+                                className="text-xs text-red-600"
+                              >
+                                ✕ Retirer
+                              </button>
+                            </div>
+                            <input
+                              value={h.nom}
+                              onChange={(e) => updateHotelStep(h.id, { nom: e.target.value })}
+                              placeholder="Hôtel"
+                              className="input w-full text-sm"
+                            />
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <input
+                                value={h.ville}
+                                onChange={(e) => updateHotelStep(h.id, { ville: e.target.value })}
+                                placeholder="Ville"
+                                className="input text-sm"
+                              />
+                              <input
+                                value={h.chambre}
+                                onChange={(e) => updateHotelStep(h.id, { chambre: e.target.value })}
+                                placeholder="Chambre"
+                                className="input text-sm"
+                              />
+                              <input
+                                type="date"
+                                value={h.date_arrivee ?? ""}
+                                onChange={(e) =>
+                                  updateHotelStep(h.id, { date_arrivee: e.target.value || null })
+                                }
+                                className="input text-sm"
+                              />
+                              <input
+                                type="date"
+                                value={h.date_depart ?? ""}
+                                onChange={(e) =>
+                                  updateHotelStep(h.id, { date_depart: e.target.value || null })
+                                }
+                                className="input text-sm"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addHotelStep}
+                          className="text-xs text-[#171717] hover:underline"
+                        >
+                          + Ajouter un hôtel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
-          )}
-
-          {(clientHotels.length > 0 || showCircuit) && (
-            <div className="pl-[180px]">
-              <div className="rounded-md border border-neutral-200 bg-white p-3">
-                <p className="mb-2 text-sm font-medium text-neutral-700">
-                  Autres hôtels du circuit (Caire, Louxor, Assouan, Marsa Alam, Siwa…)
-                </p>
-                {clientHotels.map((h, i) => (
-                  <div key={h.id} className="mb-3 flex items-end gap-2 border-b border-neutral-100 pb-3">
-                    <div className="flex flex-col gap-0.5">
-                      <button
-                        type="button"
-                        disabled={i === 0}
-                        onClick={() => moveHotelStep(h.id, -1)}
-                        className="text-xs text-neutral-500 disabled:opacity-20"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        disabled={i === clientHotels.length - 1}
-                        onClick={() => moveHotelStep(h.id, 1)}
-                        className="text-xs text-neutral-500 disabled:opacity-20"
-                      >
-                        ▼
-                      </button>
-                    </div>
-                    <Field label="Hôtel">
-                      <input
-                        value={h.nom}
-                        onChange={(e) => updateHotelStep(h.id, { nom: e.target.value })}
-                        className="input"
-                      />
-                    </Field>
-                    <Field label="Ville">
-                      <input
-                        value={h.ville}
-                        onChange={(e) => updateHotelStep(h.id, { ville: e.target.value })}
-                        className="input"
-                      />
-                    </Field>
-                    <Field label="Chambre">
-                      <input
-                        value={h.chambre}
-                        onChange={(e) => updateHotelStep(h.id, { chambre: e.target.value })}
-                        className="input w-24"
-                      />
-                    </Field>
-                    <Field label="Arrivée">
-                      <input
-                        type="date"
-                        value={h.date_arrivee ?? ""}
-                        onChange={(e) => updateHotelStep(h.id, { date_arrivee: e.target.value || null })}
-                        className="input"
-                      />
-                    </Field>
-                    <Field label="Départ">
-                      <input
-                        type="date"
-                        value={h.date_depart ?? ""}
-                        onChange={(e) => updateHotelStep(h.id, { date_depart: e.target.value || null })}
-                        className="input"
-                      />
-                    </Field>
-                    <button
-                      type="button"
-                      onClick={() => deleteHotelStep(h.id)}
-                      className="pb-1.5 text-red-600"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addHotelStep}
-                  className="text-xs text-[#171717] hover:underline"
-                >
-                  + Ajouter un hôtel
-                </button>
-              </div>
-            </div>
-          )}
-        </>
+            <button
+              type="button"
+              onClick={() => setHotelModalOpen(false)}
+              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Valider
+            </button>
+          </div>
+        </div>
       )}
 
       <PropertyRow label="Voyageurs" icon={<PropIcon name="person" />}>
@@ -777,220 +754,338 @@ export function ContactStep({
         </div>
       )}
 
+      <PropertyRow label="Dates du séjour" icon={<PropIcon name="calendar" />}>
+        <button
+          type="button"
+          onClick={() => setDatesModalOpen(true)}
+          className="text-left text-sm text-[#171717] hover:underline"
+        >
+          {datesSummary(client)}
+        </button>
+      </PropertyRow>
+
+      {datesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">Dates du séjour</h2>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="date"
+                value={client.date_debut ?? ""}
+                onChange={(e) => onChange({ date_debut: e.target.value || null })}
+                className="input w-full"
+              />
+              <span className="text-neutral-400">→</span>
+              <input
+                type="date"
+                value={client.date_fin ?? ""}
+                onChange={(e) => onChange({ date_fin: e.target.value || null })}
+                className="input w-full"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setDatesModalOpen(false)}
+              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Valider
+            </button>
+          </div>
+        </div>
+      )}
+
+      {typeof totalSejour === "number" && (
+        <PropertyRow label="Total du séjour" icon={<PropIcon name="wallet" />}>
+          <span className="font-heading text-sm font-semibold text-[#171717]">
+            {totalSejour.toLocaleString("fr-FR")} €
+          </span>
+        </PropertyRow>
+      )}
+
       <PropertyRow label="What's app" icon={<PropIcon name="phone" />}>
-        <div className="flex items-center gap-2">
-          <input
-            value={client.telephone}
-            onChange={(e) => onChange({ telephone: e.target.value })}
-            size={Math.max(client.telephone.length, 10)}
-            className="input-flat w-auto min-w-0 flex-shrink"
-          />
-          {client.canal !== "Email" &&
-            (emailOpen ? (
-              <>
-                <span className="flex-shrink-0 text-neutral-300">·</span>
+        <button
+          type="button"
+          onClick={() => setWhatsappModalOpen(true)}
+          className="text-left text-sm text-[#171717] hover:underline"
+        >
+          {whatsappSummary(client)}
+        </button>
+      </PropertyRow>
+
+      {whatsappModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">
+              What&apos;s app / Email
+            </h2>
+            <div className="space-y-1.5">
+              <PropertyRow label="What's app" icon={<PropIcon name="phone" />}>
+                <input
+                  value={client.telephone}
+                  onChange={(e) => onChange({ telephone: e.target.value })}
+                  className="input-flat w-full"
+                />
+              </PropertyRow>
+              <PropertyRow label="Email" icon={<PropIcon name="mail" />}>
                 <input
                   type="email"
                   value={client.email}
                   onChange={(e) => onChange({ email: e.target.value })}
                   placeholder="Email"
-                  size={Math.max(client.email.length, 10)}
-                  className="input-flat w-auto min-w-0 flex-shrink"
+                  className="input-flat w-full"
                 />
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setEmailOpen(true)}
-                className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
-              >
-                + Ajouter un e-mail
-              </button>
-            ))}
-        </div>
-      </PropertyRow>
-
-      <PropertyRow label="Passeports" icon={<PropIcon name="idcard" />}>
-        <PassportPhotosUpload
-          paths={client.passeport_photos || []}
-          onChange={(passeport_photos) => onChange({ passeport_photos })}
-        />
-      </PropertyRow>
-
-      <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
-        <select
-          value={client.relation_grace_a}
-          onChange={(e) => onChange({ relation_grace_a: e.target.value })}
-          className="input-flat"
-        >
-          {RELATIONS.map((r) => (
-            <option key={r}>{r}</option>
-          ))}
-        </select>
-      </PropertyRow>
-      {client.relation_grace_a === "Autre" && (
-        <PropertyRow label="Préciser la relation">
-          <input
-            value={client.relation_autre}
-            onChange={(e) => onChange({ relation_autre: e.target.value })}
-            className="input-flat"
-          />
-        </PropertyRow>
-      )}
-
-      <PropertyRow label="Infos manquantes" icon={<PropIcon name="alert" />}>
-        <div className="flex flex-1 flex-wrap items-center gap-1.5">
-          {autoTags.map((s) => (
-            <span
-              key={`auto-${s}`}
-              title="Détecté automatiquement depuis la fiche — se retire tout seul une fois complété"
-              className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
-            >
-              🔒 {s}
-            </span>
-          ))}
-          {manualTagsAffichees.map((s) => (
-            <span
-              key={s}
-              className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#666666]"
-            >
-              {s}
-              <button
-                type="button"
-                onClick={() => toggleInfoManquante(s)}
-                className="text-[#666666]/60 hover:text-[#666666]"
-              >
-                ✕
-              </button>
-            </span>
-          ))}
-          {autoTags.length === 0 && manualTagsAffichees.length === 0 && !infoManquanteOpen && (
-            <span className="text-sm text-neutral-400">Aucune info manquante</span>
-          )}
-          <button
-            type="button"
-            onClick={() => setInfoManquanteOpen((o) => !o)}
-            className="rounded-full border border-neutral-300 px-2 py-0.5 text-xs text-neutral-600 hover:bg-[#fafafa]"
-          >
-            {infoManquanteOpen ? "Fermer" : "+ Modifier"}
-          </button>
-        </div>
-      </PropertyRow>
-        {infoManquanteOpen && (
-          <div className="w-full rounded-md border border-neutral-300 bg-white p-2">
-            <div className="max-h-48 space-y-0.5 overflow-y-auto">
-              {infoOptions.map((opt) => (
-                <label
-                  key={opt}
-                  className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-[#fafafa]"
-                >
-                  <input
-                    type="checkbox"
-                    checked={client.infos_manquantes.includes(opt)}
-                    onChange={() => toggleInfoManquante(opt)}
-                  />
-                  {opt}
-                </label>
-              ))}
-            </div>
-            <div className="mt-2 flex gap-1 border-t border-neutral-100 pt-2">
-              <input
-                value={newInfoLabel}
-                onChange={(e) => setNewInfoLabel(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addCustomInfo();
-                  }
-                }}
-                placeholder="+ Nouvelle option"
-                className="input flex-1 text-sm"
-              />
-              <button
-                type="button"
-                onClick={addCustomInfo}
-                className="rounded-md bg-[#C9973E] px-2 text-sm text-white"
-              >
-                +
-              </button>
+              </PropertyRow>
             </div>
             <button
               type="button"
-              onClick={() => setInfoManquanteOpen(false)}
-              className="mt-2 w-full rounded-md bg-[#171717] py-1.5 text-xs font-medium text-white hover:opacity-90"
+              onClick={() => setWhatsappModalOpen(false)}
+              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90"
             >
-              Fermer
+              Valider
             </button>
           </div>
-        )}
-    </div>
-  );
-}
+        </div>
+      )}
 
-export function SejourStep({
-  client,
-  onChange,
-  hotelsRef,
-  taxesRef,
-  onOpenHelp,
-}: StepProps & {
-  hotelsRef: HotelReference[];
-  taxesRef: TransfertTaxe[];
-  onOpenHelp: () => void;
-}) {
-  const supabase = createClient();
-
-  const copyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
-    client.hotel || "—"
-  }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
-  const [copied, setCopied] = useState(false);
-  const [egypteOpen, setEgypteOpen] = useState(false);
-  const doCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(copyBlock);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // clipboard unavailable, ignore
-    }
-  };
-
-  return (
-    <div className="space-y-1.5">
-      {/* Dates du séjour, Hôtel/Chambre, circuit d'hôtels, voyageurs
-          (adultes/enfants/bébés/ados) et le message Hurghada/taxe de
-          transfert : se modifient/s'affichent désormais depuis Contact en
-          haut de la fiche, plus ici. */}
-      <div className="overflow-hidden rounded-md border border-[#666666]/20 bg-white">
+      <PropertyRow label="Contact via" icon={<PropIcon name="megaphone" />}>
         <button
           type="button"
-          onClick={() => setEgypteOpen((o) => !o)}
-          className="flex w-full items-center justify-between px-4 py-3 text-left"
+          onClick={() => setContactModalOpen(true)}
+          className="text-left text-sm text-[#171717] hover:underline"
         >
-          <span className="font-heading text-sm font-semibold text-[#171717]">
-            Bloc pour l&apos;équipe Égypte
-          </span>
-          <span className={`text-neutral-400 transition-transform ${egypteOpen ? "rotate-180" : ""}`}>
-            ⌄
-          </span>
+          {contactViaSummary(client)}
         </button>
-        {egypteOpen && (
-          <div className="border-t border-[#666666]/10 p-4 pt-3">
-            <p dir="rtl" className="text-xs text-neutral-500">
-              يرجى التحقق من صحة جميع الحقول قبل الإرسال
-            </p>
-            <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
-              {copyBlock}
-            </pre>
+      </PropertyRow>
+
+      {contactModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">Contact via</h2>
+            <div className="space-y-1.5">
+              <PropertyRow label="Canal">
+                <select
+                  value={client.canal}
+                  onChange={(e) => onChange({ canal: e.target.value })}
+                  className="input-flat w-full"
+                >
+                  {CANAUX.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </PropertyRow>
+              {(client.canal === "Instagram" || client.canal === "TikTok") && (
+                <PropertyRow label="Pseudo">
+                  <input
+                    value={client.pseudo_contact}
+                    onChange={(e) => onChange({ pseudo_contact: e.target.value })}
+                    placeholder="pseudo"
+                    className="input-flat w-full"
+                  />
+                </PropertyRow>
+              )}
+              {client.canal === "Email" && (
+                <PropertyRow label="Email">
+                  <input
+                    type="email"
+                    value={client.email}
+                    onChange={(e) => onChange({ email: e.target.value })}
+                    placeholder="email"
+                    className="input-flat w-full"
+                  />
+                </PropertyRow>
+              )}
+              {client.canal === "Autre" && (
+                <PropertyRow label="Préciser">
+                  <input
+                    value={client.canal_autre}
+                    onChange={(e) => onChange({ canal_autre: e.target.value })}
+                    className="input-flat w-full"
+                  />
+                </PropertyRow>
+              )}
+            </div>
             <button
-              onClick={doCopy}
-              className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              type="button"
+              onClick={() => setContactModalOpen(false)}
+              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90"
             >
-              {copied ? "Copié ✓" : "Copier"}
+              Valider
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {!client.solde_activite_id && (client.solde_rdv_heure || client.solde_rdv_lieu) && (
+        <PropertyRow label="RDV paiement" icon={<PropIcon name="wallet" />}>
+          <button
+            type="button"
+            onClick={onJumpToPaiements}
+            className="text-left text-sm text-[#171717] hover:underline"
+          >
+            {[client.solde_date ? fmtDateDMY(client.solde_date) : null, client.solde_rdv_heure, client.solde_rdv_lieu]
+              .filter(Boolean)
+              .join(" — ")}
+          </button>
+        </PropertyRow>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setMoreOpen((o) => !o)}
+        className="flex items-center gap-1.5 pt-1 text-xs text-neutral-400 hover:text-neutral-600"
+      >
+        <span className={`transition-transform ${moreOpen ? "rotate-90" : ""}`}>›</span>
+        {nbAutresInfos} autres informations
+      </button>
+
+      {moreOpen && (
+        <div className="space-y-1.5 border-t border-[#666666]/10 pt-1.5">
+          <PropertyRow label="Passeports" icon={<PropIcon name="idcard" />}>
+            <PassportPhotosUpload
+              paths={client.passeport_photos || []}
+              onChange={(passeport_photos) => onChange({ passeport_photos })}
+            />
+          </PropertyRow>
+
+          <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
+            <select
+              value={client.relation_grace_a}
+              onChange={(e) => onChange({ relation_grace_a: e.target.value })}
+              className="input-flat"
+            >
+              {RELATIONS.map((r) => (
+                <option key={r}>{r}</option>
+              ))}
+            </select>
+          </PropertyRow>
+          {client.relation_grace_a === "Autre" && (
+            <PropertyRow label="Préciser la relation">
+              <input
+                value={client.relation_autre}
+                onChange={(e) => onChange({ relation_autre: e.target.value })}
+                className="input-flat"
+              />
+            </PropertyRow>
+          )}
+
+          <PropertyRow label="Infos manquantes" icon={<PropIcon name="alert" />}>
+            <div className="flex flex-1 flex-wrap items-center gap-1.5">
+              {autoTags.map((s) => (
+                <span
+                  key={`auto-${s}`}
+                  title="Détecté automatiquement depuis la fiche — se retire tout seul une fois complété"
+                  className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
+                >
+                  🔒 {s}
+                </span>
+              ))}
+              {manualTagsAffichees.map((s) => (
+                <span
+                  key={s}
+                  className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#666666]"
+                >
+                  {s}
+                  <button
+                    type="button"
+                    onClick={() => toggleInfoManquante(s)}
+                    className="text-[#666666]/60 hover:text-[#666666]"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+              {autoTags.length === 0 && manualTagsAffichees.length === 0 && !infoManquanteOpen && (
+                <span className="text-sm text-neutral-400">Aucune info manquante</span>
+              )}
+              <button
+                type="button"
+                onClick={() => setInfoManquanteOpen((o) => !o)}
+                className="rounded-full border border-neutral-300 px-2 py-0.5 text-xs text-neutral-600 hover:bg-[#fafafa]"
+              >
+                {infoManquanteOpen ? "Fermer" : "+ Modifier"}
+              </button>
+            </div>
+          </PropertyRow>
+          {infoManquanteOpen && (
+            <div className="w-full rounded-md border border-neutral-300 bg-white p-2">
+              <div className="max-h-48 space-y-0.5 overflow-y-auto">
+                {infoOptions.map((opt) => (
+                  <label
+                    key={opt}
+                    className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-[#fafafa]"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={client.infos_manquantes.includes(opt)}
+                      onChange={() => toggleInfoManquante(opt)}
+                    />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+              <div className="mt-2 flex gap-1 border-t border-neutral-100 pt-2">
+                <input
+                  value={newInfoLabel}
+                  onChange={(e) => setNewInfoLabel(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addCustomInfo();
+                    }
+                  }}
+                  placeholder="+ Nouvelle option"
+                  className="input flex-1 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={addCustomInfo}
+                  className="rounded-md bg-[#C9973E] px-2 text-sm text-white"
+                >
+                  +
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInfoManquanteOpen(false)}
+                className="mt-2 w-full rounded-md bg-[#171717] py-1.5 text-xs font-medium text-white hover:opacity-90"
+              >
+                Fermer
+              </button>
+            </div>
+          )}
+
+          <div className="overflow-hidden rounded-md border border-[#666666]/20 bg-white">
+            <button
+              type="button"
+              onClick={() => setEgypteOpen((o) => !o)}
+              className="flex w-full items-center justify-between px-4 py-3 text-left"
+            >
+              <span className="font-heading text-sm font-semibold text-[#171717]">
+                Bloc pour l&apos;équipe Égypte
+              </span>
+              <span className={`text-neutral-400 transition-transform ${egypteOpen ? "rotate-180" : ""}`}>
+                ⌄
+              </span>
+            </button>
+            {egypteOpen && (
+              <div className="border-t border-[#666666]/10 p-4 pt-3">
+                <p dir="rtl" className="text-xs text-neutral-500">
+                  يرجى التحقق من صحة جميع الحقول قبل الإرسال
+                </p>
+                <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
+                  {egyptCopyBlock}
+                </pre>
+                <button
+                  onClick={doCopyEgypt}
+                  className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                >
+                  {copied ? "Copié ✓" : "Copier"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

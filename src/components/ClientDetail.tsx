@@ -33,11 +33,10 @@ import {
   ActivitesStep,
   ContactStep,
   PaiementsStep,
-  SejourStep,
   SuiviStep,
 } from "@/components/client-steps";
 
-const SECTIONS = ["Contact", "Séjour", "Activités", "Paiements", "Suivi"] as const;
+const SECTIONS = ["Contact", "Activités", "Paiements", "Suivi"] as const;
 
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -120,7 +119,6 @@ export default function ClientDetail({
   const toast = useToast();
   const CLOSED_SECTIONS: Record<(typeof SECTIONS)[number], boolean> = {
     Contact: false,
-    Séjour: false,
     Activités: false,
     Paiements: false,
     Suivi: false,
@@ -965,9 +963,8 @@ export default function ClientDetail({
         assouanVerifications={assouanVerifications}
       />
 
-      {/* Contact + Séjour : toujours visibles, pas de clic pour déplier —
-          contrairement aux autres sections, ce sont les infos qu'on
-          consulte le plus souvent en ouvrant une fiche. */}
+      {/* Contact : toujours visible, pas de clic pour déplier — c'est
+          l'info qu'on consulte le plus souvent en ouvrant une fiche. */}
       <div id="section-Contact" className="rounded-[6px] border border-[#eaeaea] bg-white px-4 py-3">
         <ContactStep
           client={client}
@@ -982,19 +979,19 @@ export default function ClientDetail({
               message,
               actionLabel: "Je rajoute l'âge des enfants",
               focusId,
-              section: "Séjour",
+              section: "Contact",
             })
           }
-        />
-      </div>
-
-      <div id="section-Séjour" className="rounded-[6px] border border-[#eaeaea] bg-white px-4 py-3">
-        <SejourStep
-          client={client}
-          onChange={onChange}
-          hotelsRef={hotelsRef}
-          taxesRef={taxesRef}
-          onOpenHelp={onOpenHelp}
+          onJumpToPaiements={() => {
+            setOpen({ ...CLOSED_SECTIONS, Paiements: true });
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                document
+                  .getElementById("section-Paiements")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }, 100);
+            });
+          }}
         />
       </div>
 

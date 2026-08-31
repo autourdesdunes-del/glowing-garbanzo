@@ -107,6 +107,20 @@ const VIEW_AS_OPTIONS = [
   { key: "hossam", label: "Vue Hossam" },
 ] as const;
 
+// Générateur de programme et Aperçu client sont encore en construction —
+// réservés à la Direction pour l'instant, l'équipe voit ce message à la
+// place tant que ce n'est pas prêt. Basé sur le vrai rôle du compte
+// (isDirection), pas sur le simulateur d'aperçu de la Direction : sur son
+// propre compte, Mélanie garde accès à tout, quel que soit "Aperçu vu par".
+function OutilEnConstruction() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center text-neutral-400">
+      <p>Bientôt disponible.</p>
+      <p>Cet outil est en cours de construction.</p>
+    </div>
+  );
+}
+
 function IconHome() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
@@ -2052,14 +2066,17 @@ function AppShellInner({
       )}
 
       {mode === "generateur" && (
-        <div className="flex-1 overflow-y-auto">
-          <GeneratorView catalogue={catalogue} clients={clients} />
+        <div className="flex flex-1 overflow-y-auto">
+          {isDirection ? <GeneratorView catalogue={catalogue} clients={clients} /> : <OutilEnConstruction />}
         </div>
       )}
 
       {mode === "preview" && (
-        <div className="flex-1 overflow-y-auto">
-          {(() => {
+        <div className={`flex-1 overflow-y-auto ${isDirection ? "" : "flex"}`}>
+          {!isDirection ? (
+            <OutilEnConstruction />
+          ) : (
+            (() => {
             // L'aperçu simule ce qu'un client confirmé voit de son propre
             // dossier — un prospect n'a pas encore de dossier à prévisualiser.
             const previewableClients = clients.filter((c) => CLIENT_STATUTS.includes(c.statut));
@@ -2086,7 +2103,8 @@ function AppShellInner({
                 <ClientPreviewView client={previewClient} catalogue={catalogue} />
               </>
             );
-          })()}
+            })()
+          )}
         </div>
       )}
 

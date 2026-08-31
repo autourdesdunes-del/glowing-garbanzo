@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AssouanVerification,
   BusEscalation,
@@ -25,6 +25,7 @@ import {
   volBadge,
   paiementBadge,
   participantsFor,
+  resaBreakdown,
   resaTotalMontant,
 } from "@/lib/resa";
 import ReservationCard from "@/components/ReservationCard";
@@ -32,6 +33,18 @@ import { localDateStr } from "@/lib/dates";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
+}
+function fmtDateShort(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-neutral-100 py-2 text-sm last:border-b-0">
+      <span className="text-neutral-500">{label}</span>
+      <span className="text-right font-medium text-[#171717]">{children}</span>
+    </div>
+  );
 }
 function fmtDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -146,6 +159,13 @@ export default function ItineraryView({
   };
 
   const [voirAnnulees, setVoirAnnulees] = useState(false);
+  // Le clic sur une activité ouvre d'abord son résumé (comme la vue
+  // Réservations) — cliquer dessus ensuite ouvre l'édition complète pour
+  // changer ce qu'il faut, puis "Valider" ramène au résumé mis à jour.
+  const [editingExpanded, setEditingExpanded] = useState(false);
+  useEffect(() => {
+    setEditingExpanded(false);
+  }, [expandedId]);
   const nbAnnulees = reservations.filter((r) => r.statut_resa === "Annulée").length;
   const reservationsAffichees = voirAnnulees
     ? reservations
@@ -292,12 +312,95 @@ export default function ItineraryView({
 
   const expandedReservation = reservationsAffichees.find((r) => r.id === expandedId) || null;
 
+  const expOptions = expandedReservation ? resaOptions[expandedReservation.id] || [] : [];
+  const expTarifs = expandedReservation ? resaTarifs[expandedReservation.id] || [] : [];
+  const expTotal = expandedReservation
+    ? resaTotalMontant(expandedReservation, client, expOptions, expTarifs)
+    : 0;
+  const expBadge = expandedReservation ? paiementBadge(client, expandedReservation) : null;
+  const expBreakdown = expandedReservation ? resaBreakdown(expandedReservation, client, expOptions, expTarifs) : [];
+  const { nbAd: expNbAd, nbEnf: expNbEnf } = expandedReservation
+    ? participantsFor(expandedReservation, client)
+    : { nbAd: 0, nbEnf: 0 };
+
   return (
     <div className="space-y-4">
-      {expandedReservation && (
+      {expandedReservation && !editingExpanded && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           onClick={() => onToggleExpand(null)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-heading text-lg font-semibold text-[#171717]">
+                {cleanActivityTitle(expandedReservation.nom_activite) || "Activité sans nom"}
+                {expandedReservation.horaire_souhaite ? ` (${expandedReservation.horaire_souhaite})` : ""}
+              </h3>
+              <button
+                type="button"
+                onClick={() => onToggleExpand(null)}
+                className="shrink-0 text-neutral-400 hover:text-[#171717]"
+              >
+                ✕
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditingExpanded(true)}
+              className="mt-3 block w-full text-left"
+            >
+              <DetailRow label="Client">{client.nom || "Sans nom"}</DetailRow>
+              {expandedReservation.date_debut && (
+                <DetailRow label="Date">
+                  {fmtDateShort(expandedReservation.date_debut)}
+                  {expandedReservation.date_fin && expandedReservation.date_fin !== expandedReservation.date_debut
+                    ? ` → ${fmtDateShort(expandedReservation.date_fin)}`
+                    : ""}
+                </DetailRow>
+              )}
+              {expandedReservation.pickup_reel && (
+                <DetailRow label="Pick-up">
+                  <span className="text-[#0F5C56]">🚐 {expandedReservation.pickup_reel}</span>
+                </DetailRow>
+              )}
+              <DetailRow label="PAX">
+                {expandedReservation.pax_override ||
+                  `${expNbAd} adultes${expNbEnf ? `, ${expNbEnf} enfant(s)` : ""}`}
+                {expNbEnf > 0 && client.ages_enfants ? ` (âges : ${client.ages_enfants} ans)` : ""}
+              </DetailRow>
+              {expBadge && (
+                <DetailRow label="Paiement">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${expBadge.className}`}>
+                    {expBadge.label}
+                  </span>
+                </DetailRow>
+              )}
+              <DetailRow label="Total">{euros(expTotal)} €</DetailRow>
+            </button>
+            {expBreakdown.length > 0 && (
+              <div className="mt-1 space-y-1 border-t border-neutral-100 pt-2 text-xs text-neutral-500">
+                {expBreakdown.map((line, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <span>{line.label}</span>
+                    <span>= {euros(line.amount)} €</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-center text-xs text-neutral-400">
+              Clique sur une ligne pour modifier cette activité
+            </p>
+          </div>
+        </div>
+      )}
+
+      {expandedReservation && editingExpanded && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setEditingExpanded(false)}
         >
           <div
             className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg shadow-xl"
@@ -310,7 +413,7 @@ export default function ItineraryView({
               options={resaOptions[expandedReservation.id] || []}
               tarifs={resaTarifs[expandedReservation.id] || []}
               expanded
-              onToggleExpanded={(v) => onToggleExpand(v ? expandedReservation.id : null)}
+              onToggleExpanded={(v) => setEditingExpanded(v)}
               onUpdate={(patch) => onUpdateReservation(expandedReservation.id, patch)}
               onDelete={() => onDeleteReservation(expandedReservation.id)}
               onAddOption={(seed) => onAddOption(expandedReservation.id, seed)}

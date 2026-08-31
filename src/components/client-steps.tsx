@@ -213,6 +213,28 @@ function AgeChips({
   );
 }
 
+function paxSummary(client: Client) {
+  const parts: string[] = [`${client.adultes || 0} adulte${(client.adultes || 0) > 1 ? "s" : ""}`];
+  if (client.enfants > 0) {
+    parts.push(
+      `${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${
+        client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""
+      }`
+    );
+  }
+  if (client.bebes > 0) {
+    parts.push(
+      `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${
+        client.ages_bebes ? ` (${client.ages_bebes} ans)` : ""
+      }`
+    );
+  }
+  if (client.ados_presents) {
+    parts.push(`ados${client.ages_ados ? ` (${client.ages_ados} ans)` : ""}`);
+  }
+  return parts.join(", ");
+}
+
 type StepProps = {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
@@ -244,6 +266,7 @@ export function ContactStep({
   const [emailOpen, setEmailOpen] = useState(!!client.email.trim());
   const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
   const [showCircuit, setShowCircuit] = useState(false);
+  const [paxModalOpen, setPaxModalOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -633,6 +656,103 @@ export function ContactStep({
         </>
       )}
 
+      <PropertyRow label="Voyageurs" icon={<PropIcon name="person" />}>
+        <button
+          type="button"
+          onClick={() => setPaxModalOpen(true)}
+          className="text-left text-sm text-[#171717] hover:underline"
+        >
+          {paxSummary(client)}
+        </button>
+      </PropertyRow>
+
+      {paxModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-md rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">Voyageurs</h2>
+            <div className="space-y-1.5">
+              <PropertyRow label="Adultes" icon={<PropIcon name="person" />}>
+                <input
+                  type="number"
+                  min={0}
+                  value={client.adultes}
+                  onChange={(e) => onChange({ adultes: Number(e.target.value) })}
+                  className="input-flat max-w-[140px]"
+                />
+              </PropertyRow>
+              {client.enfants > 0 && (
+                <PropertyRow label="Enfants (3-10 ans)" icon={<PropIcon name="person" />}>
+                  <AgeChips
+                    ages={parseAges(client.ages_enfants)}
+                    min={3}
+                    max={10}
+                    onChange={(ages) => onChange({ enfants: ages.length, ages_enfants: ages.join(", ") })}
+                  />
+                </PropertyRow>
+              )}
+              {client.bebes > 0 && (
+                <PropertyRow label="Bébés (0-2 ans)" icon={<PropIcon name="person" />}>
+                  <AgeChips
+                    ages={parseAges(client.ages_bebes)}
+                    min={0}
+                    max={2}
+                    onChange={(ages) => onChange({ bebes: ages.length, ages_bebes: ages.join(", ") })}
+                  />
+                </PropertyRow>
+              )}
+              {client.ados_presents && (
+                <PropertyRow label="Ados (11-17 ans)" icon={<PropIcon name="person" />}>
+                  <AgeChips
+                    ages={parseAges(client.ages_ados)}
+                    min={11}
+                    max={17}
+                    onChange={(ages) =>
+                      onChange({ ados_presents: ages.length > 0, ages_ados: ages.join(", ") })
+                    }
+                  />
+                </PropertyRow>
+              )}
+              <div className="flex gap-3 pl-[26px] pt-0.5 text-xs text-neutral-400">
+                {client.enfants === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onChange({ enfants: 1, ages_enfants: "3" })}
+                    className="hover:text-neutral-600"
+                  >
+                    + Enfant
+                  </button>
+                )}
+                {client.bebes === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onChange({ bebes: 1, ages_bebes: "0" })}
+                    className="hover:text-neutral-600"
+                  >
+                    + Bébé
+                  </button>
+                )}
+                {!client.ados_presents && (
+                  <button
+                    type="button"
+                    onClick={() => onChange({ ados_presents: true, ages_ados: "11" })}
+                    className="hover:text-neutral-600"
+                  >
+                    + Ado
+                  </button>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPaxModalOpen(false)}
+              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Valider
+            </button>
+          </div>
+        </div>
+      )}
+
       <PropertyRow label="What's app" icon={<PropIcon name="phone" />}>
         <div className="flex items-center gap-2">
           <input
@@ -800,6 +920,7 @@ export function SejourStep({
     client.hotel || "—"
   }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
   const [copied, setCopied] = useState(false);
+  const [egypteOpen, setEgypteOpen] = useState(false);
   const doCopy = async () => {
     try {
       await navigator.clipboard.writeText(copyBlock);
@@ -812,98 +933,39 @@ export function SejourStep({
 
   return (
     <div className="space-y-1.5">
-      {/* Dates du séjour, Hôtel/Chambre, circuit d'hôtels et le message
-          Hurghada/taxe de transfert : se modifient/s'affichent désormais
-          depuis Contact en haut de la fiche, plus ici. */}
-      <PropertyRow label="Adultes" icon={<PropIcon name="person" />}>
-        <input
-          type="number"
-          min={0}
-          value={client.adultes}
-          onChange={(e) => onChange({ adultes: Number(e.target.value) })}
-          className="input-flat max-w-[140px]"
-        />
-      </PropertyRow>
-
-      {client.enfants > 0 && (
-        <PropertyRow label="Enfants (3-10 ans)" icon={<PropIcon name="person" />}>
-          <AgeChips
-            ages={parseAges(client.ages_enfants)}
-            min={3}
-            max={10}
-            onChange={(ages) => onChange({ enfants: ages.length, ages_enfants: ages.join(", ") })}
-          />
-        </PropertyRow>
-      )}
-      {client.bebes > 0 && (
-        <PropertyRow label="Bébés (0-2 ans)" icon={<PropIcon name="person" />}>
-          <AgeChips
-            ages={parseAges(client.ages_bebes)}
-            min={0}
-            max={2}
-            onChange={(ages) => onChange({ bebes: ages.length, ages_bebes: ages.join(", ") })}
-          />
-        </PropertyRow>
-      )}
-      {client.ados_presents && (
-        <PropertyRow label="Ados (11-17 ans)" icon={<PropIcon name="person" />}>
-          <AgeChips
-            ages={parseAges(client.ages_ados)}
-            min={11}
-            max={17}
-            onChange={(ages) =>
-              onChange({ ados_presents: ages.length > 0, ages_ados: ages.join(", ") })
-            }
-          />
-        </PropertyRow>
-      )}
-
-      <div className="flex gap-3 pl-[26px] pt-0.5 text-xs text-neutral-400">
-        {client.enfants === 0 && (
-          <button
-            type="button"
-            onClick={() => onChange({ enfants: 1, ages_enfants: "3" })}
-            className="hover:text-neutral-600"
-          >
-            + Enfant
-          </button>
-        )}
-        {client.bebes === 0 && (
-          <button
-            type="button"
-            onClick={() => onChange({ bebes: 1, ages_bebes: "0" })}
-            className="hover:text-neutral-600"
-          >
-            + Bébé
-          </button>
-        )}
-        {!client.ados_presents && (
-          <button
-            type="button"
-            onClick={() => onChange({ ados_presents: true, ages_ados: "11" })}
-            className="hover:text-neutral-600"
-          >
-            + Ado
-          </button>
-        )}
-      </div>
-
-      <div className="rounded-md border border-[#666666]/20 bg-white p-4">
-        <h3 className="font-heading text-sm font-semibold text-[#171717]">
-          Bloc pour l&apos;équipe Égypte
-        </h3>
-        <p dir="rtl" className="mt-1 text-xs text-neutral-500">
-          يرجى التحقق من صحة جميع الحقول قبل الإرسال
-        </p>
-        <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
-          {copyBlock}
-        </pre>
+      {/* Dates du séjour, Hôtel/Chambre, circuit d'hôtels, voyageurs
+          (adultes/enfants/bébés/ados) et le message Hurghada/taxe de
+          transfert : se modifient/s'affichent désormais depuis Contact en
+          haut de la fiche, plus ici. */}
+      <div className="overflow-hidden rounded-md border border-[#666666]/20 bg-white">
         <button
-          onClick={doCopy}
-          className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+          type="button"
+          onClick={() => setEgypteOpen((o) => !o)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left"
         >
-          {copied ? "Copié ✓" : "Copier"}
+          <span className="font-heading text-sm font-semibold text-[#171717]">
+            Bloc pour l&apos;équipe Égypte
+          </span>
+          <span className={`text-neutral-400 transition-transform ${egypteOpen ? "rotate-180" : ""}`}>
+            ⌄
+          </span>
         </button>
+        {egypteOpen && (
+          <div className="border-t border-[#666666]/10 p-4 pt-3">
+            <p dir="rtl" className="text-xs text-neutral-500">
+              يرجى التحقق من صحة جميع الحقول قبل الإرسال
+            </p>
+            <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
+              {copyBlock}
+            </pre>
+            <button
+              onClick={doCopy}
+              className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              {copied ? "Copié ✓" : "Copier"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

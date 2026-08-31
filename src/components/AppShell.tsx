@@ -1233,6 +1233,15 @@ function AppShellInner({
       return;
     }
 
+    // updateClientById(idRetire, { statut: "Client annulé" }) plus bas annule
+    // en cascade les réservations encore rattachées à idRetire dans l'état
+    // local allReservations — sans cette mise à jour immédiate, il verrait
+    // encore les réservations qu'on vient tout juste de basculer vers
+    // idGarde (elles ne le sont en base, pas encore dans le state React) et
+    // les annulerait par erreur alors qu'elles appartiennent désormais à la
+    // fiche gardée.
+    setAllReservations((prev) => prev.map((r) => (r.client_id === idRetire ? { ...r, client_id: idGarde } : r)));
+
     const completion: Partial<Client> = {};
     if (!garde.telephone && retire.telephone) completion.telephone = retire.telephone;
     if (!garde.email && retire.email) completion.email = retire.email;
@@ -1267,13 +1276,25 @@ function AppShellInner({
     if (garde.doublon_possible_id === idRetire) completion.doublon_possible_id = null;
 
     await updateClientById(idGarde, completion);
-    await updateClientById(idRetire, {
+
+    // Pas de updateClientById(idRetire, { statut: "Client annulé" }) ici :
+    // son cascade "annule aussi les réservations du client" lit
+    // allReservations depuis la fermeture (closure) de ce rendu, qui ne
+    // reflète pas encore le setAllReservations plus haut (un setState ne
+    // met pas à jour une variable déjà capturée dans l'exécution en
+    // cours) — il verrait donc encore les réservations qu'on vient de
+    // basculer vers idGarde et les annulerait par erreur. On met donc à
+    // jour idRetire directement, sans passer par ce cascade.
+    const retirePatch: Partial<Client> = {
       statut: "Client annulé",
       doublon_traite: true,
       commentaires: [retire.commentaires, `🔀 Fusionné dans la fiche de "${garde.nom}" — voir cette fiche.`]
         .filter(Boolean)
         .join("\n"),
-    });
+    };
+    setClients((prev) => prev.map((c) => (c.id === idRetire ? { ...c, ...retirePatch } : c)));
+    const { error: errRetire } = await supabase.from("clients").update(retirePatch).eq("id", idRetire);
+    if (errRetire) toast("Échec de la mise à jour de la fiche retirée.");
 
     toast(`Fiches fusionnées : "${retire.nom}" a été rattaché à "${garde.nom}".`);
     await refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection });

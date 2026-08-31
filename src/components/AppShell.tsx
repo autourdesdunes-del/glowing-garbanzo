@@ -109,9 +109,10 @@ const VIEW_AS_OPTIONS = [
 
 // Générateur de programme et Aperçu client sont encore en construction —
 // réservés à la Direction pour l'instant, l'équipe voit ce message à la
-// place tant que ce n'est pas prêt. Basé sur le vrai rôle du compte
-// (isDirection), pas sur le simulateur d'aperçu de la Direction : sur son
-// propre compte, Mélanie garde accès à tout, quel que soit "Aperçu vu par".
+// place tant que ce n'est pas prêt. Basé sur effectiveIsDirection (donc
+// respecte le sélecteur "Aperçu vu par") : sur "La mienne", la Direction
+// garde accès à tout ; sur "Vue équipe"/"Vue manager"/"Vue Bode", ce
+// message s'affiche comme pour un vrai compte équipe.
 function OutilEnConstruction() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-1 text-center text-neutral-400">
@@ -2067,13 +2068,17 @@ function AppShellInner({
 
       {mode === "generateur" && (
         <div className="flex flex-1 overflow-y-auto">
-          {isDirection ? <GeneratorView catalogue={catalogue} clients={clients} /> : <OutilEnConstruction />}
+          {effectiveIsDirection ? (
+            <GeneratorView catalogue={catalogue} clients={clients} />
+          ) : (
+            <OutilEnConstruction />
+          )}
         </div>
       )}
 
       {mode === "preview" && (
-        <div className={`flex-1 overflow-y-auto ${isDirection ? "" : "flex"}`}>
-          {!isDirection ? (
+        <div className={`flex-1 overflow-y-auto ${effectiveIsDirection ? "" : "flex"}`}>
+          {!effectiveIsDirection ? (
             <OutilEnConstruction />
           ) : (
             (() => {

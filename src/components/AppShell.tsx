@@ -1975,6 +1975,7 @@ function AppShellInner({
           ) : (
             <DashboardView
               userEmail={effectiveUserEmail}
+              viewAsUserId={simulatedProfile ? effectiveUserId : undefined}
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}

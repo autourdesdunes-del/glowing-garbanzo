@@ -224,6 +224,7 @@ function ActionRow({
 
 export default function DashboardView({
   userEmail,
+  viewAsUserId,
   clients,
   reservations,
   resaOptions,
@@ -245,6 +246,9 @@ export default function DashboardView({
   catalogue,
 }: {
   userEmail: string;
+  // Simulation "Aperçu vu par" (AppShell) : affiche le shift du jour de
+  // CETTE personne plutôt que celui du vrai compte connecté.
+  viewAsUserId?: string;
   clients: Client[];
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -281,20 +285,28 @@ export default function DashboardView({
 
   useEffect(() => {
     (async () => {
+      setPlannedShift(null);
+      setShift(null);
+      setShiftDebut("");
+      setShiftFin("");
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
+      // En "Aperçu vu par" (Justine/Laura/Sylvie...), on montre l'horaire de
+      // CETTE personne, pas celui du vrai compte connecté — sinon le shift
+      // du jour ne s'affiche jamais pour personne d'autre que soi-même.
+      const targetId = viewAsUserId ?? user.id;
       const now = new Date();
       const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const [{ data: planned }, { data }] = await Promise.all([
         supabase
           .from("planning_shifts")
           .select("*")
-          .eq("user_id", user.id)
+          .eq("user_id", targetId)
           .eq("date", todayStr)
           .maybeSingle(),
-        supabase.from("user_shifts").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("user_shifts").select("*").eq("user_id", targetId).maybeSingle(),
       ]);
       if (planned) setPlannedShift(planned as PlanningShift);
       if (data) {
@@ -303,7 +315,7 @@ export default function DashboardView({
         setShiftFin((data as UserShift).shift_fin);
       }
     })();
-  }, [supabase]);
+  }, [supabase, viewAsUserId]);
 
   const saveShift = async () => {
     const {

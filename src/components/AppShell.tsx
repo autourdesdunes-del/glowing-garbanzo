@@ -223,6 +223,13 @@ function IconStar() {
     </svg>
   );
 }
+function IconMenu() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5">
+      <path d="M3 5.5h14M3 10h14M3 14.5h14" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 const PLANNING_SUBS = [
   { key: "aujourdhui", label: "Aujourd'hui" },
@@ -323,6 +330,9 @@ function AppShellInner({
   // l'équipe (Justine, Laura...) et Sylvie sont représentés individuellement
   // ci-dessous, via leur vrai profil (email), pas des clés génériques.
   const [viewAs, setViewAs] = useState<string>("moi");
+  // Menu plein écran mobile (<md) — remplace la sidebar, ouvert via la barre
+  // de navigation fixée en bas de l'écran (voir renderNavPanel plus bas).
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const confirm = useConfirm();
   const toast = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -1753,6 +1763,240 @@ function AppShellInner({
 
   const currentTab = TABS.find((t) => t.key === mode);
 
+  // Contenu de la navigation (logo, onglets + sous-onglets, "Aperçu vu par",
+  // statut de synchro) — partagé entre la sidebar fixe (desktop, ≥md) et le
+  // menu plein écran mobile (<md, ouvert via la barre du bas). Un seul
+  // endroit à maintenir pour ne pas laisser les deux versions diverger.
+  const renderNavPanel = () => (
+    <>
+      <div className="flex items-center gap-2.5 px-4 py-5">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">
+          AD
+        </div>
+        <div className="min-w-0">
+          <div className="font-heading truncate text-sm font-semibold text-[#171717]">Autour des Dunes</div>
+          <div className="truncate text-[11px] text-[#666666]">Espace interne</div>
+        </div>
+      </div>
+
+      <nav className="flex-1 space-y-0.5 px-2.5">
+        {TABS.filter(
+          (t) => (t.key !== "direction" || effectiveIsDirection) && (t.key !== "manager" || effectiveIsManager)
+        ).map((t) => {
+          const Icon = t.icon;
+          const active = mode === t.key;
+          return (
+            <div key={t.key}>
+              <button
+                onClick={() => {
+                  setMode(t.key);
+                  if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium transition ${
+                  active
+                    ? "bg-[#fafafa] text-[#171717]"
+                    : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                }`}
+              >
+                <Icon />
+                {t.label}
+              </button>
+              {t.key === "suivis" && active && (
+                <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                  {SUIVIS_SUBS.filter((s) => s.groupe === "important").map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        setSuivisSub(s.key);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                        suivisSub === s.key
+                          ? "bg-[#fafafa] text-[#171717]"
+                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                      }`}
+                    >
+                      <span>{s.label}</span>
+                      {s.key === "paypal" && paypalPaiementsNonRattaches > 0 && (
+                        <span className="rounded-full bg-[#EE0000] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          +{paypalPaiementsNonRattaches}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  <div className="mb-0.5 mt-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                    Suivi du suivi
+                  </div>
+                  {SUIVIS_SUBS.filter((s) => s.groupe === "suivi_du_suivi").map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        setSuivisSub(s.key);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                        suivisSub === s.key
+                          ? "bg-[#fafafa] text-[#171717]"
+                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                      }`}
+                    >
+                      <span>{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {t.key === "planning" && active && (
+                <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                  {PLANNING_SUBS.map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        setPlanningSub(s.key);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                        planningSub === s.key
+                          ? "bg-[#fafafa] text-[#171717]"
+                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {t.key === "direction" && active && effectiveIsDirection && (
+                <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                  {DIRECTION_SUBS.map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        setDirectionSub(s.key);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                        directionSub === s.key
+                          ? "bg-[#fafafa] text-[#171717]"
+                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {t.key === "help" && active && (
+                <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                  {HELP_SUBS.map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        setHelpSub(s.key);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                        helpSub === s.key
+                          ? "bg-[#fafafa] text-[#171717]"
+                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {t.key === "prospects" && active && (
+                <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                  {PROSPECTS_SUBS.map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        setProspectsSub(s.key);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                        prospectsSub === s.key
+                          ? "bg-[#fafafa] text-[#171717]"
+                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {t.key === "manager" && active && (
+                <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                  {MANAGER_SUBS.map((s) => (
+                    <button
+                      key={s.key}
+                      onClick={() => {
+                        setManagerSub(s.key);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                        managerSub === s.key
+                          ? "bg-[#fafafa] text-[#171717]"
+                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                      }`}
+                    >
+                      <span>{s.label}</span>
+                      {managerSubCounts[s.key] > 0 && (
+                        <span className="flex items-center gap-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          +{managerSubCounts[s.key]}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      {isDirection && (
+        <div className="border-t border-[#eaeaea] px-2.5 py-3">
+          <label className="mb-1 block px-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+            Aperçu vu par
+          </label>
+          <select
+            value={viewAs}
+            onChange={(e) => setViewAs(e.target.value as typeof viewAs)}
+            className={`w-full rounded-[6px] border-0 px-2.5 py-2 text-xs font-medium transition ${
+              viewAs === "moi" ? "bg-[#fafafa] text-[#666666] hover:bg-[#eaeaea]" : "bg-[#C9973E] text-white"
+            }`}
+          >
+            {viewAsOptions.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div className="border-t border-[#eaeaea] px-2.5 py-3">
+        <div
+          className={`px-2.5 pb-2 text-[11px] transition-opacity ${
+            saveState === "error"
+              ? "text-[#EE0000] opacity-100"
+              : saveState === "saving"
+                ? "text-[#C9973E] opacity-100"
+                : "text-[#666666] opacity-100"
+          }`}
+        >
+          {saveState === "error"
+            ? "⚠ Non enregistré — nouvelle tentative…"
+            : saveState === "saving"
+              ? "Enregistrement…"
+              : "Données synchronisées"}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex min-h-screen bg-[#fafafa]">
       <AppelReminders
@@ -1891,221 +2135,51 @@ function AppShellInner({
           </div>
         </div>
       )}
-      <aside className="flex w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white">
-        <div className="flex items-center gap-2.5 px-4 py-5">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#C9973E] text-sm font-semibold text-white">
-            AD
-          </div>
-          <div className="min-w-0">
-            <div className="font-heading truncate text-sm font-semibold text-[#171717]">
-              Autour des Dunes
-            </div>
-            <div className="truncate text-[11px] text-[#666666]">Espace interne</div>
-          </div>
-        </div>
-
-        <nav className="flex-1 space-y-0.5 px-2.5">
-          {TABS.filter(
-            (t) =>
-              (t.key !== "direction" || effectiveIsDirection) &&
-              (t.key !== "manager" || effectiveIsManager)
-          ).map((t) => {
-            const Icon = t.icon;
-            const active = mode === t.key;
-            return (
-              <div key={t.key}>
-                <button
-                  onClick={() => {
-                    setMode(t.key);
-                    if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
-                  }}
-                  className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium transition ${
-                    active
-                      ? "bg-[#fafafa] text-[#171717]"
-                      : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                  }`}
-                >
-                  <Icon />
-                  {t.label}
-                </button>
-                {t.key === "suivis" && active && (
-                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                    {SUIVIS_SUBS.filter((s) => s.groupe === "important").map((s) => (
-                      <button
-                        key={s.key}
-                        onClick={() => setSuivisSub(s.key)}
-                        className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                          suivisSub === s.key
-                            ? "bg-[#fafafa] text-[#171717]"
-                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                        }`}
-                      >
-                        <span>{s.label}</span>
-                        {s.key === "paypal" && paypalPaiementsNonRattaches > 0 && (
-                          <span className="rounded-full bg-[#EE0000] px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                            +{paypalPaiementsNonRattaches}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                    <div className="mb-0.5 mt-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-                      Suivi du suivi
-                    </div>
-                    {SUIVIS_SUBS.filter((s) => s.groupe === "suivi_du_suivi").map((s) => (
-                      <button
-                        key={s.key}
-                        onClick={() => setSuivisSub(s.key)}
-                        className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                          suivisSub === s.key
-                            ? "bg-[#fafafa] text-[#171717]"
-                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                        }`}
-                      >
-                        <span>{s.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {t.key === "planning" && active && (
-                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                    {PLANNING_SUBS.map((s) => (
-                      <button
-                        key={s.key}
-                        onClick={() => setPlanningSub(s.key)}
-                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                          planningSub === s.key
-                            ? "bg-[#fafafa] text-[#171717]"
-                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {t.key === "direction" && active && effectiveIsDirection && (
-                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                    {DIRECTION_SUBS.map((s) => (
-                      <button
-                        key={s.key}
-                        onClick={() => setDirectionSub(s.key)}
-                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                          directionSub === s.key
-                            ? "bg-[#fafafa] text-[#171717]"
-                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {t.key === "help" && active && (
-                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                    {HELP_SUBS.map((s) => (
-                      <button
-                        key={s.key}
-                        onClick={() => setHelpSub(s.key)}
-                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                          helpSub === s.key
-                            ? "bg-[#fafafa] text-[#171717]"
-                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {t.key === "prospects" && active && (
-                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                    {PROSPECTS_SUBS.map((s) => (
-                      <button
-                        key={s.key}
-                        onClick={() => setProspectsSub(s.key)}
-                        className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                          prospectsSub === s.key
-                            ? "bg-[#fafafa] text-[#171717]"
-                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {t.key === "manager" && active && (
-                  <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                    {MANAGER_SUBS.map((s) => (
-                      <button
-                        key={s.key}
-                        onClick={() => setManagerSub(s.key)}
-                        className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                          managerSub === s.key
-                            ? "bg-[#fafafa] text-[#171717]"
-                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                        }`}
-                      >
-                        <span>{s.label}</span>
-                        {managerSubCounts[s.key] > 0 && (
-                          <span className="flex items-center gap-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                            +{managerSubCounts[s.key]}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-
-        {isDirection && (
-          <div className="border-t border-[#eaeaea] px-2.5 py-3">
-            <label className="mb-1 block px-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-              Aperçu vu par
-            </label>
-            <select
-              value={viewAs}
-              onChange={(e) => setViewAs(e.target.value as typeof viewAs)}
-              className={`w-full rounded-[6px] border-0 px-2.5 py-2 text-xs font-medium transition ${
-                viewAs === "moi"
-                  ? "bg-[#fafafa] text-[#666666] hover:bg-[#eaeaea]"
-                  : "bg-[#C9973E] text-white"
-              }`}
-            >
-              {viewAsOptions.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        <div className="border-t border-[#eaeaea] px-2.5 py-3">
-          <div
-            className={`px-2.5 pb-2 text-[11px] transition-opacity ${
-              saveState === "error"
-                ? "text-[#EE0000] opacity-100"
-                : saveState === "saving"
-                  ? "text-[#C9973E] opacity-100"
-                  : "text-[#666666] opacity-100"
-            }`}
-          >
-            {saveState === "error"
-              ? "⚠ Non enregistré — nouvelle tentative…"
-              : saveState === "saving"
-                ? "Enregistrement…"
-                : "Données synchronisées"}
-          </div>
-        </div>
+      <aside className="hidden w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white md:flex">
+        {renderNavPanel()}
       </aside>
 
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileMenuOpen(false)} />
+          <div className="relative flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-[#eaeaea] px-3 py-3">
+              <span className="font-heading text-sm font-semibold text-[#171717]">Menu</span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Fermer le menu"
+                className="rounded-md p-1.5 text-[#666666] hover:bg-[#fafafa]"
+              >
+                ✕
+              </button>
+            </div>
+            {renderNavPanel()}
+            <div className="border-t border-[#eaeaea] px-2.5 py-3">
+              <div className="truncate px-2.5 pb-2 text-[11px] text-[#666666]">{userEmail}</div>
+              <div className="flex flex-col gap-1">
+                <ChangePasswordButton />
+                <button
+                  onClick={handleSignOut}
+                  className="appearance-none rounded-md border border-[#eaeaea] px-3 py-2 text-left text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-[#666666]/15 bg-white px-6 py-3">
-          <h1 className="flex-shrink-0 whitespace-nowrap font-heading text-base font-semibold text-[#171717]">
+        <header className="flex items-center gap-2 border-b border-[#666666]/15 bg-white px-3 py-3 md:gap-3 md:px-6">
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Ouvrir le menu"
+            className="flex-shrink-0 rounded-md p-1.5 text-[#666666] hover:bg-[#fafafa] md:hidden"
+          >
+            <IconMenu />
+          </button>
+          <h1 className="flex-shrink-0 truncate whitespace-nowrap font-heading text-base font-semibold text-[#171717]">
             {currentTab?.label}
           </h1>
           <div className="flex min-w-0 flex-1 justify-center">
@@ -2115,7 +2189,7 @@ function AppShellInner({
               onOpenClient={openClient}
             />
           </div>
-          <div className="flex flex-shrink-0 items-center gap-3 text-sm text-neutral-500">
+          <div className="hidden flex-shrink-0 items-center gap-3 text-sm text-neutral-500 md:flex">
             <span className="hidden max-w-[180px] truncate sm:inline">{userEmail}</span>
             <ChangePasswordButton />
             <button
@@ -2127,7 +2201,7 @@ function AppShellInner({
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col pb-14 md:pb-0">
       {mode === "dashboard" && (
         <div className="flex-1 overflow-y-auto">
           {!planningLoaded ? (
@@ -2249,8 +2323,12 @@ function AppShellInner({
             />
           ) : (
         <div className="flex flex-1 overflow-hidden">
-          {(clientListExpanded || query.trim()) && (
-          <aside className="flex w-72 flex-col border-r border-[#666666]/20 bg-white">
+          {(clientListExpanded || query.trim() || !selected || !activeStatuts.includes(selected.statut)) && (
+          <aside
+            className={`${
+              !selected || !activeStatuts.includes(selected.statut) ? "flex w-full" : "hidden"
+            } flex-col border-r border-[#666666]/20 bg-white md:flex md:w-72`}
+          >
               <>
                 {allTags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 border-b border-[#666666]/10 p-2">
@@ -2316,25 +2394,37 @@ function AppShellInner({
           </aside>
           )}
 
-          <main className="flex-1 overflow-y-auto p-6">
+          <main
+            className={`${
+              !selected || !activeStatuts.includes(selected.statut) ? "hidden md:block" : "block"
+            } flex-1 overflow-y-auto p-3 md:p-6`}
+          >
             {!selected || !activeStatuts.includes(selected.statut) ? (
               <div className="text-neutral-400">Sélectionne ou crée un client pour commencer.</div>
             ) : (
-              <ClientDetail
-                client={selected}
-                allClients={clients}
-                onChange={updateSelected}
-                onDelete={() => deleteClient(selected.id)}
-                onJumpToClient={openClient}
-                onDuplicateAsNewStay={duplicateAsNewStay}
-                canDelete={effectiveIsDirection}
-                canSeeMargins={effectiveIsDirection}
-                catalogue={catalogue}
-                catalogueTarifs={catalogueTarifs}
-                transfertTarifs={transfertTarifs}
-                catalogueOptions={catalogueOptions}
-                onOpenHelp={() => setMode("help")}
-              />
+              <>
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="mb-3 flex items-center gap-1 text-sm font-medium text-[#666666] hover:text-[#171717] md:hidden"
+                >
+                  ‹ Retour à la liste
+                </button>
+                <ClientDetail
+                  client={selected}
+                  allClients={clients}
+                  onChange={updateSelected}
+                  onDelete={() => deleteClient(selected.id)}
+                  onJumpToClient={openClient}
+                  onDuplicateAsNewStay={duplicateAsNewStay}
+                  canDelete={effectiveIsDirection}
+                  canSeeMargins={effectiveIsDirection}
+                  catalogue={catalogue}
+                  catalogueTarifs={catalogueTarifs}
+                  transfertTarifs={transfertTarifs}
+                  catalogueOptions={catalogueOptions}
+                  onOpenHelp={() => setMode("help")}
+                />
+              </>
             )}
           </main>
         </div>
@@ -2578,6 +2668,42 @@ function AppShellInner({
         )}
         </div>
       </div>
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-[#eaeaea] bg-white md:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        {(
+          [
+            { key: "dashboard" as Mode, label: "Accueil", icon: IconHome },
+            { key: "team" as Mode, label: "Clients", icon: IconUsers },
+            { key: "planning" as Mode, label: "Résa", icon: IconCalendar },
+            { key: "suivis" as Mode, label: "Suivis", icon: IconChecklist },
+          ]
+        ).map((t) => {
+          const Icon = t.icon;
+          const active = mode === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setMode(t.key)}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
+                active ? "text-[#8B4531]" : "text-[#666666]"
+              }`}
+            >
+              <Icon />
+              {t.label}
+            </button>
+          );
+        })}
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium text-[#666666]"
+        >
+          <IconMenu />
+          Menu
+        </button>
+      </nav>
     </div>
   );
 }

@@ -97,15 +97,6 @@ const MANAGER_SUBS = [
 ] as const;
 type ManagerSub = (typeof MANAGER_SUBS)[number]["key"];
 
-// Simulateur de vue réservé à la Direction (voir "viewAs" plus bas) — pour
-// prévisualiser/former sans changer de compte.
-const VIEW_AS_OPTIONS = [
-  { key: "moi", label: "La mienne" },
-  { key: "equipe", label: "Vue équipe" },
-  { key: "manager", label: "Vue manager" },
-  { key: "bode", label: "Vue Bode" },
-  { key: "hossam", label: "Vue Hossam" },
-] as const;
 
 // Générateur de programme et Aperçu client sont encore en construction —
 // réservés à la Direction pour l'instant, l'équipe voit ce message à la
@@ -322,18 +313,12 @@ function AppShellInner({
   // changer de compte — ne restreint jamais un vrai accès équipe :
   // isDirection reste utilisé tel quel pour les fetch de données sensibles.
   // "bode"/"hossam" n'ont pas encore de permissions propres dans l'appli
-  // (Bode n'a pas de compte, Hossam a le même rôle Direction que Mélanie) :
-  // en attendant, "bode" = vue équipe simple et "hossam" = vue Direction
-  // complète (Manager inclus, comme avant ce changement), à affiner plus
-  // tard si leurs permissions divergent.
-  const [viewAs, setViewAs] = useState<"moi" | "equipe" | "manager" | "bode" | "hossam">("moi");
-  const effectiveIsDirection = isDirection && (viewAs === "moi" || viewAs === "hossam");
-  const effectiveIsManager =
-    viewAs === "moi"
-      ? isManagerParRole
-      : viewAs === "hossam"
-        ? isDirection || isManagerParRole
-        : viewAs === "manager";
+  // (Hossam a le même rôle Direction que Mélanie) : "hossam" = vue
+  // Direction complète (Manager inclus, comme avant ce changement), à
+  // affiner plus tard si ses permissions divergent. Les autres membres de
+  // l'équipe (Justine, Laura...) et Sylvie sont représentés individuellement
+  // ci-dessous, via leur vrai profil (email), pas des clés génériques.
+  const [viewAs, setViewAs] = useState<string>("moi");
   const confirm = useConfirm();
   const toast = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -394,6 +379,31 @@ function AppShellInner({
   const [kommoReponsesEmploye, setKommoReponsesEmploye] = useState<KommoReponseEmploye[]>([]);
   const [remarquesLoaded, setRemarquesLoaded] = useState(false);
   const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
+  // Options du simulateur "Aperçu vu par" — une entrée par vraie personne
+  // (via son profil/email), pas des clés génériques : Justine/Laura/etc.
+  // apparaissent individuellement, et Sylvie (rôle Manager) est repérée par
+  // son prénom plutôt que par une clé "manager" à part.
+  const sylvieProfile = teamProfiles.find((p) => p.prenom.trim().toLowerCase() === "sylvie");
+  const sylvieViewKey = sylvieProfile?.id ?? "manager";
+  const autresEquipeProfiles = teamProfiles.filter(
+    (p) => p.role === "equipe" && p.prenom.trim().toLowerCase() !== "sylvie"
+  );
+  const viewAsOptions = [
+    { key: "moi", label: "La mienne" },
+    ...autresEquipeProfiles.map((p) => ({
+      key: p.id,
+      label: `Vue ${p.prenom.trim() || p.email.split("@")[0]}`,
+    })),
+    { key: sylvieViewKey, label: "Vue Sylvie" },
+    { key: "hossam", label: "Vue Hossam" },
+  ];
+  const effectiveIsDirection = isDirection && (viewAs === "moi" || viewAs === "hossam");
+  const effectiveIsManager =
+    viewAs === "moi"
+      ? isManagerParRole
+      : viewAs === "hossam"
+        ? isDirection || isManagerParRole
+        : viewAs === sylvieViewKey;
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
@@ -1710,7 +1720,7 @@ function AppShellInner({
                   : "bg-[#C9973E] text-white"
               }`}
             >
-              {VIEW_AS_OPTIONS.map((o) => (
+              {viewAsOptions.map((o) => (
                 <option key={o.key} value={o.key}>
                   {o.label}
                 </option>

@@ -156,13 +156,16 @@ function MiniMonth({
           const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           const dayShifts = shiftsByDate[iso] || [];
           const dominant = dominantStatut(dayShifts);
-          const cls = dominant ? statutBadgeClass(dominant) : "text-neutral-400 hover:bg-neutral-50";
+          const cls = dominant
+            ? `${statutBadgeClass(dominant)} hover:ring-2 hover:ring-offset-1 hover:ring-[#171717]/30`
+            : "border border-neutral-200 text-neutral-400 hover:border-[#171717]/40 hover:bg-neutral-50 hover:text-[#171717]";
           return (
             <button
               key={i}
               type="button"
               onClick={() => onDayClick?.(iso)}
-              className={`flex h-7 w-7 items-center justify-center rounded-md text-[11px] ${cls} ${
+              title={onDayClick ? "Voir le détail de ce jour" : undefined}
+              className={`flex h-7 w-7 items-center justify-center rounded-md text-[11px] transition ${cls} ${
                 onDayClick ? "cursor-pointer" : ""
               }`}
             >
@@ -1044,7 +1047,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
           {!isDirection && (
             <div className="mt-6">
               <p className="mb-2 text-sm font-medium text-neutral-700">
-                Mon planning sur 3 mois
+                Mon planning sur 3 mois — clique un jour pour le détail
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {monthCards.map(({ year, month }) => (

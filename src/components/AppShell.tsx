@@ -2158,6 +2158,13 @@ function AppShellInner({
                 <p className="text-sm text-neutral-500">Cette section est réservée aux managers.</p>
               </div>
             </div>
+          ) : !effectiveIsDirection ? (
+            // Manager en pause pour Sylvie (compte réel, ou aperçu "Vue
+            // manager" de la Direction) — même traitement que Générateur/
+            // Aperçu client tant que ce n'est pas prêt à être utilisé.
+            // "Vue Hossam" reste en Direction complète, donc voit le vrai
+            // Manager.
+            <OutilEnConstruction />
           ) : !planningLoaded ? (
             <Spinner />
           ) : (

@@ -844,6 +844,46 @@ function AppShellInner({
     saveTimers.current[id] = setTimeout(() => flushSave(id), 600);
   };
 
+  // Rafraîchissement automatique des clients/réservations, toutes les 25s,
+  // pour voir les nouveaux dossiers/activités entrants (ex. un nouveau
+  // prospect Kommo, ou une activité ajoutée par une collègue) sans avoir à
+  // recharger la page manuellement — jusqu'ici seul le premier chargement
+  // allait chercher ces données.
+  //
+  // Pour les clients : une modification tapée à l'écran passe par un
+  // enregistrement optimiste + différé (jusqu'à ~15s en cas d'erreur réseau,
+  // voir flushSave/pendingPatches ci-dessus) — un rafraîchissement en plein
+  // milieu écraserait ce brouillon local pas encore confirmé en base. On
+  // réapplique donc par-dessus la donnée fraîche toute modif encore en
+  // attente pour ce client, le reste (+ les nouveaux/supprimés) vient
+  // toujours du serveur.
+  const refreshClientsAndReservations = useCallback(
+    async (withReservations: boolean) => {
+      if (document.visibilityState !== "visible") return;
+      const [{ data: freshClients }, { data: freshReservations }] = await Promise.all([
+        supabase.from("clients").select("*").order("created_at", { ascending: false }),
+        withReservations ? supabase.from("reservations").select("*") : Promise.resolve({ data: null }),
+      ]);
+      if (freshClients) {
+        setClients(
+          (freshClients as Client[]).map((c) =>
+            pendingPatches.current[c.id] ? { ...c, ...pendingPatches.current[c.id] } : c
+          )
+        );
+      }
+      if (freshReservations) {
+        setAllReservations(freshReservations as Reservation[]);
+      }
+    },
+    [supabase]
+  );
+
+  useEffect(() => {
+    if (!loaded) return;
+    const id = setInterval(() => refreshClientsAndReservations(planningLoaded), 25000);
+    return () => clearInterval(id);
+  }, [loaded, planningLoaded, refreshClientsAndReservations]);
+
   const addClient = async (quick?: {
     nom: string;
     telephone: string;

@@ -527,6 +527,82 @@ export default function ClientDetail({
     }
   };
 
+  // Rafraîchissement automatique des activités de cette fiche, toutes les
+  // 25s, comme le reste de l'appli (voir AppShell.tsx) — sinon les
+  // Devis/Factures générés depuis cette fiche restaient basés sur les
+  // données chargées à l'ouverture, même si une collègue modifiait une
+  // activité de ce client entre-temps. Toute modif locale pas encore
+  // confirmée en base (reservationPendingPatch) est réappliquée par-dessus
+  // la donnée fraîche, comme pour les clients dans AppShell.
+  const refreshReservationsForClient = useCallback(async () => {
+    if (document.visibilityState !== "visible") return;
+    const { data: resas } = await supabase
+      .from("reservations")
+      .select("*")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: true });
+    const list = (resas as Reservation[]) || [];
+    setReservations(
+      list.map((r) =>
+        reservationPendingPatch.current[r.id] ? { ...r, ...reservationPendingPatch.current[r.id] } : r
+      )
+    );
+
+    if (list.length) {
+      const [{ data: opts }, { data: tarifs }] = await Promise.all([
+        supabase
+          .from("reservation_options")
+          .select("*")
+          .in(
+            "reservation_id",
+            list.map((r) => r.id)
+          ),
+        supabase
+          .from("reservation_tarifs")
+          .select("*")
+          .in(
+            "reservation_id",
+            list.map((r) => r.id)
+          ),
+      ]);
+      const grouped: Record<string, ReservationOption[]> = {};
+      ((opts as ReservationOption[]) || []).forEach((o) => {
+        grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
+      });
+      setResaOptions(grouped);
+      const groupedTarifs: Record<string, ReservationTarif[]> = {};
+      ((tarifs as ReservationTarif[]) || []).forEach((t) => {
+        groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
+      });
+      setResaTarifs(groupedTarifs);
+    } else {
+      setResaOptions({});
+      setResaTarifs({});
+    }
+
+    if (canSeeMargins && list.length) {
+      const { data: couts } = await supabase
+        .from("reservation_couts")
+        .select("*")
+        .in(
+          "reservation_id",
+          list.map((r) => r.id)
+        );
+      const map: Record<string, number> = {};
+      ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
+        map[c.reservation_id] = c.cout_reel;
+      });
+      setCoutsMap(map);
+    } else {
+      setCoutsMap({});
+    }
+  }, [client.id, canSeeMargins, supabase]);
+
+  useEffect(() => {
+    const id = setInterval(refreshReservationsForClient, 25000);
+    return () => clearInterval(id);
+  }, [refreshReservationsForClient]);
+
   const goToMomentConflict = () => {
     if (!momentConflict) return;
     const id = momentConflict.current.id;

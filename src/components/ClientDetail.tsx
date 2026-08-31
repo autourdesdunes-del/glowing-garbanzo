@@ -863,7 +863,7 @@ export default function ClientDetail({
               onChange={(e) => onChange({ hotel: e.target.value })}
               placeholder="Hôtel"
               size={Math.max(client.hotel.length, 6)}
-              className="border-none bg-transparent p-0 text-[#0F5C56] placeholder-[#0F5C56]/50 focus:outline-none"
+              className="border-none bg-transparent p-0 font-semibold text-[#0F5C56] placeholder-[#0F5C56]/50 focus:outline-none"
             />
           </span>
           <span className="flex items-center gap-1 rounded-full bg-[#8B4531]/10 px-2 py-0.5 text-[#8B4531]">

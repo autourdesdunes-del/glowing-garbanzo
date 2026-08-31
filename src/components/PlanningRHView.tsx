@@ -312,6 +312,7 @@ export default function PlanningRHView({
   const [assignDebut, setAssignDebut] = useState("");
   const [assignFin, setAssignFin] = useState("");
   const [assignStatut, setAssignStatut] = useState<PlanningShift["statut"]>("travail");
+  const [assignNote, setAssignNote] = useState("");
 
   const [congeDebut, setCongeDebut] = useState("");
   const [congeFin, setCongeFin] = useState("");
@@ -480,6 +481,7 @@ export default function PlanningRHView({
           shift_debut: assignStatut === "travail" ? assignDebut : "",
           shift_fin: assignStatut === "travail" ? assignFin : "",
           statut: assignStatut,
+          note: assignNote,
         },
         { onConflict: "user_id,date" }
       )
@@ -893,6 +895,12 @@ export default function PlanningRHView({
                     />
                   </>
                 )}
+                <input
+                  value={assignNote}
+                  onChange={(e) => setAssignNote(e.target.value)}
+                  placeholder="Note (optionnel — ex. OFF habituel décalé)"
+                  className="input min-w-[200px] flex-1"
+                />
                 <button
                   onClick={upsertShift}
                   className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
@@ -1013,6 +1021,11 @@ export default function PlanningRHView({
                           <span className="text-neutral-500">
                             {statutLabel(s.statut, s.shift_debut, s.shift_fin)}
                           </span>
+                          {s.note && (
+                            <span title={s.note} className="cursor-help text-neutral-400">
+                              ℹ️
+                            </span>
+                          )}
                           {isDirection && (
                             <button
                               onClick={() => deleteShift(s.id)}

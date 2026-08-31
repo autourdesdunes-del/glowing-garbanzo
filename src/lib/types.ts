@@ -485,6 +485,9 @@ export type PlanningShift = {
   shift_debut: string;
   shift_fin: string;
   statut: "travail" | "conge" | "repos" | "superviseur";
+  // Petite note libre sur une exception ponctuelle (ex. "OFF habituel
+  // décalé", "Récup samedi 19") — affichée en icône sur la carte du shift.
+  note: string;
   created_at: string;
   updated_at: string;
 };

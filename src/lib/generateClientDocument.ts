@@ -73,7 +73,9 @@ export function generateClientDocument(
     client.email && `Email : ${client.email}`,
     client.hotel && `Hôtel : ${client.hotel}${client.chambre ? ` — Chambre ${client.chambre}` : ""}`,
     (client.date_debut || client.date_fin) &&
-      `Séjour : ${fmtDate(client.date_debut)} → ${fmtDate(client.date_fin)}`,
+      // "→" (U+2192) ne s'affiche pas correctement avec la police de base
+      // de jsPDF (helvetica) — pas de glyphe, ça sort en mojibake sur le PDF.
+      `Séjour : ${fmtDate(client.date_debut)} - ${fmtDate(client.date_fin)}`,
     `Voyageurs : ${client.adultes} adulte(s)${client.enfants ? `, ${client.enfants} enfant(s)` : ""}`,
   ].filter(Boolean) as string[];
   infoLines.forEach((line) => {
@@ -92,48 +94,82 @@ export function generateClientDocument(
   doc.text("Activités", MARGIN, y);
   y += 6;
 
-  const colX = { nom: MARGIN, date: 95, pax: 125, total: 210 - MARGIN };
-  doc.setFontSize(8.5);
-  doc.setTextColor(120, 110, 100);
-  doc.text("Activité", colX.nom, y);
-  doc.text("Date", colX.date, y);
-  doc.text("Participants", colX.pax, y);
-  doc.text("Total", colX.total, y, { align: "right" });
-  y += 1.5;
-  doc.setDrawColor(230, 220, 200);
-  doc.line(MARGIN, y, 210 - MARGIN, y);
-  y += 5;
+  const colX = { nom: MARGIN, total: 210 - MARGIN };
 
   let sejourTotal = 0;
   if (relevantResas.length === 0) {
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
     doc.setTextColor(140, 140, 140);
     doc.text("Aucune activité.", MARGIN, y);
     y += 6;
   } else {
-    relevantResas.forEach((r) => {
-      ensureSpace(10);
+    relevantResas.forEach((r, i) => {
+      ensureSpace(20);
       const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
       sejourTotal += total;
-      const { nbAd, nbEnf } = participantsFor(r, client);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(30, 30, 30);
-      doc.setFontSize(9);
-      doc.text(r.nom_activite || "Activité sans nom", colX.nom, y, { maxWidth: 74 });
-      doc.text(fmtDate(r.date_debut), colX.date, y);
-      doc.text(
-        r.pax_override || `${nbAd} ad.${nbEnf ? ` + ${nbEnf} enf.` : ""}`,
-        colX.pax,
-        y,
-        { maxWidth: 55 }
-      );
+      // Le "bébé" facturable n'existe pas comme catégorie à part sur une
+      // réservation — c'est la 3e tranche de prix (pu_enfant_3ans /
+      // participants_enfants_3ans) qui joue ce rôle au cas par cas (ex. Le
+      // Caire en avion, où les bébés sont bien facturés), donc c'est elle
+      // qu'on affiche comme "bébé" sur le document plutôt qu'un champ qui
+      // n'existe pas.
+      const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(20, 20, 20);
+      doc.text(r.nom_activite || "Activité sans nom", colX.nom, y, { maxWidth: 130 });
       doc.text(euros(total), colX.total, y, { align: "right" });
-      y += 6;
+      y += 5;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(120, 110, 100);
+      doc.text(fmtDate(r.date_debut), colX.nom, y);
+      y += 5;
+
+      if (r.tarif_mode === "groupe") {
+        doc.setFontSize(9);
+        doc.setTextColor(60, 60, 60);
+        doc.text(
+          r.pax_override || `Forfait groupe — ${nbAd} ad.${nbEnf ? ` + ${nbEnf} enf.` : ""}`,
+          colX.nom,
+          y,
+          { maxWidth: 174 }
+        );
+        y += 5.5;
+      } else {
+        const tranches: { label: string; nb: number; pu: number }[] = [
+          { label: "Adulte", nb: nbAd, pu: Number(r.pu_adulte) || 0 },
+          { label: "Enfant", nb: nbEnf, pu: Number(r.pu_enfant) || 0 },
+          { label: "Bébé", nb: nbEnf3, pu: Number(r.pu_enfant_3ans) || 0 },
+          { label: "Accompagnateur", nb: nbAcc, pu: Number(r.pu_accompagnateur) || 0 },
+        ].filter((t) => t.nb > 0);
+
+        if (tranches.length > 0) {
+          doc.setFontSize(9);
+          doc.setTextColor(60, 60, 60);
+          tranches.forEach((t) => {
+            doc.text(`${t.label} (${t.nb})`, colX.nom, y);
+            doc.text(t.pu > 0 ? `${euros(t.pu)} / pers.` : "Gratuit", colX.nom + 90, y);
+            y += 5;
+          });
+        }
+      }
+
       const options = resaOptions[r.id] || [];
       if (options.length > 0) {
         doc.setFontSize(8);
         doc.setTextColor(120, 110, 100);
-        doc.text(`Options : ${options.map((o) => o.nom).join(", ")}`, colX.nom, y);
+        doc.text(`Options : ${options.map((o) => o.nom).join(", ")}`, colX.nom, y, { maxWidth: 174 });
+        y += 5;
+      }
+
+      y += 2;
+      if (i < relevantResas.length - 1) {
+        doc.setDrawColor(240, 235, 225);
+        doc.line(MARGIN, y, 210 - MARGIN, y);
         y += 5;
       }
     });
@@ -146,7 +182,7 @@ export function generateClientDocument(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(20, 20, 20);
-  doc.text("Total séjour", colX.pax, y);
+  doc.text("Total séjour", colX.nom, y);
   doc.text(euros(sejourTotal), colX.total, y, { align: "right" });
   y += 10;
 

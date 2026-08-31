@@ -884,8 +884,19 @@ export default function ClientDetail({
           <div className="mt-1.5 text-xs text-neutral-500">
             {[
               client.adultes ? `${client.adultes} adulte${client.adultes > 1 ? "s" : ""}` : "",
-              client.enfants ? `${client.enfants} enfant${client.enfants > 1 ? "s" : ""}` : "",
-              client.bebes ? `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}` : "",
+              client.enfants
+                ? `${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${
+                    client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""
+                  }`
+                : "",
+              client.bebes
+                ? `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${
+                    client.ages_bebes ? ` (${client.ages_bebes} ans)` : ""
+                  }`
+                : "",
+              client.ados_presents
+                ? `ados${client.ages_ados ? ` (${client.ages_ados} ans)` : ""}`
+                : "",
             ]
               .filter(Boolean)
               .join(" · ")}

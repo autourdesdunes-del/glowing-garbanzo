@@ -18,10 +18,11 @@ export function infosManquantesAuto(client: Client, reservations: Reservation[])
   if (!client.hotel.trim()) result.push(INFO_MANQUANTE_AUTO_HOTEL);
   if (!client.chambre.trim()) result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
   if (!client.telephone.trim()) result.push(INFO_MANQUANTE_AUTO_WHATSAPP);
-  // Toujours signalé tant que l'acompte n'est pas réglé — même si son
-  // montant n'a pas encore été validé (fixer puis encaisser un acompte
-  // sont deux choses à ne pas oublier, pas seulement la seconde).
-  if (client.paiement_type === "acompte" && !client.acompte_paye) {
+  // Signalé tant qu'aucun acompte n'est réglé — y compris avant que le mode
+  // de paiement soit choisi (paiement_type vide au départ pour presque tous
+  // les clients, donc l'exiger empêchait l'alerte de jamais apparaître).
+  // Seul un paiement intégral explicitement choisi lève l'alerte.
+  if (client.paiement_type !== "integral" && !client.acompte_paye) {
     result.push(INFO_MANQUANTE_AUTO_ACOMPTE);
   }
   if (reservations.some((r) => r.client_id === client.id && r.billet_requis && r.billet_etape !== "termine")) {

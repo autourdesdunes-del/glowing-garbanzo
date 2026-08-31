@@ -420,16 +420,16 @@ export function ContactStep({
                     value={client.chambre}
                     onChange={(e) => onChange({ chambre: e.target.value })}
                     placeholder="N° chambre(s)"
-                    className="input-flat min-w-0 flex-1"
+                    className="input-flat w-28 flex-shrink-0"
                   />
                 </>
               )}
               <button
                 type="button"
                 onClick={() => onChange({ type_hebergement: "airbnb" })}
-                className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
+                className="ml-auto flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
               >
-                Loger en Airbnb ?
+                › changer vers un airbnb
               </button>
             </div>
           </PropertyRow>

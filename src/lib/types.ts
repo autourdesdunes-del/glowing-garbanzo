@@ -390,6 +390,7 @@ export type Client = {
   kommo_extraction_updated_at: string | null;
   kommo_demande_infos_envoyee_le: string | null;
   kommo_programme_envoye_resume: string;
+  kommo_etape_detectee: string;
   annulation_raison: string;
   annulation_date: string | null;
   doublon_possible_id: string | null;
@@ -489,6 +490,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   kommo_extraction_updated_at: null,
   kommo_demande_infos_envoyee_le: null,
   kommo_programme_envoye_resume: "",
+  kommo_etape_detectee: "",
   annulation_raison: "",
   annulation_date: null,
   doublon_possible_id: null,

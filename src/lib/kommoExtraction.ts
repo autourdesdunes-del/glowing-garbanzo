@@ -18,6 +18,7 @@ export type KommoExtractedInfo = {
   activites_interet: string | null;
   activites_a_eviter: string | null;
   programme_envoye_resume: string | null;
+  etape_detectee: "Devis donné" | "Programme envoyé" | "Infos demandées" | "Réservé" | null;
 };
 
 export const EMPTY_EXTRACTED_INFO: KommoExtractedInfo = {
@@ -31,6 +32,7 @@ export const EMPTY_EXTRACTED_INFO: KommoExtractedInfo = {
   activites_interet: null,
   activites_a_eviter: null,
   programme_envoye_resume: null,
+  etape_detectee: null,
 };
 
 const EXTRACTION_TOOL = {
@@ -88,6 +90,12 @@ const EXTRACTION_TOOL = {
         description:
           "Résumé très court du programme/de l'itinéraire proposé au prospect par l'équipe, UNIQUEMENT si ce message le mentionne ou le cite explicitement (ex. le prospect répond en citant ou commentant un programme reçu, ou le message de l'équipe détaille un programme envoyé). Ne jamais inventer un programme qui n'est pas explicitement dans le texte. null si aucun programme n'est mentionné dans ce message.",
       },
+      etape_detectee: {
+        type: ["string", "null"],
+        enum: ["Devis donné", "Programme envoyé", "Infos demandées", "Réservé", null],
+        description:
+          "Étape du dossier telle qu'elle ressort de la conversation jusqu'ici, une seule des quatre valeurs : 'Devis donné' (un prix a été communiqué au prospect), 'Programme envoyé' (un itinéraire/programme détaillé a été envoyé), 'Infos demandées' (le prospect pose des questions, aucun prix ni programme envoyé pour l'instant), 'Réservé' (le prospect a confirmé/payé, la réservation est actée). Garde la valeur déjà connue si ce message ne fait pas avancer le dossier vers une étape différente — ne recule jamais l'étape sauf annulation explicite. null seulement si aucune étape n'est encore identifiable.",
+      },
     },
     required: [
       "resume",
@@ -100,6 +108,7 @@ const EXTRACTION_TOOL = {
       "activites_interet",
       "activites_a_eviter",
       "programme_envoye_resume",
+      "etape_detectee",
     ],
     additionalProperties: false,
   },
@@ -133,7 +142,7 @@ export async function extractProspectInfoFromMessage(params: {
           `Date du jour : ${todayStr}\n\n` +
           `Informations déjà connues sur ce prospect (JSON) :\n${JSON.stringify(previousInfo, null, 2)}\n\n` +
           `Nouveau message ${newMessageDirection === "in" ? "du prospect" : "de l'équipe (pas du prospect)"} :\n"${newMessageText}"\n\n` +
-          "Appelle l'outil avec l'état à jour complet (les 10 champs), en gardant les valeurs déjà connues quand ce message n'apporte rien de nouveau sur un champ.",
+          "Appelle l'outil avec l'état à jour complet (les 11 champs), en gardant les valeurs déjà connues quand ce message n'apporte rien de nouveau sur un champ.",
       },
     ],
   });

@@ -15,6 +15,7 @@ import {
   CatalogueTransfertTarif,
   Client,
   EMPTY_CLIENT,
+  Incident,
   JourEscalation,
   PaypalPaiement,
   PlanningShift,
@@ -361,6 +362,7 @@ function AppShellInner({
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
+  const [allIncidents, setAllIncidents] = useState<Incident[]>([]);
   const [allVerifications, setAllVerifications] = useState<Verification[]>([]);
   const [paypalPaiements, setPaypalPaiements] = useState<PaypalPaiement[]>([]);
   const [catalogueModificationRequests, setCatalogueModificationRequests] = useState<
@@ -442,6 +444,7 @@ function AppShellInner({
         { data: profs },
         { data: shifts },
         { data: paypal },
+        { data: incidents },
         { data: verifs },
       ] = await Promise.all([
         supabase.from("clients").select("*").order("created_at", { ascending: false }),
@@ -460,6 +463,10 @@ function AppShellInner({
         // (PaypalPaiementRappel) doit pouvoir se déclencher quel que soit
         // l'onglet ouvert, comme les autres rappels (billets, appels...).
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
+        // Chargé sans attendre l'ouverture de Suivis, pour la même raison :
+        // le tableau de bord doit signaler un incident dès l'ouverture de
+        // l'appli, même à une collègue qui n'était pas là quand il est arrivé.
+        supabase.from("incidents").select("*").order("created_at", { ascending: false }),
         // Chargé sans attendre l'ouverture d'une fiche : sert au rappel
         // personnel de vérification des dossiers (PersonalNudgeAlert).
         supabase.from("verifications").select("*"),
@@ -467,6 +474,7 @@ function AppShellInner({
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
+      setAllIncidents((incidents as Incident[]) || []);
       setAllVerifications((verifs as Verification[]) || []);
       if (!error && data) {
         setClients(data as Client[]);
@@ -770,6 +778,11 @@ function AppShellInner({
     setSuivisSub("paypal");
   };
 
+  const openIncidents = () => {
+    setMode("suivis");
+    setSuivisSub("incidents");
+  };
+
   // Depuis la fiche détail d'un billet (Suivis > Billets d'avion), ouvre
   // l'activité liée dans Réservations > Calendrier par activité, avec un
   // "Retour" qui ramène pile sur cette même fiche billet (pas juste sur la
@@ -900,6 +913,7 @@ function AppShellInner({
         { data: profs },
         { data: shifts },
         { data: paypal },
+        { data: incidents },
         { data: verifs },
       ] = await Promise.all([
         supabase.from("clients").select("*").order("created_at", { ascending: false }),
@@ -912,6 +926,7 @@ function AppShellInner({
         supabase.from("profiles").select("*"),
         supabase.from("planning_shifts").select("*"),
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
+        supabase.from("incidents").select("*").order("created_at", { ascending: false }),
         supabase.from("verifications").select("*"),
       ]);
 
@@ -954,6 +969,7 @@ function AppShellInner({
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
+      setAllIncidents((incidents as Incident[]) || []);
       setAllVerifications((verifs as Verification[]) || []);
 
       if (flags.planningLoaded) {
@@ -2034,6 +2050,8 @@ function AppShellInner({
               onUpdateClient={updateClientById}
               onDeleteClient={deleteClient}
               catalogue={catalogue}
+              incidents={allIncidents}
+              onOpenIncidents={openIncidents}
             />
           )}
         </div>
@@ -2289,6 +2307,7 @@ function AppShellInner({
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
               remboursements={allRemboursements}
+              incidents={allIncidents}
               paypalPaiements={paypalPaiements}
               onRattacherPaiement={rattacherPaypalPaiement}
               profiles={teamProfiles}

@@ -76,7 +76,7 @@ async function processMessage(
 
   const nowIso = new Date().toISOString();
   const SELECT_FIELDS =
-    "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_activites_a_eviter, kommo_programme_envoye_resume, kommo_premier_echange_le";
+    "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_activites_a_eviter, kommo_programme_envoye_resume, kommo_etape_detectee, kommo_premier_echange_le";
 
   let query = admin.from("clients").select(SELECT_FIELDS);
   query = leadId ? query.eq("kommo_lead_id", leadId) : query.eq("kommo_contact_id", contactId);
@@ -131,7 +131,11 @@ async function processMessage(
   if (direction === "out") echangePatch.kommo_last_team_reply_at = nowIso;
   else echangePatch.kommo_last_client_message_at = nowIso;
 
-  if (!text.trim()) {
+  // Un message de l'équipe (direction "out") ne sert qu'à horodater la
+  // réponse — jamais d'appel IA dessus : l'extraction ne sert qu'à
+  // comprendre ce que dit le PROSPECT, pas à analyser nos propres messages.
+  // Ça divise par ~2 le nombre d'appels IA (voir project_kommo_etape_detectee).
+  if (!text.trim() || direction === "out") {
     if (Object.keys(echangePatch).length > 0) {
       const patchRes = await admin.from("clients").update(echangePatch).eq("id", existing.id);
       if (patchRes.error) throw new Error(`update echange dates failed: ${patchRes.error.message}`);
@@ -150,6 +154,7 @@ async function processMessage(
     activites_interet: existing.kommo_activites_interet || null,
     activites_a_eviter: existing.kommo_activites_a_eviter || null,
     programme_envoye_resume: existing.kommo_programme_envoye_resume || null,
+    etape_detectee: existing.kommo_etape_detectee || null,
   };
 
   const updated = await extractProspectInfoFromMessage({
@@ -174,6 +179,7 @@ async function processMessage(
       kommo_activites_interet: updated.activites_interet || "",
       kommo_activites_a_eviter: updated.activites_a_eviter || "",
       kommo_programme_envoye_resume: updated.programme_envoye_resume || "",
+      kommo_etape_detectee: updated.etape_detectee || "",
       kommo_extraction_updated_at: nowIso,
     })
     .eq("id", existing.id);

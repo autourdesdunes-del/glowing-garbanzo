@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   CatalogueItem,
   Client,
+  Incident,
   PaypalPaiement,
   PlanningShift,
   Profile,
@@ -192,6 +193,81 @@ function RemboursementCard({
   );
 }
 
+function IncidentRow({
+  incident,
+  client,
+  onOpenClient,
+}: {
+  incident: Incident;
+  client: Client;
+  onOpenClient: (id: string) => void;
+}) {
+  return (
+    <div
+      onClick={() => onOpenClient(client.id)}
+      className={`cursor-pointer overflow-hidden rounded-lg border px-3 py-2.5 shadow-sm ${
+        incident.statut === "Ouvert" ? "border-red-200 bg-red-50" : "border-neutral-200 bg-white"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <ClientNameLink
+          nom={client.nom}
+          onClick={() => onOpenClient(client.id)}
+          className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+        />
+        <span
+          className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-medium ${
+            incident.statut === "Ouvert" ? "bg-red-100 text-red-700" : "bg-[#0F5C56]/10 text-[#0F5C56]"
+          }`}
+        >
+          {incident.statut}
+        </span>
+      </div>
+      <p className="mt-1 text-xs font-medium text-[#171717]">{incident.titre}</p>
+      {incident.details && <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{incident.details}</p>}
+      <p className="mt-1.5 text-[11px] text-neutral-400">
+        {fmtDate(incident.date_incident)}
+        {incident.par ? ` · ${incident.par}` : ""}
+      </p>
+    </div>
+  );
+}
+
+function AttenteRow({
+  client,
+  heures,
+  onOpenClient,
+}: {
+  client: Client;
+  heures: number;
+  onOpenClient: (id: string) => void;
+}) {
+  const jours = Math.floor(heures / 24);
+  return (
+    <div
+      onClick={() => onOpenClient(client.id)}
+      className="cursor-pointer overflow-hidden rounded-lg border border-[#f5a623]/40 bg-[#f5a623]/5 px-3 py-2.5 shadow-sm"
+    >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <ClientNameLink
+          nom={client.nom}
+          onClick={() => onOpenClient(client.id)}
+          className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+        />
+        <span className="ml-auto shrink-0 rounded-full bg-[#f5a623]/20 px-1.5 py-0.5 text-[11px] font-medium text-[#8B4531]">
+          {jours} j sans réponse
+        </span>
+      </div>
+      {client.kommo_etape_detectee && (
+        <p className="mt-1 text-xs font-medium text-[#0F5C56]">{client.kommo_etape_detectee}</p>
+      )}
+      {client.kommo_resume && (
+        <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{client.kommo_resume}</p>
+      )}
+    </div>
+  );
+}
+
 function fmtDayColumn(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
@@ -222,6 +298,8 @@ export const SUIVIS_SUBS = [
   { key: "aurevoir", label: "Au revoir" },
   { key: "avis", label: "Avis clients" },
   { key: "remb", label: "Remboursements" },
+  { key: "incidents", label: "Incidents" },
+  { key: "attente48h", label: "En attente >48h" },
   { key: "billets", label: "Billets d'avion" },
   { key: "activites", label: "Activités en attente" },
   { key: "paypal", label: "Paiements PayPal" },
@@ -1028,6 +1106,7 @@ export default function SuivisView({
   resaOptions,
   resaTarifs,
   remboursements,
+  incidents,
   paypalPaiements,
   onRattacherPaiement,
   profiles,
@@ -1046,6 +1125,7 @@ export default function SuivisView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   remboursements: Remboursement[];
+  incidents: Incident[];
   paypalPaiements: PaypalPaiement[];
   onRattacherPaiement: (paiementId: string, clientId: string) => void;
   profiles: Profile[];
@@ -1189,6 +1269,30 @@ export default function SuivisView({
   const remboursementsEnAttente = remboursements
     .filter((r) => r.statut !== "Effectué")
     .sort((a, b) => (a.date_probleme || "").localeCompare(b.date_probleme || ""));
+
+  const incidentsOuverts = incidents
+    .filter((i) => i.statut === "Ouvert")
+    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  const incidentsResolus = incidents
+    .filter((i) => i.statut === "Résolu")
+    .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
+
+  // Dossiers où le dernier mot revient au client (pas de réponse équipe
+  // depuis) depuis plus de 48h — croise kommo_last_client_message_at et
+  // kommo_last_team_reply_at (voir kommoExtraction.ts / route.ts message).
+  const attente48hRows = clients
+    .filter((c) => c.kommo_last_client_message_at)
+    .filter(
+      (c) =>
+        !c.kommo_last_team_reply_at ||
+        (c.kommo_last_client_message_at as string) > c.kommo_last_team_reply_at
+    )
+    .map((c) => ({
+      c,
+      heures: (now.getTime() - Date.parse(c.kommo_last_client_message_at as string)) / 3600000,
+    }))
+    .filter((x) => x.heures >= 48)
+    .sort((a, b) => b.heures - a.heures);
 
   // "Effectués" se trie par semaine puis par mois — date de référence : le
   // jour où l'argent est réellement parti, sinon la date du problème.
@@ -2106,6 +2210,60 @@ export default function SuivisView({
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {sub === "incidents" && (
+        <div className="space-y-8">
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+              Ouverts ({incidentsOuverts.length})
+            </h3>
+            {incidentsOuverts.length === 0 && (
+              <div className="text-sm text-neutral-400">Aucun incident ouvert.</div>
+            )}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {incidentsOuverts.map((i) => {
+                const client = clients.find((c) => c.id === i.client_id);
+                if (!client) return null;
+                return <IncidentRow key={i.id} incident={i} client={client} onOpenClient={onOpenClient} />;
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">Résolus</h3>
+            {incidentsResolus.length === 0 && (
+              <div className="text-sm text-neutral-400">Aucun incident résolu pour l'instant.</div>
+            )}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {incidentsResolus.map((i) => {
+                const client = clients.find((c) => c.id === i.client_id);
+                if (!client) return null;
+                return <IncidentRow key={i.id} incident={i} client={client} onOpenClient={onOpenClient} />;
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sub === "attente48h" && (
+        <div>
+          <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+            Dossiers en attente de réponse depuis plus de 48h ({attente48hRows.length})
+          </h3>
+          <p className="mb-3 text-xs text-neutral-500">
+            Le client a écrit et personne de l&apos;équipe ne lui a répondu depuis. Étape et résumé
+            détectés automatiquement à partir de la conversation.
+          </p>
+          {attente48hRows.length === 0 && (
+            <div className="text-sm text-neutral-400">Aucun dossier en attente pour l&apos;instant.</div>
+          )}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {attente48hRows.map(({ c, heures }) => (
+              <AttenteRow key={c.id} client={c} heures={heures} onOpenClient={onOpenClient} />
+            ))}
           </div>
         </div>
       )}

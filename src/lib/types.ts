@@ -254,6 +254,22 @@ export type Verification = {
   created_at: string;
 };
 
+// Rapport d'incident : réclamation, souci de communication, problème
+// pendant une activité — visible via une icône sur la fiche client dès
+// qu'il y en a un (voir IncidentsModal), pour ne plus le laisser invisible
+// dans kommo_resume une fois le client confirmé.
+export type Incident = {
+  id: string;
+  client_id: string;
+  titre: string;
+  details: string;
+  date_incident: string | null;
+  statut: "Ouvert" | "Résolu";
+  par: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Paiement = {
   id: string;
   client_id: string;

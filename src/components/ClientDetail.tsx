@@ -12,6 +12,7 @@ import {
   CatalogueTransfertTarif,
   Client,
   HotelReference,
+  Incident,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -23,6 +24,7 @@ import MissingInfoModal from "@/components/MissingInfoModal";
 import GuidedActivityModal from "@/components/GuidedActivityModal";
 import AvoirUseModal from "@/components/AvoirUseModal";
 import AnnulerClientModal from "@/components/AnnulerClientModal";
+import IncidentsModal from "@/components/IncidentsModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
@@ -281,6 +283,8 @@ export default function ClientDetail({
   const [avoirs, setAvoirs] = useState<Avoir[]>([]);
   const [avoirPromptReservationId, setAvoirPromptReservationId] = useState<string | null>(null);
   const [avoirAppliedNotice, setAvoirAppliedNotice] = useState<number | null>(null);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [showIncidentsModal, setShowIncidentsModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -290,6 +294,18 @@ export default function ClientDetail({
         .eq("client_id", client.id)
         .order("created_at", { ascending: true });
       setAvoirs((data as Avoir[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("incidents")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: true });
+      setIncidents((data as Incident[]) || []);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
@@ -765,12 +781,27 @@ export default function ClientDetail({
             className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
           />
           <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
-            <button
-              onClick={() => onDuplicateAsNewStay(client)}
-              className="text-xs text-[#171717] hover:underline"
-            >
-              + Nouveau séjour pour ce même client
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onDuplicateAsNewStay(client)}
+                className="text-xs text-[#171717] hover:underline"
+              >
+                + Nouveau séjour pour ce même client
+              </button>
+              <button
+                onClick={() => setShowIncidentsModal(true)}
+                title="Rapports d'incident"
+                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                  incidents.some((i) => i.statut === "Ouvert")
+                    ? "bg-red-100 text-red-700 hover:bg-red-200"
+                    : incidents.length > 0
+                      ? "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
+                      : "text-neutral-300 hover:text-neutral-500"
+                }`}
+              >
+                🚩{incidents.length > 0 ? ` ${incidents.length}` : ""}
+              </button>
+            </div>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => handleDownload("devis")}
@@ -1109,6 +1140,17 @@ export default function ClientDetail({
           onUpdateClient={onChange}
           onUpdateReservation={updateReservation}
           onClose={() => setShowAnnulerClientModal(false)}
+        />
+      )}
+      {showIncidentsModal && (
+        <IncidentsModal
+          clientId={client.id}
+          clientNom={client.nom}
+          incidents={incidents}
+          onAdd={(incident) => setIncidents((prev) => [...prev, incident])}
+          onUpdate={(id, patch) => setIncidents((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)))}
+          onDelete={(id) => setIncidents((prev) => prev.filter((i) => i.id !== id))}
+          onClose={() => setShowIncidentsModal(false)}
         />
       )}
     </div>

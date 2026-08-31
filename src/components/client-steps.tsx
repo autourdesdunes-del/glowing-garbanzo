@@ -267,6 +267,7 @@ export function ContactStep({
   const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
   const [showCircuit, setShowCircuit] = useState(false);
   const [paxModalOpen, setPaxModalOpen] = useState(false);
+  const [hebergementMenuOpen, setHebergementMenuOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -524,13 +525,46 @@ export function ContactStep({
                   />
                 </>
               )}
-              <button
-                type="button"
-                onClick={() => onChange({ type_hebergement: "airbnb" })}
-                className="ml-auto flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
-              >
-                › changer vers un airbnb
-              </button>
+              <div className="relative ml-auto flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setHebergementMenuOpen((o) => !o)}
+                  title="Airbnb ou circuit d'hôtels"
+                  className="flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-xs leading-none text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
+                >
+                  +
+                </button>
+                {hebergementMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setHebergementMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 z-50 mt-1 w-56 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChange({ type_hebergement: "airbnb" });
+                          setHebergementMenuOpen(false);
+                        }}
+                        className="block w-full px-3 py-1.5 text-left text-xs text-neutral-700 hover:bg-[#fafafa]"
+                      >
+                        Passer en Airbnb
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          addHotelStep();
+                          setHebergementMenuOpen(false);
+                        }}
+                        className="block w-full px-3 py-1.5 text-left text-xs text-neutral-700 hover:bg-[#fafafa]"
+                      >
+                        Ajouter un hôtel (circuit)
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </PropertyRow>
 
@@ -563,16 +597,8 @@ export function ContactStep({
             </div>
           )}
 
-          <div className="pl-[180px]">
-            {clientHotels.length === 0 && !showCircuit ? (
-              <button
-                type="button"
-                onClick={addHotelStep}
-                className="text-xs text-neutral-400 hover:text-neutral-600 hover:underline"
-              >
-                + Ajouter d&apos;autres hôtels (circuit)
-              </button>
-            ) : (
+          {(clientHotels.length > 0 || showCircuit) && (
+            <div className="pl-[180px]">
               <div className="rounded-md border border-neutral-200 bg-white p-3">
                 <p className="mb-2 text-sm font-medium text-neutral-700">
                   Autres hôtels du circuit (Caire, Louxor, Assouan, Marsa Alam, Siwa…)
@@ -651,8 +677,8 @@ export function ContactStep({
                   + Ajouter un hôtel
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
 

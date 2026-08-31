@@ -298,7 +298,7 @@ export default function ItineraryView({
         </div>
         <div className="mt-1 text-xs text-neutral-500">{paxLine(r, client)}</div>
         <div className="mt-1.5 flex items-center justify-between">
-          <span className="font-amounts text-xs font-medium text-[#171717]">{euros(total)} €</span>
+          <span className="font-amounts text-sm font-bold text-[#171717]">{euros(total)} €</span>
           {badge && (
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
               {badge.label}

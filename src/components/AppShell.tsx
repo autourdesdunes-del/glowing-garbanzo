@@ -75,6 +75,10 @@ type Mode =
   | "rh"
   | "generateur";
 
+// Mis en pause le 31/08/2026 à la demande de Mélanie — remettre à true pour
+// réactiver. Le composant et son câblage restent intacts, juste pas monté.
+const NOUVEAU_CLIENT_CONFIRME_ALERT_ACTIVE = false;
+
 // Sous-menu "Prospects" dans la sidebar (même principe que Suivis) : une
 // entrée par étape de la pipeline Kommo, plus "Toutes les étapes" (vue
 // kanban complète) et "Client perdu" pour surveiller les pertes.
@@ -1438,20 +1442,22 @@ function AppShellInner({
         onOpenClient={openClient}
         onResoudre={(id) => updateClientById(id, { doublon_traite: true })}
       />
-      <NouveauClientConfirmeAlert
-        clients={clients}
-        profiles={teamProfiles}
-        onOpenClient={openClient}
-        onAssigner={(id, assignee) =>
-          updateClientById(id, {
-            confirmation_assignee_a: assignee,
-            confirmation_assignee_a_le: new Date().toISOString(),
-          })
-        }
-        onRevert={(id) =>
-          updateClientById(id, { confirmation_assignee_a: null, confirmation_assignee_a_le: null })
-        }
-      />
+      {NOUVEAU_CLIENT_CONFIRME_ALERT_ACTIVE && (
+        <NouveauClientConfirmeAlert
+          clients={clients}
+          profiles={teamProfiles}
+          onOpenClient={openClient}
+          onAssigner={(id, assignee) =>
+            updateClientById(id, {
+              confirmation_assignee_a: assignee,
+              confirmation_assignee_a_le: new Date().toISOString(),
+            })
+          }
+          onRevert={(id) =>
+            updateClientById(id, { confirmation_assignee_a: null, confirmation_assignee_a_le: null })
+          }
+        />
+      )}
       {prospectSummaryId &&
         (() => {
           const c = clients.find((cl) => cl.id === prospectSummaryId);

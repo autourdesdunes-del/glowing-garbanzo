@@ -645,23 +645,53 @@ export default function PlanningRHView({
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-6">
-      <div className="flex gap-2">
-        <button
-          onClick={() => setTab("planning")}
-          className={`rounded-full border px-3 py-1.5 text-sm ${
-            tab === "planning" ? "border-[#171717] bg-[#171717] text-white" : "border-neutral-300 bg-white text-neutral-600"
-          }`}
-        >
-          Planning
-        </button>
-        <button
-          onClick={() => setTab("conges")}
-          className={`rounded-full border px-3 py-1.5 text-sm ${
-            tab === "conges" ? "border-[#171717] bg-[#171717] text-white" : "border-neutral-300 bg-white text-neutral-600"
-          }`}
-        >
-          Congés
-        </button>
+      <div className="border-b border-neutral-200">
+        <div className="flex gap-5">
+          <button
+            onClick={() => setTab("planning")}
+            className={`border-b-2 pb-2.5 text-sm font-semibold ${
+              tab === "planning"
+                ? "border-[#171717] text-[#171717]"
+                : "border-transparent text-neutral-400 hover:text-neutral-600"
+            }`}
+          >
+            Planning
+          </button>
+          <button
+            onClick={() => setTab("conges")}
+            className={`border-b-2 pb-2.5 text-sm font-semibold ${
+              tab === "conges"
+                ? "border-[#171717] text-[#171717]"
+                : "border-transparent text-neutral-400 hover:text-neutral-600"
+            }`}
+          >
+            Congés
+          </button>
+        </div>
+        {tab === "planning" && !isDirection && (
+          <div className="-mt-px flex gap-4 border-t border-neutral-100 pl-1 pt-2">
+            <button
+              onClick={() => setPlanningScope("moi")}
+              className={`border-b-2 pb-1.5 text-xs font-medium ${
+                planningScope === "moi"
+                  ? "border-[#171717] text-[#171717]"
+                  : "border-transparent text-neutral-400 hover:text-neutral-600"
+              }`}
+            >
+              Ta semaine
+            </button>
+            <button
+              onClick={() => setPlanningScope("equipe")}
+              className={`border-b-2 pb-1.5 text-xs font-medium ${
+                planningScope === "equipe"
+                  ? "border-[#171717] text-[#171717]"
+                  : "border-transparent text-neutral-400 hover:text-neutral-600"
+              }`}
+            >
+              L&apos;équipe
+            </button>
+          </div>
+        )}
       </div>
 
       {tab === "planning" && (
@@ -894,31 +924,6 @@ export default function PlanningRHView({
             </div>
           )}
 
-          {!isDirection && (
-            <div className="mb-4 flex gap-1.5">
-              <button
-                onClick={() => setPlanningScope("moi")}
-                className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-                  planningScope === "moi"
-                    ? "border-[#171717] bg-[#171717] text-white"
-                    : "border-neutral-300 bg-white text-neutral-600"
-                }`}
-              >
-                Ta semaine
-              </button>
-              <button
-                onClick={() => setPlanningScope("equipe")}
-                className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
-                  planningScope === "equipe"
-                    ? "border-[#171717] bg-[#171717] text-white"
-                    : "border-neutral-300 bg-white text-neutral-600"
-                }`}
-              >
-                L&apos;équipe
-              </button>
-            </div>
-          )}
-
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <button
@@ -985,18 +990,21 @@ export default function PlanningRHView({
                       const c = colorFor(s.user_id);
                       const name = nameFor(s.user_id);
                       const isOff = s.statut === "repos";
+                      const isSuperviseur = s.statut === "superviseur";
                       return (
                         <span
                           key={s.id}
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
                             isOff
                               ? "border-dashed border-neutral-300 bg-neutral-50 text-neutral-400"
-                              : `${c.border} ${c.bg} text-neutral-700`
+                              : isSuperviseur
+                                ? "border-purple-200 bg-purple-50 text-neutral-700"
+                                : `${c.border} ${c.bg} text-neutral-700`
                           }`}
                         >
                           <span
                             className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white ${
-                              isOff ? "bg-neutral-400" : c.dot
+                              isOff ? "bg-neutral-400" : isSuperviseur ? "bg-purple-400" : c.dot
                             }`}
                           >
                             {name.charAt(0).toUpperCase()}

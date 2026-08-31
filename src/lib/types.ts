@@ -485,6 +485,10 @@ export type PlanningShift = {
   shift_debut: string;
   shift_fin: string;
   statut: "travail" | "conge" | "repos" | "superviseur";
+  // Cette personne ferme l'agence ce jour-là — sert à l'alerte "jour
+  // incomplet" (un jour sans personne en fermeture est un risque, même si
+  // le reste de l'effectif est correct).
+  est_fermeture: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -497,6 +501,7 @@ export type SemaineTypeShift = {
   statut: "travail" | "conge" | "repos" | "superviseur";
   shift_debut: string;
   shift_fin: string;
+  est_fermeture: boolean;
   created_at: string;
   updated_at: string;
 };

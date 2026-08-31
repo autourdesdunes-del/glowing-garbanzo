@@ -23,6 +23,11 @@ function todayStr() {
 function daysBetween(a: string, b: string) {
   return Math.round((new Date(b + "T00:00:00").getTime() - new Date(a + "T00:00:00").getTime()) / 86400000) + 1;
 }
+function addDaysIso(iso: string, n: number) {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return localIso(d);
+}
 // Avril, août, octobre : haute saison pour l'agence — pas de congé possible
 // sur ces mois-là, même partiellement.
 const BLOCKED_CONGE_MONTHS = [4, 8, 10];
@@ -292,6 +297,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
   const [assignDebut, setAssignDebut] = useState("");
   const [assignFin, setAssignFin] = useState("");
   const [assignStatut, setAssignStatut] = useState<PlanningShift["statut"]>("travail");
+  const [assignFermeture, setAssignFermeture] = useState(false);
 
   const [congeDebut, setCongeDebut] = useState("");
   const [congeFin, setCongeFin] = useState("");
@@ -300,7 +306,11 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
   const [skippedPrenomIds, setSkippedPrenomIds] = useState<Set<string>>(new Set());
   const [adminCollapsed, setAdminCollapsed] = useState(true);
   const [detailDate, setDetailDate] = useState<string | null>(null);
-  const [onlyMine, setOnlyMine] = useState(false);
+  // "Ta semaine" par défaut pour une conseillère : elle veut d'abord savoir
+  // quand ELLE travaille, pas qui travaille dans l'équipe — "L'équipe" est
+  // un choix explicite, pas le point de départ.
+  const [planningScope, setPlanningScope] = useState<"moi" | "equipe">("moi");
+  const [weekStart, setWeekStart] = useState(mondayOf(todayStr()));
 
   useEffect(() => {
     (async () => {
@@ -348,7 +358,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
     semaine: "A" | "B",
     uid: string,
     jour: string,
-    patch: Partial<Pick<SemaineTypeShift, "statut" | "shift_debut" | "shift_fin">>
+    patch: Partial<Pick<SemaineTypeShift, "statut" | "shift_debut" | "shift_fin" | "est_fermeture">>
   ) => {
     const existing = semaineCellFor(semaine, uid, jour);
     const row = {
@@ -358,6 +368,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
       statut: existing?.statut ?? "repos",
       shift_debut: existing?.shift_debut ?? "",
       shift_fin: existing?.shift_fin ?? "",
+      est_fermeture: existing?.est_fermeture ?? false,
       ...patch,
     };
     const { data, error } = await supabase
@@ -389,7 +400,14 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
     });
     if (!ok) return;
     const startDate = new Date(genStart + "T00:00:00");
-    const rows: { user_id: string; date: string; statut: string; shift_debut: string; shift_fin: string }[] = [];
+    const rows: {
+      user_id: string;
+      date: string;
+      statut: string;
+      shift_debut: string;
+      shift_fin: string;
+      est_fermeture: boolean;
+    }[] = [];
     for (let w = 0; w < genWeeks; w++) {
       const semaine = w % 2 === 0 ? genStartSemaine : genStartSemaine === "A" ? "B" : "A";
       for (let d = 0; d < 7; d++) {
@@ -412,6 +430,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
             statut,
             shift_debut: statut === "travail" ? st?.shift_debut ?? "" : "",
             shift_fin: statut === "travail" ? st?.shift_fin ?? "" : "",
+            est_fermeture: statut === "travail" ? st?.est_fermeture ?? false : false,
           });
         });
       }
@@ -450,6 +469,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
           shift_debut: assignStatut === "travail" ? assignDebut : "",
           shift_fin: assignStatut === "travail" ? assignFin : "",
           statut: assignStatut,
+          est_fermeture: assignStatut === "travail" ? assignFermeture : false,
         },
         { onConflict: "user_id,date" }
       )
@@ -586,12 +606,33 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
     d.setMonth(d.getMonth() + offset);
     return { year: d.getFullYear(), month: d.getMonth() };
   });
-  const dayColumns = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
+  // Semaine affichée : toujours du lundi au dimanche, entièrement visible
+  // sans défilement — "aujourd'hui" est simplement mis en avant dans cette
+  // semaine, jamais besoin de faire défiler pour se trouver.
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart + "T00:00:00");
     d.setDate(d.getDate() + i);
     return d;
   });
+  const isCurrentWeek = weekStart === mondayOf(today);
+
+  // Alerte "jour incomplet" : scanne les 6 prochaines semaines (au-delà de
+  // la semaine affichée) pour repérer un jour où personne n'a rien généré
+  // ou pas assez de monde — sinon un jour comme celui du 18 septembre reste
+  // invisible jusqu'à ce qu'il arrive. Toujours calculé sur toute l'équipe,
+  // même en vue "Ta semaine".
+  const incompleteDays: { iso: string; count: number; hasFermeture: boolean }[] = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(today + "T00:00:00");
+    d.setDate(d.getDate() + i);
+    const iso = localIso(d);
+    const dayShifts = (teamShiftsByDate[iso] || []).filter((s) => s.statut !== "repos");
+    const workingCount = dayShifts.filter((s) => s.statut === "travail" || s.statut === "superviseur").length;
+    const hasFermeture = dayShifts.some((s) => s.est_fermeture);
+    if (workingCount < 3 || !hasFermeture) {
+      incompleteDays.push({ iso, count: workingCount, hasFermeture });
+    }
+  }
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-6">
@@ -716,6 +757,20 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                                   />
                                 </div>
                               )}
+                              {cell?.statut === "travail" && (
+                                <label className="mt-1 flex items-center gap-1 text-[10px] text-neutral-500">
+                                  <input
+                                    type="checkbox"
+                                    checked={cell?.est_fermeture ?? false}
+                                    onChange={(e) =>
+                                      upsertSemaineType(activeSemaine, p.id, j, {
+                                        est_fermeture: e.target.checked,
+                                      })
+                                    }
+                                  />
+                                  Fermeture
+                                </label>
+                              )}
                             </td>
                           );
                         })}
@@ -811,6 +866,14 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                       onChange={(e) => setAssignFin(e.target.value)}
                       className="input w-28"
                     />
+                    <label className="flex items-center gap-1 text-xs text-neutral-600">
+                      <input
+                        type="checkbox"
+                        checked={assignFermeture}
+                        onChange={(e) => setAssignFermeture(e.target.checked)}
+                      />
+                      Fermeture
+                    </label>
                   </>
                 )}
                 <button
@@ -824,92 +887,152 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
               )}
             </div>
           )}
-          {!isDirection && (
-            <label className="mb-3 flex w-fit cursor-pointer items-center gap-2 text-sm text-neutral-600">
-              <input
-                type="checkbox"
-                checked={onlyMine}
-                onChange={(e) => setOnlyMine(e.target.checked)}
-              />
-              Afficher uniquement mes horaires
-            </label>
+          {isDirection && incompleteDays.length > 0 && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3">
+              <p className="mb-1.5 text-sm font-semibold text-red-700">
+                ⚠ {incompleteDays.length} jour{incompleteDays.length > 1 ? "s" : ""} incomplet
+                {incompleteDays.length > 1 ? "s" : ""} dans les 6 prochaines semaines
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {incompleteDays.map((d) => (
+                  <button
+                    key={d.iso}
+                    onClick={() => setWeekStart(mondayOf(d.iso))}
+                    className="rounded-full border border-red-300 bg-white px-2.5 py-1 text-xs text-red-700 hover:bg-red-100"
+                  >
+                    {fmtDate(d.iso)} — {d.count === 0 ? "personne" : `${d.count} pers.`}
+                    {!d.hasFermeture ? " · pas de fermeture" : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {dayColumns.map((d) => {
+
+          {!isDirection && (
+            <div className="mb-4 flex gap-1.5">
+              <button
+                onClick={() => setPlanningScope("moi")}
+                className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                  planningScope === "moi"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 bg-white text-neutral-600"
+                }`}
+              >
+                Ta semaine
+              </button>
+              <button
+                onClick={() => setPlanningScope("equipe")}
+                className={`rounded-full border px-3 py-1.5 text-sm font-medium ${
+                  planningScope === "equipe"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 bg-white text-neutral-600"
+                }`}
+              >
+                L&apos;équipe
+              </button>
+            </div>
+          )}
+
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setWeekStart((w) => addDaysIso(w, -7))}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-neutral-300 text-neutral-500 hover:bg-neutral-50"
+              >
+                ‹
+              </button>
+              <p className="text-sm font-semibold capitalize text-[#171717]">
+                {weekDays[0].toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} –{" "}
+                {weekDays[6].toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+              </p>
+              <button
+                onClick={() => setWeekStart((w) => addDaysIso(w, 7))}
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-neutral-300 text-neutral-500 hover:bg-neutral-50"
+              >
+                ›
+              </button>
+            </div>
+            {!isCurrentWeek && (
+              <button
+                onClick={() => setWeekStart(mondayOf(today))}
+                className="text-xs font-medium text-[#171717] hover:underline"
+              >
+                Aujourd&apos;hui
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {weekDays.map((d) => {
               const iso = localIso(d);
+              const isToday = iso === today;
               const dayShifts = shifts
                 .filter(
                   (s) =>
                     s.date === iso &&
                     teamIds.has(s.user_id) &&
-                    (!onlyMine || s.user_id === userId)
+                    (isDirection || planningScope === "equipe" || s.user_id === userId)
                 )
                 .sort(sortDayShifts);
-              const isToday = iso === today;
               return (
                 <div
                   key={iso}
-                  className={`w-56 flex-shrink-0 rounded-lg p-3 ${
-                    isToday ? "bg-[#fafafa]/70" : "bg-neutral-50"
+                  className={`rounded-lg border p-3 ${
+                    isToday ? "border-[#171717] bg-[#fafafa]" : "border-neutral-200 bg-white"
                   }`}
                 >
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold capitalize text-[#171717]">
-                      {d.toLocaleDateString("fr-FR", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </p>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-[11px] text-neutral-400">
-                      {dayShifts.length}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {dayShifts.length === 0 && (
-                      <p className="text-xs text-neutral-300">—</p>
+                  <p
+                    className={`mb-2 flex items-center gap-1.5 text-sm font-semibold capitalize ${
+                      isToday ? "text-[#171717]" : "text-neutral-700"
+                    }`}
+                  >
+                    {d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" })}
+                    {isToday && (
+                      <span className="rounded-full bg-[#171717] px-1.5 py-0.5 text-[10px] font-medium text-white">
+                        Aujourd&apos;hui
+                      </span>
                     )}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {dayShifts.length === 0 && <span className="text-xs text-neutral-300">—</span>}
                     {dayShifts.map((s) => {
                       const c = colorFor(s.user_id);
                       const name = nameFor(s.user_id);
                       const isOff = s.statut === "repos";
                       return (
-                        <div
+                        <span
                           key={s.id}
-                          className={`relative rounded-lg border p-2.5 ${
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
                             isOff
-                              ? "border-dashed border-neutral-300 bg-neutral-50 opacity-75"
-                              : `${c.border} ${c.bg}`
+                              ? "border-dashed border-neutral-300 bg-neutral-50 text-neutral-400"
+                              : `${c.border} ${c.bg} text-neutral-700`
                           }`}
                         >
+                          <span
+                            className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white ${
+                              isOff ? "bg-neutral-400" : c.dot
+                            }`}
+                          >
+                            {name.charAt(0).toUpperCase()}
+                          </span>
+                          <span className="font-medium">{name}</span>
+                          <span className="text-neutral-500">
+                            {statutLabel(s.statut, s.shift_debut, s.shift_fin)}
+                          </span>
+                          {s.est_fermeture && (
+                            <span className="rounded-full bg-[#171717]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#171717]">
+                              Fermeture
+                            </span>
+                          )}
                           {isDirection && (
                             <button
                               onClick={() => deleteShift(s.id)}
-                              className="absolute right-1.5 top-1.5 text-xs text-neutral-400 hover:text-red-600"
+                              className="text-neutral-300 hover:text-red-600"
                             >
                               ✕
                             </button>
                           )}
-                          <div className="mb-1.5 flex items-center gap-1.5 pr-4">
-                            <span
-                              className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${
-                                isOff ? "bg-neutral-400" : c.dot
-                              }`}
-                            >
-                              {isOff ? "😴" : name.charAt(0).toUpperCase()}
-                            </span>
-                            <span
-                              className={`truncate text-xs font-semibold ${
-                                isOff ? "text-neutral-400 line-through" : "text-neutral-700"
-                              }`}
-                            >
-                              {name}
-                            </span>
-                          </div>
-                          <span className="inline-block rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-medium text-neutral-600">
-                            {statutLabel(s.statut, s.shift_debut, s.shift_fin)}
-                          </span>
-                        </div>
+                        </span>
                       );
                     })}
                   </div>
@@ -955,6 +1078,21 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
               </div>
             </div>
           )}
+
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-neutral-500">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-blue-400" /> Travail
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#f5a623]" /> Congé
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-neutral-300" /> OFF
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-purple-400" /> Superviseur
+            </span>
+          </div>
         </div>
       )}
 

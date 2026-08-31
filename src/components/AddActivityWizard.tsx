@@ -59,6 +59,18 @@ function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
+function deaccent(s: string) {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+// Groupe "Tout voir" par thème (premier tag, ex. "Louxor", "Activités en
+// mer", "Aventure"...) plutôt que par categorie (trop grossier — 62 des 85
+// activités sont "Excursion", ça n'aide personne à s'y retrouver). Sans
+// tag, on retombe sur categorie pour ne perdre aucune activité.
+function groupeCatalogue(item: CatalogueItem) {
+  return item.tags[0] || item.categorie || "Autre";
+}
+
 // Pour les activités spa/massage, "moment" (matin/après-midi/journée/plusieurs
 // jours) ne veut rien dire — on demande un horaire précis à la place.
 function isSpaMassage(nom: string) {
@@ -191,6 +203,8 @@ export default function AddActivityWizard({
 }) {
   const [step, setStep] = useState<Step>("choix");
   const [draftId, setDraftId] = useState<string | null>(null);
+  const [catalogueSearch, setCatalogueSearch] = useState("");
+  const [catalogueToutVoir, setCatalogueToutVoir] = useState(false);
   const [customName, setCustomName] = useState("");
   // Une activité personnalisée doit être rattachée à une activité existante
   // du catalogue pour compter dans les statistiques (marges, top des
@@ -410,6 +424,49 @@ export default function AddActivityWizard({
   );
 
   if (step === "choix") {
+    const rechercheNette = deaccent(catalogueSearch.trim());
+    const catalogueFiltre = rechercheNette
+      ? catalogue
+          .filter((a) => deaccent(a.nom).includes(rechercheNette))
+          .sort((a, b) => a.nom.localeCompare(b.nom))
+      : [];
+    const groupesCatalogue = catalogueToutVoir
+      ? Object.entries(
+          catalogue.reduce(
+            (acc, a) => {
+              const g = groupeCatalogue(a);
+              (acc[g] ||= []).push(a);
+              return acc;
+            },
+            {} as Record<string, CatalogueItem[]>
+          )
+        )
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([groupe, items]) => [groupe, [...items].sort((a, b) => a.nom.localeCompare(b.nom))] as const)
+      : [];
+
+    const activiteBouton = (a: CatalogueItem) => (
+      <button
+        key={a.id}
+        type="button"
+        disabled={creating}
+        onClick={() => {
+          if (isDiscouragedBusActivity(a.nom)) {
+            setPendingRedirect({ item: a, kind: "bus" });
+          } else if (isFamilySafariBedouin(a.nom) && isAdultsOnly(client)) {
+            setPendingRedirect({ item: a, kind: "safari" });
+          } else if (transfertSensOptions(a.nom).length > 0) {
+            setPendingSensTransfert(a);
+          } else {
+            startFromCatalogue(a);
+          }
+        }}
+        className="block w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
+      >
+        <span className="block font-medium text-[#171717]">{a.nom}</span>
+      </button>
+    );
+
     return wrap(
       <>
         {pendingRedirect && (
@@ -449,27 +506,54 @@ export default function AddActivityWizard({
         )}
         {catalogue.length > 0 && (
           <div className="mb-3 space-y-2">
-            {catalogue.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                disabled={creating}
-                onClick={() => {
-                  if (isDiscouragedBusActivity(a.nom)) {
-                    setPendingRedirect({ item: a, kind: "bus" });
-                  } else if (isFamilySafariBedouin(a.nom) && isAdultsOnly(client)) {
-                    setPendingRedirect({ item: a, kind: "safari" });
-                  } else if (transfertSensOptions(a.nom).length > 0) {
-                    setPendingSensTransfert(a);
-                  } else {
-                    startFromCatalogue(a);
-                  }
+            <div className="flex gap-2">
+              <input
+                value={catalogueSearch}
+                onChange={(e) => {
+                  setCatalogueSearch(e.target.value);
+                  if (e.target.value.trim()) setCatalogueToutVoir(false);
                 }}
-                className="block w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
+                placeholder="Chercher une activité…"
+                className="input flex-1"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setCatalogueToutVoir((v) => !v);
+                  setCatalogueSearch("");
+                }}
+                className={`flex-shrink-0 whitespace-nowrap rounded-md border px-3 py-2 text-sm font-medium ${
+                  catalogueToutVoir
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-200 text-[#171717] hover:border-[#171717]"
+                }`}
               >
-                <span className="block font-medium text-[#171717]">{a.nom}</span>
+                Tout voir
               </button>
-            ))}
+            </div>
+
+            {rechercheNette && (
+              <div className="space-y-2">
+                {catalogueFiltre.length === 0 ? (
+                  <p className="text-sm text-neutral-400">Aucune activité ne correspond.</p>
+                ) : (
+                  catalogueFiltre.map(activiteBouton)
+                )}
+              </div>
+            )}
+
+            {catalogueToutVoir && (
+              <div className="space-y-4">
+                {groupesCatalogue.map(([groupe, items]) => (
+                  <div key={groupe}>
+                    <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+                      {groupe}
+                    </h3>
+                    <div className="space-y-2">{items.map(activiteBouton)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
         <div className="space-y-2">

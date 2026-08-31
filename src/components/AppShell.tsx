@@ -852,26 +852,58 @@ function AppShellInner({
     saveTimers.current[id] = setTimeout(() => flushSave(id), 600);
   };
 
-  // Rafraîchissement automatique des clients/réservations, toutes les 25s,
-  // pour voir les nouveaux dossiers/activités entrants (ex. un nouveau
-  // prospect Kommo, ou une activité ajoutée par une collègue) sans avoir à
-  // recharger la page manuellement — jusqu'ici seul le premier chargement
-  // allait chercher ces données.
+  // Rafraîchissement automatique de tous les onglets, toutes les 25s, pour
+  // voir les nouveautés entrantes (nouveau prospect Kommo, activité ajoutée
+  // par une collègue, remarque, remboursement, demande de modification
+  // catalogue...) sans avoir à recharger la page manuellement — jusqu'ici
+  // chaque section n'était chargée qu'une fois (à l'ouverture, ou à la
+  // première visite de cet onglet). On ne refetch que ce qui a déjà été
+  // chargé au moins une fois (mêmes drapeaux planningLoaded/suivisLoaded/
+  // modifsLoaded/remarquesLoaded que le chargement initial), pour ne pas
+  // aller chercher des données qu'un onglet jamais ouvert n'utilise pas.
   //
-  // Pour les clients : une modification tapée à l'écran passe par un
-  // enregistrement optimiste + différé (jusqu'à ~15s en cas d'erreur réseau,
-  // voir flushSave/pendingPatches ci-dessus) — un rafraîchissement en plein
-  // milieu écraserait ce brouillon local pas encore confirmé en base. On
-  // réapplique donc par-dessus la donnée fraîche toute modif encore en
-  // attente pour ce client, le reste (+ les nouveaux/supprimés) vient
-  // toujours du serveur.
-  const refreshClientsAndReservations = useCallback(
-    async (withReservations: boolean) => {
+  // Pour les clients uniquement : une modification tapée à l'écran passe
+  // par un enregistrement optimiste + différé (jusqu'à ~15s en cas d'erreur
+  // réseau, voir flushSave/pendingPatches ci-dessus) — un rafraîchissement
+  // en plein milieu écraserait ce brouillon local pas encore confirmé en
+  // base. On réapplique donc par-dessus la donnée fraîche toute modif
+  // encore en attente pour ce client. Les autres entités (catalogue,
+  // réservations, etc.) s'enregistrent en direct (pas de différé), donc un
+  // simple remplacement complet est sans risque pour elles.
+  const refreshAll = useCallback(
+    async (flags: {
+      planningLoaded: boolean;
+      suivisLoaded: boolean;
+      modifsLoaded: boolean;
+      remarquesLoaded: boolean;
+      isDirection: boolean;
+    }) => {
       if (document.visibilityState !== "visible") return;
-      const [{ data: freshClients }, { data: freshReservations }] = await Promise.all([
+
+      const [
+        { data: freshClients },
+        { data: cat },
+        { data: catTarifs },
+        { data: transfertTarifsData },
+        { data: catOptions },
+        { data: catFaq },
+        { data: catJours },
+        { data: profs },
+        { data: shifts },
+        { data: paypal },
+      ] = await Promise.all([
         supabase.from("clients").select("*").order("created_at", { ascending: false }),
-        withReservations ? supabase.from("reservations").select("*") : Promise.resolve({ data: null }),
+        supabase.from("catalogue_activites").select("*").order("ordre", { ascending: true }),
+        supabase.from("catalogue_tarifs").select("*"),
+        supabase.from("transfert_tarifs").select("*").order("ordre", { ascending: true }),
+        supabase.from("catalogue_options").select("*"),
+        supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
+        supabase.from("catalogue_jours").select("*").order("ordre", { ascending: true }),
+        supabase.from("profiles").select("*"),
+        supabase.from("planning_shifts").select("*"),
+        supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
       ]);
+
       if (freshClients) {
         setClients(
           (freshClients as Client[]).map((c) =>
@@ -879,8 +911,120 @@ function AppShellInner({
           )
         );
       }
-      if (freshReservations) {
-        setAllReservations(freshReservations as Reservation[]);
+      if (cat) setCatalogue(cat as CatalogueItem[]);
+      const groupedCatTarifs: Record<string, CatalogueTarif[]> = {};
+      ((catTarifs as CatalogueTarif[]) || []).forEach((t) => {
+        groupedCatTarifs[t.catalogue_item_id] = [...(groupedCatTarifs[t.catalogue_item_id] || []), t];
+      });
+      setCatalogueTarifs(groupedCatTarifs);
+      const groupedTransfertTarifs: Record<string, CatalogueTransfertTarif[]> = {};
+      ((transfertTarifsData as CatalogueTransfertTarif[]) || []).forEach((t) => {
+        groupedTransfertTarifs[t.catalogue_item_id] = [
+          ...(groupedTransfertTarifs[t.catalogue_item_id] || []),
+          t,
+        ];
+      });
+      setTransfertTarifs(groupedTransfertTarifs);
+      const groupedCatOptions: Record<string, CatalogueOption[]> = {};
+      ((catOptions as CatalogueOption[]) || []).forEach((o) => {
+        groupedCatOptions[o.catalogue_item_id] = [...(groupedCatOptions[o.catalogue_item_id] || []), o];
+      });
+      setCatalogueOptions(groupedCatOptions);
+      const groupedFaq: Record<string, CatalogueFaq[]> = {};
+      ((catFaq as CatalogueFaq[]) || []).forEach((f) => {
+        groupedFaq[f.catalogue_item_id] = [...(groupedFaq[f.catalogue_item_id] || []), f];
+      });
+      setCatalogueFaq(groupedFaq);
+      const groupedJours: Record<string, CatalogueJour[]> = {};
+      ((catJours as CatalogueJour[]) || []).forEach((j) => {
+        groupedJours[j.catalogue_item_id] = [...(groupedJours[j.catalogue_item_id] || []), j];
+      });
+      setCatalogueJours(groupedJours);
+      setTeamProfiles((profs as Profile[]) || []);
+      setTeamPlanningShifts((shifts as PlanningShift[]) || []);
+      setPaypalPaiements((paypal as PaypalPaiement[]) || []);
+
+      if (flags.planningLoaded) {
+        const { data: resas } = await supabase.from("reservations").select("*");
+        const list = (resas as Reservation[]) || [];
+        setAllReservations(list);
+        if (list.length) {
+          const [{ data: opts }, { data: tarifs }] = await Promise.all([
+            supabase
+              .from("reservation_options")
+              .select("*")
+              .in(
+                "reservation_id",
+                list.map((r) => r.id)
+              ),
+            supabase
+              .from("reservation_tarifs")
+              .select("*")
+              .in(
+                "reservation_id",
+                list.map((r) => r.id)
+              ),
+          ]);
+          const grouped: Record<string, ReservationOption[]> = {};
+          ((opts as ReservationOption[]) || []).forEach((o) => {
+            grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
+          });
+          setAllResaOptions(grouped);
+          const groupedTarifs: Record<string, ReservationTarif[]> = {};
+          ((tarifs as ReservationTarif[]) || []).forEach((t) => {
+            groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
+          });
+          setAllResaTarifs(groupedTarifs);
+        } else {
+          setAllResaOptions({});
+          setAllResaTarifs({});
+        }
+
+        if (flags.isDirection && list.length) {
+          const { data: couts } = await supabase
+            .from("reservation_couts")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            );
+          const map: Record<string, number> = {};
+          ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
+            map[c.reservation_id] = c.cout_reel;
+          });
+          setAllCoutsMap(map);
+        } else {
+          setAllCoutsMap({});
+        }
+      }
+
+      if (flags.suivisLoaded) {
+        const { data: rembs } = await supabase.from("remboursements").select("*");
+        setAllRemboursements((rembs as Remboursement[]) || []);
+      }
+
+      if (flags.modifsLoaded) {
+        const { data: modifs } = await supabase.from("catalogue_modification_requests").select("*");
+        setCatalogueModificationRequests((modifs as CatalogueModificationRequest[]) || []);
+        const { data: taxeModifs } = await supabase
+          .from("transfert_taxe_modification_requests")
+          .select("*");
+        setTransfertTaxeModificationRequests((taxeModifs as TransfertTaxeModificationRequest[]) || []);
+      }
+
+      if (flags.remarquesLoaded) {
+        const { data: remarques } = await supabase
+          .from("remarques_employe")
+          .select("*")
+          .order("created_at", { ascending: false });
+        setRemarquesEmploye((remarques as RemarqueEmployee[]) || []);
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 60);
+        const { data: kommoReponses } = await supabase
+          .from("kommo_reponses_employe")
+          .select("*")
+          .gte("reponse_at", cutoff.toISOString());
+        setKommoReponsesEmploye((kommoReponses as KommoReponseEmploye[]) || []);
       }
     },
     [supabase]
@@ -888,9 +1032,12 @@ function AppShellInner({
 
   useEffect(() => {
     if (!loaded) return;
-    const id = setInterval(() => refreshClientsAndReservations(planningLoaded), 25000);
+    const id = setInterval(
+      () => refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection }),
+      25000
+    );
     return () => clearInterval(id);
-  }, [loaded, planningLoaded, refreshClientsAndReservations]);
+  }, [loaded, planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection, refreshAll]);
 
   const addClient = async (quick?: {
     nom: string;

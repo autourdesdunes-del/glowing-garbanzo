@@ -289,10 +289,12 @@ export function generateClientDocument(
   y += 28;
 
   // -- Paiements ------------------------------------------------------------
-  const totalAcomptes =
-    client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  const soldeRestant = Math.max(totalHT - totalAcomptes, 0);
-  const totalPaye = totalAcomptes + (client.solde_paye ? soldeRestant : 0);
+  // Le montant de l'acompte fait toujours partie du total, encaissé ou pas
+  // — sinon "Acompte à régler" + "Solde à payer" additionnent deux fois le
+  // même argent. Seul le statut "payé" détermine ce qui compte dans "Payé".
+  const acompteMontant = client.paiement_type === "acompte" ? Number(client.acompte_montant) || 0 : 0;
+  const soldeMontant = Math.max(totalHT - acompteMontant, 0);
+  const totalPaye = (client.acompte_paye ? acompteMontant : 0) + (client.solde_paye ? soldeMontant : 0);
   const reste = totalHT - totalPaye;
 
   doc.setFont("helvetica", "bold");
@@ -305,13 +307,13 @@ export function generateClientDocument(
   doc.setFontSize(8.5);
   doc.setTextColor(60, 60, 60);
   const conditions: string[] = [];
-  if (client.paiement_type === "acompte" && client.acompte_montant) {
+  if (acompteMontant > 0) {
     conditions.push(
-      `${euros(client.acompte_montant)} ${client.acompte_paye ? `payé (${client.acompte_mode}) le ${fmtDate(client.acompte_date_encaissement)}` : `à régler (${client.acompte_mode})`}`
+      `${euros(acompteMontant)} ${client.acompte_paye ? `payé (${client.acompte_mode}) le ${fmtDate(client.acompte_date_encaissement)}` : `à régler (${client.acompte_mode})`}`
     );
   }
   conditions.push(
-    `${euros(soldeRestant)} ${client.solde_paye ? "encaissé" : "à payer"}${client.solde_date ? ` (${client.solde_mode}) le ${fmtDate(client.solde_date)}` : ` (${client.solde_mode})`}`
+    `${euros(soldeMontant)} ${client.solde_paye ? "encaissé" : "à payer"}${client.solde_date ? ` (${client.solde_mode}) le ${fmtDate(client.solde_date)}` : ` (${client.solde_mode})`}`
   );
   conditions.forEach((c) => {
     doc.text(`•  ${c}`, MARGIN, y);

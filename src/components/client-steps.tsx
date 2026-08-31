@@ -54,7 +54,8 @@ export function buildPaxEnglish(client: Client) {
   const parts = [`${client.adultes || 0} adults`];
   if (client.enfants > 0) {
     const ages = extractAges(client.ages_enfants);
-    parts.push(`${client.enfants} child's${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
+    const word = client.enfants > 1 ? "children" : "child";
+    parts.push(`${client.enfants} ${word}${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
   }
   if (client.bebes > 0) {
     const ages = extractAges(client.ages_bebes);

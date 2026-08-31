@@ -487,7 +487,12 @@ export default function ClientDetail({
       await supabase.auth.refreshSession();
       return addReservation(1);
     }
-    toast("Impossible d'ajouter l'activité.");
+    console.error("addReservation", error);
+    toast(
+      error
+        ? `Impossible d'ajouter l'activité (${error.message}).`
+        : "Impossible d'ajouter l'activité."
+    );
     return null;
   };
 

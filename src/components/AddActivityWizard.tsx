@@ -1045,7 +1045,9 @@ export default function AddActivityWizard({
                 : "border-neutral-300 text-neutral-600"
             }`}
           >
-            Tous ({client.adultes} ad. + {client.enfants} enf.)
+            Tous ({client.adultes} ad.
+            {client.enfants > 0 ? ` + ${client.enfants} enf.` : ""}
+            {client.bebes > 0 ? ` + ${client.bebes} béb.` : ""})
           </button>
           <button
             type="button"

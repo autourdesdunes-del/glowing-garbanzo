@@ -63,12 +63,12 @@ function paxLine(r: Reservation, client: Client) {
   parts.push(adLabel);
   if (nbEnf > 0) {
     let s = `${nbEnf} enfant${nbEnf > 1 ? "s" : ""}`;
-    if (showAges && client.ages_enfants) s += ` (${client.ages_enfants})`;
+    if (showAges && client.ages_enfants) s += ` (${client.ages_enfants} ans)`;
     parts.push(s);
   }
   if (showAges && client.bebes > 0) {
     let s = `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}`;
-    if (client.ages_bebes) s += ` (${client.ages_bebes})`;
+    if (client.ages_bebes) s += ` (${client.ages_bebes} ans)`;
     parts.push(s);
   }
   return parts.join(", ");

@@ -1044,7 +1044,7 @@ export default function ClientDetail({
 
       <Section
         title="Paiements"
-        titleExtra={
+        endBadge={
           <span className="flex items-center gap-1.5 rounded-full bg-[#F2E6D2] py-0.5 pl-2.5 pr-2 text-xs font-medium text-[#5C2A1D]">
             <span className="font-amounts font-semibold">{euros(totalSejourHeader)} €</span>
             <span className="text-[#5C2A1D]/30">·</span>

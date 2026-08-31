@@ -278,12 +278,24 @@ function DetailModal({
   );
 }
 
-export default function PlanningRHView({ isDirection }: { isDirection: boolean }) {
+export default function PlanningRHView({
+  isDirection,
+  viewAsUserId,
+}: {
+  isDirection: boolean;
+  // Simulation "Aperçu vu par" (AppShell) : affiche le planning de CETTE
+  // personne plutôt que celui du vrai compte connecté — l'envoi d'une
+  // demande de congé reste, lui, sous le vrai compte (voir requestConge).
+  viewAsUserId?: string;
+}) {
   const supabase = createClient();
   const toast = useToast();
   const confirm = useConfirm();
   const [tab, setTab] = useState<"planning" | "conges">("planning");
   const [userId, setUserId] = useState<string | null>(null);
+  // Pour tout ce qui est "affiché" (mes horaires, mes congés) : la personne
+  // simulée si "Aperçu vu par" en désigne une, sinon le vrai compte connecté.
+  const effectiveUserId = viewAsUserId ?? userId;
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [shifts, setShifts] = useState<PlanningShift[]>([]);
   const [conges, setConges] = useState<Conge[]>([]);
@@ -300,7 +312,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
   const [assignDebut, setAssignDebut] = useState("");
   const [assignFin, setAssignFin] = useState("");
   const [assignStatut, setAssignStatut] = useState<PlanningShift["statut"]>("travail");
-  const [assignFermeture, setAssignFermeture] = useState(false);
 
   const [congeDebut, setCongeDebut] = useState("");
   const [congeFin, setCongeFin] = useState("");
@@ -361,7 +372,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
     semaine: "A" | "B",
     uid: string,
     jour: string,
-    patch: Partial<Pick<SemaineTypeShift, "statut" | "shift_debut" | "shift_fin" | "est_fermeture">>
+    patch: Partial<Pick<SemaineTypeShift, "statut" | "shift_debut" | "shift_fin">>
   ) => {
     const existing = semaineCellFor(semaine, uid, jour);
     const row = {
@@ -371,7 +382,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
       statut: existing?.statut ?? "repos",
       shift_debut: existing?.shift_debut ?? "",
       shift_fin: existing?.shift_fin ?? "",
-      est_fermeture: existing?.est_fermeture ?? false,
       ...patch,
     };
     const { data, error } = await supabase
@@ -409,7 +419,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
       statut: string;
       shift_debut: string;
       shift_fin: string;
-      est_fermeture: boolean;
     }[] = [];
     for (let w = 0; w < genWeeks; w++) {
       const semaine = w % 2 === 0 ? genStartSemaine : genStartSemaine === "A" ? "B" : "A";
@@ -433,7 +442,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
             statut,
             shift_debut: statut === "travail" ? st?.shift_debut ?? "" : "",
             shift_fin: statut === "travail" ? st?.shift_fin ?? "" : "",
-            est_fermeture: statut === "travail" ? st?.est_fermeture ?? false : false,
           });
         });
       }
@@ -472,7 +480,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
           shift_debut: assignStatut === "travail" ? assignDebut : "",
           shift_fin: assignStatut === "travail" ? assignFin : "",
           statut: assignStatut,
-          est_fermeture: assignStatut === "travail" ? assignFermeture : false,
         },
         { onConflict: "user_id,date" }
       )
@@ -587,13 +594,13 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
   // — ce planning d'équipe ne concerne que les employées.
   const teamProfiles = profiles.filter((p) => p.role === "equipe");
   const teamIds = new Set(teamProfiles.map((p) => p.id));
-  const visibleConges = isDirection ? conges : conges.filter((c) => c.user_id === userId);
+  const visibleConges = isDirection ? conges : conges.filter((c) => c.user_id === effectiveUserId);
   const missingPrenomProfile = isDirection
     ? teamProfiles.find((p) => !p.prenom.trim() && !skippedPrenomIds.has(p.id))
     : undefined;
   const myShiftsByDate: Record<string, PlanningShift[]> = {};
   shifts
-    .filter((s) => s.user_id === userId)
+    .filter((s) => s.user_id === effectiveUserId)
     .forEach((s) => {
       myShiftsByDate[s.date] = [...(myShiftsByDate[s.date] || []), s];
     });
@@ -624,16 +631,15 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
   // ou pas assez de monde — sinon un jour comme celui du 18 septembre reste
   // invisible jusqu'à ce qu'il arrive. Toujours calculé sur toute l'équipe,
   // même en vue "Ta semaine".
-  const incompleteDays: { iso: string; count: number; hasFermeture: boolean }[] = [];
+  const incompleteDays: { iso: string; count: number }[] = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(today + "T00:00:00");
     d.setDate(d.getDate() + i);
     const iso = localIso(d);
     const dayShifts = (teamShiftsByDate[iso] || []).filter((s) => s.statut !== "repos");
     const workingCount = dayShifts.filter((s) => s.statut === "travail" || s.statut === "superviseur").length;
-    const hasFermeture = dayShifts.some((s) => s.est_fermeture);
-    if (workingCount < 3 || !hasFermeture) {
-      incompleteDays.push({ iso, count: workingCount, hasFermeture });
+    if (workingCount < 3) {
+      incompleteDays.push({ iso, count: workingCount });
     }
   }
 
@@ -760,20 +766,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                                   />
                                 </div>
                               )}
-                              {cell?.statut === "travail" && (
-                                <label className="mt-1 flex items-center gap-1 text-[10px] text-neutral-500">
-                                  <input
-                                    type="checkbox"
-                                    checked={cell?.est_fermeture ?? false}
-                                    onChange={(e) =>
-                                      upsertSemaineType(activeSemaine, p.id, j, {
-                                        est_fermeture: e.target.checked,
-                                      })
-                                    }
-                                  />
-                                  Fermeture
-                                </label>
-                              )}
                             </td>
                           );
                         })}
@@ -869,14 +861,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                       onChange={(e) => setAssignFin(e.target.value)}
                       className="input w-28"
                     />
-                    <label className="flex items-center gap-1 text-xs text-neutral-600">
-                      <input
-                        type="checkbox"
-                        checked={assignFermeture}
-                        onChange={(e) => setAssignFermeture(e.target.checked)}
-                      />
-                      Fermeture
-                    </label>
                   </>
                 )}
                 <button
@@ -904,7 +888,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                     className="rounded-full border border-red-300 bg-white px-2.5 py-1 text-xs text-red-700 hover:bg-red-100"
                   >
                     {fmtDate(d.iso)} — {d.count === 0 ? "personne" : `${d.count} pers.`}
-                    {!d.hasFermeture ? " · pas de fermeture" : ""}
                   </button>
                 ))}
               </div>
@@ -974,7 +957,7 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                   (s) =>
                     s.date === iso &&
                     teamIds.has(s.user_id) &&
-                    (isDirection || planningScope === "equipe" || s.user_id === userId)
+                    (isDirection || planningScope === "equipe" || s.user_id === effectiveUserId)
                 )
                 .sort(sortDayShifts);
               return (
@@ -1022,11 +1005,6 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
                           <span className="text-neutral-500">
                             {statutLabel(s.statut, s.shift_debut, s.shift_fin)}
                           </span>
-                          {s.est_fermeture && (
-                            <span className="rounded-full bg-[#171717]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#171717]">
-                              Fermeture
-                            </span>
-                          )}
                           {isDirection && (
                             <button
                               onClick={() => deleteShift(s.id)}
@@ -1137,16 +1115,16 @@ export default function PlanningRHView({ isDirection }: { isDirection: boolean }
             </div>
           )}
 
-          {!isDirection && userId && (
+          {!isDirection && effectiveUserId && (
             <div className="rounded-md bg-[#fafafa]/50 p-3 text-sm text-[#171717]">
               <p>
-                Congés pris en {thisYear} : <strong>{congesTotalFor(userId)} jour(s)</strong>
+                Congés pris en {thisYear} : <strong>{congesTotalFor(effectiveUserId)} jour(s)</strong>
               </p>
               {(() => {
                 const mine = conges
                   .filter(
                     (c) =>
-                      c.user_id === userId &&
+                      c.user_id === effectiveUserId &&
                       c.statut === "Validé" &&
                       c.date_debut.startsWith(String(thisYear))
                   )

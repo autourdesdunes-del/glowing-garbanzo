@@ -404,6 +404,14 @@ function AppShellInner({
       : viewAs === "hossam"
         ? isDirection || isManagerParRole
         : viewAs === sylvieViewKey;
+  // Quand "Aperçu vu par" pointe vers une vraie personne (Justine, Laura,
+  // Sylvie...), le nom affiché (ex. le "Bonjour" du tableau de bord) et les
+  // horaires perso du Planning ("Ta semaine") doivent refléter CETTE
+  // personne, pas Mélanie — sinon la simulation ne sert à rien pour ces
+  // écrans-là. Les actions d'écriture restent sous le vrai compte.
+  const simulatedProfile = teamProfiles.find((p) => p.id === viewAs);
+  const effectiveUserEmail = simulatedProfile?.email ?? userEmail;
+  const effectiveUserId = simulatedProfile?.id ?? userId;
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
@@ -1819,7 +1827,7 @@ function AppShellInner({
             <Spinner />
           ) : (
             <DashboardView
-              userEmail={userEmail}
+              userEmail={effectiveUserEmail}
               clients={clients}
               reservations={allReservations}
               resaOptions={allResaOptions}
@@ -2112,7 +2120,7 @@ function AppShellInner({
 
       {mode === "rh" && (
         <div className="flex-1 overflow-y-auto">
-          <PlanningRHView isDirection={effectiveIsDirection} />
+          <PlanningRHView isDirection={effectiveIsDirection} viewAsUserId={simulatedProfile ? effectiveUserId : undefined} />
         </div>
       )}
 

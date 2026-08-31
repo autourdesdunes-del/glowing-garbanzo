@@ -254,6 +254,17 @@ export type Verification = {
   created_at: string;
 };
 
+// Code de réduction/promo ajouté par la Direction (onglet Direction) —
+// consultable en lecture seule par l'équipe (HELP > Codes promo) pour
+// vérifier qu'un code donné par un client est valide.
+export type CodePromo = {
+  id: string;
+  code: string;
+  description: string;
+  actif: boolean;
+  created_at: string;
+};
+
 // Rapport d'incident : réclamation, souci de communication, problème
 // pendant une activité — visible via une icône sur la fiche client dès
 // qu'il y en a un (voir IncidentsModal), pour ne plus le laisser invisible
@@ -337,6 +348,10 @@ export type Client = {
   prochain_appel_confirme: boolean;
   dernier_contact_date: string | null;
   nb_relances: number;
+  // Qui a fait cette dernière relance — pour le pop-up personnel de rappel
+  // (RelanceNudgeAlert). Rempli à partir de maintenant seulement.
+  dernier_contact_par_id: string | null;
+  dernier_contact_par_nom: string;
   kommo_contact_id: number | null;
   kommo_lead_id: number | null;
   kommo_pipeline_status_id: number | null;
@@ -426,6 +441,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   prochain_appel_confirme: false,
   dernier_contact_date: null,
   nb_relances: 0,
+  dernier_contact_par_id: null,
+  dernier_contact_par_nom: "",
   kommo_contact_id: null,
   kommo_lead_id: null,
   kommo_pipeline_status_id: null,

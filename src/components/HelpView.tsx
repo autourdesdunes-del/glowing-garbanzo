@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { HotelReference, TransfertTaxe } from "@/lib/types";
+import { CodePromo, HotelReference, TransfertTaxe } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 import TransfertTaxeModificationRequestModal from "@/components/TransfertTaxeModificationRequestModal";
@@ -20,7 +20,7 @@ const VILLES = [
   "Autre",
 ];
 
-export default function HelpView({ tab }: { tab: "hotels" | "taxes" }) {
+export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" }) {
   const supabase = createClient();
   const confirm = useConfirm();
   const toast = useToast();
@@ -28,6 +28,7 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" }) {
   const [hotelSearch, setHotelSearch] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [taxes, setTaxes] = useState<TransfertTaxe[]>([]);
+  const [codesPromo, setCodesPromo] = useState<CodePromo[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [newHotelNom, setNewHotelNom] = useState("");
   const [newHotelVille, setNewHotelVille] = useState("Hurghada");
@@ -70,12 +71,14 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" }) {
 
   useEffect(() => {
     (async () => {
-      const [{ data: h }, { data: t }] = await Promise.all([
+      const [{ data: h }, { data: t }, { data: p }] = await Promise.all([
         supabase.from("hotels_reference").select("*").order("nom", { ascending: true }),
         supabase.from("transfert_taxes").select("*").order("ville", { ascending: true }),
+        supabase.from("codes_promo").select("*").order("created_at", { ascending: false }),
       ]);
       setHotels((h as HotelReference[]) || []);
       setTaxes((t as TransfertTaxe[]) || []);
+      setCodesPromo((p as CodePromo[]) || []);
       setLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -242,6 +245,32 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" }) {
           );
         })}
       </div>
+      )}
+
+      {tab === "promos" && (
+        <div>
+          <h2 className="font-heading text-lg font-semibold text-[#171717]">🏷️ Codes promo</h2>
+          <p className="mt-2 rounded-md bg-[#C9973E]/10 p-3 text-sm text-[#8B4531]">
+            Vérifie ici qu&apos;un code donné par un client est valide.
+          </p>
+          <p className="mt-3 text-xs text-neutral-400">
+            Référence uniquement — ajoutés/retirés par la Direction.
+          </p>
+          {codesPromo.filter((c) => c.actif).length === 0 ? (
+            <p className="mt-4 text-sm text-neutral-400">Aucun code actif pour l&apos;instant.</p>
+          ) : (
+            <div className="mt-3 divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+              {codesPromo
+                .filter((c) => c.actif)
+                .map((c) => (
+                  <div key={c.id} className="px-4 py-3">
+                    <p className="text-sm font-semibold text-[#171717]">{c.code}</p>
+                    {c.description && <p className="text-xs text-[#666666]">{c.description}</p>}
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
       )}
 
       {addHotelOpen && (

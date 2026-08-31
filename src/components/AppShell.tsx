@@ -60,6 +60,7 @@ import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
 import AssouanVerificationCenter from "@/components/AssouanVerificationCenter";
 import RemarqueEmployeeCenter from "@/components/RemarqueEmployeeCenter";
+import RelanceNudgeAlert from "@/components/RelanceNudgeAlert";
 
 type Mode =
   | "dashboard"
@@ -232,6 +233,7 @@ type PlanningSub = (typeof PLANNING_SUBS)[number]["key"];
 const HELP_SUBS = [
   { key: "hotels", label: "Localisation des hôtels" },
   { key: "taxes", label: "Taxes de transfert" },
+  { key: "promos", label: "Codes promo" },
 ] as const;
 type HelpSub = (typeof HELP_SUBS)[number]["key"];
 
@@ -1116,8 +1118,19 @@ function AppShellInner({
         pushStatutToKommo(current.kommo_lead_id, patch.statut, patch.nom ?? current.nom);
       }
     }
-    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    const { error } = await supabase.from("clients").update(patch).eq("id", id);
+    // Toute mise à jour de dernier_contact_date (une relance) trace aussi
+    // qui l'a faite — sert au pop-up personnel "ça fait X jours que tu n'as
+    // pas relancé" (RelanceNudgeAlert). Toujours le vrai compte connecté
+    // (userId), jamais l'identité simulée par "Aperçu vu par".
+    const finalPatch = patch.dernier_contact_date
+      ? {
+          ...patch,
+          dernier_contact_par_id: userId,
+          dernier_contact_par_nom: teamProfiles.find((p) => p.id === userId)?.prenom || "",
+        }
+      : patch;
+    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...finalPatch } : c)));
+    const { error } = await supabase.from("clients").update(finalPatch).eq("id", id);
     if (error) toast("Échec de l'enregistrement.");
 
     // Un client annulé sans que ses activités le soient rendrait le total du
@@ -1645,6 +1658,13 @@ function AppShellInner({
         onPendingChange={setAssouanVerificationsPending}
       />
       <RemarqueEmployeeCenter currentUserId={userId} />
+      {!isDirection && (
+        <RelanceNudgeAlert
+          currentUserId={userId}
+          clients={clients}
+          onOpenProspectsARelancer={openProspectsARelancer}
+        />
+      )}
       <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />
       <BilletEnvoiRappels
         reservations={allReservations}

@@ -67,7 +67,7 @@ function statutLabel(statut: string, debut?: string, fin?: string) {
 }
 
 function statutBadgeClass(statut: string) {
-  if (statut === "conge") return "bg-[#f5a623] text-white";
+  if (statut === "conge") return "bg-neutral-300 text-neutral-600";
   if (statut === "repos") return "bg-neutral-200 text-neutral-500";
   if (statut === "superviseur") return "bg-purple-200 text-purple-800";
   return "bg-blue-100 text-blue-700";
@@ -998,6 +998,7 @@ export default function PlanningRHView({
                       const c = colorFor(s.user_id);
                       const name = nameFor(s.user_id);
                       const isOff = s.statut === "repos";
+                      const isConge = s.statut === "conge";
                       const isSuperviseur = s.statut === "superviseur";
                       return (
                         <span
@@ -1005,14 +1006,16 @@ export default function PlanningRHView({
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
                             isOff
                               ? "border-dashed border-neutral-300 bg-neutral-50 text-neutral-400"
-                              : isSuperviseur
-                                ? "border-purple-200 bg-purple-50 text-neutral-700"
-                                : `${c.border} ${c.bg} text-neutral-700`
+                              : isConge
+                                ? "border-neutral-300 bg-neutral-100 text-neutral-500"
+                                : isSuperviseur
+                                  ? "border-purple-200 bg-purple-50 text-neutral-700"
+                                  : `${c.border} ${c.bg} text-neutral-700`
                           }`}
                         >
                           <span
                             className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white ${
-                              isOff ? "bg-neutral-400" : isSuperviseur ? "bg-purple-400" : c.dot
+                              isOff || isConge ? "bg-neutral-400" : isSuperviseur ? "bg-purple-400" : c.dot
                             }`}
                           >
                             {name.charAt(0).toUpperCase()}
@@ -1086,7 +1089,7 @@ export default function PlanningRHView({
               <span className="h-2.5 w-2.5 rounded-full bg-blue-400" /> Travail
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#f5a623]" /> Congé
+              <span className="h-2.5 w-2.5 rounded-full bg-neutral-300" /> Congé
             </span>
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full bg-neutral-300" /> OFF

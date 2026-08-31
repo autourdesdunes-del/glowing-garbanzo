@@ -45,8 +45,11 @@ function estAvisEnAttente(c: Client) {
 
 // Combien de jours d'inactivité personnelle avant de proposer le rappel —
 // distinct des seuils par dossier ci-dessus : ici on regarde l'employée
-// elle-même, pas un dossier précis.
+// elle-même, pas un dossier précis. Vérif dossiers a son propre seuil, plus
+// large : "au moins une à deux fois par semaine" (donc pas plus de ~4
+// jours sans en faire une), pas les 2 jours des trois autres catégories.
 const SEUIL_INACTIVITE_JOURS = 2;
+const SEUIL_INACTIVITE_JOURS_VERIFS = 4;
 // Le "Plus tard" ne referme le pop-up que pour quelques heures — sinon il
 // ne reviendrait plus jamais tant que l'attribution ne change pas.
 const DISMISS_GAP_MS = 4 * 60 * 60 * 1000;
@@ -106,11 +109,19 @@ export default function PersonalNudgeAlert({
     .filter((v) => v.verifie_par_id === currentUserId && v.date)
     .reduce((max: string | null, v) => (!max || (v.date as string) > max ? (v.date as string) : max), null);
 
-  const candidats: { cle: string; derniere: string | null; count: number; message: (j: number, n: number) => string; onAgir: () => void }[] = [
+  const candidats: {
+    cle: string;
+    derniere: string | null;
+    count: number;
+    seuil: number;
+    message: (j: number, n: number) => string;
+    onAgir: () => void;
+  }[] = [
     {
       cle: "relances",
       derniere: dernierePar((c) => c.dernier_contact_par_id, (c) => c.dernier_contact_date),
       count: clients.filter(estProspectStagnant).length,
+      seuil: SEUIL_INACTIVITE_JOURS,
       message: (j, n) =>
         `Depuis ${j} jour${j > 1 ? "s" : ""} tu n'as fait aucune relance. Il y a pourtant ${n} prospect${n > 1 ? "s" : ""} qui attend${n > 1 ? "ent" : ""} une relance — souhaites-tu t'en occuper ?`,
       onAgir: onOpenProspectsARelancer,
@@ -119,6 +130,7 @@ export default function PersonalNudgeAlert({
       cle: "au_revoir",
       derniere: dernierePar((c) => c.au_revoir_envoye_par_id, (c) => c.au_revoir_envoye_le),
       count: clients.filter(estAuRevoirEnAttente).length,
+      seuil: SEUIL_INACTIVITE_JOURS,
       message: (j, n) =>
         `Depuis ${j} jour${j > 1 ? "s" : ""} tu n'as envoyé aucun message "au revoir". Il y a pourtant ${n} client${n > 1 ? "s" : ""} qui l'attend${n > 1 ? "ent" : ""} — souhaites-tu t'en occuper ?`,
       onAgir: onOpenAuRevoir,
@@ -127,6 +139,7 @@ export default function PersonalNudgeAlert({
       cle: "avis",
       derniere: dernierePar((c) => c.avis_envoye_par_id, (c) => c.avis_envoye_le),
       count: clients.filter(estAvisEnAttente).length,
+      seuil: SEUIL_INACTIVITE_JOURS,
       message: (j, n) =>
         `Depuis ${j} jour${j > 1 ? "s" : ""} tu n'as demandé aucun avis Google. Il y a pourtant ${n} client${n > 1 ? "s" : ""} à qui le demander — souhaites-tu t'en occuper ?`,
       onAgir: onOpenAvisClients,
@@ -135,6 +148,9 @@ export default function PersonalNudgeAlert({
       cle: "verifs",
       derniere: derniereVerifPar,
       count: clients.filter((c) => estDossierNonVerifie(c, clientsVerifies)).length,
+      // Une à deux fois par semaine minimum, pas tous les 2 jours comme les
+      // trois autres catégories — voir SEUIL_INACTIVITE_JOURS_VERIFS.
+      seuil: SEUIL_INACTIVITE_JOURS_VERIFS,
       message: (j, n) =>
         `Depuis ${j} jour${j > 1 ? "s" : ""} tu n'as vérifié aucun dossier. Il y a pourtant ${n} dossier${n > 1 ? "s" : ""} de client${n > 1 ? "s" : ""} confirmé${n > 1 ? "s" : ""} pas encore vérifié${n > 1 ? "s" : ""} — souhaites-tu t'en occuper ?`,
       onAgir: onOpenClients,
@@ -147,10 +163,11 @@ export default function PersonalNudgeAlert({
       cle: c.cle,
       joursDepuis: daysSince(c.derniere as string),
       count: c.count,
+      seuil: c.seuil,
       message: c.message(daysSince(c.derniere as string), c.count),
       onAgir: c.onAgir,
     }))
-    .filter((n) => n.joursDepuis >= SEUIL_INACTIVITE_JOURS)
+    .filter((n) => n.joursDepuis >= n.seuil)
     .filter((n) => !encoreDismiss(lireDismissedAt(`nudge_dismiss_${currentUserId}_${n.cle}`)))
     .sort((a, b) => b.joursDepuis - a.joursDepuis);
 

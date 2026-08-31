@@ -29,6 +29,7 @@ import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
 import { resaTotalMontant, avoirUtiliseTotal, findMomentConflict, reservationsActives } from "@/lib/resa";
+import { infosManquantesAuto } from "@/lib/infosManquantes";
 import {
   ActivitesStep,
   ContactStep,
@@ -42,24 +43,6 @@ function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
-
-function fmtDateLong(dateStr: string, withYear: boolean) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString(
-    "fr-FR",
-    withYear ? { day: "numeric", month: "long", year: "numeric" } : { day: "numeric", month: "long" }
-  );
-}
-
-// "13 août → 27 août 2026" : l'année n'apparaît qu'une fois, sur la
-// dernière date, sauf si le séjour chevauche deux années civiles.
-function fmtDateRangeFr(debut: string | null, fin: string | null) {
-  if (!debut && !fin) return "Non renseignées";
-  if (debut && !fin) return fmtDateLong(debut, true);
-  if (!debut && fin) return fmtDateLong(fin, true);
-  const sameYear = debut!.slice(0, 4) === fin!.slice(0, 4);
-  return `${fmtDateLong(debut!, !sameYear)} → ${fmtDateLong(fin!, true)}`;
 }
 
 function euros(n: number) {
@@ -143,7 +126,6 @@ export default function ClientDetail({
   };
   const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>(CLOSED_SECTIONS);
   const [guidedOpen, setGuidedOpen] = useState(false);
-  const [headerDatesModalOpen, setHeaderDatesModalOpen] = useState(false);
   const [missingInfo, setMissingInfo] = useState<{
     message: string;
     actionLabel: string;
@@ -761,7 +743,11 @@ export default function ClientDetail({
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
-  const totalPersonnes = (Number(client.adultes) || 0) + (Number(client.enfants) || 0) + (Number(client.bebes) || 0);
+  const autoInfosManquantes = infosManquantesAuto(client, reservations);
+  const manuelInfosManquantes = client.infos_manquantes.filter(
+    (s) => s !== "Complet" && !autoInfosManquantes.includes(s)
+  );
+  const toutesInfosManquantes = [...autoInfosManquantes, ...manuelInfosManquantes];
 
   const acomptePayeMontant =
     client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
@@ -875,55 +861,6 @@ export default function ClientDetail({
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUT_COLORS[client.statut] }} />
             {client.statut}
           </span>
-          <span className="flex items-center gap-1 rounded-full border border-[#0F5C56]/30 bg-white px-2 py-0.5 text-[#0F5C56]">
-            ⌂
-            <input
-              value={client.hotel}
-              onChange={(e) => onChange({ hotel: e.target.value })}
-              placeholder="Hôtel"
-              size={Math.max(client.hotel.length, 6)}
-              className="border-none bg-transparent p-0 font-semibold text-[#0F5C56] placeholder-[#0F5C56]/50 focus:outline-none"
-            />
-          </span>
-          <button
-            type="button"
-            onClick={() => setHeaderDatesModalOpen(true)}
-            className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2 py-0.5 font-medium text-neutral-600 hover:bg-neutral-50"
-          >
-            📅 {fmtDateRangeFr(client.date_debut, client.date_fin)}
-          </button>
-
-          {headerDatesModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-              <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
-                <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">
-                  Dates du séjour
-                </h2>
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="date"
-                    value={client.date_debut ?? ""}
-                    onChange={(e) => onChange({ date_debut: e.target.value || null })}
-                    className="input w-full"
-                  />
-                  <span className="text-neutral-400">→</span>
-                  <input
-                    type="date"
-                    value={client.date_fin ?? ""}
-                    onChange={(e) => onChange({ date_fin: e.target.value || null })}
-                    className="input w-full"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setHeaderDatesModalOpen(false)}
-                  className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90"
-                >
-                  Valider
-                </button>
-              </div>
-            </div>
-          )}
           <TagStarPicker tags={client.tags || []} onChange={(tags) => onChange({ tags })} />
           {(client.tags || []).map((tag) => (
             <span key={tag} className="rounded-full bg-[#171717]/5 px-2 py-0.5 text-[#171717]">
@@ -931,26 +868,25 @@ export default function ClientDetail({
             </span>
           ))}
         </div>
-        {totalPersonnes > 0 && (
-          <div className="mt-1.5 text-xs text-neutral-500">
-            {[
-              client.adultes ? `${client.adultes} adulte${client.adultes > 1 ? "s" : ""}` : "",
-              client.enfants
-                ? `${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${
-                    client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""
-                  }`
-                : "",
-              client.bebes
-                ? `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${
-                    client.ages_bebes ? ` (${client.ages_bebes} ans)` : ""
-                  }`
-                : "",
-              client.ados_presents
-                ? `ados${client.ages_ados ? ` (${client.ages_ados} ans)` : ""}`
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")}
+        {toutesInfosManquantes.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+            {autoInfosManquantes.map((s) => (
+              <span
+                key={`auto-${s}`}
+                title="Détecté automatiquement depuis la fiche — se retire tout seul une fois complété"
+                className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-red-700"
+              >
+                🔒 {s}
+              </span>
+            ))}
+            {manuelInfosManquantes.map((s) => (
+              <span
+                key={s}
+                className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-[#666666]"
+              >
+                {s}
+              </span>
+            ))}
           </div>
         )}
       </div>

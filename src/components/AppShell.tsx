@@ -26,6 +26,7 @@ import {
   ReservationOption,
   ReservationTarif,
   TransfertTaxeModificationRequest,
+  Verification,
 } from "@/lib/types";
 import { resaTotalMontant, sharedActivityAlerts, SharedActivityAlert } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
@@ -60,7 +61,7 @@ import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
 import AssouanVerificationCenter from "@/components/AssouanVerificationCenter";
 import RemarqueEmployeeCenter from "@/components/RemarqueEmployeeCenter";
-import RelanceNudgeAlert from "@/components/RelanceNudgeAlert";
+import PersonalNudgeAlert from "@/components/PersonalNudgeAlert";
 
 type Mode =
   | "dashboard"
@@ -360,6 +361,7 @@ function AppShellInner({
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
+  const [allVerifications, setAllVerifications] = useState<Verification[]>([]);
   const [paypalPaiements, setPaypalPaiements] = useState<PaypalPaiement[]>([]);
   const [catalogueModificationRequests, setCatalogueModificationRequests] = useState<
     CatalogueModificationRequest[]
@@ -440,6 +442,7 @@ function AppShellInner({
         { data: profs },
         { data: shifts },
         { data: paypal },
+        { data: verifs },
       ] = await Promise.all([
         supabase.from("clients").select("*").order("created_at", { ascending: false }),
         supabase
@@ -457,10 +460,14 @@ function AppShellInner({
         // (PaypalPaiementRappel) doit pouvoir se déclencher quel que soit
         // l'onglet ouvert, comme les autres rappels (billets, appels...).
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
+        // Chargé sans attendre l'ouverture d'une fiche : sert au rappel
+        // personnel de vérification des dossiers (PersonalNudgeAlert).
+        supabase.from("verifications").select("*"),
       ]);
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
+      setAllVerifications((verifs as Verification[]) || []);
       if (!error && data) {
         setClients(data as Client[]);
         if (data.length && !selectedId) setSelectedId(data[0].id);
@@ -893,6 +900,7 @@ function AppShellInner({
         { data: profs },
         { data: shifts },
         { data: paypal },
+        { data: verifs },
       ] = await Promise.all([
         supabase.from("clients").select("*").order("created_at", { ascending: false }),
         supabase.from("catalogue_activites").select("*").order("ordre", { ascending: true }),
@@ -904,6 +912,7 @@ function AppShellInner({
         supabase.from("profiles").select("*"),
         supabase.from("planning_shifts").select("*"),
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
+        supabase.from("verifications").select("*"),
       ]);
 
       if (freshClients) {
@@ -945,6 +954,7 @@ function AppShellInner({
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
+      setAllVerifications((verifs as Verification[]) || []);
 
       if (flags.planningLoaded) {
         const { data: resas } = await supabase.from("reservations").select("*");
@@ -1118,17 +1128,22 @@ function AppShellInner({
         pushStatutToKommo(current.kommo_lead_id, patch.statut, patch.nom ?? current.nom);
       }
     }
-    // Toute mise à jour de dernier_contact_date (une relance) trace aussi
-    // qui l'a faite — sert au pop-up personnel "ça fait X jours que tu n'as
-    // pas relancé" (RelanceNudgeAlert). Toujours le vrai compte connecté
-    // (userId), jamais l'identité simulée par "Aperçu vu par".
-    const finalPatch = patch.dernier_contact_date
-      ? {
-          ...patch,
-          dernier_contact_par_id: userId,
-          dernier_contact_par_nom: teamProfiles.find((p) => p.id === userId)?.prenom || "",
-        }
-      : patch;
+    // Toute mise à jour de dernier_contact_date (une relance), au_revoir_
+    // envoye_le ou avis_envoye_le trace aussi qui l'a faite — sert au
+    // rappel personnel (PersonalNudgeAlert) "ça fait X jours que tu n'as
+    // rien fait ici". Toujours le vrai compte connecté (userId), jamais
+    // l'identité simulée par "Aperçu vu par".
+    const monPrenom = () => teamProfiles.find((p) => p.id === userId)?.prenom || "";
+    let finalPatch: Partial<Client> = patch;
+    if (patch.dernier_contact_date) {
+      finalPatch = { ...finalPatch, dernier_contact_par_id: userId, dernier_contact_par_nom: monPrenom() };
+    }
+    if (patch.au_revoir_envoye_le) {
+      finalPatch = { ...finalPatch, au_revoir_envoye_par_id: userId, au_revoir_envoye_par_nom: monPrenom() };
+    }
+    if (patch.avis_envoye_le) {
+      finalPatch = { ...finalPatch, avis_envoye_par_id: userId, avis_envoye_par_nom: monPrenom() };
+    }
     setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...finalPatch } : c)));
     const { error } = await supabase.from("clients").update(finalPatch).eq("id", id);
     if (error) toast("Échec de l'enregistrement.");
@@ -1659,10 +1674,14 @@ function AppShellInner({
       />
       <RemarqueEmployeeCenter currentUserId={userId} />
       {!isDirection && (
-        <RelanceNudgeAlert
+        <PersonalNudgeAlert
           currentUserId={userId}
           clients={clients}
+          verifications={allVerifications}
           onOpenProspectsARelancer={openProspectsARelancer}
+          onOpenAuRevoir={openAuRevoir}
+          onOpenAvisClients={openAvisClients}
+          onOpenClients={() => setMode("team")}
         />
       )}
       <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />

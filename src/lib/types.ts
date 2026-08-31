@@ -251,6 +251,10 @@ export type Verification = {
   client_id: string;
   nom: string;
   date: string | null;
+  // Rempli automatiquement avec le vrai compte connecté au moment de
+  // l'ajout — "nom" reste la signature tapée à la main, ceci sert au
+  // calcul fiable du rappel personnel (PersonalNudgeAlert).
+  verifie_par_id: string | null;
   created_at: string;
 };
 
@@ -343,8 +347,15 @@ export type Client = {
   acompte_date_encaissement: string | null;
   au_revoir_envoye: boolean;
   au_revoir_envoye_le: string | null;
+  // Qui a envoyé le message "au revoir" — pour le rappel personnel
+  // (PersonalNudgeAlert). Rempli à partir de maintenant seulement.
+  au_revoir_envoye_par_id: string | null;
+  au_revoir_envoye_par_nom: string;
   avis_envoye: boolean;
   avis_envoye_le: string | null;
+  // Idem pour la demande d'avis Google.
+  avis_envoye_par_id: string | null;
+  avis_envoye_par_nom: string;
   avis_statut: "À demander" | "À ne pas demander" | "Déjà publié";
   tags: string[];
   prochain_appel_date: string | null;
@@ -440,8 +451,12 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   acompte_date_encaissement: null,
   au_revoir_envoye: false,
   au_revoir_envoye_le: null,
+  au_revoir_envoye_par_id: null,
+  au_revoir_envoye_par_nom: "",
   avis_envoye: false,
   avis_envoye_le: null,
+  avis_envoye_par_id: null,
+  avis_envoye_par_nom: "",
   avis_statut: "À demander",
   tags: [],
   prochain_appel_date: null,

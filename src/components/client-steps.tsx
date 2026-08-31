@@ -1992,9 +1992,17 @@ export function SuiviStep({
   const addVerification = async () => {
     if (!verifNom.trim()) return;
     const today = todayStr();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const { data, error } = await supabase
       .from("verifications")
-      .insert({ client_id: client.id, nom: verifNom.trim(), date: today })
+      .insert({
+        client_id: client.id,
+        nom: verifNom.trim(),
+        date: today,
+        verifie_par_id: user?.id || null,
+      })
       .select()
       .single();
     if (!error && data) {

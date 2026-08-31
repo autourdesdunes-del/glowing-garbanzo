@@ -236,10 +236,68 @@ export function ContactStep({
 }) {
   const supabase = createClient();
   const toast = useToast();
+  const confirm = useConfirm();
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [infoManquanteOpen, setInfoManquanteOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(!!client.email.trim());
+  const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
+  const [showCircuit, setShowCircuit] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("client_hotels")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("ordre", { ascending: true });
+      setClientHotels((data as ClientHotel[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  const addHotelStep = async () => {
+    const { data, error } = await supabase
+      .from("client_hotels")
+      .insert({ client_id: client.id, ordre: clientHotels.length })
+      .select()
+      .single();
+    if (!error && data) {
+      setClientHotels((prev) => [...prev, data as ClientHotel]);
+      setShowCircuit(true);
+    } else {
+      toast("Impossible d'ajouter cet hôtel.");
+    }
+  };
+
+  const updateHotelStep = async (id: string, patch: Partial<ClientHotel>) => {
+    setClientHotels((prev) => prev.map((h) => (h.id === id ? { ...h, ...patch } : h)));
+    const { error } = await supabase.from("client_hotels").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const deleteHotelStep = async (id: string) => {
+    const ok = await confirm({
+      message: "Retirer cet hôtel du circuit ?",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
+    setClientHotels((prev) => prev.filter((h) => h.id !== id));
+    const { error } = await supabase.from("client_hotels").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const moveHotelStep = (id: string, dir: -1 | 1) => {
+    const idx = clientHotels.findIndex((h) => h.id === id);
+    const swapIdx = idx + dir;
+    if (idx < 0 || swapIdx < 0 || swapIdx >= clientHotels.length) return;
+    const next = [...clientHotels];
+    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+    const reordered = next.map((h, i) => ({ ...h, ordre: i }));
+    setClientHotels(reordered);
+    reordered.forEach((h) => supabase.from("client_hotels").update({ ordre: h.ordre }).eq("id", h.id));
+  };
 
   useEffect(() => {
     (async () => {
@@ -358,6 +416,24 @@ export function ContactStep({
         </PropertyRow>
       )}
 
+      <PropertyRow label="Dates du séjour" icon={<PropIcon name="calendar" />}>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={client.date_debut ?? ""}
+            onChange={(e) => onChange({ date_debut: e.target.value || null })}
+            className="input-flat w-auto"
+          />
+          <span className="text-neutral-400">→</span>
+          <input
+            type="date"
+            value={client.date_fin ?? ""}
+            onChange={(e) => onChange({ date_fin: e.target.value || null })}
+            className="input-flat w-auto"
+          />
+        </div>
+      </PropertyRow>
+
       {client.type_hebergement === "airbnb" ? (
         <>
           <PropertyRow label="Airbnb" icon={<PropIcon name="hotel" />}>
@@ -462,6 +538,97 @@ export function ContactStep({
               )}
             </div>
           )}
+
+          <div className="pl-[180px]">
+            {clientHotels.length === 0 && !showCircuit ? (
+              <button
+                type="button"
+                onClick={addHotelStep}
+                className="text-xs text-neutral-400 hover:text-neutral-600 hover:underline"
+              >
+                + Ajouter d&apos;autres hôtels (circuit)
+              </button>
+            ) : (
+              <div className="rounded-md border border-neutral-200 bg-white p-3">
+                <p className="mb-2 text-sm font-medium text-neutral-700">
+                  Autres hôtels du circuit (Caire, Louxor, Assouan, Marsa Alam, Siwa…)
+                </p>
+                {clientHotels.map((h, i) => (
+                  <div key={h.id} className="mb-3 flex items-end gap-2 border-b border-neutral-100 pb-3">
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        disabled={i === 0}
+                        onClick={() => moveHotelStep(h.id, -1)}
+                        className="text-xs text-neutral-500 disabled:opacity-20"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        disabled={i === clientHotels.length - 1}
+                        onClick={() => moveHotelStep(h.id, 1)}
+                        className="text-xs text-neutral-500 disabled:opacity-20"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                    <Field label="Hôtel">
+                      <input
+                        value={h.nom}
+                        onChange={(e) => updateHotelStep(h.id, { nom: e.target.value })}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Ville">
+                      <input
+                        value={h.ville}
+                        onChange={(e) => updateHotelStep(h.id, { ville: e.target.value })}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Chambre">
+                      <input
+                        value={h.chambre}
+                        onChange={(e) => updateHotelStep(h.id, { chambre: e.target.value })}
+                        className="input w-24"
+                      />
+                    </Field>
+                    <Field label="Arrivée">
+                      <input
+                        type="date"
+                        value={h.date_arrivee ?? ""}
+                        onChange={(e) => updateHotelStep(h.id, { date_arrivee: e.target.value || null })}
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Départ">
+                      <input
+                        type="date"
+                        value={h.date_depart ?? ""}
+                        onChange={(e) => updateHotelStep(h.id, { date_depart: e.target.value || null })}
+                        className="input"
+                      />
+                    </Field>
+                    <button
+                      type="button"
+                      onClick={() => deleteHotelStep(h.id)}
+                      className="pb-1.5 text-red-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addHotelStep}
+                  className="text-xs text-[#171717] hover:underline"
+                >
+                  + Ajouter un hôtel
+                </button>
+              </div>
+            )}
+          </div>
         </>
       )}
 
@@ -627,65 +794,6 @@ export function SejourStep({
   onOpenHelp: () => void;
 }) {
   const supabase = createClient();
-  const toast = useToast();
-  const confirm = useConfirm();
-  const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
-  const [showCircuit, setShowCircuit] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("client_hotels")
-        .select("*")
-        .eq("client_id", client.id)
-        .order("ordre", { ascending: true });
-      setClientHotels((data as ClientHotel[]) || []);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client.id]);
-
-  const addHotelStep = async () => {
-    const { data, error } = await supabase
-      .from("client_hotels")
-      .insert({ client_id: client.id, ordre: clientHotels.length })
-      .select()
-      .single();
-    if (!error && data) {
-      setClientHotels((prev) => [...prev, data as ClientHotel]);
-      setShowCircuit(true);
-    } else {
-      toast("Impossible d'ajouter cet hôtel.");
-    }
-  };
-
-  const updateHotelStep = async (id: string, patch: Partial<ClientHotel>) => {
-    setClientHotels((prev) => prev.map((h) => (h.id === id ? { ...h, ...patch } : h)));
-    const { error } = await supabase.from("client_hotels").update(patch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement.");
-  };
-
-  const deleteHotelStep = async (id: string) => {
-    const ok = await confirm({
-      message: "Retirer cet hôtel du circuit ?",
-      confirmLabel: "Retirer",
-      danger: true,
-    });
-    if (!ok) return;
-    setClientHotels((prev) => prev.filter((h) => h.id !== id));
-    const { error } = await supabase.from("client_hotels").delete().eq("id", id);
-    if (error) toast("Échec de la suppression.");
-  };
-
-  const moveHotelStep = (id: string, dir: -1 | 1) => {
-    const idx = clientHotels.findIndex((h) => h.id === id);
-    const swapIdx = idx + dir;
-    if (idx < 0 || swapIdx < 0 || swapIdx >= clientHotels.length) return;
-    const next = [...clientHotels];
-    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
-    const reordered = next.map((h, i) => ({ ...h, ordre: i }));
-    setClientHotels(reordered);
-    reordered.forEach((h) => supabase.from("client_hotels").update({ ordre: h.ordre }).eq("id", h.id));
-  };
 
   const copyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
     client.hotel || "—"
@@ -703,98 +811,9 @@ export function SejourStep({
 
   return (
     <div className="space-y-1.5">
-      {/* Dates du séjour, Hôtel/Chambre et le message Hurghada/taxe de
-          transfert : se modifient/s'affichent désormais depuis Contact en
-          haut de la fiche, plus ici. */}
-      {clientHotels.length === 0 && !showCircuit ? (
-        <button
-          type="button"
-          onClick={addHotelStep}
-          className="text-sm text-[#171717] hover:underline"
-        >
-          + Ajouter d&apos;autres hôtels (circuit)
-        </button>
-      ) : (
-        <div className="rounded-md border border-neutral-200 bg-white p-3">
-          <p className="mb-2 text-sm font-medium text-neutral-700">
-            Autres hôtels du circuit (Caire, Louxor, Assouan, Marsa Alam, Siwa…)
-          </p>
-          {clientHotels.map((h, i) => (
-            <div key={h.id} className="mb-3 flex items-end gap-2 border-b border-neutral-100 pb-3">
-              <div className="flex flex-col gap-0.5">
-                <button
-                  type="button"
-                  disabled={i === 0}
-                  onClick={() => moveHotelStep(h.id, -1)}
-                  className="text-xs text-neutral-500 disabled:opacity-20"
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  disabled={i === clientHotels.length - 1}
-                  onClick={() => moveHotelStep(h.id, 1)}
-                  className="text-xs text-neutral-500 disabled:opacity-20"
-                >
-                  ▼
-                </button>
-              </div>
-              <Field label="Hôtel">
-                <input
-                  value={h.nom}
-                  onChange={(e) => updateHotelStep(h.id, { nom: e.target.value })}
-                  className="input"
-                />
-              </Field>
-              <Field label="Ville">
-                <input
-                  value={h.ville}
-                  onChange={(e) => updateHotelStep(h.id, { ville: e.target.value })}
-                  className="input"
-                />
-              </Field>
-              <Field label="Chambre">
-                <input
-                  value={h.chambre}
-                  onChange={(e) => updateHotelStep(h.id, { chambre: e.target.value })}
-                  className="input w-24"
-                />
-              </Field>
-              <Field label="Arrivée">
-                <input
-                  type="date"
-                  value={h.date_arrivee ?? ""}
-                  onChange={(e) => updateHotelStep(h.id, { date_arrivee: e.target.value || null })}
-                  className="input"
-                />
-              </Field>
-              <Field label="Départ">
-                <input
-                  type="date"
-                  value={h.date_depart ?? ""}
-                  onChange={(e) => updateHotelStep(h.id, { date_depart: e.target.value || null })}
-                  className="input"
-                />
-              </Field>
-              <button
-                type="button"
-                onClick={() => deleteHotelStep(h.id)}
-                className="pb-1.5 text-red-600"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            onClick={addHotelStep}
-            className="text-xs text-[#171717] hover:underline"
-          >
-            + Ajouter un hôtel
-          </button>
-        </div>
-      )}
-
+      {/* Dates du séjour, Hôtel/Chambre, circuit d'hôtels et le message
+          Hurghada/taxe de transfert : se modifient/s'affichent désormais
+          depuis Contact en haut de la fiche, plus ici. */}
       <PropertyRow label="Adultes" icon={<PropIcon name="person" />}>
         <input
           type="number"

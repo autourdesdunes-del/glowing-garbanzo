@@ -505,31 +505,19 @@ export function ContactStep({
         </>
       ) : (
         <>
-          <PropertyRow label="Hôtel / Chambre" icon={<PropIcon name="hotel" />}>
+          <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
             <div className="flex items-center gap-1.5">
               <input
                 value={client.hotel}
                 onChange={(e) => onChange({ hotel: e.target.value })}
                 placeholder="Hôtel"
-                size={Math.max(client.hotel.length, 8)}
-                className="input-flat w-auto flex-shrink-0 font-medium"
+                className="input-flat min-w-0 flex-1 font-medium"
               />
-              {client.hotel.trim() && (
-                <>
-                  <span className="text-neutral-400">-</span>
-                  <input
-                    value={client.chambre}
-                    onChange={(e) => onChange({ chambre: e.target.value })}
-                    placeholder="N° chambre(s)"
-                    className="input-flat w-28 flex-shrink-0"
-                  />
-                </>
-              )}
               <div className="relative ml-auto flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setHebergementMenuOpen((o) => !o)}
-                  title="Airbnb ou circuit d'hôtels"
+                  title="Chambre, Airbnb ou circuit d'hôtels"
                   className="flex h-5 w-5 items-center justify-center rounded-full border border-neutral-300 text-xs leading-none text-neutral-500 hover:border-neutral-400 hover:text-neutral-700"
                 >
                   +
@@ -540,7 +528,17 @@ export function ContactStep({
                       className="fixed inset-0 z-40"
                       onClick={() => setHebergementMenuOpen(false)}
                     />
-                    <div className="absolute right-0 z-50 mt-1 w-56 rounded-md border border-neutral-200 bg-white py-1 shadow-lg">
+                    <div className="absolute right-0 z-50 mt-1 w-60 rounded-md border border-neutral-200 bg-white p-1 shadow-lg">
+                      <div className="px-2 py-1.5">
+                        <label className="mb-1 block text-[11px] text-neutral-400">N° chambre(s)</label>
+                        <input
+                          value={client.chambre}
+                          onChange={(e) => onChange({ chambre: e.target.value })}
+                          placeholder="N° chambre(s)"
+                          className="input w-full text-sm"
+                        />
+                      </div>
+                      <div className="my-1 border-t border-neutral-100" />
                       <button
                         type="button"
                         onClick={() => {

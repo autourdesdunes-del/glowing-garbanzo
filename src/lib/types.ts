@@ -492,6 +492,16 @@ export type PlanningShift = {
   updated_at: string;
 };
 
+// Jour où la couverture 9h30-21h30 par au moins 2 personnes n'est pas
+// exigée (Noël, jour de l'an, raison spéciale...) — l'alerte "jour
+// incomplet" du Planning équipe ignore ces dates.
+export type PlanningJourExceptionnel = {
+  id: string;
+  date: string;
+  motif: string;
+  created_at: string;
+};
+
 export type SemaineTypeShift = {
   id: string;
   semaine: "A" | "B";

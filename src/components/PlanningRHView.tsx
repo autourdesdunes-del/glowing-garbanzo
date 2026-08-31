@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Conge, PlanningShift, Profile, SemaineTypeShift } from "@/lib/types";
+import { Conge, PlanningJourExceptionnel, PlanningShift, Profile, SemaineTypeShift } from "@/lib/types";
 import { JOURS_SEMAINE } from "@/lib/constants";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
@@ -27,6 +27,10 @@ function addDaysIso(iso: string, n: number) {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + n);
   return localIso(d);
+}
+function timeToMinutes(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
 }
 // Avril, août, octobre : haute saison pour l'agence — pas de congé possible
 // sur ces mois-là, même partiellement.
@@ -300,6 +304,7 @@ export default function PlanningRHView({
   const [shifts, setShifts] = useState<PlanningShift[]>([]);
   const [conges, setConges] = useState<Conge[]>([]);
   const [semaineTypes, setSemaineTypes] = useState<SemaineTypeShift[]>([]);
+  const [joursExceptionnels, setJoursExceptionnels] = useState<PlanningJourExceptionnel[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   const [activeSemaine, setActiveSemaine] = useState<"A" | "B">("A");
@@ -325,6 +330,11 @@ export default function PlanningRHView({
   // quand ELLE travaille, pas qui travaille dans l'équipe — "L'équipe" est
   // un choix explicite, pas le point de départ.
   const [planningScope, setPlanningScope] = useState<"moi" | "equipe">("moi");
+  const [congesSub, setCongesSub] = useState<"demande" | "mes">("demande");
+  // Note d'un shift affichée au clic (pas au survol, qui ne marche pas au
+  // doigt sur mobile — l'explication doit s'afficher qu'on soit sur
+  // téléphone ou ordinateur).
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
   const [weekStart, setWeekStart] = useState(mondayOf(todayStr()));
 
   useEffect(() => {
@@ -333,16 +343,18 @@ export default function PlanningRHView({
         data: { user },
       } = await supabase.auth.getUser();
       setUserId(user?.id ?? null);
-      const [{ data: profs }, { data: sh }, { data: cg }, { data: st }] = await Promise.all([
+      const [{ data: profs }, { data: sh }, { data: cg }, { data: st }, { data: exc }] = await Promise.all([
         supabase.from("profiles").select("*"),
         supabase.from("planning_shifts").select("*").order("date", { ascending: true }),
         supabase.from("conges").select("*").order("date_debut", { ascending: false }),
         supabase.from("planning_semaine_type").select("*"),
+        supabase.from("planning_jours_exceptionnels").select("*"),
       ]);
       setProfiles((profs as Profile[]) || []);
       setShifts((sh as PlanningShift[]) || []);
       setConges((cg as Conge[]) || []);
       setSemaineTypes((st as SemaineTypeShift[]) || []);
+      setJoursExceptionnels((exc as PlanningJourExceptionnel[]) || []);
       setLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -583,6 +595,28 @@ export default function PlanningRHView({
     if (error) toast("Échec du refus.");
   };
 
+  // Jour "exceptionnel" (Noël, jour de l'an, raison spéciale...) : l'alerte
+  // "jour incomplet" ne se déclenche plus sur cette date précise.
+  const marquerJourExceptionnel = async (date: string, motif: string) => {
+    const { data, error } = await supabase
+      .from("planning_jours_exceptionnels")
+      .upsert({ date, motif }, { onConflict: "date" })
+      .select()
+      .single();
+    if (!error && data) {
+      setJoursExceptionnels((prev) => [...prev.filter((j) => j.date !== date), data as PlanningJourExceptionnel]);
+      toast("Jour marqué comme exceptionnel.", "success");
+    } else {
+      toast("Impossible de marquer ce jour.");
+    }
+  };
+
+  const retirerJourExceptionnel = async (id: string) => {
+    setJoursExceptionnels((prev) => prev.filter((j) => j.id !== id));
+    const { error } = await supabase.from("planning_jours_exceptionnels").delete().eq("id", id);
+    if (error) toast("Échec du retrait.");
+  };
+
   if (!loaded) return null;
 
   const thisYear = new Date().getFullYear();
@@ -629,19 +663,41 @@ export default function PlanningRHView({
   const isCurrentWeek = weekStart === mondayOf(today);
 
   // Alerte "jour incomplet" : scanne les 6 prochaines semaines (au-delà de
-  // la semaine affichée) pour repérer un jour où personne n'a rien généré
-  // ou pas assez de monde — sinon un jour comme celui du 18 septembre reste
-  // invisible jusqu'à ce qu'il arrive. Toujours calculé sur toute l'équipe,
-  // même en vue "Ta semaine".
-  const incompleteDays: { iso: string; count: number }[] = [];
+  // la semaine affichée) pour repérer un jour où la couverture 9h30-21h30
+  // n'est pas assurée par au moins 2 personnes — sinon un jour comme celui
+  // du 18 septembre reste invisible jusqu'à ce qu'il arrive. Toujours
+  // calculé sur toute l'équipe, même en vue "Ta semaine". Un jour marqué
+  // "exceptionnel" (Noël, jour de l'an...) est ignoré.
+  const exceptionnelDates = new Set(joursExceptionnels.map((j) => j.date));
+  const incompleteDays: { iso: string; reason: string }[] = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(today + "T00:00:00");
     d.setDate(d.getDate() + i);
     const iso = localIso(d);
-    const dayShifts = (teamShiftsByDate[iso] || []).filter((s) => s.statut !== "repos");
-    const workingCount = dayShifts.filter((s) => s.statut === "travail" || s.statut === "superviseur").length;
-    if (workingCount < 3) {
-      incompleteDays.push({ iso, count: workingCount });
+    if (exceptionnelDates.has(iso)) continue;
+    const working = (teamShiftsByDate[iso] || []).filter(
+      (s) => s.statut === "travail" && s.shift_debut && s.shift_fin
+    );
+    if (working.length < 2) {
+      incompleteDays.push({ iso, reason: `${working.length} personne${working.length > 1 ? "s" : ""}` });
+      continue;
+    }
+    const intervals = working
+      .map((s) => [timeToMinutes(s.shift_debut), timeToMinutes(s.shift_fin)])
+      .sort((a, b) => a[0] - b[0]);
+    const OPEN = timeToMinutes("09:30");
+    const CLOSE = timeToMinutes("21:30");
+    let cursor = OPEN;
+    let gap = false;
+    for (const [start, end] of intervals) {
+      if (start > cursor) {
+        gap = true;
+        break;
+      }
+      cursor = Math.max(cursor, end);
+    }
+    if (gap || cursor < CLOSE) {
+      incompleteDays.push({ iso, reason: "trou dans la couverture 9h30-21h30" });
     }
   }
 
@@ -691,6 +747,30 @@ export default function PlanningRHView({
               }`}
             >
               L&apos;équipe
+            </button>
+          </div>
+        )}
+        {tab === "conges" && !isDirection && (
+          <div className="-mt-px flex gap-4 border-t border-neutral-100 pl-1 pt-2">
+            <button
+              onClick={() => setCongesSub("demande")}
+              className={`border-b-2 pb-1.5 text-xs font-medium ${
+                congesSub === "demande"
+                  ? "border-[#171717] text-[#171717]"
+                  : "border-transparent text-neutral-400 hover:text-neutral-600"
+              }`}
+            >
+              Demander un congé
+            </button>
+            <button
+              onClick={() => setCongesSub("mes")}
+              className={`border-b-2 pb-1.5 text-xs font-medium ${
+                congesSub === "mes"
+                  ? "border-[#171717] text-[#171717]"
+                  : "border-transparent text-neutral-400 hover:text-neutral-600"
+              }`}
+            >
+              Mes congés
             </button>
           </div>
         )}
@@ -920,15 +1000,45 @@ export default function PlanningRHView({
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {incompleteDays.map((d) => (
-                  <button
+                  <span
                     key={d.iso}
-                    onClick={() => setWeekStart(mondayOf(d.iso))}
-                    className="rounded-full border border-red-300 bg-white px-2.5 py-1 text-xs text-red-700 hover:bg-red-100"
+                    className="flex items-center gap-1 rounded-full border border-red-300 bg-white pl-2.5 pr-1 py-1 text-xs text-red-700"
                   >
-                    {fmtDate(d.iso)} — {d.count === 0 ? "personne" : `${d.count} pers.`}
-                  </button>
+                    <button onClick={() => setWeekStart(mondayOf(d.iso))} className="hover:underline">
+                      {fmtDate(d.iso)} — {d.reason}
+                    </button>
+                    <button
+                      onClick={() => marquerJourExceptionnel(d.iso, "")}
+                      className="rounded-full bg-red-50 px-2 py-0.5 text-red-500 hover:bg-red-100 hover:text-red-700"
+                    >
+                      Exceptionnel
+                    </button>
+                  </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {isDirection && joursExceptionnels.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-center gap-1.5 text-xs text-neutral-500">
+              <span>Jours exceptionnels (alerte désactivée) :</span>
+              {joursExceptionnels
+                .slice()
+                .sort((a, b) => a.date.localeCompare(b.date))
+                .map((j) => (
+                  <span
+                    key={j.id}
+                    className="flex items-center gap-1 rounded-full border border-neutral-300 bg-white px-2.5 py-1"
+                  >
+                    {fmtDate(j.date)}
+                    <button
+                      onClick={() => retirerJourExceptionnel(j.id)}
+                      className="text-neutral-400 hover:text-red-600"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
             </div>
           )}
 
@@ -1025,9 +1135,18 @@ export default function PlanningRHView({
                             {statutLabel(s.statut, s.shift_debut, s.shift_fin)}
                           </span>
                           {s.note && (
-                            <span title={s.note} className="cursor-help text-neutral-400">
-                              ℹ️
-                            </span>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedNoteId((id) => (id === s.id ? null : s.id))}
+                                className="text-neutral-400"
+                              >
+                                ℹ️
+                              </button>
+                              {expandedNoteId === s.id && (
+                                <span className="italic text-neutral-500">— {s.note}</span>
+                              )}
+                            </>
                           )}
                           {isDirection && (
                             <button
@@ -1103,7 +1222,7 @@ export default function PlanningRHView({
 
       {tab === "conges" && (
         <div className="space-y-4">
-          {!isDirection && (
+          {!isDirection && congesSub === "demande" && (
             <div className="rounded-md border border-dashed border-neutral-300 bg-white p-3">
               <p className="mb-1 text-sm font-medium text-neutral-700">Demander un congé</p>
               <p className="mb-2 text-xs text-[#666666]">
@@ -1139,7 +1258,7 @@ export default function PlanningRHView({
             </div>
           )}
 
-          {!isDirection && effectiveUserId && (
+          {!isDirection && congesSub === "mes" && effectiveUserId && (
             <div className="rounded-md bg-[#fafafa]/50 p-3 text-sm text-[#171717]">
               <p>
                 Congés pris en {thisYear} : <strong>{congesTotalFor(effectiveUserId)} jour(s)</strong>
@@ -1227,7 +1346,7 @@ export default function PlanningRHView({
             </div>
           )}
 
-          {!isDirection && (
+          {!isDirection && congesSub === "mes" && (
             <div className="space-y-2">
               {visibleConges.length === 0 && (
                 <div className="text-sm text-neutral-400">Aucune demande de congé.</div>

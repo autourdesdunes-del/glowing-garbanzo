@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ActivityLogEntry,
@@ -1041,6 +1041,22 @@ export function ActivitesStep({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+
+  // Une activité tout juste ajoutée (ou la seule du séjour) reste ouverte
+  // par défaut — sinon l'employée doit recliquer dessus juste après l'avoir
+  // créée pour voir ce qu'elle vient de remplir.
+  useEffect(() => {
+    const ids = reservations.map((r) => r.id);
+    const newId = ids.find((id) => !knownIdsRef.current.has(id));
+    knownIdsRef.current = new Set(ids);
+    if (newId) {
+      setExpandedId(newId);
+    } else if (reservations.length === 1 && expandedId === null) {
+      setExpandedId(reservations[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservations]);
 
   if (addingNew) {
     return (
@@ -1076,24 +1092,20 @@ export function ActivitesStep({
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        {clientAnnule ? (
-          <p className="text-xs text-neutral-400">Client annulé — impossible d&apos;ajouter une activité.</p>
-        ) : (
-          <button
-            onClick={() => {
-              if (onRequestAdd) {
-                onRequestAdd();
-                return;
-              }
-              setAddingNew(true);
-            }}
-            className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-          >
-            + Ajouter une activité
-          </button>
-        )}
-      </div>
+      {!onRequestAdd && (
+        <div className="flex justify-end">
+          {clientAnnule ? (
+            <p className="text-xs text-neutral-400">Client annulé — impossible d&apos;ajouter une activité.</p>
+          ) : (
+            <button
+              onClick={() => setAddingNew(true)}
+              className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              + Ajouter une activité
+            </button>
+          )}
+        </div>
+      )}
 
       <ItineraryView
         client={client}

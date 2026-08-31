@@ -68,7 +68,7 @@ function Section({
     <div id={`section-${title}`} className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-5 py-3.5 text-left"
+        className="flex w-full items-center justify-between px-4 py-2.5 text-left"
       >
         <span className="flex items-center gap-2">
           <span className="font-heading text-sm font-semibold text-[#171717]">{title}</span>
@@ -81,7 +81,7 @@ function Section({
           </span>
         </span>
       </button>
-      {open && <div className="border-t border-[#666666]/10 px-5 py-5">{children}</div>}
+      {open && <div className="border-t border-[#666666]/10 px-4 py-4">{children}</div>}
     </div>
   );
 }
@@ -766,7 +766,7 @@ export default function ClientDetail({
     setOpen((prev) => ({ ...CLOSED_SECTIONS, [s]: !prev[s] }));
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-3xl space-y-2">
       {client.confirmation_a_traiter && (
         <div className="flex items-center justify-between gap-2 rounded-md border border-[#0F5C56]/40 bg-[#0F5C56]/10 px-3 py-1.5">
           <p className="text-xs text-[#171717]">
@@ -968,7 +968,7 @@ export default function ClientDetail({
       {/* Contact + Séjour : toujours visibles, pas de clic pour déplier —
           contrairement aux autres sections, ce sont les infos qu'on
           consulte le plus souvent en ouvrant une fiche. */}
-      <div id="section-Contact" className="rounded-[6px] border border-[#eaeaea] bg-white px-5 py-4">
+      <div id="section-Contact" className="rounded-[6px] border border-[#eaeaea] bg-white px-4 py-3">
         <ContactStep
           client={client}
           onChange={onChange}
@@ -988,7 +988,7 @@ export default function ClientDetail({
         />
       </div>
 
-      <div id="section-Séjour" className="rounded-[6px] border border-[#eaeaea] bg-white px-5 py-4">
+      <div id="section-Séjour" className="rounded-[6px] border border-[#eaeaea] bg-white px-4 py-3">
         <SejourStep
           client={client}
           onChange={onChange}
@@ -1001,11 +1001,33 @@ export default function ClientDetail({
       <Section
         title="Activités réservées"
         endBadge={
-          reservations.length > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#0F5C56]/10 px-1 text-xs font-semibold text-[#0F5C56]">
-              {reservations.length}
-            </span>
-          )
+          <span className="flex items-center gap-1.5">
+            {reservations.length > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#0F5C56]/10 px-1 text-xs font-semibold text-[#0F5C56]">
+                {reservations.length}
+              </span>
+            )}
+            {client.statut !== "Client annulé" && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGuidedOpen(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.stopPropagation();
+                    setGuidedOpen(true);
+                  }
+                }}
+                title="Ajouter une activité"
+                className="flex h-5 w-5 items-center justify-center rounded-full bg-[#2563eb] text-sm font-semibold leading-none text-white hover:bg-[#1d4ed8]"
+              >
+                +
+              </span>
+            )}
+          </span>
         }
         open={open.Activités}
         onToggle={() => toggle("Activités")}

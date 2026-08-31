@@ -22,7 +22,7 @@ export function PropertyRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2.5 border-b border-[#666666]/10 py-1.5 last:border-b-0">
+    <div className="flex items-center gap-2.5 border-b border-[#666666]/10 py-1 last:border-b-0">
       {icon ? (
         <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center text-neutral-400">
           {icon}

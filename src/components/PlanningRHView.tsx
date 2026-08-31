@@ -527,17 +527,27 @@ export default function PlanningRHView({
       );
       return;
     }
-    const { data, error } = await supabase
-      .from("conges")
-      .insert({ user_id: userId, date_debut: congeDebut, date_fin: congeFin, motif: congeMotif })
-      .select()
-      .single();
+    // Une demande sur plusieurs jours devient une ligne par jour — jamais un
+    // seul congé "du ... au ...", pour que chaque jour se valide/se voie
+    // séparément dans le planning.
+    const rows: { user_id: string; date_debut: string; date_fin: string; motif: string }[] = [];
+    const d = new Date(congeDebut + "T00:00:00");
+    const end = new Date(congeFin + "T00:00:00");
+    while (d <= end) {
+      const iso = localIso(d);
+      rows.push({ user_id: userId, date_debut: iso, date_fin: iso, motif: congeMotif });
+      d.setDate(d.getDate() + 1);
+    }
+    const { data, error } = await supabase.from("conges").insert(rows).select();
     if (!error && data) {
-      setConges((prev) => [data as Conge, ...prev]);
+      setConges((prev) => [...(data as Conge[]), ...prev]);
       setCongeDebut("");
       setCongeFin("");
       setCongeMotif("");
-      toast("Demande de congé envoyée.", "success");
+      toast(
+        data.length > 1 ? `${data.length} demandes de congé envoyées.` : "Demande de congé envoyée.",
+        "success"
+      );
     } else {
       toast("Impossible d'envoyer la demande.");
     }

@@ -449,11 +449,11 @@ export function ContactStep({
 
   return (
     <div className="space-y-1.5">
-      <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
+      <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />} shaded>
         <button
           type="button"
           onClick={() => setHotelModalOpen(true)}
-          className="text-left text-sm text-[#171717] hover:underline"
+          className="text-left text-sm font-semibold text-[#171717] hover:underline"
         >
           {hebergementSummary(client)}
         </button>
@@ -765,7 +765,7 @@ export function ContactStep({
         </div>
       )}
 
-      <PropertyRow label="Dates du séjour" icon={<PropIcon name="calendar" />}>
+      <PropertyRow label="Dates du séjour" icon={<PropIcon name="calendar" />} shaded>
         <button
           type="button"
           onClick={() => setDatesModalOpen(true)}
@@ -813,7 +813,7 @@ export function ContactStep({
         </PropertyRow>
       )}
 
-      <PropertyRow label="What's app" icon={<PropIcon name="phone" />}>
+      <PropertyRow label="What's app" icon={<PropIcon name="phone" />} shaded>
         <button
           type="button"
           onClick={() => setWhatsappModalOpen(true)}
@@ -927,7 +927,7 @@ export function ContactStep({
       )}
 
       {!client.solde_activite_id && (client.solde_rdv_heure || client.solde_rdv_lieu) && (
-        <PropertyRow label="RDV paiement" icon={<PropIcon name="wallet" />}>
+        <PropertyRow label="RDV paiement" icon={<PropIcon name="wallet" />} shaded>
           <button
             type="button"
             onClick={onJumpToPaiements}
@@ -1172,6 +1172,12 @@ export function ActivitesStep({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
   const knownIdsRef = useRef<Set<string>>(new Set());
+  // N'auto-ouvre la seule activité du séjour qu'une fois — sinon, refermer
+  // la carte (ex. juste après "Valider", qui appelle onToggleExpanded(false))
+  // se faisait immédiatement ré-ouvrir dès que reservations changeait de
+  // référence (n'importe quelle mise à jour de la réservation, y compris le
+  // "Valider" lui-même), donnant l'impression que Valider ne faisait rien.
+  const autoOuvertSeuleRef = useRef(false);
 
   // Une activité tout juste ajoutée (ou la seule du séjour) reste ouverte
   // par défaut — sinon l'employée doit recliquer dessus juste après l'avoir
@@ -1179,13 +1185,14 @@ export function ActivitesStep({
   useEffect(() => {
     const ids = reservations.map((r) => r.id);
     const newId = ids.find((id) => !knownIdsRef.current.has(id));
+    const premierRendu = knownIdsRef.current.size === 0;
     knownIdsRef.current = new Set(ids);
-    if (newId) {
+    if (newId && !premierRendu) {
       setExpandedId(newId);
-    } else if (reservations.length === 1 && expandedId === null) {
+    } else if (reservations.length === 1 && !autoOuvertSeuleRef.current) {
+      autoOuvertSeuleRef.current = true;
       setExpandedId(reservations[0].id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservations]);
 
   if (addingNew) {

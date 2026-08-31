@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/kommo-webhook-healthcheck",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/kwid-renewal-reminder",
+      "schedule": "0 8 * * *"
     }
   ]
 }

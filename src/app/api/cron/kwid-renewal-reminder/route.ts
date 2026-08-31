@@ -49,7 +49,7 @@ async function envoyerAlerte(renewalDate: Date, joursRestants: number): Promise<
     await resend.emails.send({
       from: "Autour des Dunes CRM <onboarding@resend.dev>",
       to: destinataire,
-      subject: `⏰ Abonnement KWID (Kommo) à renouveler dans ${joursRestants} jour${joursRestants > 1 ? "s" : ""}`,
+      subject: `URGENT RENOUVELLEMENT — KWID (Kommo) à renouveler dans ${joursRestants} jour${joursRestants > 1 ? "s" : ""}`,
       text: `L'abonnement KWID "Salesbot Webhooks" (6 mois) arrive à échéance le ${dateStr}.\n\nSans renouvellement, le webhook qui alimente le résumé IA des conversations WhatsApp/Instagram retombera en panne silencieuse (comme le 27/08/2026).\n\nPour payer : https://wearekwid.com/buy-subscription?widget_code=dnov_sb_webhook&quantity=4&account_id=36806219\n\nUne fois payé, pense à mettre à jour KWID_RENEWAL_DATE dans les variables d'environnement Vercel avec la nouvelle date d'échéance.`,
     });
     return true;

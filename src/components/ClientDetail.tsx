@@ -828,7 +828,7 @@ export default function ClientDetail({
               {client.statut !== "Client annulé" && (
                 <button
                   onClick={() => setShowAnnulerClientModal(true)}
-                  className="whitespace-nowrap rounded-md border border-[#8B4531]/40 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5"
+                  className="whitespace-nowrap rounded-md border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
                 >
                   Annuler ce client
                 </button>
@@ -856,7 +856,7 @@ export default function ClientDetail({
             <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUT_COLORS[client.statut] }} />
             {client.statut}
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-[#0F5C56]">
+          <span className="flex items-center gap-1 rounded-full border border-[#0F5C56]/30 bg-white px-2 py-0.5 text-[#0F5C56]">
             ⌂
             <input
               value={client.hotel}
@@ -866,19 +866,19 @@ export default function ClientDetail({
               className="border-none bg-transparent p-0 font-semibold text-[#0F5C56] placeholder-[#0F5C56]/50 focus:outline-none"
             />
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-[#8B4531]/10 px-2 py-0.5 text-[#8B4531]">
+          <span className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-2 py-0.5 font-medium text-neutral-600">
             <input
               type="date"
               value={client.date_debut ?? ""}
               onChange={(e) => onChange({ date_debut: e.target.value || null })}
-              className="border-none bg-transparent p-0 text-[#8B4531] focus:outline-none"
+              className="border-none bg-transparent p-0 text-neutral-600 focus:outline-none"
             />
             →
             <input
               type="date"
               value={client.date_fin ?? ""}
               onChange={(e) => onChange({ date_fin: e.target.value || null })}
-              className="border-none bg-transparent p-0 text-[#8B4531] focus:outline-none"
+              className="border-none bg-transparent p-0 text-neutral-600 focus:outline-none"
             />
           </span>
           <TagStarPicker tags={client.tags || []} onChange={(tags) => onChange({ tags })} />

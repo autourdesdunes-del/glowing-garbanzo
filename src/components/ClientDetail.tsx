@@ -294,6 +294,10 @@ export default function ClientDetail({
   const [showIncidentsModal, setShowIncidentsModal] = useState(false);
   const [showDevisPaiementModal, setShowDevisPaiementModal] = useState(false);
   const [confirmationFormat, setConfirmationFormat] = useState<"pdf" | "png" | null>(null);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const [actionsMenuGroup, setActionsMenuGroup] = useState<"none" | "devisFacture" | "confirmation">(
+    "none"
+  );
 
   useEffect(() => {
     (async () => {
@@ -837,83 +841,162 @@ export default function ClientDetail({
 
       <div className="rounded-[6px] border border-[#eaeaea] bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <input
-            value={client.nom}
-            onChange={(e) => onChange({ nom: e.target.value })}
-            placeholder="Nom du client"
-            className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
-          />
-          <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onDuplicateAsNewStay(client)}
-                className="text-xs text-[#171717] hover:underline"
-              >
-                + Nouveau séjour pour ce même client
-              </button>
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <input
+              value={client.nom}
+              onChange={(e) => onChange({ nom: e.target.value })}
+              placeholder="Nom du client"
+              className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
+            />
+            {incidents.some((i) => i.statut === "Ouvert") && (
               <button
                 onClick={() => setShowIncidentsModal(true)}
-                title="Rapports d'incident"
-                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-                  incidents.some((i) => i.statut === "Ouvert")
-                    ? "bg-red-100 text-red-700 hover:bg-red-200"
-                    : incidents.length > 0
-                      ? "bg-neutral-100 text-neutral-500 hover:bg-neutral-200"
-                      : "text-neutral-300 hover:text-neutral-500"
-                }`}
+                title="Incident ouvert — voir le rapport"
+                className="flex-shrink-0 text-lg leading-none"
               >
-                🚩{incidents.length > 0 ? ` ${incidents.length}` : ""}
+                🚩
               </button>
-            </div>
-            <div className="flex items-center gap-1.5">
+            )}
+          </div>
+          <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
+            <div className="relative">
               <button
-                onClick={() => setShowDevisPaiementModal(true)}
-                disabled={generatingDoc !== null}
-                className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
+                onClick={() => {
+                  setActionsMenuOpen((v) => !v);
+                  setActionsMenuGroup("none");
+                }}
+                title="Actions"
+                className="flex h-7 w-7 items-center justify-center rounded-md border border-[#8B4531]/40 text-[#8B4531] hover:bg-[#8B4531]/5"
               >
-                {generatingDoc === "devis" ? "Génération…" : "Devis (PDF)"}
+                ▾
               </button>
-              <button
-                onClick={() => handleDownload("facture")}
-                disabled={generatingDoc !== null}
-                className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
-              >
-                {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
-              </button>
-              <button
-                onClick={() => setConfirmationFormat("pdf")}
-                disabled={confirmationFormat !== null}
-                className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
-              >
-                {confirmationFormat === "pdf" ? "Génération…" : "Bon de confirmation (PDF)"}
-              </button>
-              <button
-                onClick={() => setConfirmationFormat("png")}
-                disabled={confirmationFormat !== null}
-                className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
-              >
-                {confirmationFormat === "png" ? "Génération…" : "Bon de confirmation (PNG)"}
-              </button>
-              {client.statut !== "Client annulé" && (
-                <button
-                  onClick={() => setShowAnnulerClientModal(true)}
-                  className="whitespace-nowrap rounded-md border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                >
-                  Annuler ce client
-                </button>
+              {actionsMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => {
+                      setActionsMenuOpen(false);
+                      setActionsMenuGroup("none");
+                    }}
+                  />
+                  <div className="absolute right-0 top-full z-50 mt-1 w-60 space-y-0.5 rounded-md border border-[#eaeaea] bg-white p-1 shadow-lg">
+                    {actionsMenuGroup === "none" && (
+                      <>
+                        <button
+                          onClick={() => setActionsMenuGroup("devisFacture")}
+                          className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-sm text-[#171717] hover:bg-[#fafafa]"
+                        >
+                          Devis / Facture <span className="text-neutral-400">›</span>
+                        </button>
+                        <button
+                          onClick={() => setActionsMenuGroup("confirmation")}
+                          className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-sm text-[#171717] hover:bg-[#fafafa]"
+                        >
+                          Bon de confirmation <span className="text-neutral-400">›</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowIncidentsModal(true);
+                            setActionsMenuOpen(false);
+                          }}
+                          className="flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-sm text-[#171717] hover:bg-[#fafafa]"
+                        >
+                          🚩 Signaler un incident / une réclamation
+                        </button>
+                        {client.statut !== "Client annulé" && (
+                          <button
+                            onClick={() => {
+                              setShowAnnulerClientModal(true);
+                              setActionsMenuOpen(false);
+                            }}
+                            className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm text-red-600 hover:bg-red-50"
+                          >
+                            Annuler ce client
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => {
+                              setActionsMenuOpen(false);
+                              onDelete();
+                            }}
+                            className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm text-red-600 hover:bg-red-50"
+                          >
+                            Supprimer cette fiche client définitivement
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {actionsMenuGroup === "devisFacture" && (
+                      <>
+                        <button
+                          onClick={() => setActionsMenuGroup("none")}
+                          className="flex w-full items-center gap-1 rounded-md px-2.5 py-1.5 text-left text-sm text-neutral-500 hover:bg-[#fafafa]"
+                        >
+                          ‹ Retour
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDevisPaiementModal(true);
+                            setActionsMenuOpen(false);
+                          }}
+                          disabled={generatingDoc !== null}
+                          className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+                        >
+                          {generatingDoc === "devis" ? "Génération…" : "Devis (PDF)"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleDownload("facture");
+                            setActionsMenuOpen(false);
+                          }}
+                          disabled={generatingDoc !== null}
+                          className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+                        >
+                          {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
+                        </button>
+                      </>
+                    )}
+                    {actionsMenuGroup === "confirmation" && (
+                      <>
+                        <button
+                          onClick={() => setActionsMenuGroup("none")}
+                          className="flex w-full items-center gap-1 rounded-md px-2.5 py-1.5 text-left text-sm text-neutral-500 hover:bg-[#fafafa]"
+                        >
+                          ‹ Retour
+                        </button>
+                        <button
+                          onClick={() => {
+                            setConfirmationFormat("pdf");
+                            setActionsMenuOpen(false);
+                          }}
+                          disabled={confirmationFormat !== null}
+                          className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+                        >
+                          {confirmationFormat === "pdf" ? "Génération…" : "PDF"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setConfirmationFormat("png");
+                            setActionsMenuOpen(false);
+                          }}
+                          disabled={confirmationFormat !== null}
+                          className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+                        >
+                          {confirmationFormat === "png" ? "Génération…" : "PNG"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
               )}
-              {canDelete && (
-                <button
-                  onClick={onDelete}
-                  title="Supprimer ce client"
-                  className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md border border-[#8B4531]/40 text-[#8B4531] hover:bg-[#8B4531]/5"
-                >
-                  <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-3.5 w-3.5">
-                    <path d="M4 6h12M8 6V4.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6m-7 0 .6 10.2a1 1 0 0 0 1 .8h5.8a1 1 0 0 0 1-.8L15 6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-              )}
             </div>
+            <button
+              onClick={() => onDuplicateAsNewStay(client)}
+              className="text-xs text-[#171717] hover:underline"
+            >
+              + Nouveau séjour pour ce même client
+            </button>
           </div>
         </div>
 
@@ -1153,6 +1236,13 @@ export default function ClientDetail({
           onAddAvoir={addAvoir}
           onUpdateAvoir={updateAvoir}
           onDeleteAvoir={deleteAvoir}
+          incidents={incidents}
+          onResolveIncident={(id, statut) => {
+            setIncidents((prev) => prev.map((i) => (i.id === id ? { ...i, statut } : i)));
+            supabase.from("incidents").update({ statut }).eq("id", id).then(({ error }) => {
+              if (error) toast("Échec de la mise à jour.");
+            });
+          }}
         />
       </Section>
 

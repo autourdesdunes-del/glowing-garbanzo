@@ -14,6 +14,7 @@ import {
   Client,
   ClientHotel,
   HotelReference,
+  Incident,
   Remboursement,
   Reservation,
   ReservationOption,
@@ -2150,12 +2151,16 @@ export function SuiviStep({
   onAddAvoir,
   onUpdateAvoir,
   onDeleteAvoir,
+  incidents,
+  onResolveIncident,
 }: StepProps & {
   reservations: Reservation[];
   avoirs: Avoir[];
   onAddAvoir: () => void;
   onUpdateAvoir: (id: string, patch: Partial<Avoir>) => void;
   onDeleteAvoir: (id: string) => void;
+  incidents: Incident[];
+  onResolveIncident: (id: string, statut: "Ouvert" | "Résolu") => void;
 }) {
   const supabase = createClient();
   const confirm = useConfirm();
@@ -2246,8 +2251,54 @@ export function SuiviStep({
     }
   };
 
+  const incidentsTries = [...incidents].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
   return (
     <div className="space-y-1.5">
+
+      {incidentsTries.length > 0 && (
+        <div>
+          <h3 className="mb-2 text-sm font-semibold text-[#171717]">Incidents / réclamations</h3>
+          <div className="space-y-2">
+            {incidentsTries.map((incident) => (
+              <div
+                key={incident.id}
+                className={`rounded-md border px-3 py-2.5 ${
+                  incident.statut === "Ouvert" ? "border-red-200 bg-red-50" : "border-neutral-200 bg-[#fafafa]"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-[#171717]">{incident.titre}</p>
+                  <span
+                    className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      incident.statut === "Ouvert" ? "bg-red-100 text-red-700" : "bg-[#0F5C56]/10 text-[#0F5C56]"
+                    }`}
+                  >
+                    {incident.statut}
+                  </span>
+                </div>
+                {incident.details && (
+                  <p className="mt-1 whitespace-pre-wrap text-xs text-neutral-600">{incident.details}</p>
+                )}
+                <div className="mt-1.5 flex items-center justify-between text-[11px] text-neutral-400">
+                  <span>
+                    {fmtDate(incident.date_incident)}
+                    {incident.par ? ` · ${incident.par}` : ""}
+                  </span>
+                  <button
+                    onClick={() =>
+                      onResolveIncident(incident.id, incident.statut === "Ouvert" ? "Résolu" : "Ouvert")
+                    }
+                    className="text-[#171717] hover:underline"
+                  >
+                    {incident.statut === "Ouvert" ? "Marquer résolu" : "Rouvrir"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div>
         <div className="mb-2 flex items-center justify-between">

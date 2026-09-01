@@ -1471,15 +1471,16 @@ export default function SuivisView({
                 {pickupsJ1Missing.map(({ r, client }) => {
                   const urgent = pastDeadline;
                   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
+                  const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
-                  const badge = paiementBadge(client, r);
+                  const badge = paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
                   const paiementWarning = activitePaiementWarning(
                     client,
                     r,
                     clientReservations,
                     resaOptions,
                     resaTarifs,
-                    paiementsEtapes.filter((e) => e.client_id === client.id)
+                    clientEtapes
                   );
                   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
                   const teamMsg = pickupMissingTeamMessage(r, client);
@@ -1555,15 +1556,16 @@ export default function SuivisView({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {pickupsJ1Done.map(({ r, client }) => {
                   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
+                  const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
-                  const badge = paiementBadge(client, r);
+                  const badge = paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
                   const paiementWarning = activitePaiementWarning(
                     client,
                     r,
                     clientReservations,
                     resaOptions,
                     resaTarifs,
-                    paiementsEtapes.filter((e) => e.client_id === client.id)
+                    clientEtapes
                   );
                   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
                   const montantRestant = soldeRestantFor(client);

@@ -1966,48 +1966,6 @@ export function PaiementsStep({
           <option value="acompte">Paiement acompte + règlement à l&apos;arrivée</option>
         </select>
 
-        <div className="mt-2">
-          <button
-            onClick={() => setAddingEtape((v) => !v)}
-            className="rounded-md border border-[#C9973E]/40 px-2 py-0.5 text-xs font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
-          >
-            + Ajouter une étape
-          </button>
-          {addingEtape && (
-            <div className="mt-2 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-2.5">
-              <Field label="Montant (€)">
-                <input
-                  type="number"
-                  value={etapeMontant}
-                  onChange={(e) => setEtapeMontant(e.target.value)}
-                  className="input w-28"
-                />
-              </Field>
-              <Field label="Mode">
-                <select value={etapeMode} onChange={(e) => setEtapeMode(e.target.value)} className="input">
-                  {MODES_PAIEMENT.map((m) => (
-                    <option key={m}>{m}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Date">
-                <input
-                  type="date"
-                  value={etapeDate}
-                  onChange={(e) => setEtapeDate(e.target.value)}
-                  className="input"
-                />
-              </Field>
-              <button
-                onClick={ajouterEtape}
-                className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-              >
-                Ajouter
-              </button>
-            </div>
-          )}
-        </div>
-
         {client.paiement_type === "integral" && (
           <PaiementResteFlow
             client={client}
@@ -2096,6 +2054,48 @@ export function PaiementsStep({
             </div>
           </div>
         )}
+
+        <div className="mt-3">
+          <button
+            onClick={() => setAddingEtape((v) => !v)}
+            className="rounded-md border border-[#C9973E]/40 px-2 py-0.5 text-xs font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
+          >
+            + Ajouter une étape
+          </button>
+          {addingEtape && (
+            <div className="mt-2 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-2.5">
+              <Field label="Montant (€)">
+                <input
+                  type="number"
+                  value={etapeMontant}
+                  onChange={(e) => setEtapeMontant(e.target.value)}
+                  className="input w-28"
+                />
+              </Field>
+              <Field label="Mode">
+                <select value={etapeMode} onChange={(e) => setEtapeMode(e.target.value)} className="input">
+                  {MODES_PAIEMENT.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Date">
+                <input
+                  type="date"
+                  value={etapeDate}
+                  onChange={(e) => setEtapeDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <button
+                onClick={ajouterEtape}
+                className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Ajouter
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {paiementsChronologiques.length > 0 && (

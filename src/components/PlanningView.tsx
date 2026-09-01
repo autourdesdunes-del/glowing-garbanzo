@@ -196,13 +196,13 @@ function ReservationSummaryCard({
   const options = resaOptions[r.id] || [];
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
   const { nbAd, nbEnf } = participantsFor(r, client);
-  const badge = paiementBadge(client, r);
   // Le calcul du montant restant a besoin des réservations (et étapes de
   // paiement) de CE client uniquement — jamais du tableau global toutes
   // activités confondues, sous peine de sommer les montants de plusieurs
   // clients (bug déjà rencontré).
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
+  const badge = paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
   const paiementWarning = activitePaiementWarning(
     client,
     r,
@@ -508,11 +508,12 @@ function ActivityDetailModal({
   const total = resaTotalMontant(r, client, options, tarifs);
   const breakdown = resaBreakdown(r, client, options, tarifs);
   const { nbAd, nbEnf } = participantsFor(r, client);
-  const badge = paiementBadge(effectiveClient, r);
   const soldeIci = client.solde_activite_id === r.id;
   // Le calcul du restant à payer a besoin des réservations de CE client
   // uniquement — jamais du tableau global toutes activités confondues.
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
+  const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
+  const badge = paiementBadge(effectiveClient, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
   // Le solde peut être en attente de règlement sur une AUTRE activité déjà
   // identifiée (solde_activite_id pointe ailleurs) — dans ce cas on
   // renseigne où et quand, plutôt que de ne rien dire du tout.
@@ -541,7 +542,6 @@ function ActivityDetailModal({
   );
   const acompteClient =
     client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
-  const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
   const etapesSumClient = clientEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const montantRdv = Math.max(
     totalSejourClient - acompteClient - etapesSumClient - avoirUtiliseTotal(clientReservations),

@@ -981,7 +981,7 @@ export function resaBreakdown(
     if (r.participants_mode === "tous" && (Number(client.bebes) || 0) > 0) {
       const nbBebe = Number(client.bebes) || 0;
       lines.push({
-        label: `Bébé${nbBebe > 1 ? "s" : ""} (${nbBebe})`,
+        label: `${fmtEuros(0)} € x ${nbBebe} bébé${nbBebe > 1 ? "s" : ""}`,
         amount: 0,
       });
     }

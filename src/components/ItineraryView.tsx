@@ -21,12 +21,14 @@ import {
   formatOptionLabel,
   isDeuxiemeIleOption,
   momentBadge,
+  paiementStatutKey,
   pointureBadge,
   volBadge,
   paiementBadge,
   participantsFor,
   resaBreakdown,
   resaTotalMontant,
+  STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import { localDateStr } from "@/lib/dates";
@@ -378,35 +380,75 @@ export default function ItineraryView({
                 ✕
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setEditingExpanded(true)}
-              className="mt-3 block w-full text-left"
-            >
-              <DetailRow label="Client">{client.nom || "Sans nom"}</DetailRow>
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={() => setEditingExpanded(true)}
+                className="block w-full text-left"
+              >
+                <DetailRow label="Client">{client.nom || "Sans nom"}</DetailRow>
+              </button>
               {expandedReservation.date_debut && (
                 <DetailRow label="Date">
-                  {fmtDateShort(expandedReservation.date_debut)}
-                  {expandedReservation.date_fin && expandedReservation.date_fin !== expandedReservation.date_debut
-                    ? ` → ${fmtDateShort(expandedReservation.date_fin)}`
-                    : ""}
-                </DetailRow>
-              )}
-              {expandedReservation.pickup_reel && (
-                <DetailRow label="Pick-up">
-                  <span className="text-[#0F5C56]">🚐 {expandedReservation.pickup_reel}</span>
-                </DetailRow>
-              )}
-              <DetailRow label="PAX">{paxLine(expandedReservation, client)}</DetailRow>
-              {expBadge && (
-                <DetailRow label="Paiement">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${expBadge.className}`}>
-                    {expBadge.label}
+                  <span className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingExpanded(true)}
+                      className="hover:underline"
+                    >
+                      {fmtDateShort(expandedReservation.date_debut)}
+                      {expandedReservation.date_fin &&
+                      expandedReservation.date_fin !== expandedReservation.date_debut
+                        ? ` → ${fmtDateShort(expandedReservation.date_fin)}`
+                        : ""}
+                    </button>
+                    {expandedReservation.pickup_reel ? (
+                      <span className="text-[#0F5C56]">🚐 {expandedReservation.pickup_reel}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => askPickup(expandedReservation)}
+                        className="text-xs font-normal text-red-500 hover:text-red-600"
+                      >
+                        + Pick-up
+                      </button>
+                    )}
                   </span>
                 </DetailRow>
               )}
-              <DetailRow label="Total">{euros(expTotal)} €</DetailRow>
-            </button>
+              <button
+                type="button"
+                onClick={() => setEditingExpanded(true)}
+                className="block w-full text-left"
+              >
+                <DetailRow label="PAX">{paxLine(expandedReservation, client)}</DetailRow>
+              </button>
+              {expBadge && (
+                <DetailRow label="Paiement">
+                  <select
+                    value={paiementStatutKey(client, expandedReservation)}
+                    onChange={(e) => {
+                      const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
+                      if (opt) onUpdateClient(opt.patch(expandedReservation));
+                    }}
+                    className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${expBadge.className}`}
+                  >
+                    {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                      <option key={o.key} value={o.key}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </DetailRow>
+              )}
+              <button
+                type="button"
+                onClick={() => setEditingExpanded(true)}
+                className="block w-full text-left"
+              >
+                <DetailRow label="Total">{euros(expTotal)} €</DetailRow>
+              </button>
+            </div>
             {expBreakdown.length > 0 && (
               <div className="mt-1 space-y-1 border-t border-neutral-100 pt-2 text-xs text-neutral-500">
                 {expBreakdown.map((line, i) => (

@@ -1172,16 +1172,13 @@ export function ActivitesStep({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
   const knownIdsRef = useRef<Set<string>>(new Set());
-  // N'auto-ouvre la seule activité du séjour qu'une fois — sinon, refermer
-  // la carte (ex. juste après "Valider", qui appelle onToggleExpanded(false))
-  // se faisait immédiatement ré-ouvrir dès que reservations changeait de
-  // référence (n'importe quelle mise à jour de la réservation, y compris le
-  // "Valider" lui-même), donnant l'impression que Valider ne faisait rien.
-  const autoOuvertSeuleRef = useRef(false);
 
-  // Une activité tout juste ajoutée (ou la seule du séjour) reste ouverte
-  // par défaut — sinon l'employée doit recliquer dessus juste après l'avoir
-  // créée pour voir ce qu'elle vient de remplir.
+  // Une activité tout juste ajoutée reste ouverte par défaut — sinon
+  // l'employée doit recliquer dessus juste après l'avoir créée pour voir ce
+  // qu'elle vient de remplir. Pas d'auto-ouverture de "la seule activité du
+  // séjour" : la section Activités se démonte/remonte à chaque pli/dépli,
+  // donc ce cas se redéclenchait à chaque ouverture de la section, comme si
+  // l'activité venait d'être cliquée.
   useEffect(() => {
     const ids = reservations.map((r) => r.id);
     const newId = ids.find((id) => !knownIdsRef.current.has(id));
@@ -1189,9 +1186,6 @@ export function ActivitesStep({
     knownIdsRef.current = new Set(ids);
     if (newId && !premierRendu) {
       setExpandedId(newId);
-    } else if (reservations.length === 1 && !autoOuvertSeuleRef.current) {
-      autoOuvertSeuleRef.current = true;
-      setExpandedId(reservations[0].id);
     }
   }, [reservations]);
 

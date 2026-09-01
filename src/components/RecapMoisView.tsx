@@ -9,13 +9,16 @@ function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
-// Repère un montant en euros dans le texte libre "Info importante" (ex.
-// "150€", "150 euros", "environ 150 EUR") — sert à estimer combien un
-// prestataire encaisse en cash, voir extractMontantPrestataire ci-dessous.
-const MONTANT_RE = /(\d+(?:[.,]\d+)?)\s*(€|eur(?:o?s?)?)\b/i;
+// Repère précisément le motif "<montant> to pay ... activity" dans le texte
+// libre "Info importante" (ex. "130 € to pay to activity") — c'est la
+// convention de l'équipe pour signaler qu'un prestataire encaisse ce
+// montant en cash directement, à ne pas confondre avec le montant "Paiement
+// à l'activité" normal (encaissé par l'agence). N'importe quel autre
+// montant écrit dans cette case (allergie, consigne...) n'est pas compté.
+const CASH_PRESTATAIRE_RE = /(\d+(?:[.,]\d+)?)\s*€?\s*to\s*pay\b[^]*?activity/i;
 
-function extractMontant(texte: string): number | null {
-  const m = texte.match(MONTANT_RE);
+function extractMontantPrestataire(texte: string): number | null {
+  const m = texte.match(CASH_PRESTATAIRE_RE);
   if (!m) return null;
   const val = Number(m[1].replace(",", "."));
   return Number.isFinite(val) ? val : null;
@@ -88,7 +91,7 @@ export default function RecapMoisView({
         agg.pax += nbAd + nbEnf + nbAcc + nbEnf3;
       }
       if (r.info_importante) {
-        const montant = extractMontant(r.info_importante);
+        const montant = extractMontantPrestataire(r.info_importante);
         if (montant !== null) {
           agg.montantPrestataire += montant;
           agg.cashDetails.push({
@@ -159,9 +162,9 @@ export default function RecapMoisView({
       </div>
 
       <p className="text-xs text-[#999999]">
-        Le montant cash est une estimation : elle repère un chiffre en euros dans la case &quot;Info
-        importante&quot; de chaque activité confirmée. Si cette case ne contient pas de montant, ou parle
-        d&apos;autre chose (allergie, consigne particulière…), elle n&apos;est pas comptée ici.
+        Le montant cash repère uniquement le motif &quot;... to pay to activity&quot; dans la case
+        &quot;Info importante&quot; de chaque activité confirmée (ex. &quot;130 € to pay to
+        activity&quot;) — pas n&apos;importe quel montant qui y serait écrit pour une autre raison.
       </p>
 
       {visibleActivites.length === 0 ? (

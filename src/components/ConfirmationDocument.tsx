@@ -44,6 +44,16 @@ function fmtDateShort(dateStr: string) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+// Le solde peut se régler sur une activité (générique, "votre première
+// activité") ou sur un rendez-vous dédié à l'hôtel (date/heure/lieu saisis
+// dans Paiements) — deux mécanismes distincts déjà présents dans la fiche
+// client (cf. rdvPlanifie dans PlanningView.tsx), jamais mélangés.
+function soldeRdvInfo(client: Client) {
+  if (client.solde_activite_id) return null;
+  if (!client.solde_rdv_heure && !client.solde_rdv_lieu) return null;
+  return { date: client.solde_date, heure: client.solde_rdv_heure, lieu: client.solde_rdv_lieu };
+}
+
 function paxLine(client: Client) {
   const parts: string[] = [`${client.adultes} adulte${client.adultes > 1 ? "s" : ""}`];
   if (client.enfants > 0) {
@@ -106,6 +116,10 @@ function ConfirmationTemplate({
   );
   const { acompteMontant, acomptePaypal, url: paypalUrl } = acomptePaypalInfo(client);
   const soldeMontant = Math.max(totalSejour - acompteMontant, 0);
+  const soldeRdv = soldeRdvInfo(client);
+  const soldeActivite = client.solde_activite_id
+    ? reservations.find((r) => r.id === client.solde_activite_id) || null
+    : null;
 
   return (
     <div
@@ -277,8 +291,46 @@ function ConfirmationTemplate({
               <span>{euros(soldeMontant)}</span>
             </div>
             <div style={{ fontSize: 13.5, color: "#5C5342", lineHeight: 1.7, marginTop: 6 }}>
-              <strong>En espèces, en euros,</strong> <u>auprès de notre équipe présente sur votre première activité</u>.
-              Les <u>distributeurs égyptiens ne délivrent pas d&apos;euros</u> — <strong>à prévoir avant le départ.</strong>
+              {soldeRdv ? (
+                <>
+                  <strong>En espèces, en euros,</strong> lors d&apos;un rendez-vous dédié
+                  {soldeRdv.date ? (
+                    <>
+                      {" "}
+                      le <u>{fmtDateLong(soldeRdv.date)}</u>
+                    </>
+                  ) : null}
+                  {soldeRdv.heure ? (
+                    <>
+                      {" "}
+                      à <u>{soldeRdv.heure}</u>
+                    </>
+                  ) : null}
+                  {soldeRdv.lieu ? (
+                    <>
+                      {" "}
+                      — <u>{soldeRdv.lieu}</u>
+                    </>
+                  ) : null}
+                  . Les <u>distributeurs égyptiens ne délivrent pas d&apos;euros</u> —{" "}
+                  <strong>à prévoir avant le départ.</strong>
+                </>
+              ) : soldeActivite ? (
+                <>
+                  <strong>En espèces, en euros,</strong> auprès de notre équipe lors de l&apos;activité{" "}
+                  <u>
+                    « {soldeActivite.nom_activite || "Activité"} »
+                    {soldeActivite.date_debut ? ` le ${fmtDateLong(soldeActivite.date_debut)}` : ""}
+                  </u>
+                  . Les <u>distributeurs égyptiens ne délivrent pas d&apos;euros</u> —{" "}
+                  <strong>à prévoir avant le départ.</strong>
+                </>
+              ) : (
+                <>
+                  <strong>En espèces, en euros,</strong> <u>auprès de notre équipe présente sur votre première activité</u>.
+                  Les <u>distributeurs égyptiens ne délivrent pas d&apos;euros</u> — <strong>à prévoir avant le départ.</strong>
+                </>
+              )}
             </div>
           </div>
         </Section>

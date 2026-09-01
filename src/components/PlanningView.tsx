@@ -12,11 +12,13 @@ import {
   isDeuxiemeIleOption,
   momentBadge,
   paiementBadge,
+  paiementStatutKey,
   participantsFor,
   pointureBadge,
   resaBreakdown,
   resaTotalMontant,
   reservationsActives,
+  STATUT_PAIEMENT_OPTIONS,
   volBadge,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
@@ -450,9 +452,16 @@ function ActivityDetailModal({
   onClose: () => void;
   onBack?: () => void;
 }) {
+  const supabase = createClient();
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   const [photoVolUrl, setPhotoVolUrl] = useState("");
+  // Le client vient d'une liste tenue par le parent (rafraîchie par polling)
+  // — sans état local, changer le statut de paiement ici mettrait à jour la
+  // base mais l'affichage resterait sur l'ancien statut jusqu'au prochain
+  // rafraîchissement.
+  const [soldeOverride, setSoldeOverride] = useState<Partial<Client> | null>(null);
+  const effectiveClient = soldeOverride ? { ...client, ...soldeOverride } : client;
   useEffect(() => {
     const supabase = createClient();
     (async () => {
@@ -469,7 +478,7 @@ function ActivityDetailModal({
   const total = resaTotalMontant(r, client, options, tarifs);
   const breakdown = resaBreakdown(r, client, options, tarifs);
   const { nbAd, nbEnf } = participantsFor(r, client);
-  const badge = paiementBadge(client, r);
+  const badge = paiementBadge(effectiveClient, r);
   const soldeIci = client.solde_activite_id === r.id;
   // Le calcul du restant à payer a besoin des réservations de CE client
   // uniquement — jamais du tableau global toutes activités confondues.
@@ -695,9 +704,23 @@ function ActivityDetailModal({
             {nbEnf > 0 && client.ages_enfants ? ` (âges : ${client.ages_enfants})` : ""}
           </DetailRow>
           <DetailRow label="Paiement">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
-              {badge.label}
-            </span>
+            <select
+              value={paiementStatutKey(effectiveClient, r)}
+              onChange={async (e) => {
+                const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
+                if (!opt) return;
+                const patch = opt.patch(r);
+                setSoldeOverride((prev) => ({ ...prev, ...patch }));
+                await supabase.from("clients").update(patch).eq("id", client.id);
+              }}
+              className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${badge.className}`}
+            >
+              {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </DetailRow>
           <DetailRow label="Total">{euros(total)} €</DetailRow>
         </div>

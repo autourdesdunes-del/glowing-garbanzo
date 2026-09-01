@@ -436,6 +436,19 @@ export default function DashboardView({
       c.date_debut <= in14Days &&
       infosManquantesToutes(c, reservations).length > 0
   );
+  // File prioritaire : un dossier incomplet n'y reste que si l'arrivée est
+  // proche (3 jours) — au-delà, il y a encore le temps de le compléter sans
+  // que ce soit urgent au quotidien. La carte "Dossiers incomplets" garde
+  // elle une fenêtre plus large (14 jours) pour donner une vision d'ensemble.
+  const in3Days = addDays(todayStr, 3);
+  const incompleteUrgent = clients.filter(
+    (c) =>
+      c.statut === "Client confirmé" &&
+      c.date_debut &&
+      c.date_debut >= todayStr &&
+      c.date_debut <= in3Days &&
+      infosManquantesToutes(c, reservations).length > 0
+  );
 
   // Billet d'avion pas encore reçu (étape avant "reçu — à envoyer au
   // client") alors que le vol est dans 15 jours ou moins.
@@ -487,7 +500,11 @@ export default function DashboardView({
     if (existing) existing.motifs.push(motif);
     else queueMap.set(c.id, { client: c, motifs: [motif] });
   };
-  incompleteUpcoming.forEach((c) => addToQueue(c, "Dossier incomplet"));
+  // Affiche directement pourquoi le dossier est incomplet (une pastille par
+  // info manquante) plutôt qu'un motif générique "Dossier incomplet".
+  incompleteUrgent.forEach((c) => {
+    infosManquantesToutes(c, reservations).forEach((motif) => addToQueue(c, motif));
+  });
   staleProspects.forEach((c) => addToQueue(c, "À relancer"));
   rdvToday.forEach((c) => addToQueue(c, "RDV paiement"));
   const priorityQueue = Array.from(queueMap.values()).sort((a, b) =>

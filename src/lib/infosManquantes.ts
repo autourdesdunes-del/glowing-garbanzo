@@ -1,4 +1,5 @@
 import { Client, Reservation } from "@/lib/types";
+import { addDays, todayStr } from "@/lib/dates";
 
 // Catégories d'infos manquantes déduites automatiquement des données déjà
 // en base, plutôt que cochées à la main (ce qui pouvait rester coché après
@@ -16,7 +17,13 @@ export const INFO_MANQUANTE_AUTO_PASSEPORT = "Passeport";
 export function infosManquantesAuto(client: Client, reservations: Reservation[]): string[] {
   const result: string[] = [];
   if (!client.hotel.trim()) result.push(INFO_MANQUANTE_AUTO_HOTEL);
-  if (!client.chambre.trim()) result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
+  // Le numéro de chambre n'est quasiment jamais connu avant l'arrivée —
+  // le signaler dès la création du dossier créerait une fausse alerte
+  // permanente. Ne compte comme vraiment manquant qu'à la veille ou le
+  // jour même de l'arrivée, quand il devient urgent de l'avoir.
+  if (!client.chambre.trim() && client.date_debut && client.date_debut <= addDays(todayStr(), 1)) {
+    result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
+  }
   if (!client.telephone.trim()) result.push(INFO_MANQUANTE_AUTO_WHATSAPP);
   // Signalé tant qu'aucun acompte n'est réglé — y compris avant que le mode
   // de paiement soit choisi (paiement_type vide au départ pour presque tous

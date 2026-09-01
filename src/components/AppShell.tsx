@@ -2578,6 +2578,7 @@ function AppShellInner({
                   onDelete={() => deleteClient(selected.id)}
                   onJumpToClient={openClient}
                   onDuplicateAsNewStay={duplicateAsNewStay}
+                  onDeleteClientById={deleteClient}
                   canDelete={effectiveIsDirection}
                   canSeeMargins={effectiveIsDirection}
                   catalogue={catalogue}

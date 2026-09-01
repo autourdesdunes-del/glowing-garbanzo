@@ -28,9 +28,11 @@ import AnnulerClientModal from "@/components/AnnulerClientModal";
 import IncidentsModal from "@/components/IncidentsModal";
 import DevisPaiementModal from "@/components/DevisPaiementModal";
 import ConfirmationDocumentStage from "@/components/ConfirmationDocument";
+import DuplicateClientModal from "@/components/DuplicateClientModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
+import { DuplicateMatch, findDuplicateClients, normText } from "@/lib/duplicates";
 import { resaTotalMontant, avoirUtiliseTotal, findMomentConflict, reservationsActives } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import {
@@ -96,6 +98,7 @@ export default function ClientDetail({
   onDelete,
   onJumpToClient,
   onDuplicateAsNewStay,
+  onDeleteClientById,
   canDelete,
   canSeeMargins,
   catalogue,
@@ -110,6 +113,7 @@ export default function ClientDetail({
   onDelete: () => void;
   onJumpToClient: (id: string) => void;
   onDuplicateAsNewStay: (source: Client) => void;
+  onDeleteClientById: (id: string) => Promise<boolean> | void;
   canDelete: boolean;
   canSeeMargins: boolean;
   catalogue: CatalogueItem[];
@@ -138,6 +142,13 @@ export default function ClientDetail({
   } | null>(null);
   const [busEscalations, setBusEscalations] = useState<BusEscalation[]>([]);
   const [assouanVerifications, setAssouanVerifications] = useState<AssouanVerification[]>([]);
+  // Alerte doublon quand le nom (ou téléphone) saisi ressemble à un client
+  // déjà existant — évite qu'une nouvelle fiche vide créée par erreur reste
+  // séparée d'un dossier déjà suivi (vécu avec Celia/Célia Nichanian : les
+  // infos saisies dans la nouvelle fiche semblaient "effacées" alors
+  // qu'elles étaient juste dans un doublon jamais rapproché de l'original).
+  const [dupMatches, setDupMatches] = useState<DuplicateMatch[]>([]);
+  const [dupDismissedFor, setDupDismissedFor] = useState("");
   const [momentConflict, setMomentConflict] = useState<{ current: Reservation; other: Reservation } | null>(
     null
   );
@@ -890,6 +901,16 @@ export default function ClientDetail({
               <input
                 value={client.nom}
                 onChange={(e) => onChange({ nom: e.target.value })}
+                onBlur={() => {
+                  const norm = normText(client.nom);
+                  if (!norm || norm === dupDismissedFor) return;
+                  const matches = findDuplicateClients(
+                    { nom: client.nom, telephone: client.telephone },
+                    allClients,
+                    client.id
+                  );
+                  if (matches.length > 0) setDupMatches(matches);
+                }}
                 placeholder="Nom du client"
                 className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
               />
@@ -1432,6 +1453,25 @@ export default function ClientDetail({
         format={confirmationFormat}
         onDone={() => setConfirmationFormat(null)}
       />
+      {dupMatches.length > 0 && (
+        <DuplicateClientModal
+          current={client}
+          matches={dupMatches}
+          onOpenClient={(id) => {
+            setDupMatches([]);
+            onJumpToClient(id);
+          }}
+          onDeleteClient={async (id) => {
+            setDupMatches([]);
+            if (id === client.id) onDelete();
+            else await onDeleteClientById(id);
+          }}
+          onKeepBoth={() => {
+            setDupDismissedFor(normText(client.nom));
+            setDupMatches([]);
+          }}
+        />
+      )}
     </div>
   );
 }

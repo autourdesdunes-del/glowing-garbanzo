@@ -12,7 +12,12 @@ export function normText(s: string | null | undefined): string {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, " ")
+    // "Célia" vs "Celia" doivent être reconnus comme le même nom — sans ça,
+    // un simple accent en plus ou en moins laissait passer un vrai doublon
+    // (vécu avec Celia/Célia Nichanian, deux fiches distinctes en pratique).
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
 }
 function normPhone(s: string | null | undefined): string {
   return (s || "").replace(/\D/g, "");

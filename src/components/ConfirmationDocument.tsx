@@ -333,8 +333,8 @@ function ConfirmationTemplate({
               )}
             </div>
             <div style={{ fontSize: 13, color: "#A32D2D", fontWeight: 700, lineHeight: 1.6, marginTop: 10 }}>
-              ⚠ Le solde doit être réglé en une seule fois, en intégralité (le montant total ci-dessus, pas seulement
-              celui d&apos;une activité) — à défaut, l&apos;activité concernée peut être reportée ou annulée.
+              ⚠ Le solde doit être réglé en une seule fois, en intégralité — {euros(soldeMontant)}, pas seulement le
+              montant d&apos;une activité — à défaut, l&apos;activité concernée peut être reportée ou annulée.
             </div>
           </div>
         </Section>

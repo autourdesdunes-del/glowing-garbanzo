@@ -841,6 +841,20 @@ export function paxLine(r: Reservation, client: Client) {
   return parts.join(", ");
 }
 
+// "encaissé le 31-08-2026 à 16h22" quand on a l'heure précise (rattachement
+// automatique d'un paiement PayPal) — sinon juste la date (saisie manuelle,
+// qui n'a pas d'heure fiable).
+export function fmtEncaisseLe(dateEncaissement: string | null, encaisseTs: string | null) {
+  if (!dateEncaissement) return "";
+  const [y, m, d] = dateEncaissement.split("-");
+  const dateLabel = `${d}-${m}-${y}`;
+  if (!encaisseTs) return dateLabel;
+  const dt = new Date(encaisseTs);
+  const hh = String(dt.getHours()).padStart(2, "0");
+  const mm = String(dt.getMinutes()).padStart(2, "0");
+  return `${dateLabel} à ${hh}h${mm}`;
+}
+
 // Activités "partagées" (un même véhicule/bateau pour plusieurs clients) où
 // on veut pousser les ventes pour remplir un groupe plutôt que d'en ouvrir
 // un second à moitié vide. La capacité sert à calculer le reste (voir

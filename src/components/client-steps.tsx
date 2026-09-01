@@ -31,7 +31,7 @@ import {
   RELATIONS,
   STATUTS,
 } from "@/lib/constants";
-import { agesLabel, hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
+import { agesLabel, fmtEncaisseLe, hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import { matchHotel, matchTransfertTaxe, hotelDisplayForEgypt } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
@@ -1858,12 +1858,17 @@ export function PaiementsStep({
   };
 
   const supprimerAcompte = () => {
-    onChange({ acompte_valide: false, acompte_paye: false, acompte_date_encaissement: null });
+    onChange({
+      acompte_valide: false,
+      acompte_paye: false,
+      acompte_date_encaissement: null,
+      acompte_encaisse_ts: null,
+    });
   };
 
   const clickMarquerAcompteEncaisse = () => {
     if (client.acompte_paye) {
-      onChange({ acompte_paye: false, acompte_date_encaissement: null });
+      onChange({ acompte_paye: false, acompte_date_encaissement: null, acompte_encaisse_ts: null });
       return;
     }
     setAcompteDateModal({ step: "choix", date: todayStr() });
@@ -2052,7 +2057,7 @@ export function PaiementsStep({
                     <p className="font-medium text-[#171717]">
                       Acompte — {euros(client.acompte_montant)} € ({client.acompte_mode})
                       {client.acompte_paye && client.acompte_date_encaissement
-                        ? ` — encaissé le ${fmtDateDMY(client.acompte_date_encaissement)}`
+                        ? ` — encaissé le ${fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts)}`
                         : ""}
                     </p>
                   </div>
@@ -2108,6 +2113,7 @@ export function PaiementsStep({
                       onChange({
                         acompte_paye: true,
                         acompte_date_encaissement: todayStr(),
+                        acompte_encaisse_ts: null,
                       });
                       setAcompteDateModal(null);
                       checkBilletHossamReminder();
@@ -2139,7 +2145,11 @@ export function PaiementsStep({
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={() => {
-                      onChange({ acompte_paye: true, acompte_date_encaissement: acompteDateModal.date });
+                      onChange({
+                        acompte_paye: true,
+                        acompte_date_encaissement: acompteDateModal.date,
+                        acompte_encaisse_ts: null,
+                      });
                       setAcompteDateModal(null);
                       checkBilletHossamReminder();
                     }}

@@ -1415,6 +1415,7 @@ function AppShellInner({
       acompte_valide: true,
       acompte_paye: true,
       acompte_date_encaissement: paiement.paypal_recu_le.slice(0, 10),
+      acompte_encaisse_ts: paiement.paypal_recu_le,
     });
   };
 

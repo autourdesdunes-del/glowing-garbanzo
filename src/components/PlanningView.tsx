@@ -18,6 +18,7 @@ import {
   avoirUtiliseTotal,
   chevalChameauBadge,
   cleanActivityTitle,
+  fmtEncaisseLe,
   isDeuxiemeIleOption,
   momentBadge,
   paiementBadge,
@@ -819,7 +820,7 @@ function ActivityDetailModal({
                     <span>
                       Acompte — {client.acompte_mode}
                       {client.acompte_paye && client.acompte_date_encaissement
-                        ? ` (encaissé le ${fmtDate(client.acompte_date_encaissement)})`
+                        ? ` (encaissé le ${fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts)})`
                         : client.acompte_paye
                         ? " (encaissé)"
                         : " (à encaisser)"}

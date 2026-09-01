@@ -361,6 +361,11 @@ export type Client = {
   acompte_valide: boolean;
   acompte_paye: boolean;
   acompte_date_encaissement: string | null;
+  // Horodatage précis (avec l'heure) du rattachement automatique d'un
+  // paiement PayPal — rempli seulement par ce flux-là (voir AppShell,
+  // rattacherPaypal). Une saisie manuelle de l'encaissement n'a pas
+  // d'heure fiable, donc ce champ reste vide dans ce cas.
+  acompte_encaisse_ts: string | null;
   au_revoir_envoye: boolean;
   au_revoir_envoye_le: string | null;
   // Qui a envoyé le message "au revoir" — pour le rappel personnel
@@ -466,6 +471,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   acompte_valide: false,
   acompte_paye: false,
   acompte_date_encaissement: null,
+  acompte_encaisse_ts: null,
   au_revoir_envoye: false,
   au_revoir_envoye_le: null,
   au_revoir_envoye_par_id: null,

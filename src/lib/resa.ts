@@ -480,6 +480,17 @@ export function ajusteTitreTransfertAeroport(
   return null;
 }
 
+// Le Caire, Louxor et Assouan sont hors de la région Hurghada — un transfert
+// aéroport vers l'une de ces villes ne peut donc jamais avoir de "taxe de
+// transfert région Hurghada" (concept lié à l'hôtel du CLIENT, sans rapport
+// avec l'activité elle-même) : le message "cet hôtel est bien/n'est pas sur
+// Hurghada" n'a pas de sens pour ces 3 activités et induit en erreur.
+export function isAeroportTransfertHorsHurghada(nomActivite: string) {
+  const n = (nomActivite || "").toLowerCase();
+  if (!n.startsWith("transfert aéroport") && !n.startsWith("transfert hôtel")) return false;
+  return n.includes("caire") || n.includes("louxor") || n.includes("assouan");
+}
+
 // Distingue le sens à partir du titre actuel — utilisé pour adapter le
 // libellé du champ horaire ("arrivée" vs "départ") au bon moment du trajet.
 export function senseTransfertAeroport(

@@ -47,6 +47,7 @@ import {
   SPEEDBOAT_ILES,
   STATUT_PAIEMENT_OPTIONS,
   ajusteTitreTransfertAeroport,
+  isAeroportTransfertHorsHurghada,
   senseTransfertAeroport,
 } from "@/lib/resa";
 import { weekdayFr } from "@/lib/dates";
@@ -1430,7 +1431,7 @@ export default function ReservationCard({
             Taxe de transfert
           </button>
         </div>
-        {hotelHorsHurghada && (
+        {hotelHorsHurghada && !isAeroportTransfertHorsHurghada(r.nom_activite) && (
           <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-700">
             <span>⚠ N&apos;oubliez pas que cet hôtel n&apos;est pas sur Hurghada, il y a peut-être une taxe de transfert.</span>
             {r.transfert_inclus && (

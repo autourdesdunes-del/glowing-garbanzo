@@ -23,6 +23,7 @@ import {
   hauteSaisonAttendu,
   isChevalOuChameau,
   isDeuxiemeIleOption,
+  isAeroportTransfertHorsHurghada,
   isCaireAeroportTransfert,
   isDiscouragedBusActivity,
   isTitreLibreActivity,
@@ -2235,24 +2236,25 @@ export default function AddActivityWizard({
           Taxe de transfert
         </button>
       </div>
-      {hotelHorsHurghada ? (
-        r.transfert_inclus && (
-          <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-700">
-            <span>⚠ Cet hôtel n&apos;est pas sur Hurghada, il y a peut-être une taxe de transfert.</span>
-            <button
-              type="button"
-              onClick={() => onUpdateReservation(r.id, { transfert_inclus: false })}
-              className="whitespace-nowrap rounded-md bg-orange-600 px-2 py-1 text-white hover:opacity-90"
-            >
-              Corriger
-            </button>
+      {!isAeroportTransfertHorsHurghada(r.nom_activite) &&
+        (hotelHorsHurghada ? (
+          r.transfert_inclus && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-700">
+              <span>⚠ Cet hôtel n&apos;est pas sur Hurghada, il y a peut-être une taxe de transfert.</span>
+              <button
+                type="button"
+                onClick={() => onUpdateReservation(r.id, { transfert_inclus: false })}
+                className="whitespace-nowrap rounded-md bg-orange-600 px-2 py-1 text-white hover:opacity-90"
+              >
+                Corriger
+              </button>
+            </div>
+          )
+        ) : (
+          <div className="mt-2 rounded-md bg-green-50 px-2 py-1.5 text-xs text-green-700">
+            ✔️ Cet hôtel est bien situé sur Hurghada
           </div>
-        )
-      ) : (
-        <div className="mt-2 rounded-md bg-green-50 px-2 py-1.5 text-xs text-green-700">
-          ✔️ Cet hôtel est bien situé sur Hurghada
-        </div>
-      )}
+        ))}
       {!r.transfert_inclus && (
         <div className="mt-2 max-w-[200px]">
           <Field label="Montant total (€)">

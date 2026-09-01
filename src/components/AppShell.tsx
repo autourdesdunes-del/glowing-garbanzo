@@ -41,6 +41,7 @@ import ChangePasswordButton from "@/components/ChangePasswordButton";
 import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
 import PlanningView from "@/components/PlanningView";
+import RecapMoisView from "@/components/RecapMoisView";
 import SuivisView, { SUIVIS_SUBS, SuivisSub } from "@/components/SuivisView";
 import ClientPreviewView from "@/components/ClientPreviewView";
 import DirectionView, { DIRECTION_SUBS, DirectionSub } from "@/components/DirectionView";
@@ -76,7 +77,8 @@ type Mode =
   | "direction"
   | "manager"
   | "rh"
-  | "generateur";
+  | "generateur"
+  | "recap";
 
 // Mis en pause le 31/08/2026 à la demande de Mélanie — remettre à true pour
 // réactiver. Le composant et son câblage restent intacts, juste pas monté.
@@ -231,6 +233,14 @@ function IconStar() {
     </svg>
   );
 }
+function IconChart() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-4 w-4">
+      <path d="M3.5 16.5v-6M9 16.5V6M14.5 16.5v-9" strokeLinecap="round" />
+      <path d="M2.5 16.5h15" strokeLinecap="round" />
+    </svg>
+  );
+}
 function IconMenu() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-5 w-5">
@@ -264,6 +274,7 @@ const TABS: { key: Mode; label: string; labelAr: string; icon: () => React.React
   { key: "catalogue", label: "Catalogue", labelAr: "الكتالوج", icon: IconBook },
   { key: "suivis", label: "Suivis", labelAr: "المتابعات", icon: IconChecklist },
   { key: "planning", label: "Réservations", labelAr: "الحجوزات", icon: IconCalendar },
+  { key: "recap", label: "Récap du mois", labelAr: "ملخص الشهر", icon: IconChart },
   { key: "rh", label: "Planning équipe", labelAr: "جدول الفريق", icon: IconClipboard },
   { key: "generateur", label: "Générateur de programme", labelAr: "منشئ البرنامج", icon: IconSparkles },
   { key: "preview", label: "Aperçu client", labelAr: "معاينة العميل", icon: IconEye },
@@ -445,28 +456,31 @@ function AppShellInner({
     { key: "hossam", label: "Vue Hossam" },
   ];
   const effectiveIsDirection = isDirection && (viewAs === "moi" || viewAs === "hossam");
-  const effectiveIsManager =
-    viewAs === "moi"
-      ? isManagerParRole
-      : viewAs === "hossam"
-        ? isDirection || isManagerParRole
-        : viewAs === sylvieViewKey;
+  // Manager (activités en attente, etc.) retiré pour Hossam à sa demande —
+  // seule Sylvie (via sylvieViewKey) et "la mienne" pour Mélanie y donnent
+  // accès désormais.
+  const effectiveIsManager = viewAs === "moi" ? isManagerParRole : viewAs === sylvieViewKey;
   // Quand "Aperçu vu par" pointe vers une vraie personne (Justine, Laura,
-  // Sylvie...), le nom affiché (ex. le "Bonjour" du tableau de bord) et les
-  // horaires perso du Planning ("Ta semaine") doivent refléter CETTE
-  // personne, pas Mélanie — sinon la simulation ne sert à rien pour ces
-  // écrans-là. Les actions d'écriture restent sous le vrai compte.
-  const simulatedProfile = teamProfiles.find((p) => p.id === viewAs);
+  // Sylvie, Hossam...), le nom affiché (ex. le "Bonjour" du tableau de
+  // bord) et les horaires perso du Planning ("Ta semaine") doivent
+  // refléter CETTE personne, pas Mélanie — sinon la simulation ne sert à
+  // rien pour ces écrans-là. Les actions d'écriture restent sous le vrai
+  // compte. "hossam" ne matche jamais un id de profil (clé fixe), d'où le
+  // repli explicite sur hossamProfile — sans ça, simulatedProfile restait
+  // undefined et le "Bonjour" retombait sur le vrai compte connecté
+  // (Mélanie), pas sur Hossam.
+  const simulatedProfile =
+    viewAs === "hossam" ? hossamProfile : teamProfiles.find((p) => p.id === viewAs);
   const effectiveUserEmail = simulatedProfile?.email ?? userEmail;
   const effectiveUserId = simulatedProfile?.id ?? userId;
+  const effectivePrenom = simulatedProfile?.prenom || (viewAs === "moi" ? prenom : "");
   // Navigation restreinte effective : le vrai compte connecté (navMasque/
   // suivisVisibles, passés par page.tsx) sur "moi", ou celle de la
-  // personne simulée sinon (Bodé et les autres via simulatedProfile,
-  // Hossam via hossamProfile car son id ne matche jamais la clé "hossam").
-  // Ne restreint jamais la Direction "pour de vrai" (isDirection && "moi") :
-  // seule la simulation applique une restriction à Mélanie/Hossam.
-  const activePermsProfile =
-    viewAs === "moi" ? null : viewAs === "hossam" ? hossamProfile : simulatedProfile;
+  // personne simulée sinon (simulatedProfile résout déjà Hossam via
+  // hossamProfile, voir plus haut). Ne restreint jamais la Direction
+  // "pour de vrai" (isDirection && "moi") : seule la simulation applique
+  // une restriction à Mélanie.
+  const activePermsProfile = viewAs === "moi" ? null : simulatedProfile;
   const effectiveNavMasque = viewAs === "moi" ? navMasque : (activePermsProfile?.nav_masque ?? []);
   const effectiveSuivisVisibles =
     viewAs === "moi" ? suivisVisibles : (activePermsProfile?.suivis_visibles ?? null);
@@ -639,7 +653,8 @@ function AppShellInner({
       mode !== "direction" &&
       mode !== "manager" &&
       mode !== "dashboard" &&
-      mode !== "catalogue"
+      mode !== "catalogue" &&
+      mode !== "recap"
     )
       return;
     // Direction shows revenue/margin data — don't even fetch it into the
@@ -2356,6 +2371,7 @@ function AppShellInner({
               showTeamShiftsToday={effectiveNavMasque.includes("rh")}
               teamPlanningShifts={teamPlanningShifts}
               teamProfiles={teamProfiles}
+              displayFirstName={effectivePrenom}
             />
           )}
         </div>
@@ -2611,6 +2627,16 @@ function AppShellInner({
               focusReservationId={focusReservationId}
               onBackToBillet={focusReservationId ? backFromReservationFocus : undefined}
             />
+          )}
+        </div>
+      )}
+
+      {mode === "recap" && (
+        <div className="flex-1 overflow-y-auto">
+          {!planningLoaded ? (
+            <Spinner />
+          ) : (
+            <RecapMoisView reservations={allReservations} clients={clients} />
           )}
         </div>
       )}

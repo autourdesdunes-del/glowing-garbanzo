@@ -251,6 +251,7 @@ export default function DashboardView({
   showTeamShiftsToday,
   teamPlanningShifts,
   teamProfiles,
+  displayFirstName,
 }: {
   userEmail: string;
   // Simulation "Aperçu vu par" (AppShell) : affiche le shift du jour de
@@ -289,6 +290,11 @@ export default function DashboardView({
   showTeamShiftsToday: boolean;
   teamPlanningShifts: PlanningShift[];
   teamProfiles: Profile[];
+  // Prénom réel (profil), envoyé par AppShell — évite de dépendre de
+  // firstNameFromEmail(userEmail), qui donnait par ex. "Neno" pour
+  // neno_hossam@yahoo.com au lieu de "Hossam". Optionnel pour ne rien
+  // casser si jamais non fourni : on retombe alors sur l'ancien calcul.
+  displayFirstName?: string;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
@@ -509,7 +515,7 @@ export default function DashboardView({
       )
     : 0;
 
-  const firstName = firstNameFromEmail(userEmail);
+  const firstName = displayFirstName || firstNameFromEmail(userEmail);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 p-8">

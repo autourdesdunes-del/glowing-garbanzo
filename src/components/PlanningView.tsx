@@ -202,6 +202,14 @@ function ReservationSummaryCard({
             {cleanActivityTitle(r.nom_activite) || "Activité"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </p>
+          {r.info_importante.trim() && (
+            <span
+              title={r.info_importante}
+              className="max-w-[180px] truncate whitespace-nowrap rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700"
+            >
+              ⚠ {r.info_importante}
+            </span>
+          )}
           {momentBadge(r) && (
             <span className="whitespace-nowrap rounded-full bg-[#C9973E]/20 px-1.5 py-0.5 text-[10px] font-medium text-[#8B4531]">
               {momentBadge(r)}
@@ -335,6 +343,14 @@ function ReservationSummaryCard({
           {cleanActivityTitle(r.nom_activite) || "Activité"}
           {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
         </p>
+        {r.info_importante.trim() && (
+          <span
+            title={r.info_importante}
+            className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+          >
+            ⚠ {r.info_importante}
+          </span>
+        )}
         {momentBadge(r) && (
           <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
             {momentBadge(r)}
@@ -586,6 +602,14 @@ function ActivityDetailModal({
                 {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
                 {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
             </h3>
+            {r.info_importante.trim() && (
+              <span
+                title={r.info_importante}
+                className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+              >
+                ⚠ {r.info_importante}
+              </span>
+            )}
             {momentBadge(r) && (
               <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
                 {momentBadge(r)}

@@ -190,6 +190,14 @@ export default function ItineraryView({
             {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </span>
+          {r.info_importante.trim() && (
+            <span
+              title={r.info_importante}
+              className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700"
+            >
+              ⚠ {r.info_importante}
+            </span>
+          )}
           {momentBadge(r) && (
             <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
               {momentBadge(r)}
@@ -335,9 +343,17 @@ export default function ItineraryView({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <h3 className="font-heading text-lg font-semibold text-[#171717]">
+              <h3 className="font-heading flex flex-wrap items-center gap-1.5 text-lg font-semibold text-[#171717]">
                 {cleanActivityTitle(expandedReservation.nom_activite) || "Activité sans nom"}
                 {expandedReservation.horaire_souhaite ? ` (${expandedReservation.horaire_souhaite})` : ""}
+                {expandedReservation.info_importante.trim() && (
+                  <span
+                    title={expandedReservation.info_importante}
+                    className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+                  >
+                    ⚠ {expandedReservation.info_importante}
+                  </span>
+                )}
               </h3>
               <button
                 type="button"

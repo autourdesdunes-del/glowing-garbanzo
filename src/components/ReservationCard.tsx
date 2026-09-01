@@ -310,6 +310,14 @@ export default function ReservationCard({
               {r.nom_activite || "Activité sans nom"}
               {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
             </span>
+            {hasInfo && (
+              <span
+                title={r.info_importante}
+                className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+              >
+                ⚠ {r.info_importante}
+              </span>
+            )}
             {momentBadge(r) && (
               <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
                 {momentBadge(r)}
@@ -374,6 +382,14 @@ export default function ReservationCard({
           <p className="font-medium text-[#171717]">
             {r.nom_activite || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+            {hasInfo && (
+              <span
+                title={r.info_importante}
+                className="ml-2 inline-block max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 align-middle text-xs font-medium text-red-700"
+              >
+                ⚠ {r.info_importante}
+              </span>
+            )}
             {soldeIci && !client.solde_paye && (
               <span className="ml-2 text-xs text-red-600">⚠️ solde à régler ici</span>
             )}

@@ -791,7 +791,7 @@ export default function ClientDetail({
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
-  const autoInfosManquantes = infosManquantesAuto(client, reservations);
+  const autoInfosManquantes = infosManquantesAuto(client, reservations, hotelsRef);
   const manuelInfosManquantes = client.infos_manquantes.filter(
     (s) => s !== "Complet" && !autoInfosManquantes.includes(s)
   );

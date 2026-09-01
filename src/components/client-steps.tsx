@@ -401,7 +401,7 @@ export function ContactStep({
   // Déduites des vraies données (hôtel/chambre/téléphone/acompte/billet/
   // passeport) plutôt que cochées à la main — toujours à jour, jamais
   // oubliées ni laissées cochées une fois l'info complétée.
-  const autoTags = infosManquantesAuto(client, reservations);
+  const autoTags = infosManquantesAuto(client, reservations, hotelsRef);
   const manualTagsAffichees = client.infos_manquantes.filter((s) => !autoTags.includes(s));
 
   const toggleInfoManquante = (opt: string) => {

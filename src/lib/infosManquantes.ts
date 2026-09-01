@@ -1,5 +1,12 @@
-import { Client, Reservation } from "@/lib/types";
+import { Client, HotelReference, Reservation } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/dates";
+import { matchHotel } from "@/lib/hotelHelp";
+
+// Le numéro de chambre n'a de sens à demander que pour un hôtel situé à
+// Hurghada ou dans sa région (transferts courts, l'équipe locale y va
+// facilement) — ailleurs (Caire, Louxor, Siwa, Alexandrie, Assouan...), ce
+// n'est jamais l'agence qui gère le logement sur place, donc jamais utile.
+const VILLES_CHAMBRE_NON_REQUISE = ["Le Caire", "Louxor", "Siwa", "Alexandrie", "Assouan"];
 
 // Catégories d'infos manquantes déduites automatiquement des données déjà
 // en base, plutôt que cochées à la main (ce qui pouvait rester coché après
@@ -14,14 +21,26 @@ export const INFO_MANQUANTE_AUTO_ACOMPTE = "Acompte PayPal";
 export const INFO_MANQUANTE_AUTO_BILLET = "Billets d'avion";
 export const INFO_MANQUANTE_AUTO_PASSEPORT = "Passeport";
 
-export function infosManquantesAuto(client: Client, reservations: Reservation[]): string[] {
+export function infosManquantesAuto(
+  client: Client,
+  reservations: Reservation[],
+  hotelsRef: HotelReference[] = []
+): string[] {
   const result: string[] = [];
   if (!client.hotel.trim()) result.push(INFO_MANQUANTE_AUTO_HOTEL);
   // Le numéro de chambre n'est quasiment jamais connu avant l'arrivée —
   // le signaler dès la création du dossier créerait une fausse alerte
   // permanente. Ne compte comme vraiment manquant qu'à la veille ou le
-  // jour même de l'arrivée, quand il devient urgent de l'avoir.
-  if (!client.chambre.trim() && client.date_debut && client.date_debut <= addDays(todayStr(), 1)) {
+  // jour même de l'arrivée, quand il devient urgent de l'avoir — et
+  // seulement pour un hôtel à Hurghada/région (voir VILLES_CHAMBRE_NON_REQUISE).
+  const hotelMatch = matchHotel(client.hotel, hotelsRef);
+  const chambreRequisePourCetteVille = !hotelMatch || !VILLES_CHAMBRE_NON_REQUISE.includes(hotelMatch.ville);
+  if (
+    chambreRequisePourCetteVille &&
+    !client.chambre.trim() &&
+    client.date_debut &&
+    client.date_debut <= addDays(todayStr(), 1)
+  ) {
     result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
   }
   if (!client.telephone.trim()) result.push(INFO_MANQUANTE_AUTO_WHATSAPP);
@@ -56,12 +75,16 @@ const MANUEL_RESOLU: Record<string, (client: Client) => boolean> = {
 // Fusionne les tags manuels (moins le sentinel "Complet") avec les tags
 // auto-détectés, sans doublon — utilisé partout où on affiche/compte les
 // infos manquantes d'un client (fiche client, tableau de bord).
-export function infosManquantesToutes(client: Client, reservations: Reservation[]): string[] {
+export function infosManquantesToutes(
+  client: Client,
+  reservations: Reservation[],
+  hotelsRef: HotelReference[] = []
+): string[] {
   const manuelles = client.infos_manquantes.filter((s) => {
     if (s === "Complet") return false;
     const estResolu = MANUEL_RESOLU[s];
     return !estResolu || !estResolu(client);
   });
-  const auto = infosManquantesAuto(client, reservations);
+  const auto = infosManquantesAuto(client, reservations, hotelsRef);
   return Array.from(new Set([...auto, ...manuelles]));
 }

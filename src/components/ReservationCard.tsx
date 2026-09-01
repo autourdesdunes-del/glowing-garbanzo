@@ -46,6 +46,8 @@ import {
   speedboatIleType,
   SPEEDBOAT_ILES,
   STATUT_PAIEMENT_OPTIONS,
+  ajusteTitreTransfertAeroport,
+  senseTransfertAeroport,
 } from "@/lib/resa";
 import { weekdayFr } from "@/lib/dates";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
@@ -1137,7 +1139,11 @@ export default function ReservationCard({
                   <input
                     id={`field-numero-vol-${r.id}`}
                     value={r.numero_vol}
-                    onChange={(e) => onUpdate({ numero_vol: e.target.value })}
+                    onChange={(e) => {
+                      const numero_vol = e.target.value;
+                      const titre = ajusteTitreTransfertAeroport(r.nom_activite, numero_vol, r.horaire_vol);
+                      onUpdate({ numero_vol, ...(titre ? { nom_activite: titre } : {}) });
+                    }}
                     className={`input ${
                       validationError && !r.numero_vol.trim()
                         ? "border-red-300 focus:border-red-400"
@@ -1145,11 +1151,21 @@ export default function ReservationCard({
                     }`}
                   />
                 </Field>
-                <Field label="Horaire d'arrivée *">
+                <Field
+                  label={
+                    senseTransfertAeroport(r.nom_activite) === "hotel_aeroport"
+                      ? "Horaire de départ *"
+                      : "Horaire d'arrivée *"
+                  }
+                >
                   <input
                     id={`field-horaire-vol-${r.id}`}
                     value={r.horaire_vol}
-                    onChange={(e) => onUpdate({ horaire_vol: e.target.value })}
+                    onChange={(e) => {
+                      const horaire_vol = e.target.value;
+                      const titre = ajusteTitreTransfertAeroport(r.nom_activite, r.numero_vol, horaire_vol);
+                      onUpdate({ horaire_vol, ...(titre ? { nom_activite: titre } : {}) });
+                    }}
                     className={`input ${
                       validationError && !r.horaire_vol.trim()
                         ? "border-red-300 focus:border-red-400"

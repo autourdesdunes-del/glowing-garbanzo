@@ -395,18 +395,19 @@ export type SensTransfertOption = { value: string; label: string; titre: string 
 // affiché est mis à jour en conséquence. Retourne un tableau vide si le nom
 // ne correspond à aucun des deux formats.
 export function transfertSensOptions(nomCatalogue: string): SensTransfertOption[] {
-  const aeroport = nomCatalogue.match(/^Transfert aéroport - .+$/);
+  const aeroport = nomCatalogue.match(/^Transfert aéroport - (.+)$/);
   if (aeroport) {
+    const ville = aeroport[1];
     return [
       {
         value: "aeroport_hotel",
         label: "Aéroport → Hôtel",
-        titre: `${nomCatalogue} (Aéroport → Hôtel)`,
+        titre: `Transfert aéroport ${ville} - hôtel`,
       },
       {
         value: "hotel_aeroport",
         label: "Hôtel → Aéroport",
-        titre: `${nomCatalogue} (Hôtel → Aéroport)`,
+        titre: `Transfert hôtel ${ville} - aéroport ${ville}`,
       },
     ];
   }
@@ -437,6 +438,48 @@ export function transfertSensOptions(nomCatalogue: string): SensTransfertOption[
   }
 
   return [];
+}
+
+// Une fois le sens du transfert aéroport posé (voir transfertSensOptions
+// ci-dessus), le titre doit aussi refléter le numéro de vol et l'horaire dès
+// qu'ils sont connus — visible directement dans Réservations et la fiche
+// client, sans ouvrir l'activité. Le sens et la ville sont retrouvés dans le
+// titre actuel plutôt que stockés à part, pour rester idempotent d'une
+// modif à l'autre. Retourne null si ce n'est pas un transfert aéroport (le
+// titre reste alors inchangé).
+export function ajusteTitreTransfertAeroport(
+  nomActiviteActuel: string,
+  numeroVol: string,
+  horaireVol: string
+): string | null {
+  const aeroportHotel = nomActiviteActuel.match(/^Transfert aéroport (.+?) - hôtel\b/);
+  if (aeroportHotel) {
+    const bits = [
+      horaireVol.trim() && `arrivée à ${horaireVol.trim()}`,
+      numeroVol.trim() && `vol ${numeroVol.trim()}`,
+    ].filter(Boolean);
+    return `Transfert aéroport ${aeroportHotel[1]} - hôtel${bits.length ? ` (${bits.join(", ")})` : ""}`;
+  }
+  const hotelAeroport = nomActiviteActuel.match(/^Transfert hôtel (.+?) - aéroport\b/);
+  if (hotelAeroport) {
+    const ville = hotelAeroport[1];
+    const bits = [
+      horaireVol.trim() && `vol départ à ${horaireVol.trim()}`,
+      numeroVol.trim() && `vol ${numeroVol.trim()}`,
+    ].filter(Boolean);
+    return `Transfert hôtel ${ville} - aéroport ${ville}${bits.length ? ` (${bits.join(", ")})` : ""}`;
+  }
+  return null;
+}
+
+// Distingue le sens à partir du titre actuel — utilisé pour adapter le
+// libellé du champ horaire ("arrivée" vs "départ") au bon moment du trajet.
+export function senseTransfertAeroport(
+  nomActiviteActuel: string
+): "aeroport_hotel" | "hotel_aeroport" | null {
+  if (/^Transfert aéroport .+? - hôtel\b/.test(nomActiviteActuel)) return "aeroport_hotel";
+  if (/^Transfert hôtel .+? - aéroport\b/.test(nomActiviteActuel)) return "hotel_aeroport";
+  return null;
 }
 
 // Les îles proposées pour les formules speedboat privé "journée complète"

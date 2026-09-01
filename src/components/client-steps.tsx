@@ -1838,6 +1838,42 @@ export function PaiementsStep({
   const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
   const reste = totalSejour - totalPaye;
 
+  // Résumé chronologique de tout ce qui a été effectivement encaissé
+  // (acompte, étapes libres, solde) — mélange trois sources différentes
+  // dans une seule liste triée par date, plutôt que de laisser l'équipe
+  // recomposer l'historique à la main entre plusieurs blocs.
+  type PaiementLigne = { id: string; label: string; montant: number; when: string; sortKey: string; etapeId?: string };
+  const paiementsChronologiques: PaiementLigne[] = [];
+  if (client.acompte_paye) {
+    paiementsChronologiques.push({
+      id: "acompte",
+      label: `Acompte — ${client.acompte_mode}`,
+      montant: Number(client.acompte_montant) || 0,
+      when: fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts) || "—",
+      sortKey: client.acompte_date_encaissement || "",
+    });
+  }
+  etapesTriees.forEach((e) => {
+    paiementsChronologiques.push({
+      id: `etape-${e.id}`,
+      label: `Étape — ${e.mode || "—"}`,
+      montant: Number(e.montant) || 0,
+      when: e.date ? fmtDateDMY(e.date) : "—",
+      sortKey: e.date || "",
+      etapeId: e.id,
+    });
+  });
+  if (client.solde_paye) {
+    paiementsChronologiques.push({
+      id: "solde",
+      label: `Solde — ${client.solde_mode}`,
+      montant: soldeRestant,
+      when: client.solde_date ? fmtDateDMY(client.solde_date) : "—",
+      sortKey: client.solde_date || "",
+    });
+  }
+  paiementsChronologiques.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
   const ajouterEtape = () => {
     const montant = Number(etapeMontant);
     if (!montant || montant <= 0) {
@@ -1903,83 +1939,6 @@ export function PaiementsStep({
         </span>
       </div>
 
-      <div className="rounded-md border border-neutral-200 bg-white p-3">
-        <div className="mb-1.5 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#171717]">Étapes de paiement</h3>
-          <button
-            onClick={() => setAddingEtape((v) => !v)}
-            className="rounded-md border border-[#C9973E]/40 px-2 py-0.5 text-xs font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
-          >
-            + Ajouter une étape
-          </button>
-        </div>
-        <p className="mb-2 text-xs text-neutral-500">
-          Pour les clients qui règlent en plusieurs fois (un 2e PayPal, puis des espèces, puis une
-          CB…) — chaque étape vient en plus de l&apos;acompte et réduit d&apos;autant le solde
-          restant.
-        </p>
-        {etapesTriees.length === 0 && !addingEtape && (
-          <p className="text-sm text-neutral-400">Aucune étape supplémentaire.</p>
-        )}
-        {etapesTriees.length > 0 && (
-          <div className="mb-2 space-y-1">
-            {etapesTriees.map((e) => (
-              <div
-                key={e.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-[#fafafa] px-2.5 py-1.5 text-sm"
-              >
-                <span className="text-[#171717]">
-                  {euros(e.montant)} € {e.mode ? `— ${e.mode}` : ""}
-                </span>
-                <span className="flex items-center gap-2 text-xs text-neutral-500">
-                  {e.date ? fmtDateDMY(e.date) : ""}
-                  <button
-                    onClick={() => onDeletePaiementEtape(e.id)}
-                    title="Retirer cette étape"
-                    className="text-red-500 hover:text-red-600"
-                  >
-                    🗑
-                  </button>
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        {addingEtape && (
-          <div className="flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 p-2.5">
-            <Field label="Montant (€)">
-              <input
-                type="number"
-                value={etapeMontant}
-                onChange={(e) => setEtapeMontant(e.target.value)}
-                className="input w-28"
-              />
-            </Field>
-            <Field label="Mode">
-              <select value={etapeMode} onChange={(e) => setEtapeMode(e.target.value)} className="input">
-                {MODES_PAIEMENT.map((m) => (
-                  <option key={m}>{m}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Date">
-              <input
-                type="date"
-                value={etapeDate}
-                onChange={(e) => setEtapeDate(e.target.value)}
-                className="input"
-              />
-            </Field>
-            <button
-              onClick={ajouterEtape}
-              className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-            >
-              Ajouter
-            </button>
-          </div>
-        )}
-      </div>
-
       {avoirsUtilises.length > 0 && (
         <div className="rounded-md border border-[#C9973E]/30 bg-[#C9973E]/10 p-3 text-sm">
           <h3 className="mb-1 text-sm font-semibold text-[#8B4531]">Avoirs déduits</h3>
@@ -2005,6 +1964,48 @@ export function PaiementsStep({
           <option value="integral">Paiement intégral en une seule fois</option>
           <option value="acompte">Paiement acompte + règlement à l&apos;arrivée</option>
         </select>
+
+        <div className="mt-2">
+          <button
+            onClick={() => setAddingEtape((v) => !v)}
+            className="rounded-md border border-[#C9973E]/40 px-2 py-0.5 text-xs font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
+          >
+            + Ajouter une étape
+          </button>
+          {addingEtape && (
+            <div className="mt-2 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-2.5">
+              <Field label="Montant (€)">
+                <input
+                  type="number"
+                  value={etapeMontant}
+                  onChange={(e) => setEtapeMontant(e.target.value)}
+                  className="input w-28"
+                />
+              </Field>
+              <Field label="Mode">
+                <select value={etapeMode} onChange={(e) => setEtapeMode(e.target.value)} className="input">
+                  {MODES_PAIEMENT.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Date">
+                <input
+                  type="date"
+                  value={etapeDate}
+                  onChange={(e) => setEtapeDate(e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <button
+                onClick={ajouterEtape}
+                className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Ajouter
+              </button>
+            </div>
+          )}
+        </div>
 
         {client.paiement_type === "integral" && (
           <PaiementResteFlow
@@ -2095,6 +2096,36 @@ export function PaiementsStep({
           </div>
         )}
       </div>
+
+      {paiementsChronologiques.length > 0 && (
+        <div className="rounded-md border border-neutral-200 bg-white p-3">
+          <h3 className="mb-1.5 text-sm font-semibold text-[#171717]">Résumé des paiements</h3>
+          <div className="space-y-1">
+            {paiementsChronologiques.map((ligne) => (
+              <div
+                key={ligne.id}
+                className="flex items-center justify-between gap-2 rounded-md bg-[#fafafa] px-2.5 py-1.5 text-sm"
+              >
+                <span className="text-[#171717]">
+                  {ligne.label} — {euros(ligne.montant)} €
+                </span>
+                <span className="flex items-center gap-2 text-xs text-neutral-500">
+                  {ligne.when}
+                  {ligne.etapeId && (
+                    <button
+                      onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
+                      title="Retirer cette étape"
+                      className="text-red-500 hover:text-red-600"
+                    >
+                      🗑
+                    </button>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {acompteDateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">

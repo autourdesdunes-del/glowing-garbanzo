@@ -2420,12 +2420,14 @@ function AppShellInner({
                   ›
                 </span>
               </button>
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Rechercher un client…"
-                className="w-56 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#171717] focus:outline-none"
-              />
+              {clientListExpanded && (
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Rechercher un client…"
+                  className="w-56 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-[#171717] focus:outline-none"
+                />
+              )}
               <QuickAddClient
                 onCreate={addClient}
                 onUpdateClient={updateClientById}
@@ -2472,7 +2474,9 @@ function AppShellInner({
             />
           ) : (
         <div className="flex flex-1 overflow-hidden">
-          {(clientListExpanded || query.trim() || !selected || !activeStatuts.includes(selected.statut)) && (
+          {(clientListExpanded ||
+            query.trim() ||
+            (selected && !activeStatuts.includes(selected.statut))) && (
           <aside
             className={`${
               !selected || !activeStatuts.includes(selected.statut) ? "flex w-full" : "hidden"

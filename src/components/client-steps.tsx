@@ -1920,21 +1920,24 @@ export function PaiementsStep({
 
   // Dès que l'acompte + les étapes libres couvrent tout le séjour (avant
   // même que le solde ne soit explicitement marqué "payé"), on propose de
-  // passer toutes les activités en payé d'un coup — jamais au chargement de
-  // la fiche (soldeCompletVuRef part de l'état déjà présent), seulement
-  // quand la transition se produit pendant que l'employée est sur la page.
+  // passer toutes les activités en payé d'un coup — y compris à l'ouverture
+  // de la fiche si c'était déjà le cas avant (ex. Romuald : plusieurs étapes
+  // ajoutées au fil du temps ont couvert le séjour sans jamais passer par ce
+  // popup) et pas seulement sur une transition vue en direct. On ne repropose
+  // pas dans la foulée si l'employée clique "Plus tard" (soldeCompletVuRef),
+  // jusqu'à ce que le solde repasse au-dessus de 0€ ou que la fiche soit
+  // rouverte (nouveau montage du composant).
   const [showSoldeCompletPopup, setShowSoldeCompletPopup] = useState(false);
-  const soldeCompletVuRef = useRef<boolean | null>(null);
+  const soldeCompletVuRef = useRef(false);
   useEffect(() => {
     const estComplet = totalSejour > 0 && reste <= 0;
-    if (soldeCompletVuRef.current === null) {
-      soldeCompletVuRef.current = estComplet;
-      return;
-    }
-    if (estComplet && !soldeCompletVuRef.current && !client.solde_paye) {
+    if (estComplet && !client.solde_paye && !soldeCompletVuRef.current) {
       setShowSoldeCompletPopup(true);
+      soldeCompletVuRef.current = true;
     }
-    soldeCompletVuRef.current = estComplet;
+    if (!estComplet) {
+      soldeCompletVuRef.current = false;
+    }
   }, [reste, totalSejour, client.solde_paye]);
 
   // Suggère le mode unique quand tous les paiements encaissés (acompte +

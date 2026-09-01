@@ -249,6 +249,19 @@ export type Avoir = {
   created_at: string;
 };
 
+// Étape de paiement libre entre l'acompte et le solde (voir migration 0094)
+// — l'acompte et le solde restent uniques, ces étapes sont des règlements
+// intermédiaires additionnels (ex. un 2e PayPal, puis des espèces, puis
+// une CB).
+export type PaiementEtape = {
+  id: string;
+  client_id: string;
+  montant: number;
+  mode: string;
+  date: string | null;
+  created_at: string;
+};
+
 export type Verification = {
   id: string;
   client_id: string;

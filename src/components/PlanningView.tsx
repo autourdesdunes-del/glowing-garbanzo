@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client, HotelReference, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import {
+  CatalogueItem,
+  Client,
+  HotelReference,
+  PaiementEtape,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
 import { matchHotel, hotelDisplayForEgypt } from "@/lib/hotelHelp";
 import {
   acompteWaitingWarning,
@@ -169,6 +177,7 @@ function ReservationSummaryCard({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   onClick,
   onOpenClient,
   size = "full",
@@ -178,6 +187,7 @@ function ReservationSummaryCard({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   onClick: () => void;
   onOpenClient: (clientId: string) => void;
   size?: "full" | "medium" | "compact";
@@ -186,11 +196,20 @@ function ReservationSummaryCard({
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
   const { nbAd, nbEnf } = participantsFor(r, client);
   const badge = paiementBadge(client, r);
-  // Le calcul du montant restant a besoin des réservations de CE client
-  // uniquement — jamais du tableau global toutes activités confondues, sous
-  // peine de sommer les montants de plusieurs clients (bug déjà rencontré).
+  // Le calcul du montant restant a besoin des réservations (et étapes de
+  // paiement) de CE client uniquement — jamais du tableau global toutes
+  // activités confondues, sous peine de sommer les montants de plusieurs
+  // clients (bug déjà rencontré).
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
-  const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
+  const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
+  const paiementWarning = activitePaiementWarning(
+    client,
+    r,
+    clientReservations,
+    resaOptions,
+    resaTarifs,
+    clientEtapes
+  );
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
   const infosManquantes = infosManquantesToutes(client, reservations);
   const infoComplet = infosManquantes.length === 0;
@@ -441,6 +460,7 @@ function ActivityDetailModal({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   onOpenClient,
   onOpenActivity,
   onOpenRdvPaiement,
@@ -453,6 +473,7 @@ function ActivityDetailModal({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   onOpenClient: (clientId: string) => void;
   onOpenActivity: (r: Reservation) => void;
   onOpenRdvPaiement: (clientId: string) => void;
@@ -519,8 +540,20 @@ function ActivityDetailModal({
   );
   const acompteClient =
     client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
-  const montantRdv = Math.max(totalSejourClient - acompteClient - avoirUtiliseTotal(clientReservations), 0);
-  const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
+  const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
+  const etapesSumClient = clientEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
+  const montantRdv = Math.max(
+    totalSejourClient - acompteClient - etapesSumClient - avoirUtiliseTotal(clientReservations),
+    0
+  );
+  const paiementWarning = activitePaiementWarning(
+    client,
+    r,
+    clientReservations,
+    resaOptions,
+    resaTarifs,
+    clientEtapes
+  );
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
 
   // Bloc équipe Égypte : la traduction reste "au mieux" (dictionnaire de
@@ -911,6 +944,7 @@ function CalendarMonthView({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   onOpenActivity,
   onOpenClient,
 }: {
@@ -918,6 +952,7 @@ function CalendarMonthView({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   onOpenActivity: (row: Row) => void;
   onOpenClient: (clientId: string) => void;
 }) {
@@ -1080,6 +1115,7 @@ function CalendarMonthView({
                   reservations={reservations}
                   resaOptions={resaOptions}
                   resaTarifs={resaTarifs}
+                  paiementsEtapes={paiementsEtapes}
                   onClick={() => onOpenActivity(row)}
                   onOpenClient={onOpenClient}
                 />
@@ -1149,6 +1185,7 @@ function ByActivityView({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   catalogue,
   onOpenActivity,
   onOpenClient,
@@ -1157,6 +1194,7 @@ function ByActivityView({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   catalogue: CatalogueItem[];
   onOpenActivity: (row: Row) => void;
   onOpenClient: (clientId: string) => void;
@@ -1284,6 +1322,7 @@ function ByActivityView({
                             reservations={reservations}
                             resaOptions={resaOptions}
                             resaTarifs={resaTarifs}
+                            paiementsEtapes={paiementsEtapes}
                             onClick={() => onOpenActivity(row)}
                             onOpenClient={onOpenClient}
                             size="compact"
@@ -1316,6 +1355,7 @@ export default function PlanningView({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   catalogue,
   onOpenClient,
   onOpenRdvPaiement,
@@ -1327,6 +1367,7 @@ export default function PlanningView({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   catalogue: CatalogueItem[];
   onOpenClient: (clientId: string) => void;
   onOpenRdvPaiement: (clientId: string) => void;
@@ -1426,6 +1467,7 @@ export default function PlanningView({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
           onOpenActivity={setActiveActivity}
           onOpenClient={onOpenClient}
         />
@@ -1435,6 +1477,7 @@ export default function PlanningView({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
           catalogue={catalogue}
           onOpenActivity={setActiveActivity}
           onOpenClient={onOpenClient}
@@ -1498,6 +1541,7 @@ export default function PlanningView({
                     reservations={reservations}
                     resaOptions={resaOptions}
                     resaTarifs={resaTarifs}
+                    paiementsEtapes={paiementsEtapes}
                     onClick={() => setActiveActivity(row)}
                     onOpenClient={onOpenClient}
                     size="medium"
@@ -1517,6 +1561,7 @@ export default function PlanningView({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
           onOpenClient={onOpenClient}
           onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
           onOpenRdvPaiement={onOpenRdvPaiement}

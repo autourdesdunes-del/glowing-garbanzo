@@ -5,6 +5,7 @@ import {
   CatalogueItem,
   Client,
   Incident,
+  PaiementEtape,
   PaypalPaiement,
   PlanningShift,
   Profile,
@@ -1118,6 +1119,7 @@ export default function SuivisView({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   remboursements,
   incidents,
   verifications,
@@ -1139,6 +1141,7 @@ export default function SuivisView({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   remboursements: Remboursement[];
   incidents: Incident[];
   verifications: Verification[];
@@ -1207,7 +1210,10 @@ export default function SuivisView({
     const totalSejour = reservations
       .filter((r) => r.client_id === c.id && r.statut_resa !== "Annulée")
       .reduce((sum, r) => sum + resaTotalMontant(r, c, resaOptions[r.id] || [], resaTarifs[r.id] || []), 0);
-    return Math.max(totalSejour - acomptePaye, 0);
+    const etapesSum = paiementsEtapes
+      .filter((e) => e.client_id === c.id)
+      .reduce((s, e) => s + (Number(e.montant) || 0), 0);
+    return Math.max(totalSejour - acomptePaye - etapesSum, 0);
   };
   const now = new Date();
   const today = new Date(now);
@@ -1472,7 +1478,8 @@ export default function SuivisView({
                     r,
                     clientReservations,
                     resaOptions,
-                    resaTarifs
+                    resaTarifs,
+                    paiementsEtapes.filter((e) => e.client_id === client.id)
                   );
                   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
                   const teamMsg = pickupMissingTeamMessage(r, client);
@@ -1555,7 +1562,8 @@ export default function SuivisView({
                     r,
                     clientReservations,
                     resaOptions,
-                    resaTarifs
+                    resaTarifs,
+                    paiementsEtapes.filter((e) => e.client_id === client.id)
                   );
                   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
                   const montantRestant = soldeRestantFor(client);

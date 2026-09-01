@@ -13,6 +13,7 @@ import {
   Client,
   HotelReference,
   Incident,
+  PaiementEtape,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -291,6 +292,7 @@ export default function ClientDetail({
   const [avoirPromptReservationId, setAvoirPromptReservationId] = useState<string | null>(null);
   const [avoirAppliedNotice, setAvoirAppliedNotice] = useState<number | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [paiementsEtapes, setPaiementsEtapes] = useState<PaiementEtape[]>([]);
   const [showIncidentsModal, setShowIncidentsModal] = useState(false);
   const [showDevisPaiementModal, setShowDevisPaiementModal] = useState(false);
   const [confirmationFormat, setConfirmationFormat] = useState<"pdf" | "png" | null>(null);
@@ -322,6 +324,43 @@ export default function ClientDetail({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("paiements_etapes")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: true });
+      setPaiementsEtapes((data as PaiementEtape[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  const addPaiementEtape = async (montant: number, mode: string, date: string) => {
+    const { data, error } = await supabase
+      .from("paiements_etapes")
+      .insert({ client_id: client.id, montant, mode, date: date || null })
+      .select()
+      .single();
+    if (!error && data) {
+      setPaiementsEtapes((prev) => [...prev, data as PaiementEtape]);
+    } else {
+      toast("Impossible d'ajouter cette étape de paiement.");
+    }
+  };
+
+  const deletePaiementEtape = async (id: string) => {
+    const ok = await confirm({
+      message: "Retirer cette étape de paiement ? Cette action est irréversible.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
+    setPaiementsEtapes((prev) => prev.filter((e) => e.id !== id));
+    const { error } = await supabase.from("paiements_etapes").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
 
   const addAvoir = async () => {
     const { data, error } = await supabase
@@ -761,8 +800,13 @@ export default function ClientDetail({
   const acomptePayeMontant =
     client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
   const avoirUtiliseHeader = avoirUtiliseTotal(reservations);
-  const soldeRestantHeader = Math.max(totalSejourHeader - acomptePayeMontant - avoirUtiliseHeader, 0);
-  const totalPayeHeader = acomptePayeMontant + avoirUtiliseHeader + (client.solde_paye ? soldeRestantHeader : 0);
+  const etapesSumHeader = paiementsEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
+  const soldeRestantHeader = Math.max(
+    totalSejourHeader - acomptePayeMontant - etapesSumHeader - avoirUtiliseHeader,
+    0
+  );
+  const totalPayeHeader =
+    acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + (client.solde_paye ? soldeRestantHeader : 0);
   const paiementFullyPaid = totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader;
 
   const jumpToPaiements = () => {
@@ -1185,6 +1229,7 @@ export default function ClientDetail({
           onJourEscalation={handleJourEscalation}
           onAssouanVerification={handleAssouanVerification}
           assouanVerifications={assouanVerifications}
+          paiementsEtapes={paiementsEtapes}
         />
       </Section>
 
@@ -1230,6 +1275,9 @@ export default function ClientDetail({
               resaOptions={resaOptions}
               resaTarifs={resaTarifs}
               onUpdateReservation={updateReservation}
+              paiementsEtapes={paiementsEtapes}
+              onAddPaiementEtape={addPaiementEtape}
+              onDeletePaiementEtape={deletePaiementEtape}
             />
           </div>
         </div>

@@ -17,6 +17,7 @@ import {
   EMPTY_CLIENT,
   Incident,
   JourEscalation,
+  PaiementEtape,
   PaypalPaiement,
   PlanningShift,
   Profile,
@@ -409,6 +410,7 @@ function AppShellInner({
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
+  const [allPaiementsEtapes, setAllPaiementsEtapes] = useState<PaiementEtape[]>([]);
   const [allIncidents, setAllIncidents] = useState<Incident[]>([]);
   const [allVerifications, setAllVerifications] = useState<Verification[]>([]);
   const [paypalPaiements, setPaypalPaiements] = useState<PaypalPaiement[]>([]);
@@ -728,6 +730,9 @@ function AppShellInner({
         } else {
           setAllCoutsMap({});
         }
+        const { data: etapes } = await supabase.from("paiements_etapes").select("*");
+        setAllPaiementsEtapes((etapes as PaiementEtape[]) || []);
+
         setPlanningLoaded(true);
       }
 
@@ -1113,6 +1118,8 @@ function AppShellInner({
         } else {
           setAllCoutsMap({});
         }
+        const { data: etapes } = await supabase.from("paiements_etapes").select("*");
+        setAllPaiementsEtapes((etapes as PaiementEtape[]) || []);
       }
 
       if (flags.suivisLoaded) {
@@ -2629,6 +2636,7 @@ function AppShellInner({
               reservations={allReservations}
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
+              paiementsEtapes={allPaiementsEtapes}
               catalogue={catalogue}
               onOpenClient={openClient}
               onOpenRdvPaiement={openRdvPaiements}
@@ -2649,6 +2657,7 @@ function AppShellInner({
               clients={clients}
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
+              paiementsEtapes={allPaiementsEtapes}
             />
           )}
         </div>
@@ -2665,6 +2674,7 @@ function AppShellInner({
               reservations={allReservations}
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
+              paiementsEtapes={allPaiementsEtapes}
               remboursements={allRemboursements}
               incidents={allIncidents}
               verifications={allVerifications}

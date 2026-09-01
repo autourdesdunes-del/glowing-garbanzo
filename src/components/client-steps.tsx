@@ -15,6 +15,7 @@ import {
   ClientHotel,
   HotelReference,
   Incident,
+  PaiementEtape,
   Remboursement,
   Reservation,
   ReservationOption,
@@ -1143,6 +1144,7 @@ export function ActivitesStep({
   onJourEscalation,
   onAssouanVerification,
   assouanVerifications,
+  paiementsEtapes = [],
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -1189,6 +1191,7 @@ export function ActivitesStep({
   ) => Promise<void>;
   onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
   assouanVerifications: AssouanVerification[];
+  paiementsEtapes?: PaiementEtape[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNewState] = useState(false);
@@ -1251,6 +1254,7 @@ export function ActivitesStep({
         reservations={reservations}
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
+        paiementsEtapes={paiementsEtapes}
         expandedId={expandedId}
         onToggleExpand={setExpandedId}
         onSetPickup={(id, pickup_reel) => onUpdateReservation(id, { pickup_reel })}
@@ -1781,11 +1785,17 @@ export function PaiementsStep({
   resaOptions,
   resaTarifs,
   onUpdateReservation,
+  paiementsEtapes = [],
+  onAddPaiementEtape = () => {},
+  onDeletePaiementEtape = () => {},
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  paiementsEtapes?: PaiementEtape[];
+  onAddPaiementEtape?: (montant: number, mode: string, date: string) => void;
+  onDeletePaiementEtape?: (id: string) => void;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -1794,6 +1804,10 @@ export function PaiementsStep({
   );
   const [billetHossamReminder, setBilletHossamReminder] = useState<Reservation | null>(null);
   const [copiedHossamReminder, setCopiedHossamReminder] = useState(false);
+  const [addingEtape, setAddingEtape] = useState(false);
+  const [etapeMontant, setEtapeMontant] = useState("");
+  const [etapeMode, setEtapeMode] = useState<string>(MODES_PAIEMENT[0] || "");
+  const [etapeDate, setEtapeDate] = useState(todayStr());
 
   // Après avoir marqué l'acompte encaissé, si un billet d'avion attend
   // encore d'être signalé à Hossam, on le rappelle tout de suite — c'est
@@ -1813,11 +1827,27 @@ export function PaiementsStep({
   const acomptePaye = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
   const avoirsUtilises = reservations.filter((r) => Number(r.avoir_utilise) > 0);
   const avoirUtilise = avoirsUtilises.reduce((s, r) => s + (Number(r.avoir_utilise) || 0), 0);
+  // Étapes de paiement libres entre l'acompte et le solde (ex. plusieurs
+  // PayPal, puis espèces, puis CB) — voir migration 0094.
+  const etapesTriees = [...paiementsEtapes].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const etapesSum = etapesTriees.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   // Le solde n'est plus un montant saisi à la main : c'est toujours le reste
-  // du séjour une fois l'acompte et un éventuel avoir consommé déduits.
-  const soldeRestant = Math.max(totalSejour - acomptePaye - avoirUtilise, 0);
-  const totalPaye = acomptePaye + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
+  // du séjour une fois l'acompte, les étapes libres et un éventuel avoir
+  // consommé déduits.
+  const soldeRestant = Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
+  const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
   const reste = totalSejour - totalPaye;
+
+  const ajouterEtape = () => {
+    const montant = Number(etapeMontant);
+    if (!montant || montant <= 0) {
+      toast("Indique un montant valide pour cette étape.");
+      return;
+    }
+    onAddPaiementEtape(montant, etapeMode, etapeDate);
+    setEtapeMontant("");
+    setAddingEtape(false);
+  };
 
   const validerAcompte = () => {
     if (!client.acompte_montant) {
@@ -1840,7 +1870,10 @@ export function PaiementsStep({
   };
 
   const resteApresAcompte = Math.max(
-    totalSejour - (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0) - avoirUtilise,
+    totalSejour -
+      (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0) -
+      etapesSum -
+      avoirUtilise,
     0
   );
 
@@ -1863,6 +1896,83 @@ export function PaiementsStep({
         <span className="rounded-full bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700">
           Reste à payer : {euros(reste)} €
         </span>
+      </div>
+
+      <div className="rounded-md border border-neutral-200 bg-white p-3">
+        <div className="mb-1.5 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-[#171717]">Étapes de paiement</h3>
+          <button
+            onClick={() => setAddingEtape((v) => !v)}
+            className="rounded-md border border-[#C9973E]/40 px-2 py-0.5 text-xs font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
+          >
+            + Ajouter une étape
+          </button>
+        </div>
+        <p className="mb-2 text-xs text-neutral-500">
+          Pour les clients qui règlent en plusieurs fois (un 2e PayPal, puis des espèces, puis une
+          CB…) — chaque étape vient en plus de l&apos;acompte et réduit d&apos;autant le solde
+          restant.
+        </p>
+        {etapesTriees.length === 0 && !addingEtape && (
+          <p className="text-sm text-neutral-400">Aucune étape supplémentaire.</p>
+        )}
+        {etapesTriees.length > 0 && (
+          <div className="mb-2 space-y-1">
+            {etapesTriees.map((e) => (
+              <div
+                key={e.id}
+                className="flex items-center justify-between gap-2 rounded-md bg-[#fafafa] px-2.5 py-1.5 text-sm"
+              >
+                <span className="text-[#171717]">
+                  {euros(e.montant)} € {e.mode ? `— ${e.mode}` : ""}
+                </span>
+                <span className="flex items-center gap-2 text-xs text-neutral-500">
+                  {e.date ? fmtDateDMY(e.date) : ""}
+                  <button
+                    onClick={() => onDeletePaiementEtape(e.id)}
+                    title="Retirer cette étape"
+                    className="text-red-500 hover:text-red-600"
+                  >
+                    🗑
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {addingEtape && (
+          <div className="flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 p-2.5">
+            <Field label="Montant (€)">
+              <input
+                type="number"
+                value={etapeMontant}
+                onChange={(e) => setEtapeMontant(e.target.value)}
+                className="input w-28"
+              />
+            </Field>
+            <Field label="Mode">
+              <select value={etapeMode} onChange={(e) => setEtapeMode(e.target.value)} className="input">
+                {MODES_PAIEMENT.map((m) => (
+                  <option key={m}>{m}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Date">
+              <input
+                type="date"
+                value={etapeDate}
+                onChange={(e) => setEtapeDate(e.target.value)}
+                className="input"
+              />
+            </Field>
+            <button
+              onClick={ajouterEtape}
+              className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              Ajouter
+            </button>
+          </div>
+        )}
       </div>
 
       {avoirsUtilises.length > 0 && (

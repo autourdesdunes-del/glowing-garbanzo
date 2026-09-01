@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import {
   activitePaiementWarning,
   cleanActivityTitle,
@@ -47,17 +47,27 @@ export default function RecapMoisView({
   clients,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
 }: {
   reservations: Reservation[];
   clients: Client[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
 }) {
   const clientById = useMemo(() => {
     const m: Record<string, Client> = {};
     clients.forEach((c) => (m[c.id] = c));
     return m;
   }, [clients]);
+
+  const etapesByClient = useMemo(() => {
+    const m: Record<string, PaiementEtape[]> = {};
+    paiementsEtapes.forEach((e) => {
+      m[e.client_id] = [...(m[e.client_id] || []), e];
+    });
+    return m;
+  }, [paiementsEtapes]);
 
   // activitePaiementWarning a besoin de TOUTES les réservations actives du
   // client (pas seulement celles du mois affiché) pour calculer le total du
@@ -110,7 +120,8 @@ export default function RecapMoisView({
           r,
           reservationsParClient[client.id] || [],
           resaOptions,
-          resaTarifs
+          resaTarifs,
+          etapesByClient[client.id] || []
         );
       }
       agg.pax += pax;
@@ -128,7 +139,7 @@ export default function RecapMoisView({
     });
     Object.values(map).forEach((a) => a.details.sort((x, y) => x.date.localeCompare(y.date)));
     return Object.values(map).sort((a, b) => b.pax - a.pax);
-  }, [reservationsDuMois, clientById, reservationsParClient, resaOptions, resaTarifs]);
+  }, [reservationsDuMois, clientById, reservationsParClient, resaOptions, resaTarifs, etapesByClient]);
 
   const activitesOptions = useMemo(() => parActivite.map((a) => a.nom), [parActivite]);
   const visibleActivites =

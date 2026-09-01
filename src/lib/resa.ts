@@ -2,6 +2,7 @@ import {
   AssouanVerification,
   CatalogueItem,
   Client,
+  PaiementEtape,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -190,7 +191,8 @@ export function activitePaiementWarning(
   r: Reservation,
   reservations: Reservation[],
   resaOptions: Record<string, ReservationOption[]>,
-  resaTarifs: Record<string, ReservationTarif[]>
+  resaTarifs: Record<string, ReservationTarif[]>,
+  etapes: PaiementEtape[] = []
 ): { amount: number; devise: "€" | "EGP" } | null {
   if (client.solde_paye) return null;
   if (client.paiement_integral_mode !== "activite_eur" && client.paiement_integral_mode !== "activite_egp")
@@ -208,8 +210,10 @@ export function activitePaiementWarning(
   const acompte = client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
   // Un avoir consommé réduit le montant restant dû pour tout le séjour, où
   // qu'il soit collecté (règle du solde unique par séjour) — jamais un
-  // deuxième "solde" par activité.
-  const amount = Math.max(totalSejour - acompte - avoirUtiliseTotal(reservations), 0);
+  // deuxième "solde" par activité. Les étapes de paiement libres (acompte
+  // → solde) réduisent ce même montant restant, pour la même raison.
+  const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
+  const amount = Math.max(totalSejour - acompte - etapesSum - avoirUtiliseTotal(reservations), 0);
   return { amount, devise: "€" };
 }
 

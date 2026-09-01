@@ -9,6 +9,7 @@ import {
   CatalogueTarif,
   CatalogueTransfertTarif,
   Client,
+  PaiementEtape,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -74,6 +75,7 @@ export default function ItineraryView({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   expandedId,
   onToggleExpand,
   onSetPickup,
@@ -105,6 +107,7 @@ export default function ItineraryView({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   expandedId: string | null;
   onToggleExpand: (id: string | null) => void;
   onSetPickup: (id: string, pickup: string) => void;
@@ -164,7 +167,14 @@ export default function ItineraryView({
 
     const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
     const badge = paiementBadge(client, r);
-    const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs);
+    const paiementWarning = activitePaiementWarning(
+      client,
+      r,
+      reservations,
+      resaOptions,
+      resaTarifs,
+      paiementsEtapes
+    );
     const acompteWarning = acompteWaitingWarning(client, r, reservations);
     const busEscalation = busEscalations.find((e) => e.reservation_id === r.id);
     const assouanVerification = assouanVerifications.find((v) => v.reservation_id === r.id);

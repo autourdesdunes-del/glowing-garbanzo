@@ -1181,6 +1181,9 @@ function AppShellInner({
         // Un "nouveau client" atterrit direct dans Clients, un "nouveau
         // prospect" dans Prospects — chacun là où il doit apparaître.
         setMode(quick?.statut === "Client confirmé" ? "team" : "prospects");
+        // Si un résumé de prospect était déjà ouvert, on bascule sur le
+        // nouveau plutôt que de laisser l'ancien affiché en arrière-plan.
+        setProspectSummaryId((cur) => (cur ? data.id : cur));
         return data as Client;
       }
       toast("Impossible de créer le client.");
@@ -2568,6 +2571,7 @@ function AppShellInner({
                   ‹ Retour à la liste
                 </button>
                 <ClientDetail
+                  key={selected.id}
                   client={selected}
                   allClients={clients}
                   onChange={updateSelected}

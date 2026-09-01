@@ -26,6 +26,7 @@ import {
   isAeroportTransfertHorsHurghada,
   isCaireAeroportTransfert,
   isDiscouragedBusActivity,
+  dureeJoursActivite,
   isTitreLibreActivity,
   isFamilySafariBedouin,
   isGrandEgyptianMuseum,
@@ -48,7 +49,7 @@ import {
   ajusteTitreTransfertAeroport,
   senseTransfertAeroport,
 } from "@/lib/resa";
-import { todayStr, weekdayFr } from "@/lib/dates";
+import { addDays, todayStr, weekdayFr } from "@/lib/dates";
 import { Field } from "@/components/Field";
 import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
@@ -1045,6 +1046,7 @@ export default function AddActivityWizard({
   if (step === "date") {
     const isSpa = isSpaMassage(r.nom_activite);
     const billetInterneGenerique = needsBilletInterneGenerique(catalogueItem?.nom || r.nom_activite);
+    const dureeJours = dureeJoursActivite(catalogueItem?.nom || r.nom_activite);
     const missingDate = !r.date_debut;
     const missingHoraire = isSpa && !r.horaire_souhaite;
     const joursDisponibles = catalogueItem?.jours_disponibles || [];
@@ -1101,6 +1103,10 @@ export default function AddActivityWizard({
                 // (activité générique "Billets d'avion", circuits) qui n'ont
                 // pas ce popup.
                 ...(billetInterneGenerique ? { billet_date: newDate } : {}),
+                // Activités sur plusieurs jours (Le Caire/Louxor 2 jours,
+                // Montgolfière, Siwa...) — la date de fin se présélectionne
+                // automatiquement, mais reste modifiable ensuite.
+                ...(dureeJours ? { date_fin: newDate ? addDays(newDate, dureeJours - 1) : null } : {}),
               });
             }}
             className={`input max-w-[220px] ${
@@ -1108,6 +1114,17 @@ export default function AddActivityWizard({
             }`}
           />
         </Field>
+
+        {dureeJours && (
+          <Field label="Date fin">
+            <input
+              type="date"
+              value={r.date_fin ?? ""}
+              onChange={(e) => onUpdateReservation(r.id, { date_fin: e.target.value || null })}
+              className="input max-w-[220px]"
+            />
+          </Field>
+        )}
 
         {validationError && missingDate && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">

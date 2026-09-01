@@ -975,6 +975,16 @@ export function resaBreakdown(
         amount: nbEnf * (Number(r.pu_enfant) || 0),
       });
     }
+    // Un bébé ne se facture jamais (aucun tarif bébé au niveau d'une
+    // réservation, contrairement au catalogue) — cette ligne à 0 € sert
+    // juste à montrer qu'il a bien été pris en compte, pas oublié.
+    if (r.participants_mode === "tous" && (Number(client.bebes) || 0) > 0) {
+      const nbBebe = Number(client.bebes) || 0;
+      lines.push({
+        label: `Bébé${nbBebe > 1 ? "s" : ""} (${nbBebe})`,
+        amount: 0,
+      });
+    }
     if (nbAcc > 0) {
       lines.push({
         label: `${fmtEuros(r.pu_accompagnateur)} € x ${nbAcc} accompagnateur${nbAcc > 1 ? "s" : ""}`,

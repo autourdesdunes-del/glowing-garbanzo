@@ -30,6 +30,7 @@ import {
 } from "@/lib/resa";
 import ReservationCard from "@/components/ReservationCard";
 import { localDateStr } from "@/lib/dates";
+import { buildPaxEnglish } from "@/components/client-steps";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -163,8 +164,11 @@ export default function ItineraryView({
   // Réservations) — cliquer dessus ensuite ouvre l'édition complète pour
   // changer ce qu'il faut, puis "Valider" ramène au résumé mis à jour.
   const [editingExpanded, setEditingExpanded] = useState(false);
+  const [egyptOpen, setEgyptOpen] = useState(false);
+  const [copiedEgypt, setCopiedEgypt] = useState(false);
   useEffect(() => {
     setEditingExpanded(false);
+    setEgyptOpen(false);
   }, [expandedId]);
   const nbAnnulees = reservations.filter((r) => r.statut_resa === "Annulée").length;
   const reservationsAffichees = voirAnnulees
@@ -327,9 +331,18 @@ export default function ItineraryView({
     : 0;
   const expBadge = expandedReservation ? paiementBadge(client, expandedReservation) : null;
   const expBreakdown = expandedReservation ? resaBreakdown(expandedReservation, client, expOptions, expTarifs) : [];
-  const { nbAd: expNbAd, nbEnf: expNbEnf } = expandedReservation
-    ? participantsFor(expandedReservation, client)
-    : { nbAd: 0, nbEnf: 0 };
+  const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
+    client.hotel || "—"
+  }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
+  const copyEgyptBlock = async () => {
+    try {
+      await navigator.clipboard.writeText(egyptBlock);
+      setCopiedEgypt(true);
+      setTimeout(() => setCopiedEgypt(false), 1500);
+    } catch {
+      // clipboard indisponible, ignorer
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -382,11 +395,7 @@ export default function ItineraryView({
                   <span className="text-[#0F5C56]">🚐 {expandedReservation.pickup_reel}</span>
                 </DetailRow>
               )}
-              <DetailRow label="PAX">
-                {expandedReservation.pax_override ||
-                  `${expNbAd} adultes${expNbEnf ? `, ${expNbEnf} enfant(s)` : ""}`}
-                {expNbEnf > 0 && client.ages_enfants ? ` (âges : ${client.ages_enfants} ans)` : ""}
-              </DetailRow>
+              <DetailRow label="PAX">{paxLine(expandedReservation, client)}</DetailRow>
               {expBadge && (
                 <DetailRow label="Paiement">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${expBadge.className}`}>
@@ -409,6 +418,29 @@ export default function ItineraryView({
             <p className="mt-3 text-center text-xs text-neutral-400">
               Clique sur une ligne pour modifier cette activité
             </p>
+
+            <button
+              type="button"
+              onClick={() => setEgyptOpen((o) => !o)}
+              className="mt-2 flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600"
+            >
+              <span className={`transition-transform ${egyptOpen ? "rotate-90" : ""}`}>›</span>
+              Bloc équipe Égypte
+            </button>
+            {egyptOpen && (
+              <div className="mt-1 rounded-md border border-[#666666]/20 bg-white p-3">
+                <pre className="font-amounts whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-xs">
+                  {egyptBlock}
+                </pre>
+                <button
+                  type="button"
+                  onClick={copyEgyptBlock}
+                  className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                >
+                  {copiedEgypt ? "Copié ✓" : "Copier"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

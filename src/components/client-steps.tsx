@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ActivityLogEntry,
@@ -32,7 +32,14 @@ import {
   STATUTS,
   ZONES_HOTEL,
 } from "@/lib/constants";
-import { agesLabel, fmtEncaisseLe, hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
+import {
+  agesLabel,
+  fmtEncaisseLe,
+  hossamBilletMessage,
+  reservationsActives,
+  resaTotalMontant,
+  STATUT_PAIEMENT_OPTIONS,
+} from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import { matchHotel, matchTransfertTaxe, hotelDisplayForEgypt, villeTransfertInfo } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
@@ -1911,6 +1918,43 @@ export function PaiementsStep({
   const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
   const reste = totalSejour - totalPaye;
 
+  // Dès que l'acompte + les étapes libres couvrent tout le séjour (avant
+  // même que le solde ne soit explicitement marqué "payé"), on propose de
+  // passer toutes les activités en payé d'un coup — jamais au chargement de
+  // la fiche (soldeCompletVuRef part de l'état déjà présent), seulement
+  // quand la transition se produit pendant que l'employée est sur la page.
+  const [showSoldeCompletPopup, setShowSoldeCompletPopup] = useState(false);
+  const soldeCompletVuRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const estComplet = totalSejour > 0 && reste <= 0;
+    if (soldeCompletVuRef.current === null) {
+      soldeCompletVuRef.current = estComplet;
+      return;
+    }
+    if (estComplet && !soldeCompletVuRef.current && !client.solde_paye) {
+      setShowSoldeCompletPopup(true);
+    }
+    soldeCompletVuRef.current = estComplet;
+  }, [reste, totalSejour, client.solde_paye]);
+
+  // Suggère le mode unique quand tous les paiements encaissés (acompte +
+  // étapes) ont utilisé le même mode — sinon (cas Romuald : acompte PayPal +
+  // étape espèces...) aucune suggestion, l'employée choisit "modes différents".
+  const modesUtilises = new Set<string>();
+  if (client.acompte_paye && client.acompte_mode) modesUtilises.add(client.acompte_mode);
+  etapesTriees.forEach((e) => e.mode && modesUtilises.add(e.mode));
+  const modeSuggere = modesUtilises.size === 1 ? [...modesUtilises][0] : null;
+  const MODE_TO_STATUT_KEY: Record<string, string> = {
+    "Espèces EUR": "paye_eur",
+    "Espèces EGP": "paye_egp",
+    "Carte bleue": "paye_cb",
+    "Virement bancaire": "paye_virement",
+    PayPal: "paye_paypal",
+  };
+  const soldeCompletOptions = STATUT_PAIEMENT_OPTIONS.filter((o) =>
+    ["paye_eur", "paye_egp", "paye_cb", "paye_virement", "paye_paypal", "paye_mixte"].includes(o.key)
+  );
+
   // Résumé chronologique de tout ce qui a été effectivement encaissé
   // (acompte, étapes libres, solde) — mélange trois sources différentes
   // dans une seule liste triée par date, plutôt que de laisser l'équipe
@@ -2270,6 +2314,50 @@ export function PaiementsStep({
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showSoldeCompletPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              🎉 Le solde est réglé
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Ce client a fini de payer son solde ({euros(totalSejour)} €). Passer toutes ses
+              activités en &quot;Payé&quot; ?
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {soldeCompletOptions.map((o) => (
+                <button
+                  key={o.key}
+                  onClick={() => {
+                    const r = reservationsActives(reservations)[0] || reservations[0];
+                    onChange(o.patch(r));
+                    setShowSoldeCompletPopup(false);
+                  }}
+                  className={`rounded-md border px-3 py-2 text-left text-sm font-medium hover:opacity-90 ${
+                    o.key === "paye_mixte"
+                      ? "border-neutral-300 text-neutral-600"
+                      : MODE_TO_STATUT_KEY[modeSuggere || ""] === o.key
+                        ? "border-[#171717] bg-[#171717] text-white"
+                        : "border-neutral-200 text-neutral-700"
+                  }`}
+                >
+                  {o.label}
+                  {MODE_TO_STATUT_KEY[modeSuggere || ""] === o.key ? " (suggéré)" : ""}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={() => setShowSoldeCompletPopup(false)}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Plus tard
+              </button>
+            </div>
           </div>
         </div>
       )}

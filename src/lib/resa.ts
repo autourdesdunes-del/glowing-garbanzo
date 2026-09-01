@@ -32,6 +32,7 @@ export type StatutPaiementKey =
   | "paye_cb"
   | "paye_virement"
   | "paye_paypal"
+  | "paye_mixte"
   | "attente"
   | "attente_paypal"
   | "rdv_planifie"
@@ -74,6 +75,12 @@ export const STATUT_PAIEMENT_OPTIONS: {
     label: "Payé - PayPal ✅",
     className: "bg-green-100 text-green-700",
     patch: () => ({ solde_paye: true, solde_mode: "PayPal" }),
+  },
+  {
+    key: "paye_mixte",
+    label: "Payé - modes différents",
+    className: "bg-green-100 text-green-700",
+    patch: () => ({ solde_paye: true, solde_mode: "Modes différents" }),
   },
   {
     key: "attente",
@@ -131,6 +138,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
 
 export function paiementStatutKey(client: Client, r: Reservation): StatutPaiementKey {
   if (client.solde_paye) {
+    if (client.solde_mode === "Modes différents") return "paye_mixte";
     if (client.solde_mode === "Espèces EGP") return "paye_egp";
     if (client.solde_mode === "Carte bleue") return "paye_cb";
     if (client.solde_mode === "Virement bancaire") return "paye_virement";

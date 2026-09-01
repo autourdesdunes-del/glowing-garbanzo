@@ -1239,9 +1239,13 @@ export default function ClientDetail({
         className="flex cursor-pointer items-center justify-between rounded-[6px] border border-[#eaeaea] bg-white px-4 py-2.5 text-left hover:bg-[#fafafa]"
       >
         <span className="font-heading text-sm font-semibold text-[#171717]">Paiements</span>
-        <span className="flex items-center gap-1.5 rounded-full bg-[#F2E6D2] py-0.5 pl-2.5 pr-2 text-xs font-medium text-[#5C2A1D]">
+        <span
+          className={`flex items-center gap-1.5 rounded-full py-0.5 pl-2.5 pr-2 text-xs font-medium ${
+            paiementFullyPaid ? "bg-[#0F5C56]/10 text-[#0F5C56]" : "bg-[#F2E6D2] text-[#5C2A1D]"
+          }`}
+        >
           <span className="font-amounts font-semibold">{euros(totalSejourHeader)} €</span>
-          <span className="text-[#5C2A1D]/30">·</span>
+          <span className={paiementFullyPaid ? "text-[#0F5C56]/30" : "text-[#5C2A1D]/30"}>·</span>
           <span className={`flex items-center gap-1 ${paiementFullyPaid ? "text-[#0F5C56]" : "text-[#C9973E]"}`}>
             <span className="text-[8px]">●</span>
             {paiementFullyPaid

@@ -2387,6 +2387,7 @@ function AppShellInner({
               teamPlanningShifts={teamPlanningShifts}
               teamProfiles={teamProfiles}
               displayFirstName={effectivePrenom}
+              paiementsEtapes={allPaiementsEtapes}
             />
           )}
         </div>

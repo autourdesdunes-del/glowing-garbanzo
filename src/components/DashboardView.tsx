@@ -6,6 +6,7 @@ import {
   CatalogueItem,
   Client,
   Incident,
+  PaiementEtape,
   PlanningShift,
   Profile,
   Reservation,
@@ -19,6 +20,7 @@ import { addDays, localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
 import QuickAddClient from "@/components/QuickAddClient";
+import PaiementsDuJourModal, { computePaiementsDuJour } from "@/components/PaiementsDuJourModal";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -252,6 +254,7 @@ export default function DashboardView({
   teamPlanningShifts,
   teamProfiles,
   displayFirstName,
+  paiementsEtapes,
 }: {
   userEmail: string;
   // Simulation "Aperçu vu par" (AppShell) : affiche le shift du jour de
@@ -295,6 +298,7 @@ export default function DashboardView({
   // neno_hossam@yahoo.com au lieu de "Hossam". Optionnel pour ne rien
   // casser si jamais non fourni : on retombe alors sur l'ancien calcul.
   displayFirstName?: string;
+  paiementsEtapes: PaiementEtape[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
@@ -304,6 +308,7 @@ export default function DashboardView({
   const [shiftFin, setShiftFin] = useState("");
   const [showActivitesEnAttenteModal, setShowActivitesEnAttenteModal] = useState(false);
   const [showClientsEnAttenteModal, setShowClientsEnAttenteModal] = useState(false);
+  const [showPaiementsDuJourModal, setShowPaiementsDuJourModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -366,7 +371,19 @@ export default function DashboardView({
   );
 
   const rdvToday = clients.filter((c) => !c.solde_activite_id && c.solde_date === todayStr);
-  const paidToday = clients.filter((c) => c.solde_paye && c.solde_date === todayStr);
+  const { encaisses: paiementsEncaisses, aPayer: paiementsAPayer } = useMemo(
+    () =>
+      computePaiementsDuJour(
+        clients,
+        reservations,
+        resaOptions,
+        resaTarifs,
+        paiementsEtapes,
+        todayStr,
+        onUpdateClient
+      ),
+    [clients, reservations, resaOptions, resaTarifs, paiementsEtapes, todayStr, onUpdateClient]
+  );
   const callsToday = clients
     .filter((c) => c.prochain_appel_date === todayStr)
     .sort((a, b) => a.prochain_appel_heure.localeCompare(b.prochain_appel_heure));
@@ -487,7 +504,7 @@ export default function DashboardView({
     rdvToday.length +
     billetsEnAttente.length +
     activitesEnAttente.length +
-    paidToday.length +
+    paiementsAPayer.length +
     auRevoirToday.length +
     avisToday.length +
     staleProspects.length;
@@ -945,12 +962,14 @@ export default function DashboardView({
               />
               <ActionRow
                 icon="check"
-                title="Paiements encaissés à vérifier"
+                title="Paiements du jour"
                 sub={
-                  paidToday.length > 0 ? `${paidToday.length} solde(s) aujourd'hui` : "Rien de nouveau"
+                  paiementsAPayer.length > 0
+                    ? `${paiementsAPayer.length} à payer aujourd'hui`
+                    : "Rien en attente"
                 }
-                count={paidToday.length}
-                onClick={paidToday[0] ? () => onOpenClient(paidToday[0].id) : undefined}
+                count={paiementsAPayer.length}
+                onClick={() => setShowPaiementsDuJourModal(true)}
               />
               <ActionRow
                 icon="wave"
@@ -1098,6 +1117,18 @@ export default function DashboardView({
             </div>
           </div>
         </div>
+      )}
+
+      {showPaiementsDuJourModal && (
+        <PaiementsDuJourModal
+          encaisses={paiementsEncaisses}
+          aPayer={paiementsAPayer}
+          onOpenClient={(id) => {
+            setShowPaiementsDuJourModal(false);
+            onOpenClient(id);
+          }}
+          onClose={() => setShowPaiementsDuJourModal(false)}
+        />
       )}
     </div>
   );

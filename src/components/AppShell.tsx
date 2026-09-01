@@ -2644,7 +2644,12 @@ function AppShellInner({
           {!planningLoaded ? (
             <Spinner />
           ) : (
-            <RecapMoisView reservations={allReservations} clients={clients} />
+            <RecapMoisView
+              reservations={allReservations}
+              clients={clients}
+              resaOptions={allResaOptions}
+              resaTarifs={allResaTarifs}
+            />
           )}
         </div>
       )}

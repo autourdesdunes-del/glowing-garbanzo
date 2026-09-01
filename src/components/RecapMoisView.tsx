@@ -1,27 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Client, Reservation } from "@/lib/types";
-import { cleanActivityTitle, participantsFor, reservationsActives } from "@/lib/resa";
+import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import {
+  activitePaiementWarning,
+  cleanActivityTitle,
+  participantsFor,
+  reservationsActives,
+} from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
-}
-
-// Repère précisément le motif "<montant> to pay ... activity" dans le texte
-// libre "Info importante" (ex. "130 € to pay to activity") — c'est la
-// convention de l'équipe pour signaler qu'un prestataire encaisse ce
-// montant en cash directement, à ne pas confondre avec le montant "Paiement
-// à l'activité" normal (encaissé par l'agence). N'importe quel autre
-// montant écrit dans cette case (allergie, consigne...) n'est pas compté.
-const CASH_PRESTATAIRE_RE = /(\d+(?:[.,]\d+)?)\s*€?\s*to\s*pay\b[^]*?activity/i;
-
-function extractMontantPrestataire(texte: string): number | null {
-  const m = texte.match(CASH_PRESTATAIRE_RE);
-  if (!m) return null;
-  const val = Number(m[1].replace(",", "."));
-  return Number.isFinite(val) ? val : null;
 }
 
 function monthKey(dateStr: string) {
@@ -37,31 +27,49 @@ type ReservationDetail = {
   date: string;
   pax: number;
   montant: number | null;
-  note: string;
+  devise: "€" | "EGP" | null;
 };
 
 type ActiviteAgg = {
   nom: string;
   reservationsCount: number;
   pax: number;
-  montantPrestataire: number;
-  // Une ligne par réservation (pas seulement celles avec du cash repéré) —
-  // pour dérouler et vérifier "tel client, telle date" avec le prestataire.
+  montantEur: number;
+  montantEgp: number;
+  // Une ligne par réservation (pas seulement celles avec un montant à
+  // récupérer) — pour dérouler et vérifier "tel client, telle date" avec
+  // le prestataire.
   details: ReservationDetail[];
 };
 
 export default function RecapMoisView({
   reservations,
   clients,
+  resaOptions,
+  resaTarifs,
 }: {
   reservations: Reservation[];
   clients: Client[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
 }) {
   const clientById = useMemo(() => {
     const m: Record<string, Client> = {};
     clients.forEach((c) => (m[c.id] = c));
     return m;
   }, [clients]);
+
+  // activitePaiementWarning a besoin de TOUTES les réservations actives du
+  // client (pas seulement celles du mois affiché) pour calculer le total du
+  // séjour correctement — regroupées une fois ici, indépendamment du filtre
+  // de mois appliqué plus bas.
+  const reservationsParClient = useMemo(() => {
+    const m: Record<string, Reservation[]> = {};
+    reservationsActives(reservations).forEach((r) => {
+      m[r.client_id] = [...(m[r.client_id] || []), r];
+    });
+    return m;
+  }, [reservations]);
 
   const monthsAvailable = useMemo(() => {
     const set = new Set<string>();
@@ -78,9 +86,7 @@ export default function RecapMoisView({
 
   const reservationsDuMois = useMemo(
     () =>
-      reservationsActives(reservations).filter(
-        (r) => r.date_debut && monthKey(r.date_debut) === mois && r.statut_resa === "Confirmée"
-      ),
+      reservationsActives(reservations).filter((r) => r.date_debut && monthKey(r.date_debut) === mois),
     [reservations, mois]
   );
 
@@ -90,36 +96,47 @@ export default function RecapMoisView({
       const nom = cleanActivityTitle(r.nom_activite) || "(sans nom)";
       const client = clientById[r.client_id];
       if (!map[nom]) {
-        map[nom] = { nom, reservationsCount: 0, pax: 0, montantPrestataire: 0, details: [] };
+        map[nom] = { nom, reservationsCount: 0, pax: 0, montantEur: 0, montantEgp: 0, details: [] };
       }
       const agg = map[nom];
       agg.reservationsCount += 1;
       let pax = 0;
+      let warning: { amount: number; devise: "€" | "EGP" } | null = null;
       if (client) {
         const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
         pax = nbAd + nbEnf + nbAcc + nbEnf3;
+        warning = activitePaiementWarning(
+          client,
+          r,
+          reservationsParClient[client.id] || [],
+          resaOptions,
+          resaTarifs
+        );
       }
       agg.pax += pax;
-      const montant = r.info_importante ? extractMontantPrestataire(r.info_importante) : null;
-      if (montant !== null) agg.montantPrestataire += montant;
+      if (warning) {
+        if (warning.devise === "EGP") agg.montantEgp += warning.amount;
+        else agg.montantEur += warning.amount;
+      }
       agg.details.push({
         clientNom: client?.nom || "—",
         date: r.date_debut || "",
         pax,
-        montant,
-        note: r.info_importante,
+        montant: warning?.amount ?? null,
+        devise: warning?.devise ?? null,
       });
     });
     Object.values(map).forEach((a) => a.details.sort((x, y) => x.date.localeCompare(y.date)));
     return Object.values(map).sort((a, b) => b.pax - a.pax);
-  }, [reservationsDuMois, clientById]);
+  }, [reservationsDuMois, clientById, reservationsParClient, resaOptions, resaTarifs]);
 
   const activitesOptions = useMemo(() => parActivite.map((a) => a.nom), [parActivite]);
   const visibleActivites =
     activiteFiltre === "toutes" ? parActivite : parActivite.filter((a) => a.nom === activiteFiltre);
 
   const totalPax = parActivite.reduce((s, a) => s + a.pax, 0);
-  const totalMontant = parActivite.reduce((s, a) => s + a.montantPrestataire, 0);
+  const totalEur = parActivite.reduce((s, a) => s + a.montantEur, 0);
+  const totalEgp = parActivite.reduce((s, a) => s + a.montantEgp, 0);
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpanded = (nom: string) =>
@@ -135,7 +152,7 @@ export default function RecapMoisView({
       <div>
         <h1 className="font-heading text-[26px] font-semibold text-[#171717]">Récap du mois</h1>
         <p className="mt-1.5 text-sm text-[#666666]">
-          Combien de personnes envoyées, et combien un prestataire a récolté en cash, par activité.
+          Combien de personnes envoyées, et combien reste à récupérer sur place, par activité.
         </p>
       </div>
 
@@ -171,21 +188,24 @@ export default function RecapMoisView({
           <div className="font-heading text-xl font-semibold text-[#171717]">{totalPax}</div>
         </div>
         <div className="rounded-[10px] border border-[#eaeaea] bg-white px-4 py-3">
-          <div className="text-[11px] uppercase tracking-wide text-neutral-400">
-            Cash récolté par les prestataires (estimé)
+          <div className="text-[11px] uppercase tracking-wide text-neutral-400">Reste à récupérer</div>
+          <div className="font-heading text-xl font-semibold text-[#171717]">
+            {totalEur > 0 ? `${euros(totalEur)} €` : ""}
+            {totalEur > 0 && totalEgp > 0 ? " + " : ""}
+            {totalEgp > 0 ? `${euros(totalEgp)} EGP` : ""}
+            {totalEur === 0 && totalEgp === 0 ? "0 €" : ""}
           </div>
-          <div className="font-heading text-xl font-semibold text-[#171717]">{euros(totalMontant)} €</div>
         </div>
       </div>
 
       <p className="text-xs text-[#999999]">
-        Le montant cash repère uniquement le motif &quot;... to pay to activity&quot; dans la case
-        &quot;Info importante&quot; de chaque activité confirmée (ex. &quot;130 € to pay to
-        activity&quot;) — pas n&apos;importe quel montant qui y serait écrit pour une autre raison.
+        Le montant à récupérer reprend le solde du séjour rattaché à cette activité précise (le même
+        badge &quot;⚠️ à payer à l&apos;activité&quot; que sur la fiche client) — pas encore encaissé
+        tant que le client n&apos;est pas marqué &quot;solde payé&quot;.
       </p>
 
       {visibleActivites.length === 0 ? (
-        <p className="text-sm text-[#666666]">Aucune activité confirmée sur ce mois.</p>
+        <p className="text-sm text-[#666666]">Aucune activité sur ce mois.</p>
       ) : (
         <div className="space-y-3">
           {visibleActivites.map((a) => {
@@ -210,10 +230,14 @@ export default function RecapMoisView({
                     <span>
                       <strong className="text-[#171717]">{a.pax}</strong> personnes
                     </span>
-                    {a.montantPrestataire > 0 && (
+                    {a.montantEur > 0 && (
                       <span>
-                        <strong className="text-[#171717]">{euros(a.montantPrestataire)} €</strong> cash
-                        prestataire
+                        <strong className="text-[#171717]">{euros(a.montantEur)} €</strong> à récupérer
+                      </span>
+                    )}
+                    {a.montantEgp > 0 && (
+                      <span>
+                        <strong className="text-[#171717]">{euros(a.montantEgp)} EGP</strong> à récupérer
                       </span>
                     )}
                   </div>
@@ -226,14 +250,11 @@ export default function RecapMoisView({
                           {d.date ? new Date(d.date + "T00:00:00").toLocaleDateString("fr-FR") : "—"}
                         </span>
                         <span className="text-[#171717]">{d.clientNom}</span>
-                        <span className="text-[#666666]">
-                          {d.pax} pers.
-                        </span>
+                        <span className="text-[#666666]">{d.pax} pers.</span>
                         {d.montant !== null && (
-                          <>
-                            <span className="text-[#171717]">{euros(d.montant)} € cash</span>
-                            <span className="text-[#999999]">— {d.note}</span>
-                          </>
+                          <span className="text-[#171717]">
+                            {euros(d.montant)} {d.devise} à récupérer
+                          </span>
                         )}
                       </div>
                     ))}

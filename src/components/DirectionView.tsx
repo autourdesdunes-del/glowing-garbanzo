@@ -361,7 +361,14 @@ export default function DirectionView({
   }
 
   if (sub === "recap") {
-    return <RecapMoisView reservations={reservations} clients={clients} />;
+    return (
+      <RecapMoisView
+        reservations={reservations}
+        clients={clients}
+        resaOptions={resaOptions}
+        resaTarifs={resaTarifs}
+      />
+    );
   }
 
   if (sub !== "dashboard") {

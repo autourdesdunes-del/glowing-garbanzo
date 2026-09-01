@@ -120,6 +120,7 @@ function ConfirmationTemplate({
   const soldeActivite = client.solde_activite_id
     ? reservations.find((r) => r.id === client.solde_activite_id) || null
     : null;
+  const soldeDate = soldeRdv?.date || soldeActivite?.date_debut || null;
 
   return (
     <div
@@ -334,7 +335,9 @@ function ConfirmationTemplate({
             </div>
             <div style={{ fontSize: 13, color: "#A32D2D", fontWeight: 700, lineHeight: 1.6, marginTop: 10 }}>
               ⚠ Le solde doit être réglé en une seule fois, en intégralité — {euros(soldeMontant)}, pas seulement le
-              montant d&apos;une activité — à défaut, l&apos;activité concernée peut être reportée ou annulée.
+              montant d&apos;une activité. À défaut, l&apos;agence se réserve le droit de reporter ou d&apos;annuler
+              cette activité ou toute autre prochaine activité non réglée
+              {soldeDate ? ` le ${fmtDateLong(soldeDate)}` : ""}.
             </div>
           </div>
         </Section>

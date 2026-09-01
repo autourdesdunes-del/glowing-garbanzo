@@ -1244,7 +1244,13 @@ export default function ClientDetail({
           <span className="text-[#5C2A1D]/30">·</span>
           <span className={`flex items-center gap-1 ${paiementFullyPaid ? "text-[#0F5C56]" : "text-[#C9973E]"}`}>
             <span className="text-[8px]">●</span>
-            {paiementFullyPaid ? "Payé" : "En attente"}
+            {paiementFullyPaid
+              ? "Payé"
+              : totalPayeHeader > 0
+                ? `Acompte payé (${euros(totalPayeHeader)} €) reste ${euros(
+                    totalSejourHeader - totalPayeHeader
+                  )} € — en attente`
+                : "En attente"}
           </span>
         </span>
       </div>

@@ -1473,7 +1473,7 @@ export default function SuivisView({
                   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
                   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
-                  const badge = paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
+                  const badge = paiementBadge(client, r);
                   const paiementWarning = activitePaiementWarning(
                     client,
                     r,
@@ -1558,7 +1558,7 @@ export default function SuivisView({
                   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
                   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
-                  const badge = paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
+                  const badge = paiementBadge(client, r);
                   const paiementWarning = activitePaiementWarning(
                     client,
                     r,

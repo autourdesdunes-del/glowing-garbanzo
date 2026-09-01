@@ -32,7 +32,6 @@ export type StatutPaiementKey =
   | "paye_cb"
   | "paye_virement"
   | "paye_paypal"
-  | "paye_multi"
   | "attente"
   | "attente_paypal"
   | "rdv_planifie"
@@ -75,12 +74,6 @@ export const STATUT_PAIEMENT_OPTIONS: {
     label: "Payé - PayPal ✅",
     className: "bg-green-100 text-green-700",
     patch: () => ({ solde_paye: true, solde_mode: "PayPal" }),
-  },
-  {
-    key: "paye_multi",
-    label: "Payé ✅",
-    className: "bg-green-100 text-green-700",
-    patch: () => ({ solde_paye: true, solde_mode: "Espèces EUR" }),
   },
   {
     key: "attente",
@@ -136,40 +129,13 @@ export const STATUT_PAIEMENT_OPTIONS: {
   },
 ];
 
-export function paiementStatutKey(
-  client: Client,
-  r: Reservation,
-  reservations: Reservation[] = [],
-  resaOptions: Record<string, ReservationOption[]> = {},
-  resaTarifs: Record<string, ReservationTarif[]> = {},
-  etapes: PaiementEtape[] = []
-): StatutPaiementKey {
+export function paiementStatutKey(client: Client, r: Reservation): StatutPaiementKey {
   if (client.solde_paye) {
     if (client.solde_mode === "Espèces EGP") return "paye_egp";
     if (client.solde_mode === "Carte bleue") return "paye_cb";
     if (client.solde_mode === "Virement bancaire") return "paye_virement";
     if (client.solde_mode === "PayPal") return "paye_paypal";
     return "paye_eur";
-  }
-  // Le séjour peut être entièrement réglé sans jamais passer par un "solde"
-  // à part (tout couvert par l'acompte + des étapes libres) — dans ce cas
-  // solde_paye reste à false et aucune activité/RDV n'est désigné comme
-  // point de collecte, donc sans ce garde-fou toutes les activités
-  // retombaient sur "En attente" malgré un séjour intégralement payé
-  // (constaté sur le dossier de Romuald Pluyaud, réglé en plusieurs étapes).
-  if (reservations.length > 0) {
-    const totalSejour = reservationsActives(reservations).reduce(
-      (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
-      0
-    );
-    const acomptePaye =
-      client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-    const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
-    const avoirUtilise = reservations.reduce((s, rr) => s + (Number(rr.avoir_utilise) || 0), 0);
-    const totalPaye = acomptePaye + etapesSum + avoirUtilise;
-    if (totalSejour > 0 && totalPaye >= totalSejour - 0.01) {
-      return "paye_multi";
-    }
   }
   if (client.solde_activite_id === r.id) {
     if (client.solde_mode === "Espèces EGP") return "activite_egp";
@@ -187,14 +153,7 @@ const RDV_FINALISE_LABELS: Record<string, string> = {
   "Espèces EGP": "Payé en EGP - rendez-vous paiement finalisé",
 };
 
-export function paiementBadge(
-  client: Client,
-  r: Reservation,
-  reservations: Reservation[] = [],
-  resaOptions: Record<string, ReservationOption[]> = {},
-  resaTarifs: Record<string, ReservationTarif[]> = {},
-  etapes: PaiementEtape[] = []
-) {
+export function paiementBadge(client: Client, r: Reservation) {
   // Le bouton "Rendez-vous finalisé" (étape Paiements) marque le solde payé
   // et pose ce drapeau — le badge doit alors le préciser plutôt que le
   // libellé "Payé" générique, sur toutes les activités.
@@ -204,7 +163,7 @@ export function paiementBadge(
       className: "bg-green-100 text-green-700",
     };
   }
-  const key = paiementStatutKey(client, r, reservations, resaOptions, resaTarifs, etapes);
+  const key = paiementStatutKey(client, r);
   const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key)!;
   return { label: opt.label, className: opt.className };
 }

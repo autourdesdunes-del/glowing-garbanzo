@@ -245,6 +245,34 @@ function ConfirmationTemplate({
           </div>
         </Section>
 
+        {acomptePaypal && (
+          <Section label="Questions fréquentes">
+            <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>
+                Pourquoi « paiement entre proches » ?
+              </div>
+              <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.65, marginBottom: 16 }}>
+                Sans cette option, PayPal nous prélève 3,1 % du montant envoyé — nous devons alors vous refacturer
+                cette part pour ne pas la perdre, comme pour tous nos clients. Une facture justificative peut vous
+                être fournie sur demande. Si vous préférez régler en « Biens et services », ajoutez simplement 3,1 %
+                à votre montant d&apos;acompte.
+              </div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>Vous n&apos;avez pas de compte PayPal ?</div>
+              <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.65 }}>
+                Vous pouvez en créer un en une minute —{" "}
+                <a
+                  href="https://www.paypal.com/fr/webapps/mpp/account-selection"
+                  style={{ color: "#8B7F63", textDecoration: "underline" }}
+                >
+                  cliquez ici pour voir comment
+                </a>
+                . Vous pouvez aussi demander à un proche de régler à votre place : il suffit d&apos;indiquer le nom de
+                la réservation en référence du paiement.
+              </div>
+            </div>
+          </Section>
+        )}
+
         <Section label="À savoir">
           <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
@@ -296,6 +324,16 @@ export default function ConfirmationDocumentStage({
       await new Promise((r) => setTimeout(r, 50));
       if (cancelled || !ref.current) return;
       try {
+        // Les liens (PayPal.me, créer un compte) doivent rester mesurés
+        // AVANT la rasterisation — toPng aplati tout en pixels, un lien
+        // "affiché" dans l'image ne serait pas cliquable sans cette
+        // annotation ajoutée séparément par-dessus, aux mêmes coordonnées.
+        const containerRect = ref.current.getBoundingClientRect();
+        const linkRects = Array.from(ref.current.querySelectorAll<HTMLAnchorElement>("a[href]")).map((el) => ({
+          url: el.getAttribute("href") || "",
+          rect: el.getBoundingClientRect(),
+        }));
+
         const dataUrl = await toPng(ref.current, { width: DOC_WIDTH, pixelRatio: 2 });
         const filename = `confirmation-${(client.nom || "client").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
         if (format === "png") {
@@ -313,6 +351,17 @@ export default function ConfirmationDocumentStage({
           const pageHeight = (img.height / img.width) * pageWidth;
           const doc = new jsPDF({ unit: "mm", format: [pageWidth, pageHeight] });
           doc.addImage(dataUrl, "PNG", 0, 0, pageWidth, pageHeight);
+          const scale = pageWidth / containerRect.width;
+          linkRects.forEach(({ url, rect }) => {
+            if (!url) return;
+            doc.link(
+              (rect.left - containerRect.left) * scale,
+              (rect.top - containerRect.top) * scale,
+              rect.width * scale,
+              rect.height * scale,
+              { url }
+            );
+          });
           doc.save(`${filename}.pdf`);
         }
       } finally {

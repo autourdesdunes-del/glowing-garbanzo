@@ -1,11 +1,24 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
+import QRCode from "qrcode";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { agesLabel, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { PAYPAL_ME_LINK, AGENCY_CONTACT } from "@/lib/constants";
+
+// Un PNG (Instagram) est une image plate — aucun lien ne peut jamais y être
+// cliquable, quel que soit l'outil utilisé. Le QR code est le contournement
+// standard : l'appli Photos (iOS et Android) détecte un QR code dans une
+// image et propose de l'ouvrir directement, même en le regardant depuis le
+// même téléphone qui l'a reçu (pas besoin d'un second appareil).
+function acomptePaypalInfo(client: Client) {
+  const acompteMontant = client.paiement_type === "acompte" ? Number(client.acompte_montant) || 0 : 0;
+  const acomptePaypal = client.paiement_type === "acompte" && client.acompte_mode === "PayPal";
+  const url = acomptePaypal && PAYPAL_ME_LINK ? `${PAYPAL_ME_LINK}/${acompteMontant.toFixed(2)}` : null;
+  return { acompteMontant, acomptePaypal, url };
+}
 
 // Bon de confirmation envoyé au client une fois son séjour réservé —
 // remplace la suite de messages WhatsApp manuscrits (bons Kommo un par un +
@@ -72,12 +85,14 @@ function ConfirmationTemplate({
   resaOptions,
   resaTarifs,
   hotelVille,
+  qrDataUrl,
 }: {
   client: Client;
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   hotelVille?: string;
+  qrDataUrl?: string | null;
 }) {
   const actives = reservationsActives(reservations)
     .filter((r) => r.date_debut)
@@ -88,9 +103,8 @@ function ConfirmationTemplate({
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
-  const acompteMontant = client.paiement_type === "acompte" ? Number(client.acompte_montant) || 0 : 0;
+  const { acompteMontant, acomptePaypal, url: paypalUrl } = acomptePaypalInfo(client);
   const soldeMontant = Math.max(totalSejour - acompteMontant, 0);
-  const acomptePaypal = client.paiement_type === "acompte" && client.acompte_mode === "PayPal";
 
   return (
     <div
@@ -161,24 +175,45 @@ function ConfirmationTemplate({
                 </div>
                 {acomptePaypal && (
                   <>
-                    {PAYPAL_ME_LINK ? (
-                      <a
-                        href={`${PAYPAL_ME_LINK}/${acompteMontant.toFixed(2)}`}
-                        style={{
-                          display: "block",
-                          textAlign: "center",
-                          background: "#211C16",
-                          color: "#FFFFFF",
-                          fontSize: 14,
-                          fontWeight: 600,
-                          borderRadius: 8,
-                          padding: 11,
-                          textDecoration: "none",
-                          marginBottom: 10,
-                        }}
-                      >
-                        Payer {euros(acompteMontant)} sur PayPal ↗
-                      </a>
+                    {paypalUrl ? (
+                      <div style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "stretch" }}>
+                        <a
+                          href={paypalUrl}
+                          style={{
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            textAlign: "center",
+                            background: "#211C16",
+                            color: "#FFFFFF",
+                            fontSize: 14,
+                            fontWeight: 600,
+                            borderRadius: 8,
+                            padding: 11,
+                            textDecoration: "none",
+                          }}
+                        >
+                          Payer {euros(acompteMontant)} sur PayPal ↗
+                        </a>
+                        {qrDataUrl && (
+                          <div
+                            style={{
+                              background: "#FFFFFF",
+                              borderRadius: 8,
+                              padding: 6,
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={qrDataUrl} alt="QR code de paiement PayPal" style={{ width: 64, height: 64 }} />
+                            <div style={{ fontSize: 9, color: "#948C7A", marginTop: 2 }}>ou scannez</div>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <div style={{ fontSize: 12.5, color: "#5C5342", marginBottom: 10 }}>
                         Adresse PayPal : {AGENCY_CONTACT.email}
@@ -245,6 +280,19 @@ function ConfirmationTemplate({
           </div>
         </Section>
 
+        <Section label="À savoir">
+          <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+              Horaire du rendez-vous transfert depuis votre hôtel
+            </div>
+            <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.6, marginBottom: 15 }}>
+              Confirmé la veille de chaque activité, entre 17h et 19h.
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Annulation</div>
+            <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.65 }}>{CONDITIONS_ANNULATION}</div>
+          </div>
+        </Section>
+
         {acomptePaypal && (
           <Section label="Questions fréquentes">
             <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
@@ -272,19 +320,6 @@ function ConfirmationTemplate({
             </div>
           </Section>
         )}
-
-        <Section label="À savoir">
-          <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
-              Horaire du rendez-vous transfert depuis votre hôtel
-            </div>
-            <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.6, marginBottom: 15 }}>
-              Confirmé la veille de chaque activité, entre 17h et 19h.
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Annulation</div>
-            <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.65 }}>{CONDITIONS_ANNULATION}</div>
-          </div>
-        </Section>
 
         <div style={{ textAlign: "center" }}>
           <div style={{ fontFamily: "var(--font-fraunces)", fontSize: 15, fontWeight: 600, color: "#211C16" }}>
@@ -315,13 +350,50 @@ export default function ConfirmationDocumentStage({
   onDone: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // undefined = pas encore calculé, null = pas de PayPal sur ce séjour.
+  const [qrDataUrl, setQrDataUrl] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!client || !format) return;
+    if (!client) {
+      setQrDataUrl(undefined);
+      return;
+    }
+    const { url } = acomptePaypalInfo(client);
+    if (!url) {
+      setQrDataUrl(null);
+      return;
+    }
+    let cancelled = false;
+    QRCode.toDataURL(url, { width: 200, margin: 1 }).then((dataUrl) => {
+      if (!cancelled) setQrDataUrl(dataUrl);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [client]);
+
+  useEffect(() => {
+    if (!client || !format || qrDataUrl === undefined) return;
     let cancelled = false;
     const run = async () => {
       await document.fonts.ready;
       await new Promise((r) => setTimeout(r, 50));
+      if (cancelled || !ref.current) return;
+      // Les captures PayPal + le QR code sont des <img> ordinaires — sans
+      // attendre explicitement leur chargement, toPng peut rasteriser avant
+      // qu'ils soient décodés et les rendre invisibles dans le résultat
+      // (constaté : la photo "entre proches" absente du PDF/PNG généré).
+      const imgs = Array.from(ref.current.querySelectorAll("img"));
+      await Promise.all(
+        imgs.map((img) =>
+          img.complete
+            ? Promise.resolve()
+            : new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve;
+              })
+        )
+      );
       if (cancelled || !ref.current) return;
       try {
         // Les liens (PayPal.me, créer un compte) doivent rester mesurés
@@ -373,7 +445,7 @@ export default function ConfirmationDocumentStage({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, format]);
+  }, [client, format, qrDataUrl]);
 
   if (!client || !format) return null;
 
@@ -386,6 +458,7 @@ export default function ConfirmationDocumentStage({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           hotelVille={hotelVille}
+          qrDataUrl={qrDataUrl}
         />
       </div>
     </div>

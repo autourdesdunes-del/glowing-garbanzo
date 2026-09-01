@@ -26,6 +26,7 @@ import AvoirUseModal from "@/components/AvoirUseModal";
 import AnnulerClientModal from "@/components/AnnulerClientModal";
 import IncidentsModal from "@/components/IncidentsModal";
 import DevisPaiementModal from "@/components/DevisPaiementModal";
+import ConfirmationDocumentStage from "@/components/ConfirmationDocument";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
@@ -292,6 +293,7 @@ export default function ClientDetail({
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [showIncidentsModal, setShowIncidentsModal] = useState(false);
   const [showDevisPaiementModal, setShowDevisPaiementModal] = useState(false);
+  const [confirmationFormat, setConfirmationFormat] = useState<"pdf" | "png" | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -878,6 +880,20 @@ export default function ClientDetail({
               >
                 {generatingDoc === "facture" ? "Génération…" : "Facture (PDF)"}
               </button>
+              <button
+                onClick={() => setConfirmationFormat("pdf")}
+                disabled={confirmationFormat !== null}
+                className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
+              >
+                {confirmationFormat === "pdf" ? "Génération…" : "Confirmation (PDF)"}
+              </button>
+              <button
+                onClick={() => setConfirmationFormat("png")}
+                disabled={confirmationFormat !== null}
+                className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
+              >
+                {confirmationFormat === "png" ? "Génération…" : "Confirmation (PNG)"}
+              </button>
               {client.statut !== "Client annulé" && (
                 <button
                   onClick={() => setShowAnnulerClientModal(true)}
@@ -1251,6 +1267,15 @@ export default function ClientDetail({
           onClose={() => setShowDevisPaiementModal(false)}
         />
       )}
+      <ConfirmationDocumentStage
+        client={confirmationFormat ? client : null}
+        reservations={reservations}
+        resaOptions={resaOptions}
+        resaTarifs={resaTarifs}
+        hotelVille={hotelMatch?.ville}
+        format={confirmationFormat}
+        onDone={() => setConfirmationFormat(null)}
+      />
     </div>
   );
 }

@@ -18,6 +18,16 @@ export function matchHotel(hotelName: string, hotels: HotelReference[]): HotelRe
   );
 }
 
+// Bloc équipe Égypte (copié depuis la fiche client / la vue Réservations) :
+// le nom de l'hôtel seul suffit à Hurghada, mais ailleurs (Sahl Hasheesh,
+// El Gouna, Makadi...) l'équipe a besoin de la ville pour ne pas confondre
+// deux hôtels au nom proche situés dans des zones différentes.
+export function hotelDisplayForEgypt(hotelNom: string, ville: string | null | undefined): string {
+  const nom = hotelNom || "—";
+  if (!ville || ville.trim().toLowerCase() === "hurghada") return nom;
+  return `${nom} (${ville})`;
+}
+
 function dansTranche(n: number, min: number | null, max: number | null) {
   if (min !== null && n < min) return false;
   if (max !== null && n > max) return false;

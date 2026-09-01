@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { CatalogueItem, Client, HotelReference, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { matchHotel, hotelDisplayForEgypt } from "@/lib/hotelHelp";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
@@ -438,6 +439,7 @@ function ActivityDetailModal({
   onOpenClient,
   onOpenActivity,
   onOpenRdvPaiement,
+  hotelsRef,
   onClose,
   onBack,
 }: {
@@ -449,6 +451,7 @@ function ActivityDetailModal({
   onOpenClient: (clientId: string) => void;
   onOpenActivity: (r: Reservation) => void;
   onOpenRdvPaiement: (clientId: string) => void;
+  hotelsRef: HotelReference[];
   onClose: () => void;
   onBack?: () => void;
 }) {
@@ -544,11 +547,12 @@ function ActivityDetailModal({
       } ⚠️⚠️`
     : "";
 
+  const hotelMatch = matchHotel(client.hotel, hotelsRef);
   const egyptBlock = `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${buildPaxEnglish(
     client
-  )}\n\nHotel : ${client.hotel || "—"}\nRoom Number : ${client.chambre || "—"}\n\nWhat's app : ${
-    client.telephone || "—"
-  }${paymentLine ? `\n\n${paymentLine}` : ""}`;
+  )}\n\nHotel : ${hotelDisplayForEgypt(client.hotel, hotelMatch?.ville)}\nRoom Number : ${
+    client.chambre || "—"
+  }\n\nWhat's app : ${client.telephone || "—"}${paymentLine ? `\n\n${paymentLine}` : ""}`;
 
   const copyEgyptBlock = async () => {
     try {
@@ -1333,6 +1337,14 @@ export default function PlanningView({
   );
   const [activeActivity, setActiveActivity] = useState<Row | null>(null);
   const [moisChoisi, setMoisChoisi] = useState(() => monthStartOf(toStr(new Date())));
+  const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data } = await supabase.from("hotels_reference").select("*");
+      setHotelsRef((data as HotelReference[]) || []);
+    })();
+  }, []);
 
   // Sync depuis le sous-menu de gauche : comparaison en render (pas de
   // useEffect) pour éviter react-hooks/set-state-in-effect, cf. pattern déjà
@@ -1506,6 +1518,7 @@ export default function PlanningView({
           onOpenClient={onOpenClient}
           onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
           onOpenRdvPaiement={onOpenRdvPaiement}
+          hotelsRef={hotelsRef}
           onClose={() => setActiveActivity(null)}
           onBack={activeActivity.r.id === focusReservationId ? onBackToBillet : undefined}
         />

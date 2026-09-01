@@ -31,7 +31,7 @@ import {
 } from "@/lib/constants";
 import { hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
-import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
+import { matchHotel, matchTransfertTaxe, hotelDisplayForEgypt } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
 import ItineraryView from "@/components/ItineraryView";
@@ -438,9 +438,10 @@ export function ContactStep({
 
   const nbAutresInfos = 4;
 
-  const egyptCopyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
-    client.hotel || "—"
-  }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
+  const egyptCopyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${hotelDisplayForEgypt(
+    client.hotel,
+    hotelMatch?.ville
+  )}\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
   const doCopyEgypt = async () => {
     try {
       await navigator.clipboard.writeText(egyptCopyBlock);
@@ -1138,6 +1139,7 @@ export function ActivitesStep({
   catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
+  hotelVille,
   coutsMap,
   onUpdateCoutReel,
   onRequestAdd,
@@ -1165,6 +1167,7 @@ export function ActivitesStep({
   catalogueOptions: Record<string, CatalogueOption[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
+  hotelVille?: string;
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   // Dans le dossier normal, ce bouton doit rouvrir la petite fenêtre
@@ -1265,6 +1268,7 @@ export function ActivitesStep({
         catalogueOptions={catalogueOptions}
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}
+        hotelVille={hotelVille}
         busEscalations={busEscalations}
         onBusEscalation={onBusEscalation}
         onJourEscalation={onJourEscalation}

@@ -1068,6 +1068,7 @@ export default function ClientDetail({
           catalogueOptions={catalogueOptions}
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}
+          hotelVille={hotelMatch?.ville}
           coutsMap={coutsMap}
           onUpdateCoutReel={updateCoutReel}
           onRequestAdd={() => setGuidedOpen(true)}

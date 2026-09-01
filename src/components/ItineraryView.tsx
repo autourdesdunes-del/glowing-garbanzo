@@ -33,6 +33,7 @@ import {
 import AddActivityWizard from "@/components/AddActivityWizard";
 import { localDateStr } from "@/lib/dates";
 import { buildPaxEnglish } from "@/components/client-steps";
+import { hotelDisplayForEgypt } from "@/lib/hotelHelp";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -113,6 +114,7 @@ export default function ItineraryView({
   catalogueOptions,
   canSeeMargins,
   hotelHorsHurghada,
+  hotelVille,
   coutsMap,
   onUpdateCoutReel,
   busEscalations = [],
@@ -143,6 +145,7 @@ export default function ItineraryView({
   catalogueOptions: Record<string, CatalogueOption[]>;
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
+  hotelVille?: string;
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   busEscalations?: BusEscalation[];
@@ -335,9 +338,10 @@ export default function ItineraryView({
     : 0;
   const expBadge = expandedReservation ? paiementBadge(client, expandedReservation) : null;
   const expBreakdown = expandedReservation ? resaBreakdown(expandedReservation, client, expOptions, expTarifs) : [];
-  const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${
-    client.hotel || "—"
-  }\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
+  const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${hotelDisplayForEgypt(
+    client.hotel,
+    hotelVille
+  )}\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
   const copyEgyptBlock = async () => {
     try {
       await navigator.clipboard.writeText(egyptBlock);

@@ -24,6 +24,7 @@ import {
   isChevalOuChameau,
   isDeuxiemeIleOption,
   isDiscouragedBusActivity,
+  isTitreLibreActivity,
   isFamilySafariBedouin,
   isGrandEgyptianMuseum,
   isLeCaireEnAvion,
@@ -50,6 +51,7 @@ import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
 import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
 import PhotoVolUpload from "@/components/PhotoVolUpload";
 import TransfertSensModal from "@/components/TransfertSensModal";
+import TitreLibreModal from "@/components/TitreLibreModal";
 
 function joursAvant(dateStr: string | null) {
   if (!dateStr) return null;
@@ -318,6 +320,7 @@ export default function AddActivityWizard({
     kind: "bus" | "safari";
   } | null>(null);
   const [pendingSensTransfert, setPendingSensTransfert] = useState<CatalogueItem | null>(null);
+  const [pendingTitreLibre, setPendingTitreLibre] = useState<CatalogueItem | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
   // Deux relances Hossam distinctes pour "Le Caire en avion" : une première
@@ -586,6 +589,8 @@ export default function AddActivityWizard({
             setPendingRedirect({ item: a, kind: "safari" });
           } else if (transfertSensOptions(a.nom).length > 0) {
             setPendingSensTransfert(a);
+          } else if (isTitreLibreActivity(a.nom)) {
+            setPendingTitreLibre(a);
           } else {
             startFromCatalogue(a);
           }
@@ -630,6 +635,17 @@ export default function AddActivityWizard({
               const item = pendingSensTransfert;
               setPendingSensTransfert(null);
               startFromCatalogue(item, option.titre);
+            }}
+          />
+        )}
+        {pendingTitreLibre && (
+          <TitreLibreModal
+            exemple="Transfert marina aller / retour"
+            onCancel={() => setPendingTitreLibre(null)}
+            onConfirm={(titre) => {
+              const item = pendingTitreLibre;
+              setPendingTitreLibre(null);
+              startFromCatalogue(item, titre);
             }}
           />
         )}

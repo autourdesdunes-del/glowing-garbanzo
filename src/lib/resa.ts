@@ -456,6 +456,13 @@ export function needsBilletInterneGenerique(nom: string) {
   return n === "billets d'avion" || n.includes("circuit");
 }
 
+// Item catalogue générique dont le titre n'est pas fixe : au lieu du nom du
+// catalogue, on demande à l'employé de le taper lui-même dès la sélection
+// (ex. "Transfert marina aller / retour") — voir AddActivityWizard.tsx.
+export function isTitreLibreActivity(nom: string) {
+  return (nom || "").trim().toLowerCase() === "transfert aléatoire";
+}
+
 export type ReglementAnnulation = {
   remboursable: boolean;
   raison: string;

@@ -1216,30 +1216,27 @@ export default function AddActivityWizard({
             <span>{MAISON_DAUPHINS_TEXT}</span>
           </div>
         )}
-        <div className="flex gap-2">
-          {MOMENTS_SPEEDBOAT.map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => {
-                onUpdateReservation(r.id, {
-                  moment: m,
-                  ...(catalogueItem && !isCustomFlow
-                    ? { nom_activite: titleWithSuffix(baseTitleFor(catalogueItem, r.ile_selectionnee, r.ile_selectionnee_2), m) }
-                    : {}),
-                });
-                setValidationError(false);
-              }}
-              className={`rounded-full border px-3 py-1 text-sm font-medium ${
-                r.moment === m
-                  ? "border-[#171717] bg-[#171717] text-white"
-                  : "border-neutral-300 text-neutral-600"
-              }`}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
+        <Field label="Créneau *">
+          <select
+            value={missingMoment ? "" : r.moment}
+            onChange={(e) => {
+              const m = e.target.value;
+              onUpdateReservation(r.id, {
+                moment: m,
+                ...(catalogueItem && !isCustomFlow
+                  ? { nom_activite: titleWithSuffix(baseTitleFor(catalogueItem, r.ile_selectionnee, r.ile_selectionnee_2), m) }
+                  : {}),
+              });
+              setValidationError(false);
+            }}
+            className={`input ${validationError && missingMoment ? "border-red-300 focus:border-red-400" : ""}`}
+          >
+            <option value="">—</option>
+            {MOMENTS_SPEEDBOAT.map((m) => (
+              <option key={m}>{m}</option>
+            ))}
+          </select>
+        </Field>
         {validationError && missingMoment && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
             ⚠ Impossible de continuer — merci de sélectionner matin ou après-midi.
@@ -1646,44 +1643,56 @@ export default function AddActivityWizard({
             <>
               {nbAd > 0 && (
                 <Field label="PU adulte (€)">
-                  <input
-                    type="number"
-                    value={r.pu_adulte}
-                    onChange={(e) => onUpdateReservation(r.id, { pu_adulte: Number(e.target.value) })}
-                    className="input"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={r.pu_adulte}
+                      onChange={(e) => onUpdateReservation(r.id, { pu_adulte: Number(e.target.value) })}
+                      className="input"
+                    />
+                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbAd}</span>
+                  </div>
                 </Field>
               )}
               {nbEnf > 0 && (
                 <Field label="PU enfant (€)">
-                  <input
-                    type="number"
-                    value={r.pu_enfant}
-                    onChange={(e) => onUpdateReservation(r.id, { pu_enfant: Number(e.target.value) })}
-                    className="input"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={r.pu_enfant}
+                      onChange={(e) => onUpdateReservation(r.id, { pu_enfant: Number(e.target.value) })}
+                      className="input"
+                    />
+                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbEnf}</span>
+                  </div>
                 </Field>
               )}
               {nbBebe > 0 && (
                 <Field label="PU bébé (€)">
-                  <input
-                    type="number"
-                    value={r.pu_bebe}
-                    onChange={(e) => onUpdateReservation(r.id, { pu_bebe: Number(e.target.value) })}
-                    className="input"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={r.pu_bebe}
+                      onChange={(e) => onUpdateReservation(r.id, { pu_bebe: Number(e.target.value) })}
+                      className="input"
+                    />
+                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbBebe}</span>
+                  </div>
                 </Field>
               )}
               {nbAcc > 0 && (
                 <Field label="PU accompagnateur (€)">
-                  <input
-                    type="number"
-                    value={r.pu_accompagnateur}
-                    onChange={(e) =>
-                      onUpdateReservation(r.id, { pu_accompagnateur: Number(e.target.value) })
-                    }
-                    className="input"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={r.pu_accompagnateur}
+                      onChange={(e) =>
+                        onUpdateReservation(r.id, { pu_accompagnateur: Number(e.target.value) })
+                      }
+                      className="input"
+                    />
+                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbAcc}</span>
+                  </div>
                 </Field>
               )}
               {nbEnf3 > 0 && (
@@ -1694,14 +1703,17 @@ export default function AddActivityWizard({
                       : "PU enfant 2-3 ans (€)"
                   }
                 >
-                  <input
-                    type="number"
-                    value={r.pu_enfant_3ans}
-                    onChange={(e) =>
-                      onUpdateReservation(r.id, { pu_enfant_3ans: Number(e.target.value) })
-                    }
-                    className="input"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={r.pu_enfant_3ans}
+                      onChange={(e) =>
+                        onUpdateReservation(r.id, { pu_enfant_3ans: Number(e.target.value) })
+                      }
+                      className="input"
+                    />
+                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbEnf3}</span>
+                  </div>
                 </Field>
               )}
               {nbAd === 0 && nbEnf === 0 && nbBebe === 0 && nbAcc === 0 && nbEnf3 === 0 && (

@@ -127,6 +127,7 @@ export default function ClientDetail({
   };
   const [open, setOpen] = useState<Record<(typeof SECTIONS)[number], boolean>>(CLOSED_SECTIONS);
   const [guidedOpen, setGuidedOpen] = useState(false);
+  const [paiementsModalOpen, setPaiementsModalOpen] = useState(false);
   const [missingInfo, setMissingInfo] = useState<{
     message: string;
     actionLabel: string;
@@ -759,7 +760,7 @@ export default function ClientDetail({
   const paiementFullyPaid = totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader;
 
   const jumpToPaiements = () => {
-    setOpen({ ...CLOSED_SECTIONS, Paiements: true });
+    setPaiementsModalOpen(true);
     requestAnimationFrame(() => {
       setTimeout(() => {
         document.getElementById("section-Paiements")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1080,30 +1081,52 @@ export default function ClientDetail({
         />
       </Section>
 
-      <Section
-        title="Paiements"
-        endBadge={
-          <span className="flex items-center gap-1.5 rounded-full bg-[#F2E6D2] py-0.5 pl-2.5 pr-2 text-xs font-medium text-[#5C2A1D]">
-            <span className="font-amounts font-semibold">{euros(totalSejourHeader)} €</span>
-            <span className="text-[#5C2A1D]/30">·</span>
-            <span className={`flex items-center gap-1 ${paiementFullyPaid ? "text-[#0F5C56]" : "text-[#C9973E]"}`}>
-              <span className="text-[8px]">●</span>
-              {paiementFullyPaid ? "Payé" : "En attente"}
-            </span>
-          </span>
-        }
-        open={open.Paiements}
-        onToggle={() => toggle("Paiements")}
+      <div
+        id="section-Paiements"
+        onClick={() => setPaiementsModalOpen(true)}
+        className="flex cursor-pointer items-center justify-between rounded-[6px] border border-[#eaeaea] bg-white px-4 py-2.5 text-left hover:bg-[#fafafa]"
       >
-        <PaiementsStep
-          client={client}
-          onChange={onChange}
-          reservations={reservations}
-          resaOptions={resaOptions}
-          resaTarifs={resaTarifs}
-          onUpdateReservation={updateReservation}
-        />
-      </Section>
+        <span className="font-heading text-sm font-semibold text-[#171717]">Paiements</span>
+        <span className="flex items-center gap-1.5 rounded-full bg-[#F2E6D2] py-0.5 pl-2.5 pr-2 text-xs font-medium text-[#5C2A1D]">
+          <span className="font-amounts font-semibold">{euros(totalSejourHeader)} €</span>
+          <span className="text-[#5C2A1D]/30">·</span>
+          <span className={`flex items-center gap-1 ${paiementFullyPaid ? "text-[#0F5C56]" : "text-[#C9973E]"}`}>
+            <span className="text-[8px]">●</span>
+            {paiementFullyPaid ? "Payé" : "En attente"}
+          </span>
+        </span>
+      </div>
+
+      {paiementsModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setPaiementsModalOpen(false)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-heading text-lg font-semibold text-[#171717]">Paiements</h2>
+              <button
+                type="button"
+                onClick={() => setPaiementsModalOpen(false)}
+                className="text-neutral-400 hover:text-[#171717]"
+              >
+                ✕
+              </button>
+            </div>
+            <PaiementsStep
+              client={client}
+              onChange={onChange}
+              reservations={reservations}
+              resaOptions={resaOptions}
+              resaTarifs={resaTarifs}
+              onUpdateReservation={updateReservation}
+            />
+          </div>
+        </div>
+      )}
 
       <Section title="Suivi" open={open.Suivi} onToggle={() => toggle("Suivi")}>
         <SuiviStep
@@ -1141,7 +1164,7 @@ export default function ClientDetail({
             <button
               onClick={() => {
                 setAvoirAppliedNotice(null);
-                setOpen({ ...CLOSED_SECTIONS, Paiements: true });
+                setPaiementsModalOpen(true);
                 requestAnimationFrame(() => {
                   setTimeout(() => {
                     document

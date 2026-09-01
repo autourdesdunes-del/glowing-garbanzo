@@ -26,6 +26,7 @@ import {
   volBadge,
   paiementBadge,
   participantsFor,
+  paxLine,
   resaBreakdown,
   resaTotalMontant,
   STATUT_PAIEMENT_OPTIONS,
@@ -66,29 +67,6 @@ function enumerateDays(start: string, end: string) {
     cur.setDate(cur.getDate() + 1);
   }
   return days;
-}
-
-function paxLine(r: Reservation, client: Client) {
-  if (r.pax_override) return r.pax_override;
-  const { nbAd, nbEnf } = participantsFor(r, client);
-  const showAges = r.participants_mode === "tous";
-  const parts: string[] = [];
-  let adLabel = `${nbAd} adulte${nbAd > 1 ? "s" : ""}`;
-  if (showAges && client.ados_presents && client.ages_ados) {
-    adLabel += ` (dont ados ${client.ages_ados})`;
-  }
-  parts.push(adLabel);
-  if (nbEnf > 0) {
-    let s = `${nbEnf} enfant${nbEnf > 1 ? "s" : ""}`;
-    if (showAges && client.ages_enfants) s += ` (${client.ages_enfants} ans)`;
-    parts.push(s);
-  }
-  if (showAges && client.bebes > 0) {
-    let s = `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}`;
-    if (client.ages_bebes) s += ` (${client.ages_bebes} ans)`;
-    parts.push(s);
-  }
-  return parts.join(", ");
 }
 
 export default function ItineraryView({

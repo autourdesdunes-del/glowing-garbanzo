@@ -801,6 +801,32 @@ export function participantsFor(r: Reservation, client: Client) {
   return { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 };
 }
 
+// Résumé PAX partagé par la fiche client et la vue Réservations — l'ancienne
+// version dupliquée dans chacune des deux vues avait fini par diverger (le
+// bébé manquait dans l'une des deux), d'où ce point d'entrée unique.
+export function paxLine(r: Reservation, client: Client) {
+  if (r.pax_override) return r.pax_override;
+  const { nbAd, nbEnf, nbBebe } = participantsFor(r, client);
+  const showAges = r.participants_mode === "tous";
+  const parts: string[] = [];
+  let adLabel = `${nbAd} adulte${nbAd > 1 ? "s" : ""}`;
+  if (showAges && client.ados_presents && client.ages_ados) {
+    adLabel += ` (dont ados ${client.ages_ados})`;
+  }
+  parts.push(adLabel);
+  if (nbEnf > 0) {
+    let s = `${nbEnf} enfant${nbEnf > 1 ? "s" : ""}`;
+    if (showAges && client.ages_enfants) s += ` (${client.ages_enfants} ans)`;
+    parts.push(s);
+  }
+  if (nbBebe > 0) {
+    let s = `${nbBebe} bébé${nbBebe > 1 ? "s" : ""}`;
+    if (showAges && client.ages_bebes) s += ` (${client.ages_bebes} ans)`;
+    parts.push(s);
+  }
+  return parts.join(", ");
+}
+
 // Activités "partagées" (un même véhicule/bateau pour plusieurs clients) où
 // on veut pousser les ventes pour remplir un groupe plutôt que d'en ouvrir
 // un second à moitié vide. La capacité sert à calculer le reste (voir

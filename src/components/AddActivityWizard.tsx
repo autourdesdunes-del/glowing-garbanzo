@@ -1483,6 +1483,21 @@ export default function AddActivityWizard({
     const total = resaTotalMontant(r, client, options, tarifs);
     const breakdown = resaBreakdown(r, client, options, tarifs);
 
+    // Modifier le "x N" d'adulte/enfant/bébé en mode "tous" doit basculer en
+    // "custom" (sinon rien à modifier — ces nombres sont déduits du séjour
+    // du client) tout en gardant les autres nombres déjà déduits, sinon les
+    // reste passerait silencieusement à 0.
+    const toCustomPatch = (override: Partial<Reservation>): Partial<Reservation> =>
+      r.participants_mode === "tous"
+        ? {
+            participants_mode: "custom",
+            participants_adultes: nbAd,
+            participants_enfants: nbEnf,
+            participants_bebes: nbBebe,
+            ...override,
+          }
+        : override;
+
     const matchTransfertTarif = (zone: string, vehicule: string) =>
       catTransfertTarifs.find((t) => t.zone === zone && t.vehicule === vehicule);
 
@@ -1638,60 +1653,90 @@ export default function AddActivityWizard({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2">
           {r.tarif_mode !== "groupe" ? (
             <>
               {nbAd > 0 && (
                 <Field label="PU adulte (€)">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="number"
                       value={r.pu_adulte}
                       onChange={(e) => onUpdateReservation(r.id, { pu_adulte: Number(e.target.value) })}
-                      className="input"
+                      className="input w-20"
                     />
-                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbAd}</span>
+                    <span className="text-xs text-neutral-400">x</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={nbAd}
+                      onChange={(e) => onUpdateReservation(r.id, toCustomPatch({ participants_adultes: Number(e.target.value) }))}
+                      className="input w-14"
+                    />
                   </div>
                 </Field>
               )}
               {nbEnf > 0 && (
                 <Field label="PU enfant (€)">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="number"
                       value={r.pu_enfant}
                       onChange={(e) => onUpdateReservation(r.id, { pu_enfant: Number(e.target.value) })}
-                      className="input"
+                      className="input w-20"
                     />
-                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbEnf}</span>
+                    <span className="text-xs text-neutral-400">x</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={nbEnf}
+                      onChange={(e) => onUpdateReservation(r.id, toCustomPatch({ participants_enfants: Number(e.target.value) }))}
+                      className="input w-14"
+                    />
                   </div>
                 </Field>
               )}
               {nbBebe > 0 && (
                 <Field label="PU bébé (€)">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="number"
                       value={r.pu_bebe}
                       onChange={(e) => onUpdateReservation(r.id, { pu_bebe: Number(e.target.value) })}
-                      className="input"
+                      className="input w-20"
                     />
-                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbBebe}</span>
+                    <span className="text-xs text-neutral-400">x</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={nbBebe}
+                      onChange={(e) => onUpdateReservation(r.id, toCustomPatch({ participants_bebes: Number(e.target.value) }))}
+                      className="input w-14"
+                    />
                   </div>
                 </Field>
               )}
               {nbAcc > 0 && (
                 <Field label="PU accompagnateur (€)">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="number"
                       value={r.pu_accompagnateur}
                       onChange={(e) =>
                         onUpdateReservation(r.id, { pu_accompagnateur: Number(e.target.value) })
                       }
-                      className="input"
+                      className="input w-20"
                     />
-                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbAcc}</span>
+                    <span className="text-xs text-neutral-400">x</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={nbAcc}
+                      onChange={(e) =>
+                        onUpdateReservation(r.id, { participants_accompagnateurs: Number(e.target.value) })
+                      }
+                      className="input w-14"
+                    />
                   </div>
                 </Field>
               )}
@@ -1703,16 +1748,25 @@ export default function AddActivityWizard({
                       : "PU enfant 2-3 ans (€)"
                   }
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <input
                       type="number"
                       value={r.pu_enfant_3ans}
                       onChange={(e) =>
                         onUpdateReservation(r.id, { pu_enfant_3ans: Number(e.target.value) })
                       }
-                      className="input"
+                      className="input w-20"
                     />
-                    <span className="whitespace-nowrap text-xs text-neutral-400">x{nbEnf3}</span>
+                    <span className="text-xs text-neutral-400">x</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={nbEnf3}
+                      onChange={(e) =>
+                        onUpdateReservation(r.id, { participants_enfants_3ans: Number(e.target.value) })
+                      }
+                      className="input w-14"
+                    />
                   </div>
                 </Field>
               )}

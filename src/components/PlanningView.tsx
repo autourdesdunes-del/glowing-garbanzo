@@ -15,6 +15,7 @@ import {
   paiementBadge,
   paiementStatutKey,
   participantsFor,
+  paxLine,
   pointureBadge,
   resaBreakdown,
   resaTotalMontant,
@@ -190,6 +191,7 @@ function ReservationSummaryCard({
   // peine de sommer les montants de plusieurs clients (bug déjà rencontré).
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
   const paiementWarning = activitePaiementWarning(client, r, clientReservations, resaOptions, resaTarifs);
+  const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
   const infosManquantes = infosManquantesToutes(client, reservations);
   const infoComplet = infosManquantes.length === 0;
   const infoStatut = infoComplet ? null : infosManquantes[0];
@@ -211,6 +213,11 @@ function ReservationSummaryCard({
               className="max-w-[180px] truncate whitespace-nowrap rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700"
             >
               ⚠ {r.info_importante}
+            </span>
+          )}
+          {acompteWarning && (
+            <span className="whitespace-nowrap text-[10px] font-medium text-yellow-700">
+              ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
             </span>
           )}
           {momentBadge(r) && (
@@ -250,9 +257,7 @@ function ReservationSummaryCard({
         >
           {client.nom || "Sans nom"}
         </button>
-        <p className="mt-1 text-xs text-neutral-500">
-          {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
-        </p>
+        <p className="mt-1 text-xs text-neutral-500">{paxLine(r, client)}</p>
         <div className="mt-2 flex items-start justify-between gap-2">
           <span
             className={`min-w-0 flex-1 rounded-full px-1.5 py-0.5 text-xs font-medium leading-tight ${badge.className}`}
@@ -312,9 +317,7 @@ function ReservationSummaryCard({
         >
           {client.nom || "Sans nom"}
         </button>
-        <p className="mt-0.5 text-[10px] text-neutral-500">
-          {r.pax_override || `${nbAd} ad.${nbEnf ? ` + ${nbEnf} enf.` : ""}`}
-        </p>
+        <p className="mt-0.5 text-[10px] text-neutral-500">{paxLine(r, client)}</p>
         <div className="mt-1 flex items-start justify-between gap-1">
           <span
             className={`min-w-0 flex-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-tight ${badge.className}`}
@@ -352,6 +355,11 @@ function ReservationSummaryCard({
             className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
           >
             ⚠ {r.info_importante}
+          </span>
+        )}
+        {acompteWarning && (
+          <span className="text-xs font-medium text-yellow-700">
+            ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
           </span>
         )}
         {momentBadge(r) && (
@@ -400,10 +408,7 @@ function ReservationSummaryCard({
       >
         {client.nom || "Sans nom"}
       </button>
-      <p className="mt-1 text-xs text-neutral-500">
-        {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
-        {nbEnf > 0 && client.ages_enfants ? ` (âges : ${client.ages_enfants})` : ""}
-      </p>
+      <p className="mt-1 text-xs text-neutral-500">{paxLine(r, client)}</p>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
           {badge.label}
@@ -703,10 +708,7 @@ function ActivityDetailModal({
               </div>
             </DetailRow>
           )}
-          <DetailRow label="PAX">
-            {r.pax_override || `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)` : ""}`}
-            {nbEnf > 0 && client.ages_enfants ? ` (âges : ${client.ages_enfants})` : ""}
-          </DetailRow>
+          <DetailRow label="PAX">{paxLine(r, client)}</DetailRow>
           <DetailRow label="Paiement">
             <select
               value={paiementStatutKey(effectiveClient, r)}

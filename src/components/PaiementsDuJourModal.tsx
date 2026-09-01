@@ -85,12 +85,20 @@ export function computePaiementsDuJour(
       (c.solde_paye ? encaisses : aPayer).push(ligne);
     }
 
-    // Acompte
+    // Acompte — deux motifs bien distincts pour ne pas les confondre :
+    // "à payer" se base sur la date de début du séjour (l'acompte doit être
+    // réglé avant que ça commence), "encaissé" se base sur la date réelle
+    // d'encaissement (acompte_date_encaissement) — jamais l'inverse, sinon
+    // un acompte payé il y a 3 jours ressort comme "encaissé aujourd'hui"
+    // simplement parce que le séjour démarre aujourd'hui.
     const premiereActivite = premiereActiviteDe(c.id);
-    const acompteConcerneAujourdhui =
-      c.paiement_type === "acompte" && c.acompte_valide && premiereActivite?.date_debut === todayStr;
+    const acompteAPayerAujourdhui =
+      c.paiement_type === "acompte" &&
+      c.acompte_valide &&
+      !c.acompte_paye &&
+      premiereActivite?.date_debut === todayStr;
     const acompteEncaisseAujourdhui = c.acompte_paye && c.acompte_date_encaissement === todayStr;
-    if (acompteConcerneAujourdhui || acompteEncaisseAujourdhui) {
+    if (acompteAPayerAujourdhui || acompteEncaisseAujourdhui) {
       const ligne: Ligne = {
         client: c,
         libelle: "Acompte",

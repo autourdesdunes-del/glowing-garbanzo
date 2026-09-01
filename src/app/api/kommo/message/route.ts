@@ -118,8 +118,28 @@ async function processMessage(
       })
       .select(SELECT_FIELDS)
       .single();
-    if (insertRes.error) throw new Error(`create client failed: ${insertRes.error.message}`);
-    existing = insertRes.data;
+    if (insertRes.error) {
+      // Deux messages quasi simultanés pour un même lead tout juste créé
+      // peuvent tous les deux ne trouver aucune fiche existante et tenter
+      // de la créer — le premier réussit, le second tombe sur la contrainte
+      // unique (kommo_lead_id/kommo_contact_id). Plutôt que de perdre ce
+      // message, on relit la fiche que l'autre requête vient de créer.
+      if (insertRes.error.code === "23505") {
+        const retryQuery = leadId
+          ? admin.from("clients").select(SELECT_FIELDS).eq("kommo_lead_id", leadId)
+          : admin.from("clients").select(SELECT_FIELDS).eq("kommo_contact_id", contactId);
+        const retryRes = await retryQuery.maybeSingle();
+        if (retryRes.error || !retryRes.data) {
+          throw new Error(`create client failed: ${insertRes.error.message}`);
+        }
+        existing = retryRes.data;
+        isNewClient = false;
+      } else {
+        throw new Error(`create client failed: ${insertRes.error.message}`);
+      }
+    } else {
+      existing = insertRes.data;
+    }
   }
   if (!existing) return null;
 
@@ -155,6 +175,9 @@ async function processMessage(
     activites_a_eviter: existing.kommo_activites_a_eviter || null,
     programme_envoye_resume: existing.kommo_programme_envoye_resume || null,
     etape_detectee: existing.kommo_etape_detectee || null,
+    // Jamais reporté d'un message à l'autre — l'IA le réévalue à chaque
+    // fois sur le seul message courant (voir kommoExtraction.ts).
+    incident_signale: null,
   };
 
   const updated = await extractProspectInfoFromMessage({
@@ -184,6 +207,33 @@ async function processMessage(
     })
     .eq("id", existing.id);
   if (updateRes.error) throw new Error(`update client failed: ${updateRes.error.message}`);
+
+  // Signalement en direct d'un incident détecté sur ce message — jusqu'ici
+  // ce type d'info finissait perdu dans kommo_resume, invisible sans relire
+  // toute la conversation. Pas de doublon si le même incident (même titre)
+  // est déjà ouvert pour ce client — un client qui revient sur le même
+  // problème sur plusieurs messages ne doit pas créer une ligne par message.
+  if (updated.incident_signale) {
+    const { titre, details } = updated.incident_signale;
+    const { data: dejaOuvert } = await admin
+      .from("incidents")
+      .select("id")
+      .eq("client_id", existing.id)
+      .eq("statut", "Ouvert")
+      .eq("titre", titre)
+      .maybeSingle();
+    if (!dejaOuvert) {
+      const incidentRes = await admin.from("incidents").insert({
+        client_id: existing.id,
+        titre,
+        details,
+        date_incident: localDateStr(new Date()),
+        statut: "Ouvert",
+        par: "Détection IA",
+      });
+      if (incidentRes.error) throw new Error(`create incident failed: ${incidentRes.error.message}`);
+    }
+  }
 
   return existing.id;
 }

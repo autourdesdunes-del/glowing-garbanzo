@@ -19,6 +19,11 @@ export type KommoExtractedInfo = {
   activites_a_eviter: string | null;
   programme_envoye_resume: string | null;
   etape_detectee: "Devis donné" | "Programme envoyé" | "Infos demandées" | "Réservé" | null;
+  // Détecté sur CE message uniquement (jamais reporté depuis previousInfo,
+  // contrairement aux autres champs) — une vraie réclamation/problème
+  // signalé par le prospect, pas juste une question ou une hésitation. Voir
+  // message/route.ts pour la création automatique dans la table incidents.
+  incident_signale: { titre: string; details: string } | null;
 };
 
 export const EMPTY_EXTRACTED_INFO: KommoExtractedInfo = {
@@ -33,6 +38,7 @@ export const EMPTY_EXTRACTED_INFO: KommoExtractedInfo = {
   activites_a_eviter: null,
   programme_envoye_resume: null,
   etape_detectee: null,
+  incident_signale: null,
 };
 
 const EXTRACTION_TOOL = {
@@ -96,6 +102,23 @@ const EXTRACTION_TOOL = {
         description:
           "Étape du dossier telle qu'elle ressort de la conversation jusqu'ici, une seule des quatre valeurs : 'Devis donné' (un prix a été communiqué au prospect), 'Programme envoyé' (un itinéraire/programme détaillé a été envoyé), 'Infos demandées' (le prospect pose des questions, aucun prix ni programme envoyé pour l'instant), 'Réservé' (le prospect a confirmé/payé, la réservation est actée). Garde la valeur déjà connue si ce message ne fait pas avancer le dossier vers une étape différente — ne recule jamais l'étape sauf annulation explicite. null seulement si aucune étape n'est encore identifiable.",
       },
+      incident_signale: {
+        type: ["object", "null"],
+        description:
+          "Renseigné UNIQUEMENT si CE message précis (pas les précédents) exprime une vraie réclamation ou un vrai problème vécu par le client : un incident pendant/après une activité (blessure, accident, activité annulée/ratée/décevante, matériel défectueux), un désaccord sur un remboursement, une plainte sur la qualité d'une prestation ou du service, ou un signalement de sécurité. Ne compte JAMAIS comme incident : une simple question, une demande d'info, une hésitation, une négociation de prix, un message de l'équipe (direction 'out'). En cas de doute, laisse null plutôt que de sur-signaler.",
+        properties: {
+          titre: {
+            type: "string",
+            description: "Titre très court (5-8 mots) résumant le problème, ex. 'Réclamation : morsure de chameau'.",
+          },
+          details: {
+            type: "string",
+            description: "1-3 phrases en français résumant ce qui s'est passé, d'après ce message.",
+          },
+        },
+        required: ["titre", "details"],
+        additionalProperties: false,
+      },
     },
     required: [
       "resume",
@@ -109,6 +132,7 @@ const EXTRACTION_TOOL = {
       "activites_a_eviter",
       "programme_envoye_resume",
       "etape_detectee",
+      "incident_signale",
     ],
     additionalProperties: false,
   },
@@ -132,7 +156,8 @@ export async function extractProspectInfoFromMessage(params: {
       "Tu es un outil interne pour Autour des Dunes, une agence de voyage francophone à Hurghada (Égypte). " +
       "Tu lis, message par message, une conversation WhatsApp/Instagram avec un prospect qui envisage de réserver des activités/un séjour via l'agence. " +
       "Ta tâche : maintenir à jour un petit résumé structuré du dossier, en partant de ce qui était déjà connu et en l'ajustant seulement si le nouveau message apporte une info nouvelle, plus précise, ou contradictoire. " +
-      "Règles strictes : ne déduis/n'invente jamais une information qui n'est pas raisonnablement soutenue par le texte ; si le nouveau message ne dit rien sur un champ, garde exactement la valeur déjà connue pour ce champ (ne la remets pas à null) ; si le message vient de l'équipe (pas du prospect), ne l'utilise que pour comprendre le contexte de la réponse suivante du prospect, pas comme une affirmation de fait sur le prospect lui-même.",
+      "Règles strictes : ne déduis/n'invente jamais une information qui n'est pas raisonnablement soutenue par le texte ; si le nouveau message ne dit rien sur un champ, garde exactement la valeur déjà connue pour ce champ (ne la remets pas à null) ; si le message vient de l'équipe (pas du prospect), ne l'utilise que pour comprendre le contexte de la réponse suivante du prospect, pas comme une affirmation de fait sur le prospect lui-même. " +
+      "Cas particulier de incident_signale : contrairement aux autres champs, ne le reporte jamais depuis l'état déjà connu — évalue-le uniquement sur ce nouveau message précis (mets-le à null si CE message ne contient pas de nouvelle réclamation, même si un incident était signalé dans un message précédent).",
     tools: [EXTRACTION_TOOL],
     tool_choice: { type: "tool", name: "update_prospect_info" },
     messages: [
@@ -142,7 +167,7 @@ export async function extractProspectInfoFromMessage(params: {
           `Date du jour : ${todayStr}\n\n` +
           `Informations déjà connues sur ce prospect (JSON) :\n${JSON.stringify(previousInfo, null, 2)}\n\n` +
           `Nouveau message ${newMessageDirection === "in" ? "du prospect" : "de l'équipe (pas du prospect)"} :\n"${newMessageText}"\n\n` +
-          "Appelle l'outil avec l'état à jour complet (les 11 champs), en gardant les valeurs déjà connues quand ce message n'apporte rien de nouveau sur un champ.",
+          "Appelle l'outil avec l'état à jour complet (les 12 champs), en gardant les valeurs déjà connues quand ce message n'apporte rien de nouveau sur un champ (sauf incident_signale, toujours réévalué sur ce seul message).",
       },
     ],
   });

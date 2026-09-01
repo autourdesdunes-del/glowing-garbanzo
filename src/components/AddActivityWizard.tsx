@@ -777,11 +777,30 @@ export default function AddActivityWizard({
           {champsRequis.includes("Pointure") && (
             <>
               <Field label="Pointure des clients (palmes)">
-                <input
-                  value={r.pointure}
-                  onChange={(e) => onUpdateReservation(r.id, { pointure: e.target.value })}
-                  className="input"
-                />
+                {(() => {
+                  const { nbAd: nbAdPointure, nbEnf: nbEnfPointure } = participantsFor(r, client);
+                  const nbPersonnes = Math.max(nbAdPointure + nbEnfPointure, 1);
+                  const pointures = r.pointure ? r.pointure.split("+") : [];
+                  while (pointures.length < nbPersonnes) pointures.push("");
+                  return (
+                    <div className="flex flex-wrap gap-1.5">
+                      {pointures.slice(0, nbPersonnes).map((p, i) => (
+                        <input
+                          key={i}
+                          type="number"
+                          inputMode="numeric"
+                          value={p}
+                          onChange={(e) => {
+                            const next = [...pointures];
+                            next[i] = e.target.value.replace(/[^0-9]/g, "");
+                            onUpdateReservation(r.id, { pointure: next.slice(0, nbPersonnes).join("+") });
+                          }}
+                          className="input w-16"
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
               </Field>
               <p className="col-span-2 text-xs text-neutral-400">
                 Tu peux passer cette étape si le client ne t&apos;a pas encore donné les pointures —

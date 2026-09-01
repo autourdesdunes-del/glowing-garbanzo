@@ -770,12 +770,11 @@ export default function ClientDetail({
   // Une facture sans conditions de paiement enregistrées afficherait "Aucun
   // acompte enregistré" à la place de vrais chiffres — on bloque donc et on
   // renvoie vers Paiements plutôt que de générer un document vide (retour
-  // de Mélanie du 31/08). "intégral" compte comme rempli dès qu'il est
-  // choisi (son propre flux gère le détail) ; "acompte" seulement une fois
-  // un montant réellement saisi.
-  const paiementRempli =
-    client.paiement_type === "integral" ||
-    (client.paiement_type === "acompte" && Number(client.acompte_montant) > 0);
+  // de Mélanie du 31/08). On se base sur paiement_type seul (jamais "" par
+  // défaut, uniquement rempli via un vrai choix de l'employée ou la pop-up
+  // devis) — pas sur le montant de l'acompte, sinon un acompte à 0€
+  // (volontaire : tout en solde) serait à tort traité comme "pas rempli".
+  const paiementRempli = client.paiement_type === "integral" || client.paiement_type === "acompte";
 
   const handleDownload = async (docType: "devis" | "facture") => {
     if (docType === "facture" && !paiementRempli) {

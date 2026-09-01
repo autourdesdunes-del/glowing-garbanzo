@@ -458,9 +458,19 @@ export default function AddActivityWizard({
       setDraftId(id);
       setValidationError(false);
       const champsItem = item.champs_requis_liste || [];
-      setStep(
-        champsItem.length > 0 && !champsItem.includes("Vol & horaire") ? "specifs" : "date"
+      // Même logique que hasSpecifsAAfficher plus haut — sinon "Matin /
+      // Après-midi" comme seul champ requis (ex. Seascope, maintenant géré
+      // par l'étape "moment") pointait vers une étape "specifs" absente du
+      // tableau steps[], cassant la navigation (indexOf renvoyait -1).
+      const champsItemPersonnalises = champsItem.filter(
+        (c) =>
+          !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c) &&
+          !(needsMomentSpeedboat(item.nom) && c.toLowerCase().includes("matin"))
       );
+      const hasSpecifsItem =
+        champsItemPersonnalises.length > 0 ||
+        champsItem.some((c) => (CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c));
+      setStep(hasSpecifsItem && !champsItem.includes("Vol & horaire") ? "specifs" : "date");
     }
     setCreating(false);
     return id;
@@ -485,9 +495,15 @@ export default function AddActivityWizard({
       setDraftId(id);
       setValidationError(false);
       const champsLinked = linked?.champs_requis_liste || [];
-      setStep(
-        champsLinked.length > 0 && !champsLinked.includes("Vol & horaire") ? "specifs" : "date"
+      const champsLinkedPersonnalises = champsLinked.filter(
+        (c) =>
+          !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c) &&
+          !(needsMomentSpeedboat(linked?.nom || "") && c.toLowerCase().includes("matin"))
       );
+      const hasSpecifsLinked =
+        champsLinkedPersonnalises.length > 0 ||
+        champsLinked.some((c) => (CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c));
+      setStep(hasSpecifsLinked && !champsLinked.includes("Vol & horaire") ? "specifs" : "date");
     }
     setCreating(false);
   };

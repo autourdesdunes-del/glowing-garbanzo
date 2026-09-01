@@ -39,11 +39,29 @@ export function infosManquantesAuto(client: Client, reservations: Reservation[])
   return result;
 }
 
+// Une info manquante cochée à la main reste cochée tant que personne ne va
+// la décocher — si son libellé correspond à une catégorie qu'on sait aussi
+// détecter automatiquement, et que la donnée réelle montre que ce n'est
+// plus manquant, on ne veut pas qu'elle reste affichée indéfiniment (ex.
+// "Room number" coché avant que le numéro soit connu, jamais décoché une
+// fois rempli).
+const MANUEL_RESOLU: Record<string, (client: Client) => boolean> = {
+  [INFO_MANQUANTE_AUTO_HOTEL]: (c) => !!c.hotel.trim(),
+  [INFO_MANQUANTE_AUTO_CHAMBRE]: (c) => !!c.chambre.trim(),
+  [INFO_MANQUANTE_AUTO_WHATSAPP]: (c) => !!c.telephone.trim(),
+  [INFO_MANQUANTE_AUTO_ACOMPTE]: (c) => c.paiement_type === "integral" || c.acompte_paye,
+  [INFO_MANQUANTE_AUTO_PASSEPORT]: (c) => c.passeport_photos.length > 0,
+};
+
 // Fusionne les tags manuels (moins le sentinel "Complet") avec les tags
 // auto-détectés, sans doublon — utilisé partout où on affiche/compte les
 // infos manquantes d'un client (fiche client, tableau de bord).
 export function infosManquantesToutes(client: Client, reservations: Reservation[]): string[] {
-  const manuelles = client.infos_manquantes.filter((s) => s !== "Complet");
+  const manuelles = client.infos_manquantes.filter((s) => {
+    if (s === "Complet") return false;
+    const estResolu = MANUEL_RESOLU[s];
+    return !estResolu || !estResolu(client);
+  });
   const auto = infosManquantesAuto(client, reservations);
   return Array.from(new Set([...auto, ...manuelles]));
 }

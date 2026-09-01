@@ -488,6 +488,12 @@ function AppShellInner({
   // aujourd'hui — sert de signal pour afficher la traduction arabe en plus
   // du libellé français dans toute la sidebar (onglets + sous-onglets).
   const arabicMode = effectiveNavMasque.length > 0;
+  // "Récap du mois" vit sous Direction > Récap du mois pour Mélanie (pas en
+  // onglet de premier niveau), mais reste un vrai onglet pour Hossam/Bodé.
+  // On distingue via navMasque (vide) plutôt que le prénom : seule Mélanie
+  // a le rôle Direction ET une navigation non restreinte — Hossam a aussi
+  // le rôle Direction mais un navMasque non vide (voir migration 0092).
+  const hideRecapTopLevel = viewAs === "moi" && isDirection && navMasque.length === 0;
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
@@ -766,7 +772,8 @@ function AppShellInner({
     if (!effectiveIsDirection && mode === "direction") setMode("dashboard");
     if (!effectiveIsManager && mode === "manager") setMode("dashboard");
     if (effectiveNavMasque.includes(mode)) setMode("dashboard");
-  }, [effectiveIsDirection, effectiveIsManager, effectiveNavMasque, mode]);
+    if (mode === "recap" && hideRecapTopLevel) setMode("dashboard");
+  }, [effectiveIsDirection, effectiveIsManager, effectiveNavMasque, hideRecapTopLevel, mode]);
 
   // Équipe Égypte : si le sous-onglet Suivis courant n'est plus autorisé
   // (changement de "Aperçu vu par", ou premier chargement d'un compte
@@ -1881,6 +1888,7 @@ function AppShellInner({
           (t) =>
             (t.key !== "direction" || effectiveIsDirection) &&
             (t.key !== "manager" || effectiveIsManager) &&
+            (t.key !== "recap" || !hideRecapTopLevel) &&
             !effectiveNavMasque.includes(t.key)
         ).map((t) => {
           const Icon = t.icon;
@@ -2812,7 +2820,8 @@ function AppShellInner({
         mode !== "preview" &&
         mode !== "help" &&
         mode !== "direction" &&
-        mode !== "manager" && (
+        mode !== "manager" &&
+        mode !== "recap" && (
           <div className="flex flex-1 items-center justify-center text-neutral-400">
             Bientôt disponible.
           </div>

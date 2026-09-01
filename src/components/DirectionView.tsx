@@ -17,6 +17,7 @@ import { todayStr } from "@/lib/dates";
 import { generateMonthlyReport } from "@/lib/generateMonthlyReport";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
+import RecapMoisView from "@/components/RecapMoisView";
 
 const MOIS_FR = [
   "janvier",
@@ -79,6 +80,11 @@ export const DIRECTION_SUBS = [
   { key: "marketing", label: "Digital marketing" },
   { key: "statsAgences", label: "Stat agences" },
   { key: "statsEmployes", label: "Stat employés" },
+  // Même contenu que l'onglet "Récap du mois" de Bodé/Hossam — pour la
+  // Direction, il vit ici plutôt qu'en onglet séparé de premier niveau
+  // (voir "recap" retiré du TABS top-level pour viewAs === "moi" côté
+  // AppShell.tsx).
+  { key: "recap", label: "Récap du mois" },
   { key: "parametres", label: "Paramètres" },
 ] as const;
 export type DirectionSub = (typeof DIRECTION_SUBS)[number]["key"];
@@ -352,6 +358,10 @@ export default function DirectionView({
 
   if (sub === "parametres") {
     return <CodesPromoManager />;
+  }
+
+  if (sub === "recap") {
+    return <RecapMoisView reservations={reservations} clients={clients} />;
   }
 
   if (sub !== "dashboard") {

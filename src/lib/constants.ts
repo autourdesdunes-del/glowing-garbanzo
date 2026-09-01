@@ -236,3 +236,18 @@ export const RAISONS_ANNULATION = [
   "Non-présentation",
   "Autre",
 ] as const;
+
+// Zones où un hôtel de la mer Rouge peut se trouver — proposées dans la
+// pop-up "Hôtel non répertorié" (ContactStep) et alignées sur les villes
+// déjà utilisées dans transfert_taxes, pour que la taxe de transfert se
+// déduise automatiquement dès que l'hôtel est classé. "Hurghada" n'a
+// jamais de taxe (voir hotelMatch.sur_hurghada).
+export const ZONES_HOTEL = [
+  "Hurghada",
+  "El Gouna",
+  "Sahl Hasheesh",
+  "Makadi",
+  "Soma Bay",
+  "Safaga",
+  "Marsa Alam",
+] as const;

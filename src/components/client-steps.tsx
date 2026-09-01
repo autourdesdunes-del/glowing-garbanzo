@@ -41,6 +41,7 @@ import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import RibScreenshotUpload from "@/components/RibScreenshotUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
+import AjouterHotelZoneModal from "@/components/AjouterHotelZoneModal";
 
 export function extractAges(text: string | null | undefined): string[] {
   return (text || "").match(/\d+/g) || [];
@@ -291,6 +292,7 @@ export function ContactStep({
   hotelsRef,
   taxesRef,
   onOpenHelp,
+  onAddHotelRef,
   onJumpToPaiements,
 }: StepProps & {
   onNeedsField: (message: string, focusId: string) => void;
@@ -299,6 +301,7 @@ export function ContactStep({
   hotelsRef: HotelReference[];
   taxesRef: TransfertTaxe[];
   onOpenHelp: () => void;
+  onAddHotelRef: (nom: string, ville: string) => Promise<void>;
   onJumpToPaiements: () => void;
 }) {
   const supabase = createClient();
@@ -317,6 +320,7 @@ export function ContactStep({
   const [moreOpen, setMoreOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [egypteOpen, setEgypteOpen] = useState(false);
+  const [ajouterHotelZoneOpen, setAjouterHotelZoneOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -480,12 +484,24 @@ export function ContactStep({
           ) : (
             <span className="text-neutral-400">
               Hôtel non répertorié dans HELP.{" "}
-              <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
+              <button
+                type="button"
+                onClick={() => setAjouterHotelZoneOpen(true)}
+                className="underline hover:no-underline"
+              >
                 L&apos;ajouter
               </button>
             </span>
           )}
         </div>
+      )}
+
+      {ajouterHotelZoneOpen && (
+        <AjouterHotelZoneModal
+          hotelNom={client.hotel}
+          onAdd={(ville) => onAddHotelRef(client.hotel, ville)}
+          onClose={() => setAjouterHotelZoneOpen(false)}
+        />
       )}
 
       {hotelModalOpen && (

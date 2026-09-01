@@ -767,6 +767,23 @@ export default function ClientDetail({
     });
   };
 
+  // Classe directement un hôtel pas encore répertorié (pop-up ContactStep >
+  // AjouterHotelZoneModal) sans renvoyer l'employée vers HELP — la fiche en
+  // cours profite tout de suite de la détection de taxe de transfert, et
+  // l'hôtel reste disponible pour tous les clients suivants.
+  const addHotelRef = async (nom: string, ville: string) => {
+    const { data, error } = await supabase
+      .from("hotels_reference")
+      .insert({ nom, ville, sur_hurghada: ville === "Hurghada" })
+      .select()
+      .single();
+    if (error || !data) {
+      toast("Échec de l'ajout de l'hôtel.");
+      return;
+    }
+    setHotelsRef((prev) => [...prev, data as HotelReference]);
+  };
+
   // Une facture sans conditions de paiement enregistrées afficherait "Aucun
   // acompte enregistré" à la place de vrais chiffres — on bloque donc et on
   // renvoie vers Paiements plutôt que de générer un document vide (retour
@@ -983,6 +1000,7 @@ export default function ClientDetail({
           hotelsRef={hotelsRef}
           taxesRef={taxesRef}
           onOpenHelp={onOpenHelp}
+          onAddHotelRef={addHotelRef}
           onNeedsField={(message, focusId) =>
             setMissingInfo({
               message,

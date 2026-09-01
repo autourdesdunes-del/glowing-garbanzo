@@ -841,21 +841,65 @@ export default function ClientDetail({
 
       <div className="rounded-[6px] border border-[#eaeaea] bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            <input
-              value={client.nom}
-              onChange={(e) => onChange({ nom: e.target.value })}
-              placeholder="Nom du client"
-              className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
-            />
-            {incidents.some((i) => i.statut === "Ouvert") && (
-              <button
-                onClick={() => setShowIncidentsModal(true)}
-                title="Incident ouvert — voir le rapport"
-                className="flex-shrink-0 text-lg leading-none"
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <input
+                value={client.nom}
+                onChange={(e) => onChange({ nom: e.target.value })}
+                placeholder="Nom du client"
+                className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
+              />
+              {incidents.some((i) => i.statut === "Ouvert") && (
+                <button
+                  onClick={() => setShowIncidentsModal(true)}
+                  title="Incident ouvert — voir le rapport"
+                  className="flex-shrink-0 text-lg leading-none"
+                >
+                  🚩
+                </button>
+              )}
+            </div>
+            <div className="font-heading flex flex-wrap items-center gap-1.5 px-1 text-xs">
+              <span
+                className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
+                style={{
+                  backgroundColor: `${STATUT_COLORS[client.statut]}1a`,
+                  color: STATUT_COLORS[client.statut],
+                }}
               >
-                🚩
-              </button>
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: STATUT_COLORS[client.statut] }}
+                />
+                {client.statut}
+              </span>
+              <TagStarPicker tags={client.tags || []} onChange={(tags) => onChange({ tags })} />
+              {(client.tags || []).map((tag) => (
+                <span key={tag} className="rounded-full bg-[#171717]/5 px-2 py-0.5 text-[#171717]">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            {toutesInfosManquantes.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 px-1 text-xs">
+                {autoInfosManquantes.map((s) => (
+                  <span
+                    key={`auto-${s}`}
+                    title="Détecté automatiquement depuis la fiche — se retire tout seul une fois complété"
+                    className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-red-700"
+                  >
+                    🔒 {s}
+                  </span>
+                ))}
+                {manuelInfosManquantes.map((s) => (
+                  <span
+                    key={s}
+                    className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-[#666666]"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
           <div className="flex flex-shrink-0 flex-col items-end gap-1.5">
@@ -993,49 +1037,13 @@ export default function ClientDetail({
             </div>
             <button
               onClick={() => onDuplicateAsNewStay(client)}
-              className="text-xs text-[#171717] hover:underline"
+              title="Nouveau séjour pour ce même client"
+              className="whitespace-nowrap rounded-md border border-[#eaeaea] px-1.5 py-0.5 text-[10px] text-[#666666] hover:border-[#171717] hover:text-[#171717]"
             >
-              + Nouveau séjour pour ce même client
+              + Nouveau séjour
             </button>
           </div>
         </div>
-
-        <div className="font-heading mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-          <span
-            className="flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
-            style={{ backgroundColor: `${STATUT_COLORS[client.statut]}1a`, color: STATUT_COLORS[client.statut] }}
-          >
-            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: STATUT_COLORS[client.statut] }} />
-            {client.statut}
-          </span>
-          <TagStarPicker tags={client.tags || []} onChange={(tags) => onChange({ tags })} />
-          {(client.tags || []).map((tag) => (
-            <span key={tag} className="rounded-full bg-[#171717]/5 px-2 py-0.5 text-[#171717]">
-              {tag}
-            </span>
-          ))}
-        </div>
-        {toutesInfosManquantes.length > 0 && (
-          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
-            {autoInfosManquantes.map((s) => (
-              <span
-                key={`auto-${s}`}
-                title="Détecté automatiquement depuis la fiche — se retire tout seul une fois complété"
-                className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-red-700"
-              >
-                🔒 {s}
-              </span>
-            ))}
-            {manuelInfosManquantes.map((s) => (
-              <span
-                key={s}
-                className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-[#666666]"
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {autresSejours.length > 0 && (

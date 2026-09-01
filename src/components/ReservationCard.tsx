@@ -285,7 +285,7 @@ export default function ReservationCard({
   if (!expanded) {
     if (r.statut_resa === "Annulée") {
       return (
-        <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 opacity-60">
+        <div className="rounded-md border border-neutral-200 bg-neutral-50 p-2 opacity-60">
           <p className="font-medium text-neutral-500 line-through">
             {r.nom_activite || "Activité sans nom"}
           </p>
@@ -302,7 +302,7 @@ export default function ReservationCard({
       return (
         <div
           onClick={() => onToggleExpanded(true)}
-          className="cursor-pointer rounded-md border border-[#171717]/30 bg-white p-3"
+          className="cursor-pointer rounded-md border border-[#171717]/30 bg-white p-2"
         >
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[#171717]">✓</span>
@@ -376,7 +376,7 @@ export default function ReservationCard({
     return (
       <div
         onClick={() => onToggleExpanded(true)}
-        className="cursor-pointer rounded-md border border-[#C9973E]/40 bg-white p-3"
+        className="cursor-pointer rounded-md border border-[#C9973E]/40 bg-white p-2"
       >
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-medium text-[#171717]">
@@ -454,7 +454,7 @@ export default function ReservationCard({
   }
 
   return (
-    <div id={`reservation-${r.id}`} className="rounded-md border border-[#666666]/20 bg-white p-4">
+    <div id={`reservation-${r.id}`} className="rounded-md border border-[#666666]/20 bg-white p-3">
       {catalogue.length > 0 && (
         <select
           defaultValue=""

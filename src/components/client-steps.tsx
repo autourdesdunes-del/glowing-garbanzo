@@ -234,7 +234,8 @@ function hebergementSummary(client: Client) {
   if (client.type_hebergement === "airbnb") {
     return client.hotel.trim() ? `Airbnb — ${client.hotel}` : "Airbnb — non renseigné";
   }
-  return client.hotel.trim() || "Non renseigné";
+  if (!client.hotel.trim()) return "Non renseigné";
+  return client.chambre.trim() ? `${client.hotel} - ${client.chambre}` : client.hotel;
 }
 
 // "13 août → 27 août 2026" : l'année n'apparaît qu'une fois, sur la

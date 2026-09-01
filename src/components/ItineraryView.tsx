@@ -492,7 +492,7 @@ export default function ItineraryView({
       {expandedReservation && editingExpanded && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setEditingExpanded(false)}
+          onClick={() => onToggleExpand(null)}
         >
           <div
             className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg shadow-xl"
@@ -519,8 +519,8 @@ export default function ItineraryView({
               reservations={reservations}
               resaOptions={resaOptions}
               resaTarifs={resaTarifs}
-              onFinish={() => setEditingExpanded(false)}
-              onCancel={() => setEditingExpanded(false)}
+              onFinish={() => onToggleExpand(null)}
+              onCancel={() => onToggleExpand(null)}
               onBusEscalation={onBusEscalation}
               onJourEscalation={onJourEscalation}
               onAssouanVerification={onAssouanVerification}

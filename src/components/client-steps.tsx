@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ActivityLogEntry,
@@ -1187,23 +1187,6 @@ export function ActivitesStep({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
-  const knownIdsRef = useRef<Set<string>>(new Set());
-
-  // Une activité tout juste ajoutée reste ouverte par défaut — sinon
-  // l'employée doit recliquer dessus juste après l'avoir créée pour voir ce
-  // qu'elle vient de remplir. Pas d'auto-ouverture de "la seule activité du
-  // séjour" : la section Activités se démonte/remonte à chaque pli/dépli,
-  // donc ce cas se redéclenchait à chaque ouverture de la section, comme si
-  // l'activité venait d'être cliquée.
-  useEffect(() => {
-    const ids = reservations.map((r) => r.id);
-    const newId = ids.find((id) => !knownIdsRef.current.has(id));
-    const premierRendu = knownIdsRef.current.size === 0;
-    knownIdsRef.current = new Set(ids);
-    if (newId && !premierRendu) {
-      setExpandedId(newId);
-    }
-  }, [reservations]);
 
   if (addingNew) {
     return (

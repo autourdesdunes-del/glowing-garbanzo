@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CatalogueItem,
   CatalogueOption,
@@ -265,6 +265,7 @@ export default function AddActivityWizard({
   onBusEscalation,
   onJourEscalation,
   onAssouanVerification,
+  editReservationId,
 }: {
   client: Client;
   catalogue: CatalogueItem[];
@@ -295,9 +296,14 @@ export default function AddActivityWizard({
   resaTarifs: Record<string, ReservationTarif[]>;
   onFinish: () => void;
   onCancel: () => void;
+  // Ouvre le pas-à-pas directement sur une activité déjà existante (édition
+  // depuis la fiche client) au lieu de partir de "choix" — les étapes
+  // relisent alors les vraies valeurs de cette réservation, comme une
+  // création, plutôt que le gros formulaire d'édition d'un seul bloc.
+  editReservationId?: string;
 }) {
   const [step, setStep] = useState<Step>("choix");
-  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(editReservationId ?? null);
   const [catalogueSearch, setCatalogueSearch] = useState("");
   const [catalogueToutVoir, setCatalogueToutVoir] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -378,6 +384,15 @@ export default function AddActivityWizard({
   if (showMonteStep) steps.push("monte");
   steps.push("tarifs", "options", "transfert");
   const stepIndex = steps.indexOf(step);
+
+  // Édition d'une activité existante : on saute directement l'étape
+  // "choix" (déjà tranchée) pour atterrir sur la première vraie étape.
+  useEffect(() => {
+    if (editReservationId && step === "choix" && steps.length > 1) {
+      setStep(steps[1]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startFromCatalogue = async (
     item: CatalogueItem,
@@ -465,7 +480,10 @@ export default function AddActivityWizard({
   };
 
   const cancel = () => {
-    if (draftId) onDeleteReservation(draftId);
+    // En édition, la réservation existait déjà avant d'ouvrir le pas-à-pas —
+    // "Annuler" doit fermer sans la supprimer, contrairement à une création
+    // abandonnée en cours de route.
+    if (draftId && !editReservationId) onDeleteReservation(draftId);
     setDraftId(null);
     setStep("choix");
     setCustomName("");

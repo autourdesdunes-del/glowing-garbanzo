@@ -28,7 +28,7 @@ import {
   resaBreakdown,
   resaTotalMontant,
 } from "@/lib/resa";
-import ReservationCard from "@/components/ReservationCard";
+import AddActivityWizard from "@/components/AddActivityWizard";
 import { localDateStr } from "@/lib/dates";
 import { buildPaxEnglish } from "@/components/client-steps";
 
@@ -114,6 +114,7 @@ export default function ItineraryView({
   coutsMap,
   onUpdateCoutReel,
   busEscalations = [],
+  onBusEscalation,
   onJourEscalation,
   onAssouanVerification,
   assouanVerifications = [],
@@ -143,6 +144,7 @@ export default function ItineraryView({
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   busEscalations?: BusEscalation[];
+  onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   onJourEscalation: (
     nomActivite: string,
     reservationId: string,
@@ -454,58 +456,32 @@ export default function ItineraryView({
             className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-lg shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <ReservationCard
+            <AddActivityWizard
               key={expandedReservation.id}
-              r={expandedReservation}
+              editReservationId={expandedReservation.id}
               client={client}
-              options={resaOptions[expandedReservation.id] || []}
-              tarifs={resaTarifs[expandedReservation.id] || []}
-              expanded
-              onToggleExpanded={(v) => setEditingExpanded(v)}
-              onUpdate={(patch) => onUpdateReservation(expandedReservation.id, patch)}
-              onDelete={() => onDeleteReservation(expandedReservation.id)}
-              onAddOption={(seed) => onAddOption(expandedReservation.id, seed)}
-              onUpdateOption={(optId, patch) => onUpdateOption(expandedReservation.id, optId, patch)}
-              onDeleteOption={(optId) => onDeleteOption(expandedReservation.id, optId)}
-              onAddTarif={(seed) => onAddTarif(expandedReservation.id, seed)}
-              onUpdateTarif={(tarifId, patch) => onUpdateTarif(expandedReservation.id, tarifId, patch)}
-              onDeleteTarif={(tarifId) => onDeleteTarif(expandedReservation.id, tarifId)}
-              onUpdateClient={onUpdateClient}
               catalogue={catalogue}
-              catalogueTarifs={
-                expandedReservation.catalogue_item_id
-                  ? catalogueTarifs[expandedReservation.catalogue_item_id] || []
-                  : []
-              }
-              transfertTarifs={
-                expandedReservation.catalogue_item_id
-                  ? transfertTarifs[expandedReservation.catalogue_item_id] || []
-                  : []
-              }
-              catalogueOptions={
-                expandedReservation.catalogue_item_id
-                  ? catalogueOptions[expandedReservation.catalogue_item_id] || []
-                  : []
-              }
-              canSeeMargins={canSeeMargins}
+              catalogueTarifs={catalogueTarifs}
+              transfertTarifs={transfertTarifs}
+              catalogueOptions={catalogueOptions}
               hotelHorsHurghada={hotelHorsHurghada}
-              coutReel={coutsMap[expandedReservation.id] || 0}
-              onUpdateCoutReel={(v) => onUpdateCoutReel(expandedReservation.id, v)}
-              onJourEscalation={(dateChoisie, jourChoisi, joursDisponibles) =>
-                onJourEscalation(
-                  expandedReservation.nom_activite,
-                  expandedReservation.id,
-                  dateChoisie,
-                  jourChoisi,
-                  joursDisponibles
-                )
-              }
-              onAssouanVerification={() =>
-                onAssouanVerification(expandedReservation.nom_activite, expandedReservation.id)
-              }
-              assouanVerification={
-                assouanVerifications.find((v) => v.reservation_id === expandedReservation.id) || null
-              }
+              onAddReservation={async () => null}
+              onUpdateReservation={onUpdateReservation}
+              onDeleteReservation={onDeleteReservation}
+              onAddOption={onAddOption}
+              onUpdateOption={onUpdateOption}
+              onDeleteOption={onDeleteOption}
+              onAddTarif={onAddTarif}
+              onUpdateTarif={onUpdateTarif}
+              onDeleteTarif={onDeleteTarif}
+              reservations={reservations}
+              resaOptions={resaOptions}
+              resaTarifs={resaTarifs}
+              onFinish={() => setEditingExpanded(false)}
+              onCancel={() => setEditingExpanded(false)}
+              onBusEscalation={onBusEscalation}
+              onJourEscalation={onJourEscalation}
+              onAssouanVerification={onAssouanVerification}
             />
           </div>
         </div>

@@ -1273,6 +1273,7 @@ export function ActivitesStep({
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}
         busEscalations={busEscalations}
+        onBusEscalation={onBusEscalation}
         onJourEscalation={onJourEscalation}
         onAssouanVerification={onAssouanVerification}
         assouanVerifications={assouanVerifications}

@@ -32,14 +32,22 @@ function monthLabel(key: string) {
   return new Date(y, m - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
+type ReservationDetail = {
+  clientNom: string;
+  date: string;
+  pax: number;
+  montant: number | null;
+  note: string;
+};
+
 type ActiviteAgg = {
   nom: string;
   reservationsCount: number;
   pax: number;
   montantPrestataire: number;
-  // Détail des réservations avec un montant cash repéré, pour vérifier
-  // d'où vient le total (client, date, note d'origine).
-  cashDetails: { clientNom: string; date: string; montant: number; note: string }[];
+  // Une ligne par réservation (pas seulement celles avec du cash repéré) —
+  // pour dérouler et vérifier "tel client, telle date" avec le prestataire.
+  details: ReservationDetail[];
 };
 
 export default function RecapMoisView({
@@ -82,27 +90,27 @@ export default function RecapMoisView({
       const nom = cleanActivityTitle(r.nom_activite) || "(sans nom)";
       const client = clientById[r.client_id];
       if (!map[nom]) {
-        map[nom] = { nom, reservationsCount: 0, pax: 0, montantPrestataire: 0, cashDetails: [] };
+        map[nom] = { nom, reservationsCount: 0, pax: 0, montantPrestataire: 0, details: [] };
       }
       const agg = map[nom];
       agg.reservationsCount += 1;
+      let pax = 0;
       if (client) {
         const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
-        agg.pax += nbAd + nbEnf + nbAcc + nbEnf3;
+        pax = nbAd + nbEnf + nbAcc + nbEnf3;
       }
-      if (r.info_importante) {
-        const montant = extractMontantPrestataire(r.info_importante);
-        if (montant !== null) {
-          agg.montantPrestataire += montant;
-          agg.cashDetails.push({
-            clientNom: client?.nom || "—",
-            date: r.date_debut || "",
-            montant,
-            note: r.info_importante,
-          });
-        }
-      }
+      agg.pax += pax;
+      const montant = r.info_importante ? extractMontantPrestataire(r.info_importante) : null;
+      if (montant !== null) agg.montantPrestataire += montant;
+      agg.details.push({
+        clientNom: client?.nom || "—",
+        date: r.date_debut || "",
+        pax,
+        montant,
+        note: r.info_importante,
+      });
     });
+    Object.values(map).forEach((a) => a.details.sort((x, y) => x.date.localeCompare(y.date)));
     return Object.values(map).sort((a, b) => b.pax - a.pax);
   }, [reservationsDuMois, clientById]);
 
@@ -112,6 +120,15 @@ export default function RecapMoisView({
 
   const totalPax = parActivite.reduce((s, a) => s + a.pax, 0);
   const totalMontant = parActivite.reduce((s, a) => s + a.montantPrestataire, 0);
+
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (nom: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(nom)) next.delete(nom);
+      else next.add(nom);
+      return next;
+    });
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
@@ -171,42 +188,60 @@ export default function RecapMoisView({
         <p className="text-sm text-[#666666]">Aucune activité confirmée sur ce mois.</p>
       ) : (
         <div className="space-y-3">
-          {visibleActivites.map((a) => (
-            <div key={a.nom} className="rounded-[10px] border border-[#eaeaea] bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-medium text-[#171717]">{a.nom}</div>
-                <div className="flex gap-4 text-sm text-[#666666]">
-                  <span>
-                    <strong className="text-[#171717]">{a.reservationsCount}</strong> réservation
-                    {a.reservationsCount > 1 ? "s" : ""}
-                  </span>
-                  <span>
-                    <strong className="text-[#171717]">{a.pax}</strong> personnes
-                  </span>
-                  {a.montantPrestataire > 0 && (
-                    <span>
-                      <strong className="text-[#171717]">{euros(a.montantPrestataire)} €</strong> cash
-                      prestataire
+          {visibleActivites.map((a) => {
+            const isOpen = expanded.has(a.nom);
+            return (
+              <div key={a.nom} className="rounded-[10px] border border-[#eaeaea] bg-white">
+                <button
+                  onClick={() => toggleExpanded(a.nom)}
+                  className="flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left"
+                >
+                  <div className="flex items-center gap-2 font-medium text-[#171717]">
+                    <span className={`inline-block transition-transform ${isOpen ? "rotate-90" : ""}`}>
+                      ›
                     </span>
-                  )}
-                </div>
-              </div>
-              {a.cashDetails.length > 0 && (
-                <div className="mt-2 space-y-1 border-t border-[#f0f0f0] pt-2 text-xs text-[#666666]">
-                  {a.cashDetails.map((d, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-[#999999]">
-                        {d.date ? new Date(d.date + "T00:00:00").toLocaleDateString("fr-FR") : "—"}
+                    {a.nom}
+                  </div>
+                  <div className="flex gap-4 text-sm text-[#666666]">
+                    <span>
+                      <strong className="text-[#171717]">{a.reservationsCount}</strong> réservation
+                      {a.reservationsCount > 1 ? "s" : ""}
+                    </span>
+                    <span>
+                      <strong className="text-[#171717]">{a.pax}</strong> personnes
+                    </span>
+                    {a.montantPrestataire > 0 && (
+                      <span>
+                        <strong className="text-[#171717]">{euros(a.montantPrestataire)} €</strong> cash
+                        prestataire
                       </span>
-                      <span>{d.clientNom}</span>
-                      <span className="text-[#171717]">{euros(d.montant)} €</span>
-                      <span className="text-[#999999]">— {d.note}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                    )}
+                  </div>
+                </button>
+                {isOpen && (
+                  <div className="space-y-1 border-t border-[#f0f0f0] p-4 pt-3 text-sm">
+                    {a.details.map((d, i) => (
+                      <div key={i} className="flex flex-wrap items-center gap-2">
+                        <span className="w-20 shrink-0 text-[#999999]">
+                          {d.date ? new Date(d.date + "T00:00:00").toLocaleDateString("fr-FR") : "—"}
+                        </span>
+                        <span className="text-[#171717]">{d.clientNom}</span>
+                        <span className="text-[#666666]">
+                          {d.pax} pers.
+                        </span>
+                        {d.montant !== null && (
+                          <>
+                            <span className="text-[#171717]">{euros(d.montant)} € cash</span>
+                            <span className="text-[#999999]">— {d.note}</span>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

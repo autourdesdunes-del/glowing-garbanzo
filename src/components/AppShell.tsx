@@ -2472,9 +2472,7 @@ function AppShellInner({
             />
           ) : (
         <div className="flex flex-1 overflow-hidden">
-          {(clientListExpanded ||
-            query.trim() ||
-            (selected && !activeStatuts.includes(selected.statut))) && (
+          {(clientListExpanded || query.trim()) && (
           <aside
             className={`${
               !selected || !activeStatuts.includes(selected.statut) ? "flex w-full" : "hidden"

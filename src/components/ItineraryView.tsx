@@ -376,13 +376,27 @@ export default function ItineraryView({
                   </span>
                 )}
               </h3>
-              <button
-                type="button"
-                onClick={() => onToggleExpand(null)}
-                className="shrink-0 text-neutral-400 hover:text-[#171717]"
-              >
-                ✕
-              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm("Supprimer cette activité ? Cette action est irréversible.")) return;
+                    onDeleteReservation(expandedReservation.id);
+                    onToggleExpand(null);
+                  }}
+                  title="Supprimer cette activité"
+                  className="text-red-500 hover:text-red-600"
+                >
+                  🗑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleExpand(null)}
+                  className="text-neutral-400 hover:text-[#171717]"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div className="mt-3">
               <button

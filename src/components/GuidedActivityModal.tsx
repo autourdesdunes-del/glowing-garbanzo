@@ -89,8 +89,16 @@ export default function GuidedActivityModal({
   assouanVerifications: AssouanVerification[];
 }) {
   const [step, setStep] = useState<Step>("activites");
+  // Tant que le pas-à-pas de création d'activité est ouvert (à l'intérieur
+  // d'ActivitesStep), la fermeture de CETTE fenêtre doit être bloquée — une
+  // réservation "Brouillon" existe déjà en base dès qu'une activité du
+  // catalogue est choisie, avant même d'être remplie. La fermer par-dessus
+  // laisserait cette réservation orpheline ; seul le bouton "Annuler" du
+  // pas-à-pas (qui la supprime) doit pouvoir en sortir.
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const close = () => {
+    if (wizardOpen) return;
     setStep("activites");
     onClose();
   };
@@ -110,9 +118,11 @@ export default function GuidedActivityModal({
               {step === "activites" ? "1" : "2"}/2
             </p>
           </div>
-          <button type="button" onClick={close} className="text-[#666666] hover:text-[#171717]">
-            ✕
-          </button>
+          {!wizardOpen && (
+            <button type="button" onClick={close} className="text-[#666666] hover:text-[#171717]">
+              ✕
+            </button>
+          )}
         </div>
 
         <div className="mb-4 h-1 w-full overflow-hidden rounded-full bg-[#fafafa]">
@@ -146,6 +156,7 @@ export default function GuidedActivityModal({
             hotelHorsHurghada={hotelHorsHurghada}
             coutsMap={coutsMap}
             onUpdateCoutReel={onUpdateCoutReel}
+            onAddingNewChange={setWizardOpen}
             onBusEscalation={onBusEscalation}
             busEscalations={busEscalations}
             onJourEscalation={onJourEscalation}
@@ -176,13 +187,15 @@ export default function GuidedActivityModal({
             </button>
           )}
           {step === "activites" ? (
-            <button
-              type="button"
-              onClick={() => setStep("paiements")}
-              className="flex-1 rounded-[6px] bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-            >
-              Suivant — Paiements
-            </button>
+            !wizardOpen && (
+              <button
+                type="button"
+                onClick={() => setStep("paiements")}
+                className="flex-1 rounded-[6px] bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Suivant — Paiements
+              </button>
+            )
           ) : (
             <button
               type="button"

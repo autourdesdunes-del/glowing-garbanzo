@@ -1143,6 +1143,7 @@ export function ActivitesStep({
   coutsMap,
   onUpdateCoutReel,
   onRequestAdd,
+  onAddingNewChange,
   onBusEscalation,
   busEscalations,
   onJourEscalation,
@@ -1176,6 +1177,13 @@ export function ActivitesStep({
   // inline d'origine, d'où ce prop optionnel plutôt qu'un changement de
   // comportement global.
   onRequestAdd?: () => void;
+  // Signale au parent (ex. GuidedActivityModal) qu'un pas-à-pas de création
+  // est en cours, pour qu'il masque son propre bouton de fermeture pendant
+  // ce temps — le fermer par-dessus laisserait une réservation "Brouillon"
+  // vide en base (déjà créée dès le choix de l'activité dans le catalogue,
+  // avant même que l'employée ait rempli quoi que ce soit), au lieu de
+  // passer par "Annuler" du pas-à-pas qui la supprime proprement.
+  onAddingNewChange?: (adding: boolean) => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   busEscalations: BusEscalation[];
   onJourEscalation: (
@@ -1189,7 +1197,11 @@ export function ActivitesStep({
   assouanVerifications: AssouanVerification[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [addingNew, setAddingNew] = useState(false);
+  const [addingNew, setAddingNewState] = useState(false);
+  const setAddingNew = (v: boolean) => {
+    setAddingNewState(v);
+    onAddingNewChange?.(v);
+  };
 
   if (addingNew) {
     return (

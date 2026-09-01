@@ -29,7 +29,7 @@ import {
   RELATIONS,
   STATUTS,
 } from "@/lib/constants";
-import { hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
+import { agesLabel, hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import { matchHotel, matchTransfertTaxe, hotelDisplayForEgypt } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
@@ -217,21 +217,13 @@ function AgeChips({
 function paxSummary(client: Client) {
   const parts: string[] = [`${client.adultes || 0} adulte${(client.adultes || 0) > 1 ? "s" : ""}`];
   if (client.enfants > 0) {
-    parts.push(
-      `${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${
-        client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""
-      }`
-    );
+    parts.push(`${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${agesLabel(client.ages_enfants)}`);
   }
   if (client.bebes > 0) {
-    parts.push(
-      `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${
-        client.ages_bebes ? ` (${client.ages_bebes} ans)` : ""
-      }`
-    );
+    parts.push(`${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes)}`);
   }
   if (client.ados_presents) {
-    parts.push(`ados${client.ages_ados ? ` (${client.ages_ados} ans)` : ""}`);
+    parts.push(`ados${agesLabel(client.ages_ados)}`);
   }
   return parts.join(", ");
 }

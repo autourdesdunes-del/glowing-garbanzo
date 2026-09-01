@@ -781,6 +781,16 @@ export function formatOptionLabel(o: ReservationOption) {
   return quantite > 1 ? `+${quantite} participants ${o.nom}` : o.nom;
 }
 
+// Le champ ages_enfants/ages_bebes contient parfois juste des nombres
+// ("4, 10", saisis via l'éditeur d'âges) et parfois déjà une phrase complète
+// ("4 et 10 ans", copiée depuis Kommo) — sans ce garde-fou, l'affichage
+// ajoutait systématiquement " ans" et doublait le mot pour le second cas.
+export function agesLabel(ages: string) {
+  const clean = (ages || "").trim();
+  if (!clean) return "";
+  return /\bans?\b/i.test(clean) ? ` (${clean})` : ` (${clean} ans)`;
+}
+
 export function participantsFor(r: Reservation, client: Client) {
   const nbAd =
     r.participants_mode === "tous" ? Number(client.adultes) || 0 : Number(r.participants_adultes) || 0;

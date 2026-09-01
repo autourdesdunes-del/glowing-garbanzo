@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { reservationsActives, resaTotalMontant } from "@/lib/resa";
+import { agesLabel, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { PAYPAL_ME_LINK, AGENCY_CONTACT } from "@/lib/constants";
 
 // Bon de confirmation envoyé au client une fois son séjour réservé —
@@ -33,14 +33,10 @@ function fmtDateShort(dateStr: string) {
 function paxLine(client: Client) {
   const parts: string[] = [`${client.adultes} adulte${client.adultes > 1 ? "s" : ""}`];
   if (client.enfants > 0) {
-    let s = `${client.enfants} enfant${client.enfants > 1 ? "s" : ""}`;
-    if (client.ages_enfants) s += ` (${client.ages_enfants})`;
-    parts.push(s);
+    parts.push(`${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${agesLabel(client.ages_enfants)}`);
   }
   if (client.bebes > 0) {
-    let s = `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}`;
-    if (client.ages_bebes) s += ` (${client.ages_bebes})`;
-    parts.push(s);
+    parts.push(`${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes)}`);
   }
   return parts.join(", ");
 }

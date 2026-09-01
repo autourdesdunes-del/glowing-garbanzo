@@ -885,14 +885,14 @@ export default function ClientDetail({
                 disabled={confirmationFormat !== null}
                 className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
               >
-                {confirmationFormat === "pdf" ? "Génération…" : "Confirmation (PDF)"}
+                {confirmationFormat === "pdf" ? "Génération…" : "Bon de confirmation (PDF)"}
               </button>
               <button
                 onClick={() => setConfirmationFormat("png")}
                 disabled={confirmationFormat !== null}
                 className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
               >
-                {confirmationFormat === "png" ? "Génération…" : "Confirmation (PNG)"}
+                {confirmationFormat === "png" ? "Génération…" : "Bon de confirmation (PNG)"}
               </button>
               {client.statut !== "Client annulé" && (
                 <button

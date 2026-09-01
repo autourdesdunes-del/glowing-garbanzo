@@ -18,6 +18,7 @@ import { addDays, localDateStr, todayStr } from "@/lib/dates";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
+  agesLabel,
   billetEtapeShortLabel,
   billetUploadPatch,
   cleanActivityTitle,
@@ -489,9 +490,7 @@ function BilletDetailModal({
   const { nbAd, nbEnf } = participantsFor(r, client);
   const pax =
     r.pax_override ||
-    `${nbAd} adultes${
-      nbEnf ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}` : ""
-    }`;
+    `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)${agesLabel(client.ages_enfants)}` : ""}`;
   const isCaire = isLeCaireEnAvion(r.nom_activite);
   const key = "billet-" + r.id;
 
@@ -2416,11 +2415,7 @@ export default function SuivisView({
                     const { nbAd, nbEnf } = participantsFor(r, client);
                     const pax =
                       r.pax_override ||
-                      `${nbAd} adultes${
-                        nbEnf
-                          ? `, ${nbEnf} enfant(s)${client.ages_enfants ? ` (${client.ages_enfants} ans)` : ""}`
-                          : ""
-                      }`;
+                      `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)${agesLabel(client.ages_enfants)}` : ""}`;
                     const isCaire = isLeCaireEnAvion(r.nom_activite);
                     const sameDateAsPrev = i > 0 && billetsRows[i - 1].billet_date === r.billet_date;
                     return (

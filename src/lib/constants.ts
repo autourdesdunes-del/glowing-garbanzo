@@ -41,12 +41,10 @@ export const RELATIONS = [
 // (table infos_manquantes_options) pour que le "+" d'une personne
 // enrichisse le menu déroulant de toute l'équipe. Voir ContactStep.
 
-// Lien PayPal.me de l'agence, utilisé sur le bon de confirmation pour un
-// bouton "Payer" pré-rempli avec le montant de l'acompte. Laisser vide tant
-// que Mélanie n'a pas communiqué l'URL exacte (paypal.me/xxxxx) — le
-// document affiche alors juste l'adresse e-mail PayPal à la place du
-// bouton, jamais un lien deviné.
-export const PAYPAL_ME_LINK = "";
+// Lien PayPal.me de l'agence (confirmé par Mélanie le 2026-09-01), utilisé
+// sur le bon de confirmation pour un bouton "Payer" pré-rempli avec le
+// montant de l'acompte.
+export const PAYPAL_ME_LINK = "https://paypal.me/autourdesduneshurgha";
 
 export const MODES_PAIEMENT = [
   "PayPal",

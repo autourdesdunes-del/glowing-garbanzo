@@ -558,11 +558,6 @@ export default function ItineraryView({
 
         return (
           <div key={day} className="rounded-md border border-[#666666]/15 bg-white p-4">
-            <div className="mb-2">
-              <span className="font-heading text-sm font-semibold capitalize text-[#171717]">
-                {fmtDate(day)}
-              </span>
-            </div>
             <div className="space-y-2">{dayResas.map((r) => renderCard(r, day))}</div>
           </div>
         );

@@ -259,5 +259,6 @@ export const ZONES_HOTEL = [
   "Makadi",
   "Soma Bay",
   "Safaga",
+  "El Qoseir",
   "Marsa Alam",
 ] as const;

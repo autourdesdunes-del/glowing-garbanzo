@@ -30,10 +30,11 @@ import {
   RAISONS_REMBOURSEMENT,
   RELATIONS,
   STATUTS,
+  ZONES_HOTEL,
 } from "@/lib/constants";
 import { agesLabel, fmtEncaisseLe, hossamBilletMessage, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
-import { matchHotel, matchTransfertTaxe, hotelDisplayForEgypt } from "@/lib/hotelHelp";
+import { matchHotel, matchTransfertTaxe, hotelDisplayForEgypt, villeTransfertInfo } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
 import ItineraryView from "@/components/ItineraryView";
@@ -228,6 +229,13 @@ function paxSummary(client: Client) {
     parts.push(`ados${agesLabel(client.ages_ados)}`);
   }
   return parts.join(", ");
+}
+
+// "2 sept." — utilisé pour les dates d'arrivée/départ de chaque hôtel du
+// circuit, affichées en tout petit à côté de la destination.
+function fmtDateCourte(d: string | null) {
+  if (!d) return "?";
+  return new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
 function hebergementSummary(client: Client) {
@@ -448,16 +456,48 @@ export function ContactStep({
   return (
     <div className="space-y-1.5">
       <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />} shaded>
-        <button
-          type="button"
-          onClick={() => setHotelModalOpen(true)}
-          className="text-left text-sm font-semibold text-[#171717] hover:underline"
-        >
-          {hebergementSummary(client)}
-        </button>
+        {clientHotels.length > 0 ? (
+          <button type="button" onClick={() => setHotelModalOpen(true)} className="w-full space-y-2 text-left">
+            {clientHotels.map((h) => {
+              const info = villeTransfertInfo(h.ville, taxesRef, client.adultes, client.enfants, ZONES_HOTEL);
+              return (
+                <div key={h.id} className="text-sm">
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-semibold text-[#171717]">{h.ville || "Destination —"}</span>
+                    <span className="text-[10px] text-neutral-400">
+                      {fmtDateCourte(h.date_arrivee)} → {fmtDateCourte(h.date_depart)}
+                    </span>
+                  </div>
+                  <div className="text-[#171717]">
+                    {h.nom || "Hôtel —"}
+                    {h.chambre.trim() ? ` - ${h.chambre}` : ""}
+                  </div>
+                  {info.kind === "hurghada" && (
+                    <span className="text-xs text-emerald-600">✓ Pas de taxe de transfert.</span>
+                  )}
+                  {info.kind === "taxe" && (
+                    <span className="text-xs text-orange-600">
+                      ⚠ Taxe de transfert possible
+                      {info.taxe.type === "montant" ? ` (${euros(info.taxe.montant)} €)` : ""}
+                      {info.taxe.type === "a_demander" ? ` (${info.taxe.note})` : ""}.
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setHotelModalOpen(true)}
+            className="text-left text-sm font-semibold text-[#171717] hover:underline"
+          >
+            {hebergementSummary(client)}
+          </button>
+        )}
       </PropertyRow>
 
-      {client.type_hebergement !== "airbnb" && client.hotel.trim() && (
+      {clientHotels.length === 0 && client.type_hebergement !== "airbnb" && client.hotel.trim() && (
         <div className="-mt-1 pl-[180px] text-xs">
           {hotelMatch ? (
             hotelMatch.sur_hurghada ? (
@@ -635,23 +675,55 @@ export function ContactStep({
                                 placeholder="Chambre"
                                 className="input text-sm"
                               />
-                              <input
-                                type="date"
-                                value={h.date_arrivee ?? ""}
-                                onChange={(e) =>
-                                  updateHotelStep(h.id, { date_arrivee: e.target.value || null })
-                                }
-                                className="input text-sm"
-                              />
-                              <input
-                                type="date"
-                                value={h.date_depart ?? ""}
-                                onChange={(e) =>
-                                  updateHotelStep(h.id, { date_depart: e.target.value || null })
-                                }
-                                className="input text-sm"
-                              />
+                              <div>
+                                <p className="mb-0.5 text-[10px] text-neutral-400">Arrivée</p>
+                                <input
+                                  type="date"
+                                  value={h.date_arrivee ?? ""}
+                                  onChange={(e) =>
+                                    updateHotelStep(h.id, { date_arrivee: e.target.value || null })
+                                  }
+                                  className="input w-full text-sm"
+                                />
+                              </div>
+                              <div>
+                                <p className="mb-0.5 text-[10px] text-neutral-400">Départ</p>
+                                <input
+                                  type="date"
+                                  value={h.date_depart ?? ""}
+                                  onChange={(e) =>
+                                    updateHotelStep(h.id, { date_depart: e.target.value || null })
+                                  }
+                                  className="input w-full text-sm"
+                                />
+                              </div>
                             </div>
+                            {(() => {
+                              const info = villeTransfertInfo(
+                                h.ville,
+                                taxesRef,
+                                client.adultes,
+                                client.enfants,
+                                ZONES_HOTEL
+                              );
+                              if (info.kind === "hurghada") {
+                                return (
+                                  <p className="text-xs text-emerald-600">
+                                    ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
+                                  </p>
+                                );
+                              }
+                              if (info.kind === "taxe") {
+                                return (
+                                  <p className="text-xs text-orange-600">
+                                    ⚠ {info.ville} n&apos;est pas sur Hurghada, taxe de transfert possible
+                                    {info.taxe.type === "montant" ? ` (${euros(info.taxe.montant)} €)` : ""}
+                                    {info.taxe.type === "a_demander" ? ` (${info.taxe.note})` : ""}.
+                                  </p>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                         ))}
                         <button

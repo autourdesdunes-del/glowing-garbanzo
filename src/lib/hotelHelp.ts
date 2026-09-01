@@ -72,3 +72,27 @@ export function matchTransfertTaxe(
   if (tranche.montant === null) return { type: "a_demander", note: tranche.note };
   return { type: "montant", montant: tranche.montant, note: tranche.note };
 }
+
+export type VilleTransfertInfo =
+  | { kind: "hurghada" }
+  | { kind: "taxe"; ville: string; taxe: TransfertTaxeResultat }
+  | { kind: "inconnue" };
+
+// Pour un hôtel du circuit (plusieurs hôtels), la ville est saisie
+// directement par l'employée — pas de recherche par nom d'hôtel comme pour
+// l'hôtel principal (matchHotel). On ne se prononce que si la ville tapée
+// correspond à l'une des zones connues (villesConnues, ex. ZONES_HOTEL) ;
+// sinon on ne montre rien plutôt que de risquer un faux positif/négatif.
+export function villeTransfertInfo(
+  ville: string,
+  taxes: TransfertTaxe[],
+  nbAdultes: number,
+  nbEnfants: number,
+  villesConnues: readonly string[]
+): VilleTransfertInfo {
+  const clean = ville.trim().toLowerCase();
+  if (!clean) return { kind: "inconnue" };
+  if (clean === "hurghada") return { kind: "hurghada" };
+  if (!villesConnues.some((v) => v.trim().toLowerCase() === clean)) return { kind: "inconnue" };
+  return { kind: "taxe", ville: ville.trim(), taxe: matchTransfertTaxe(taxes, ville, nbAdultes, nbEnfants) };
+}

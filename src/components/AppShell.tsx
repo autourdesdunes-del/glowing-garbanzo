@@ -85,6 +85,14 @@ const NOUVEAU_CLIENT_CONFIRME_ALERT_ACTIVE = false;
 // Sous-menu "Prospects" dans la sidebar (même principe que Suivis) : une
 // entrée par étape de la pipeline Kommo, plus "Toutes les étapes" (vue
 // kanban complète) et "Client perdu" pour surveiller les pertes.
+// Traduction arabe des deux entrées fixes seulement — les étapes de la
+// pipeline Kommo (PROSPECT_STATUTS) sont des libellés métier arbitraires
+// définis côté Kommo, pas traduits ici pour ne pas introduire un décalage
+// avec le vrai nom de l'étape.
+const PROSPECTS_SUBS_AR: Record<string, string> = {
+  toutes: "كل المراحل",
+  "Client perdu": "عميل مفقود",
+};
 const PROSPECTS_SUBS = [
   { key: "toutes", label: "Toutes les étapes" },
   ...PROSPECT_STATUTS.map((s) => ({ key: s, label: s })),
@@ -232,33 +240,36 @@ function IconMenu() {
 }
 
 const PLANNING_SUBS = [
-  { key: "aujourdhui", label: "Aujourd'hui" },
-  { key: "demain", label: "Demain" },
-  { key: "calendrier", label: "Calendrier" },
-  { key: "par_activite", label: "Calendrier par activité" },
+  { key: "aujourdhui", label: "Aujourd'hui", labelAr: "اليوم" },
+  { key: "demain", label: "Demain", labelAr: "غدًا" },
+  { key: "calendrier", label: "Calendrier", labelAr: "التقويم" },
+  { key: "par_activite", label: "Calendrier par activité", labelAr: "التقويم حسب النشاط" },
 ] as const;
 type PlanningSub = (typeof PLANNING_SUBS)[number]["key"];
 
 const HELP_SUBS = [
-  { key: "hotels", label: "Localisation des hôtels" },
-  { key: "taxes", label: "Taxes de transfert" },
-  { key: "promos", label: "Codes promo" },
+  { key: "hotels", label: "Localisation des hôtels", labelAr: "مواقع الفنادق" },
+  { key: "taxes", label: "Taxes de transfert", labelAr: "رسوم النقل" },
+  { key: "promos", label: "Codes promo", labelAr: "أكواد الخصم" },
 ] as const;
 type HelpSub = (typeof HELP_SUBS)[number]["key"];
 
-const TABS: { key: Mode; label: string; icon: () => React.ReactElement }[] = [
-  { key: "dashboard", label: "Tableau de bord", icon: IconHome },
-  { key: "team", label: "Clients", icon: IconUsers },
-  { key: "prospects", label: "Prospects", icon: IconTarget },
-  { key: "catalogue", label: "Catalogue", icon: IconBook },
-  { key: "suivis", label: "Suivis", icon: IconChecklist },
-  { key: "planning", label: "Réservations", icon: IconCalendar },
-  { key: "rh", label: "Planning équipe", icon: IconClipboard },
-  { key: "generateur", label: "Générateur de programme", icon: IconSparkles },
-  { key: "preview", label: "Aperçu client", icon: IconEye },
-  { key: "help", label: "HELP", icon: IconHelp },
-  { key: "direction", label: "Direction", icon: IconShield },
-  { key: "manager", label: "Manager", icon: IconStar },
+// labelAr : traduction arabe affichée en plus (petit, sous/à côté du
+// libellé français) pour l'équipe Égypte (Hossam, Bodé) — voir
+// `arabicMode` plus bas, dérivé de leur nav_masque.
+const TABS: { key: Mode; label: string; labelAr: string; icon: () => React.ReactElement }[] = [
+  { key: "dashboard", label: "Tableau de bord", labelAr: "لوحة التحكم", icon: IconHome },
+  { key: "team", label: "Clients", labelAr: "العملاء", icon: IconUsers },
+  { key: "prospects", label: "Prospects", labelAr: "العملاء المحتملون", icon: IconTarget },
+  { key: "catalogue", label: "Catalogue", labelAr: "الكتالوج", icon: IconBook },
+  { key: "suivis", label: "Suivis", labelAr: "المتابعات", icon: IconChecklist },
+  { key: "planning", label: "Réservations", labelAr: "الحجوزات", icon: IconCalendar },
+  { key: "rh", label: "Planning équipe", labelAr: "جدول الفريق", icon: IconClipboard },
+  { key: "generateur", label: "Générateur de programme", labelAr: "منشئ البرنامج", icon: IconSparkles },
+  { key: "preview", label: "Aperçu client", labelAr: "معاينة العميل", icon: IconEye },
+  { key: "help", label: "HELP", labelAr: "مساعدة", icon: IconHelp },
+  { key: "direction", label: "Direction", labelAr: "الإدارة", icon: IconShield },
+  { key: "manager", label: "Manager", labelAr: "المدير", icon: IconStar },
 ];
 
 function fmtDate(dateStr: string | null) {
@@ -459,6 +470,10 @@ function AppShellInner({
   const effectiveNavMasque = viewAs === "moi" ? navMasque : (activePermsProfile?.nav_masque ?? []);
   const effectiveSuivisVisibles =
     viewAs === "moi" ? suivisVisibles : (activePermsProfile?.suivis_visibles ?? null);
+  // Équipe Égypte (Hossam, Bodé) : seuls comptes avec un nav_masque non vide
+  // aujourd'hui — sert de signal pour afficher la traduction arabe en plus
+  // du libellé français dans toute la sidebar (onglets + sous-onglets).
+  const arabicMode = effectiveNavMasque.length > 0;
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
@@ -1870,7 +1885,14 @@ function AppShellInner({
                 }`}
               >
                 <Icon />
-                {t.label}
+                <span className="flex min-w-0 flex-col items-start leading-tight">
+                  <span className="truncate">{t.label}</span>
+                  {arabicMode && (
+                    <span dir="rtl" className="truncate text-[10px] font-normal text-[#999999]">
+                      {t.labelAr}
+                    </span>
+                  )}
+                </span>
               </button>
               {t.key === "suivis" && active && (
                 <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
@@ -1889,7 +1911,14 @@ function AppShellInner({
                             : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
                         }`}
                       >
-                        <span>{s.label}</span>
+                        <span className="flex min-w-0 flex-col items-start leading-tight">
+                          <span className="truncate">{s.label}</span>
+                          {arabicMode && (
+                            <span dir="rtl" className="truncate text-[10px] font-normal text-[#999999]">
+                              {s.labelAr}
+                            </span>
+                          )}
+                        </span>
                         {s.key === "paypal" && paypalPaiementsNonRattaches > 0 && (
                           <span className="rounded-full bg-[#EE0000] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                             +{paypalPaiementsNonRattaches}
@@ -1915,7 +1944,14 @@ function AppShellInner({
                               : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
                           }`}
                         >
-                          <span>{s.label}</span>
+                          <span className="flex min-w-0 flex-col items-start leading-tight">
+                            <span className="truncate">{s.label}</span>
+                            {arabicMode && (
+                              <span dir="rtl" className="truncate text-[10px] font-normal text-[#999999]">
+                                {s.labelAr}
+                              </span>
+                            )}
+                          </span>
                         </button>
                       ))}
                     </>
@@ -1931,13 +1967,18 @@ function AppShellInner({
                         setPlanningSub(s.key);
                         setMobileMenuOpen(false);
                       }}
-                      className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                      className={`flex w-full flex-col items-start rounded-[6px] px-2 py-1.5 text-left text-xs font-medium leading-tight transition ${
                         planningSub === s.key
                           ? "bg-[#fafafa] text-[#171717]"
                           : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
                       }`}
                     >
-                      {s.label}
+                      <span className="truncate">{s.label}</span>
+                      {arabicMode && (
+                        <span dir="rtl" className="truncate text-[10px] font-normal text-[#999999]">
+                          {s.labelAr}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -1991,13 +2032,18 @@ function AppShellInner({
                         setProspectsSub(s.key);
                         setMobileMenuOpen(false);
                       }}
-                      className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                      className={`flex w-full flex-col items-start rounded-[6px] px-2 py-1.5 text-left text-xs font-medium leading-tight transition ${
                         prospectsSub === s.key
                           ? "bg-[#fafafa] text-[#171717]"
                           : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
                       }`}
                     >
-                      {s.label}
+                      <span className="truncate">{s.label}</span>
+                      {arabicMode && PROSPECTS_SUBS_AR[s.key] && (
+                        <span dir="rtl" className="truncate text-[10px] font-normal text-[#999999]">
+                          {PROSPECTS_SUBS_AR[s.key]}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -2307,6 +2353,9 @@ function AppShellInner({
               catalogue={catalogue}
               incidents={allIncidents}
               onOpenIncidents={openIncidents}
+              showTeamShiftsToday={effectiveNavMasque.includes("rh")}
+              teamPlanningShifts={teamPlanningShifts}
+              teamProfiles={teamProfiles}
             />
           )}
         </div>

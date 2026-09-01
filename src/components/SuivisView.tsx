@@ -296,20 +296,27 @@ function avisMessage(nom: string) {
 // le client directement, ou c'est urgent), "suivi_du_suivi" est du
 // contrôle/admin en second plan — pas moins nécessaire, juste pas la
 // première chose à regarder en ouvrant Suivis.
+// labelAr : traduction arabe affichée en plus pour l'équipe Égypte
+// (Hossam, Bodé) — voir `arabicMode` dans AppShell.tsx.
 export const SUIVIS_SUBS = [
-  { key: "j1", label: "Pick-ups (J-1)", groupe: "important" },
-  { key: "chambres", label: "Numéros de chambre", groupe: "important" },
-  { key: "rdv", label: "RDV paiements", groupe: "important" },
-  { key: "appels", label: "Appels", groupe: "important" },
-  { key: "billets", label: "Billets d'avion", groupe: "important" },
-  { key: "paypal", label: "Paiements PayPal", groupe: "important" },
-  { key: "incidents", label: "Incidents", groupe: "important" },
-  { key: "verifs", label: "Vérification de dossier", groupe: "suivi_du_suivi" },
-  { key: "activites", label: "Activités en attente", groupe: "suivi_du_suivi" },
-  { key: "attente48h", label: "Client sans réponse depuis 48h", groupe: "suivi_du_suivi" },
-  { key: "remb", label: "Remboursements", groupe: "suivi_du_suivi" },
-  { key: "aurevoir", label: "Au revoir", groupe: "suivi_du_suivi" },
-  { key: "avis", label: "Avis clients", groupe: "suivi_du_suivi" },
+  { key: "j1", label: "Pick-ups (J-1)", labelAr: "الاستقبال (ي-1)", groupe: "important" },
+  { key: "chambres", label: "Numéros de chambre", labelAr: "أرقام الغرف", groupe: "important" },
+  { key: "rdv", label: "RDV paiements", labelAr: "مواعيد الدفع", groupe: "important" },
+  { key: "appels", label: "Appels", labelAr: "المكالمات", groupe: "important" },
+  { key: "billets", label: "Billets d'avion", labelAr: "تذاكر الطيران", groupe: "important" },
+  { key: "paypal", label: "Paiements PayPal", labelAr: "مدفوعات PayPal", groupe: "important" },
+  { key: "incidents", label: "Incidents", labelAr: "الحوادث", groupe: "important" },
+  { key: "verifs", label: "Vérification de dossier", labelAr: "التحقق من الملف", groupe: "suivi_du_suivi" },
+  { key: "activites", label: "Activités en attente", labelAr: "الأنشطة المعلقة", groupe: "suivi_du_suivi" },
+  {
+    key: "attente48h",
+    label: "Client sans réponse depuis 48h",
+    labelAr: "عميل بدون رد منذ 48 ساعة",
+    groupe: "suivi_du_suivi",
+  },
+  { key: "remb", label: "Remboursements", labelAr: "المبالغ المستردة", groupe: "suivi_du_suivi" },
+  { key: "aurevoir", label: "Au revoir", labelAr: "رسالة الوداع", groupe: "suivi_du_suivi" },
+  { key: "avis", label: "Avis clients", labelAr: "آراء العملاء", groupe: "suivi_du_suivi" },
 ] as const;
 
 export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"];

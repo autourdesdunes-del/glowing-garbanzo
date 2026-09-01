@@ -7,6 +7,7 @@ import {
   Client,
   Incident,
   PlanningShift,
+  Profile,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -247,6 +248,9 @@ export default function DashboardView({
   catalogue,
   incidents,
   onOpenIncidents,
+  showTeamShiftsToday,
+  teamPlanningShifts,
+  teamProfiles,
 }: {
   userEmail: string;
   // Simulation "Aperçu vu par" (AppShell) : affiche le shift du jour de
@@ -278,6 +282,13 @@ export default function DashboardView({
   catalogue: CatalogueItem[];
   incidents: Incident[];
   onOpenIncidents: () => void;
+  // Équipe Égypte (Hossam, Bodé) : pas d'accès à Planning équipe, donc pas
+  // d'autre moyen de savoir qui contacter aujourd'hui — ce petit récap
+  // compense en listant les shifts du jour directement sur le tableau de
+  // bord. true seulement quand "rh" est dans leur nav_masque (AppShell).
+  showTeamShiftsToday: boolean;
+  teamPlanningShifts: PlanningShift[];
+  teamProfiles: Profile[];
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
@@ -566,6 +577,41 @@ export default function DashboardView({
           onOpenClient={onOpenClient}
         />
       </div>
+
+      {showTeamShiftsToday && (
+        <div className="rounded-[10px] border border-[#eaeaea] bg-white p-4">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+            Qui travaille aujourd&apos;hui
+          </div>
+          {(() => {
+            const todaysShifts = teamPlanningShifts
+              .filter((s) => s.date === todayStr && (s.statut === "travail" || s.statut === "superviseur"))
+              .map((s) => ({
+                shift: s,
+                profile: teamProfiles.find((p) => p.id === s.user_id),
+              }))
+              .filter((x) => x.profile)
+              .sort((a, b) => a.shift.shift_debut.localeCompare(b.shift.shift_debut));
+            if (!todaysShifts.length) {
+              return <p className="text-sm text-[#666666]">Aucun shift renseigné pour aujourd&apos;hui.</p>;
+            }
+            return (
+              <ul className="space-y-1 text-sm">
+                {todaysShifts.map(({ shift, profile }) => (
+                  <li key={shift.id} className="flex items-center gap-2 text-[#171717]">
+                    <span className="font-medium">{profile!.prenom || profile!.email}</span>
+                    <span className="text-[#666666]">
+                      {shift.statut === "superviseur"
+                        ? "Superviseur"
+                        : `${shift.shift_debut} – ${shift.shift_fin}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
+        </div>
+      )}
 
       <div className="flex">
         <Metric first label="Clients en Égypte" value={String(clientsInEgypt.length)} tone="default" />

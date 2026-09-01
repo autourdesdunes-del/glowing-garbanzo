@@ -273,9 +273,7 @@ function contactViaSummary(client: Client) {
 }
 
 function whatsappSummary(client: Client) {
-  const parts = [client.telephone || "Non renseigné"];
-  if (client.email && client.canal !== "Email") parts.push(client.email);
-  return parts.join(" · ");
+  return client.telephone || "Non renseigné";
 }
 
 type StepProps = {
@@ -834,9 +832,12 @@ export function ContactStep({
         <button
           type="button"
           onClick={() => setWhatsappModalOpen(true)}
-          className="text-left text-sm text-[#171717] hover:underline"
+          className="flex w-full items-center justify-between gap-2 text-left text-sm text-[#171717] hover:underline"
         >
-          {whatsappSummary(client)}
+          <span>{whatsappSummary(client)}</span>
+          {client.email && client.canal !== "Email" && (
+            <span className="text-[#666666]">Email : {client.email}</span>
+          )}
         </button>
       </PropertyRow>
 

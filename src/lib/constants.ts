@@ -46,6 +46,11 @@ export const RELATIONS = [
 // montant de l'acompte.
 export const PAYPAL_ME_LINK = "https://paypal.me/autourdesduneshurgha";
 
+// Adresse PayPal utilisée pour recevoir les acomptes — distincte de
+// AGENCY_CONTACT.email (contact général), vue dans les échanges Kommo avec
+// les clients (ex. conversation Mathieu Pistre du 2026-09-01).
+export const PAYPAL_EMAIL = "autourdesdunespaiements@gmail.com";
+
 export const MODES_PAIEMENT = [
   "PayPal",
   "Espèces EUR",

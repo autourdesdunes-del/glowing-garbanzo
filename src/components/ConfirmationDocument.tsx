@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { agesLabel, reservationsActives, resaTotalMontant } from "@/lib/resa";
-import { PAYPAL_ME_LINK, AGENCY_CONTACT } from "@/lib/constants";
+import { PAYPAL_ME_LINK, PAYPAL_EMAIL } from "@/lib/constants";
 import { PAYPAL_ENTRE_PROCHES_1, PAYPAL_ENTRE_PROCHES_2 } from "@/lib/paypalScreenshots";
 
 // Un PNG (Instagram) est une image plate — aucun lien ne peut jamais y être
@@ -170,8 +170,13 @@ function ConfirmationTemplate({
           <div style={{ background: "#F2E6D2", borderRadius: 10, padding: "15px 17px" }}>
             {client.paiement_type === "acompte" && (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15.5, marginBottom: 10 }}>
-                  <span>Acompte à régler via · {client.acompte_mode || "—"}</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 15.5, marginBottom: 10 }}>
+                  <span>
+                    Acompte à régler via · {client.acompte_mode || "—"}
+                    {acomptePaypal && (
+                      <span style={{ fontSize: 11.5, color: "#948C7A", marginLeft: 6 }}>({PAYPAL_EMAIL})</span>
+                    )}
+                  </span>
                   <span style={{ fontWeight: 700 }}>{euros(acompteMontant)}</span>
                 </div>
                 {acomptePaypal && (
@@ -214,7 +219,7 @@ function ConfirmationTemplate({
                       </div>
                     ) : (
                       <div style={{ fontSize: 13.5, color: "#5C5342", marginBottom: 10 }}>
-                        Adresse PayPal : {AGENCY_CONTACT.email}
+                        Adresse PayPal : {PAYPAL_EMAIL}
                       </div>
                     )}
                     <div
@@ -417,10 +422,23 @@ export default function ConfirmationDocumentStage({
             img.onload = resolve;
             img.src = dataUrl;
           });
+          // jsPDF embarque son propre décodeur PNG (pas les décodeurs natifs
+          // du navigateur) qui échoue silencieusement sur certains PNG
+          // composites — ici, celui produit en combinant plusieurs <img>
+          // JPEG dans un même canvas via toPng : le PNG s'affiche
+          // parfaitement dans le navigateur, mais les captures "entre
+          // proches" ressortaient blanches une fois collées dans le PDF.
+          // Repasser par un canvas en JPEG contourne ce décodeur PNG limité.
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0);
+          const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.92);
           const pageWidth = 210;
           const pageHeight = (img.height / img.width) * pageWidth;
           const doc = new jsPDF({ unit: "mm", format: [pageWidth, pageHeight] });
-          doc.addImage(dataUrl, "PNG", 0, 0, pageWidth, pageHeight);
+          doc.addImage(jpegDataUrl, "JPEG", 0, 0, pageWidth, pageHeight);
           const scale = pageWidth / containerRect.width;
           linkRects.forEach(({ url, rect }) => {
             if (!url) return;

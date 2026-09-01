@@ -176,7 +176,7 @@ function ConfirmationTemplate({
                 {acomptePaypal && (
                   <>
                     {paypalUrl ? (
-                      <div style={{ display: "flex", gap: 10, marginBottom: 10, alignItems: "stretch" }}>
+                      <div style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
                         <a
                           href={paypalUrl}
                           style={{
@@ -187,10 +187,10 @@ function ConfirmationTemplate({
                             textAlign: "center",
                             background: "#211C16",
                             color: "#FFFFFF",
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: 600,
                             borderRadius: 8,
-                            padding: 11,
+                            padding: "9px 10px",
                             textDecoration: "none",
                           }}
                         >
@@ -201,16 +201,13 @@ function ConfirmationTemplate({
                             style={{
                               background: "#FFFFFF",
                               borderRadius: 8,
-                              padding: 6,
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              justifyContent: "center",
+                              padding: 3,
+                              flexShrink: 0,
+                              lineHeight: 0,
                             }}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={qrDataUrl} alt="QR code de paiement PayPal" style={{ width: 64, height: 64 }} />
-                            <div style={{ fontSize: 9, color: "#948C7A", marginTop: 2 }}>ou scannez</div>
+                            <img src={qrDataUrl} alt="QR code de paiement PayPal" style={{ width: 38, height: 38 }} />
                           </div>
                         )}
                       </div>
@@ -240,18 +237,18 @@ function ConfirmationTemplate({
                         2) Si vous ne trouvez pas l&apos;option « entre proches », contactez-nous avant de clôturer
                         l&apos;envoi du paiement.
                       </div>
-                      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src="/documents/paypal-entre-proches-1.jpg"
                           alt="Écran PayPal — Entre proches"
-                          style={{ width: "50%", borderRadius: 6, border: "0.5px solid #EBE6D9" }}
+                          style={{ width: 56, borderRadius: 4, border: "0.5px solid #EBE6D9" }}
                         />
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src="/documents/paypal-entre-proches-2.jpg"
                           alt="Écran PayPal — Pour vos proches coché"
-                          style={{ width: "50%", borderRadius: 6, border: "0.5px solid #EBE6D9" }}
+                          style={{ width: 56, borderRadius: 4, border: "0.5px solid #EBE6D9" }}
                         />
                       </div>
                       <div>3) Une fois le règlement effectué, envoyez-nous une capture d&apos;écran de la confirmation.</div>

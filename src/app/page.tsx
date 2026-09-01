@@ -12,7 +12,7 @@ export default async function Home() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, prenom")
+    .select("role, prenom, nav_masque, suivis_visibles")
     .eq("id", user.id)
     .single();
 
@@ -22,6 +22,8 @@ export default async function Home() {
       userId={user.id}
       role={profile?.role ?? "equipe"}
       prenom={profile?.prenom ?? ""}
+      navMasque={profile?.nav_masque ?? []}
+      suivisVisibles={profile?.suivis_visibles ?? null}
     />
   );
 }

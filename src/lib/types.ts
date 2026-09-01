@@ -519,6 +519,13 @@ export type Profile = {
   // Compte Kommo de l'employée (chacune a le sien) — sert à attribuer les
   // messages sortants Kommo à la bonne employée pour le temps de réponse.
   kommo_user_id: number | null;
+  // Équipe Égypte (Hossam, Bodé) : accès différent d'une personne à l'autre,
+  // pas un simple rôle binaire — voir migration 0092.
+  // nav_masque : clés d'onglets (Mode) cachées dans la sidebar.
+  nav_masque: string[];
+  // suivis_visibles : sous-onglets Suivis autorisés (null = tous, comme pour
+  // les comptes existants).
+  suivis_visibles: string[] | null;
 };
 
 // Un échange client→équipe apparié côté Kommo (message entrant suivi du

@@ -287,16 +287,27 @@ export default function AppShell({
   userId,
   role,
   prenom,
+  navMasque,
+  suivisVisibles,
 }: {
   userEmail: string;
   userId: string;
   role: "direction" | "equipe";
   prenom: string;
+  navMasque: string[];
+  suivisVisibles: string[] | null;
 }) {
   return (
     <ToastProvider>
       <ConfirmProvider>
-        <AppShellInner userEmail={userEmail} userId={userId} role={role} prenom={prenom} />
+        <AppShellInner
+          userEmail={userEmail}
+          userId={userId}
+          role={role}
+          prenom={prenom}
+          navMasque={navMasque}
+          suivisVisibles={suivisVisibles}
+        />
       </ConfirmProvider>
     </ToastProvider>
   );
@@ -307,11 +318,15 @@ function AppShellInner({
   userId,
   role,
   prenom,
+  navMasque,
+  suivisVisibles,
 }: {
   userEmail: string;
   userId: string;
   role: "direction" | "equipe";
   prenom: string;
+  navMasque: string[];
+  suivisVisibles: string[] | null;
 }) {
   const isDirection = role === "direction";
   // La rubrique Manager (activités en attente de validation, etc.) est
@@ -401,6 +416,11 @@ function AppShellInner({
   // son prénom plutôt que par une clé "manager" à part.
   const sylvieProfile = teamProfiles.find((p) => p.prenom.trim().toLowerCase() === "sylvie");
   const sylvieViewKey = sylvieProfile?.id ?? "manager";
+  // Hossam a le rôle Direction (accès marges/CA), mais une navigation
+  // restreinte comme Bodé (équipe Égypte) — son profil n'apparaît donc pas
+  // dans autresEquipeProfiles (filtré sur role === "equipe"), on va le
+  // chercher à part pour la simulation "Vue Hossam" ci-dessous.
+  const hossamProfile = teamProfiles.find((p) => p.prenom.trim().toLowerCase() === "hossam");
   const autresEquipeProfiles = teamProfiles.filter(
     (p) => p.role === "equipe" && p.prenom.trim().toLowerCase() !== "sylvie"
   );
@@ -428,6 +448,17 @@ function AppShellInner({
   const simulatedProfile = teamProfiles.find((p) => p.id === viewAs);
   const effectiveUserEmail = simulatedProfile?.email ?? userEmail;
   const effectiveUserId = simulatedProfile?.id ?? userId;
+  // Navigation restreinte effective : le vrai compte connecté (navMasque/
+  // suivisVisibles, passés par page.tsx) sur "moi", ou celle de la
+  // personne simulée sinon (Bodé et les autres via simulatedProfile,
+  // Hossam via hossamProfile car son id ne matche jamais la clé "hossam").
+  // Ne restreint jamais la Direction "pour de vrai" (isDirection && "moi") :
+  // seule la simulation applique une restriction à Mélanie/Hossam.
+  const activePermsProfile =
+    viewAs === "moi" ? null : viewAs === "hossam" ? hossamProfile : simulatedProfile;
+  const effectiveNavMasque = viewAs === "moi" ? navMasque : (activePermsProfile?.nav_masque ?? []);
+  const effectiveSuivisVisibles =
+    viewAs === "moi" ? suivisVisibles : (activePermsProfile?.suivis_visibles ?? null);
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
@@ -704,7 +735,18 @@ function AppShellInner({
   useEffect(() => {
     if (!effectiveIsDirection && mode === "direction") setMode("dashboard");
     if (!effectiveIsManager && mode === "manager") setMode("dashboard");
-  }, [effectiveIsDirection, effectiveIsManager, mode]);
+    if (effectiveNavMasque.includes(mode)) setMode("dashboard");
+  }, [effectiveIsDirection, effectiveIsManager, effectiveNavMasque, mode]);
+
+  // Équipe Égypte : si le sous-onglet Suivis courant n'est plus autorisé
+  // (changement de "Aperçu vu par", ou premier chargement d'un compte
+  // restreint), on retombe sur le premier sous-onglet encore visible.
+  useEffect(() => {
+    if (effectiveSuivisVisibles && !effectiveSuivisVisibles.includes(suivisSub)) {
+      const fallback = SUIVIS_SUBS.find((s) => effectiveSuivisVisibles.includes(s.key));
+      if (fallback) setSuivisSub(fallback.key);
+    }
+  }, [effectiveSuivisVisibles, suivisSub]);
 
   // Comptes "en attente" par catégorie (autorisations, clients confirmés
   // Kommo non pris en charge, activités en Brouillon, doublons, prospects
@@ -1783,6 +1825,10 @@ function AppShellInner({
   const paypalPaiementsNonRattaches = paypalPaiements.filter((p) => !p.rattache_client_id).length;
 
   const currentTab = TABS.find((t) => t.key === mode);
+  const visibleSuivisSubs = effectiveSuivisVisibles
+    ? SUIVIS_SUBS.filter((s) => effectiveSuivisVisibles.includes(s.key))
+    : SUIVIS_SUBS;
+  const visibleSuivisDuSuivi = visibleSuivisSubs.filter((s) => s.groupe === "suivi_du_suivi");
 
   // Contenu de la navigation (logo, onglets + sous-onglets, "Aperçu vu par",
   // statut de synchro) — partagé entre la sidebar fixe (desktop, ≥md) et le
@@ -1802,7 +1848,10 @@ function AppShellInner({
 
       <nav className="flex-1 space-y-0.5 px-2.5">
         {TABS.filter(
-          (t) => (t.key !== "direction" || effectiveIsDirection) && (t.key !== "manager" || effectiveIsManager)
+          (t) =>
+            (t.key !== "direction" || effectiveIsDirection) &&
+            (t.key !== "manager" || effectiveIsManager) &&
+            !effectiveNavMasque.includes(t.key)
         ).map((t) => {
           const Icon = t.icon;
           const active = mode === t.key;
@@ -1825,46 +1874,52 @@ function AppShellInner({
               </button>
               {t.key === "suivis" && active && (
                 <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                  {SUIVIS_SUBS.filter((s) => s.groupe === "important").map((s) => (
-                    <button
-                      key={s.key}
-                      onClick={() => {
-                        setSuivisSub(s.key);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                        suivisSub === s.key
-                          ? "bg-[#fafafa] text-[#171717]"
-                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                      }`}
-                    >
-                      <span>{s.label}</span>
-                      {s.key === "paypal" && paypalPaiementsNonRattaches > 0 && (
-                        <span className="rounded-full bg-[#EE0000] px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                          +{paypalPaiementsNonRattaches}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                  <div className="mb-0.5 mt-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
-                    Suivi du suivi
-                  </div>
-                  {SUIVIS_SUBS.filter((s) => s.groupe === "suivi_du_suivi").map((s) => (
-                    <button
-                      key={s.key}
-                      onClick={() => {
-                        setSuivisSub(s.key);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                        suivisSub === s.key
-                          ? "bg-[#fafafa] text-[#171717]"
-                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                      }`}
-                    >
-                      <span>{s.label}</span>
-                    </button>
-                  ))}
+                  {visibleSuivisSubs
+                    .filter((s) => s.groupe === "important")
+                    .map((s) => (
+                      <button
+                        key={s.key}
+                        onClick={() => {
+                          setSuivisSub(s.key);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                          suivisSub === s.key
+                            ? "bg-[#fafafa] text-[#171717]"
+                            : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                        }`}
+                      >
+                        <span>{s.label}</span>
+                        {s.key === "paypal" && paypalPaiementsNonRattaches > 0 && (
+                          <span className="rounded-full bg-[#EE0000] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            +{paypalPaiementsNonRattaches}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  {visibleSuivisDuSuivi.length > 0 && (
+                    <>
+                      <div className="mb-0.5 mt-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                        Suivi du suivi
+                      </div>
+                      {visibleSuivisDuSuivi.map((s) => (
+                        <button
+                          key={s.key}
+                          onClick={() => {
+                            setSuivisSub(s.key);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                            suivisSub === s.key
+                              ? "bg-[#fafafa] text-[#171717]"
+                              : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                          }`}
+                        >
+                          <span>{s.label}</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
               {t.key === "planning" && active && (

@@ -147,6 +147,7 @@ export type Reservation = {
   ile_selectionnee_2: string;
   pu_adulte: number;
   pu_enfant: number;
+  pu_bebe: number;
   pu_accompagnateur: number;
   pu_enfant_3ans: number;
   tarif_mode: "personne" | "groupe";
@@ -156,10 +157,12 @@ export type Reservation = {
   participants_mode: "tous" | "custom";
   participants_adultes: number;
   participants_enfants: number;
+  participants_bebes: number;
   participants_accompagnateurs: number;
   participants_enfants_3ans: number;
   participants_extra1: number;
   participants_extra_enfants: number;
+  participants_extra_bebes: number;
   participants_noms: string;
   pax_override: string;
   transfert_inclus: boolean;

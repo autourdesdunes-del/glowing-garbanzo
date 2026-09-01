@@ -35,6 +35,7 @@ import {
   joursDisponiblesMismatch,
   needsMomentSpeedboat,
   participantsFor,
+  resaBreakdown,
   resaTotalMontant,
   speedboatIleTitre,
   speedboatIleType,
@@ -413,6 +414,7 @@ export default function AddActivityWizard({
         catalogue_item_id: item.id,
         pu_adulte: item.pu_adulte,
         pu_enfant: item.pu_enfant,
+        pu_bebe: item.pu_bebe,
         pu_accompagnateur: item.pu_accompagnateur,
         pu_enfant_3ans: item.pu_enfant_3ans,
         tarif_mode: item.tarif_mode,
@@ -1273,6 +1275,16 @@ export default function AddActivityWizard({
                 className="input"
               />
             </Field>
+            <Field label="Bébés participants">
+              <input
+                type="number"
+                value={r.participants_bebes}
+                onChange={(e) =>
+                  onUpdateReservation(r.id, { participants_bebes: Number(e.target.value) })
+                }
+                className="input"
+              />
+            </Field>
             <Field label="Accompagnateurs">
               <input
                 type="number"
@@ -1347,15 +1359,17 @@ export default function AddActivityWizard({
           // pré-remplissage ici, le clic sur "Forfait groupe" (qui fait le
           // même travail) n'a jamais lieu puisque le mode est déjà actif.
           if (r.tarif_mode === "groupe") {
-            const { nbAd, nbEnf } = participantsFor(r, client);
-            const { extra1, extraEnfants } = groupeExtraCounts(
+            const { nbAd, nbEnf, nbBebe } = participantsFor(r, client);
+            const { extra1, extraEnfants, extraBebes } = groupeExtraCounts(
               nbAd,
               nbEnf,
-              catalogueItem?.prix_groupe_base_pax ?? 0
+              catalogueItem?.prix_groupe_base_pax ?? 0,
+              nbBebe
             );
             onUpdateReservation(r.id, {
               participants_extra1: extra1,
               participants_extra_enfants: extraEnfants,
+              participants_extra_bebes: extraBebes,
             });
           }
           setStep(steps[steps.indexOf("participants") + 1]);
@@ -1441,8 +1455,9 @@ export default function AddActivityWizard({
   }
 
   if (step === "tarifs") {
-    const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+    const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
     const total = resaTotalMontant(r, client, options, tarifs);
+    const breakdown = resaBreakdown(r, client, options, tarifs);
 
     const matchTransfertTarif = (zone: string, vehicule: string) =>
       catTransfertTarifs.find((t) => t.zone === zone && t.vehicule === vehicule);
@@ -1576,15 +1591,17 @@ export default function AddActivityWizard({
               // qu'elle vient déjà de sélectionner. Le forfait de base
               // couvre déjà prix_groupe_base_pax personnes, donc seuls les
               // adultes au-delà comptent en supplément.
-              const { extra1, extraEnfants } = groupeExtraCounts(
+              const { extra1, extraEnfants, extraBebes } = groupeExtraCounts(
                 nbAd,
                 nbEnf,
-                catalogueItem?.prix_groupe_base_pax ?? 0
+                catalogueItem?.prix_groupe_base_pax ?? 0,
+                nbBebe
               );
               onUpdateReservation(r.id, {
                 tarif_mode: "groupe",
                 participants_extra1: extra1,
                 participants_extra_enfants: extraEnfants,
+                participants_extra_bebes: extraBebes,
               });
             }}
             className={`rounded-full border px-3 py-1 text-xs ${
@@ -1620,6 +1637,16 @@ export default function AddActivityWizard({
                   />
                 </Field>
               )}
+              {nbBebe > 0 && (
+                <Field label="PU bébé (€)">
+                  <input
+                    type="number"
+                    value={r.pu_bebe}
+                    onChange={(e) => onUpdateReservation(r.id, { pu_bebe: Number(e.target.value) })}
+                    className="input"
+                  />
+                </Field>
+              )}
               {nbAcc > 0 && (
                 <Field label="PU accompagnateur (€)">
                   <input
@@ -1650,7 +1677,7 @@ export default function AddActivityWizard({
                   />
                 </Field>
               )}
-              {nbAd === 0 && nbEnf === 0 && nbAcc === 0 && nbEnf3 === 0 && (
+              {nbAd === 0 && nbEnf === 0 && nbBebe === 0 && nbAcc === 0 && nbEnf3 === 0 && (
                 <p className="col-span-2 text-sm text-neutral-400">
                   Aucun participant à tarifer pour l&apos;instant — vérifie l&apos;étape précédente.
                 </p>
@@ -1658,61 +1685,112 @@ export default function AddActivityWizard({
             </>
           ) : (
             <>
-              <Field label="Prix forfait de base (€)">
-                <input
-                  type="number"
-                  value={r.prix_groupe_base}
-                  onChange={(e) =>
-                    onUpdateReservation(r.id, { prix_groupe_base: Number(e.target.value) })
-                  }
-                  className="input"
-                />
-              </Field>
-              <Field label="PU personne supp. (€)">
-                <input
-                  type="number"
-                  value={r.prix_groupe_extra1}
-                  onChange={(e) =>
-                    onUpdateReservation(r.id, { prix_groupe_extra1: Number(e.target.value) })
-                  }
-                  className="input"
-                />
-              </Field>
-              {nbEnf > 0 && (
-                <Field label="PU enfant supp. (€)">
+              <div className="col-span-2 rounded-md border border-[#EF9F27] bg-[#FAEEDA] p-2">
+                <Field label="Prix forfait de base (€)">
                   <input
                     type="number"
-                    value={r.prix_groupe_extra_enfant}
+                    value={r.prix_groupe_base}
                     onChange={(e) =>
-                      onUpdateReservation(r.id, { prix_groupe_extra_enfant: Number(e.target.value) })
+                      onUpdateReservation(r.id, { prix_groupe_base: Number(e.target.value) })
                     }
-                    className="input"
+                    className="input w-28"
                   />
                 </Field>
+              </div>
+              <div
+                className={`col-span-2 rounded-md border p-2 ${
+                  (Number(r.participants_extra1) || 0) > 0
+                    ? "border-[#EF9F27] bg-[#FAEEDA]"
+                    : "border-neutral-200 opacity-50"
+                }`}
+              >
+                <Field label="PU personne supp. (€)">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={r.prix_groupe_extra1}
+                      onChange={(e) =>
+                        onUpdateReservation(r.id, { prix_groupe_extra1: Number(e.target.value) })
+                      }
+                      className="input w-20"
+                    />
+                    <span className="text-xs text-neutral-400">x</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={r.participants_extra1}
+                      onChange={(e) =>
+                        onUpdateReservation(r.id, { participants_extra1: Number(e.target.value) })
+                      }
+                      className="input w-16"
+                    />
+                    <span className="text-xs text-neutral-500">personne(s)</span>
+                  </div>
+                </Field>
+              </div>
+              {nbEnf > 0 && (
+                <div
+                  className={`col-span-2 rounded-md border p-2 ${
+                    (Number(r.participants_extra_enfants) || 0) > 0
+                      ? "border-[#EF9F27] bg-[#FAEEDA]"
+                      : "border-neutral-200 opacity-50"
+                  }`}
+                >
+                  <Field label="PU enfant supp. (€)">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={r.prix_groupe_extra_enfant}
+                        onChange={(e) =>
+                          onUpdateReservation(r.id, { prix_groupe_extra_enfant: Number(e.target.value) })
+                        }
+                        className="input w-20"
+                      />
+                      <span className="text-xs text-neutral-400">x</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={r.participants_extra_enfants}
+                        onChange={(e) =>
+                          onUpdateReservation(r.id, { participants_extra_enfants: Number(e.target.value) })
+                        }
+                        className="input w-16"
+                      />
+                      <span className="text-xs text-neutral-500">enfant(s)</span>
+                    </div>
+                  </Field>
+                </div>
               )}
-              <Field label="Nb personnes supp.">
-                <input
-                  type="number"
-                  min={0}
-                  value={r.participants_extra1}
-                  onChange={(e) =>
-                    onUpdateReservation(r.id, { participants_extra1: Number(e.target.value) })
-                  }
-                  className="input"
-                />
-              </Field>
-              {nbEnf > 0 && (
-                <Field label="Nb enfants supp.">
-                  <input
-                    type="number"
-                    min={0}
-                    value={r.participants_extra_enfants}
-                    onChange={(e) =>
-                      onUpdateReservation(r.id, { participants_extra_enfants: Number(e.target.value) })
-                    }
-                    className="input"
-                  />
-                </Field>
+              {nbBebe > 0 && (
+                <div
+                  className={`col-span-2 rounded-md border p-2 ${
+                    (Number(r.participants_extra_bebes) || 0) > 0
+                      ? "border-[#EF9F27] bg-[#FAEEDA]"
+                      : "border-neutral-200 opacity-50"
+                  }`}
+                >
+                  <Field label="PU bébé supp. (€)">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={r.pu_bebe}
+                        onChange={(e) => onUpdateReservation(r.id, { pu_bebe: Number(e.target.value) })}
+                        className="input w-20"
+                      />
+                      <span className="text-xs text-neutral-400">x</span>
+                      <input
+                        type="number"
+                        min={0}
+                        value={r.participants_extra_bebes}
+                        onChange={(e) =>
+                          onUpdateReservation(r.id, { participants_extra_bebes: Number(e.target.value) })
+                        }
+                        className="input w-16"
+                      />
+                      <span className="text-xs text-neutral-500">bébé(s)</span>
+                    </div>
+                  </Field>
+                </div>
               )}
             </>
           )}
@@ -1786,6 +1864,12 @@ export default function AddActivityWizard({
           )}
           <span>
             Total activité : <strong>{euros(total)} €</strong>
+            {breakdown.length > 0 && (
+              <span className="text-xs text-neutral-400">
+                {" "}
+                (= {breakdown.map((line) => `${euros(line.amount)} (${line.label})`).join(" + ")})
+              </span>
+            )}
           </span>
         </div>
 

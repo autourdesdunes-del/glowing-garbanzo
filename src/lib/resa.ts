@@ -749,10 +749,11 @@ export function isSafariQuadBase(nom: string) {
 // prix_groupe_base_pax personnes (des adultes en priorité) — seuls les
 // adultes au-delà de ce nombre sont "en supplément". Les enfants ne sont
 // jamais inclus dans le forfait de base, donc comptent tous en supplément.
-export function groupeExtraCounts(nbAd: number, nbEnf: number, basePax: number) {
+export function groupeExtraCounts(nbAd: number, nbEnf: number, basePax: number, nbBebe: number = 0) {
   return {
     extra1: Math.max(0, nbAd - (Number(basePax) || 0)),
     extraEnfants: nbEnf,
+    extraBebes: nbBebe,
   };
 }
 
@@ -778,6 +779,10 @@ export function participantsFor(r: Reservation, client: Client) {
     r.participants_mode === "tous" ? Number(client.adultes) || 0 : Number(r.participants_adultes) || 0;
   const nbEnf =
     r.participants_mode === "tous" ? Number(client.enfants) || 0 : Number(r.participants_enfants) || 0;
+  // Le bébé se déduit du séjour du client comme adulte/enfant en mode
+  // "tous" (c'est un vrai trait du séjour, pas propre à une activité).
+  const nbBebe =
+    r.participants_mode === "tous" ? Number(client.bebes) || 0 : Number(r.participants_bebes) || 0;
   // L'accompagnateur n'existe qu'au niveau d'une réservation précise (ex.
   // plongée) — pas de notion d'accompagnateur au niveau du séjour du
   // client, donc rien à récupérer en mode "tous".
@@ -786,7 +791,7 @@ export function participantsFor(r: Reservation, client: Client) {
   // en avion) se saisit au cas par cas sur la réservation, jamais déduit du
   // total d'enfants du séjour.
   const nbEnf3 = r.participants_mode === "tous" ? 0 : Number(r.participants_enfants_3ans) || 0;
-  return { nbAd, nbEnf, nbAcc, nbEnf3 };
+  return { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 };
 }
 
 // Activités "partagées" (un même véhicule/bateau pour plusieurs clients) où
@@ -865,19 +870,22 @@ export function resaTotalMontant(
   options: ReservationOption[] = [],
   tarifs: ReservationTarif[] = []
 ) {
-  const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+  const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
   // Forfait groupe (ex. speedboat, yacht) : le prix n'est pas par personne
   // mais un forfait de base pour un nombre de personnes inclus, plus un
   // tarif par personne supplémentaire et par enfant supplémentaire — ces
   // compteurs se saisissent au cas par cas, comme l'accompagnateur ou
-  // l'enfant 3 ans, jamais déduits du séjour du client.
+  // l'enfant 3 ans, jamais déduits du séjour du client. pu_bebe est
+  // réutilisé comme "PU bébé supp." en forfait groupe (comme le catalogue).
   const base =
     r.tarif_mode === "groupe"
       ? (Number(r.prix_groupe_base) || 0) +
         (Number(r.participants_extra1) || 0) * (Number(r.prix_groupe_extra1) || 0) +
-        (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0)
+        (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0) +
+        (Number(r.participants_extra_bebes) || 0) * (Number(r.pu_bebe) || 0)
       : nbAd * (Number(r.pu_adulte) || 0) +
         nbEnf * (Number(r.pu_enfant) || 0) +
+        nbBebe * (Number(r.pu_bebe) || 0) +
         nbAcc * (Number(r.pu_accompagnateur) || 0) +
         nbEnf3 * (Number(r.pu_enfant_3ans) || 0);
   const optionsTotal = options.reduce(
@@ -943,7 +951,7 @@ export function resaBreakdown(
   options: ReservationOption[] = [],
   tarifs: ReservationTarif[] = []
 ): ResaBreakdownLine[] {
-  const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+  const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
   const lines: ResaBreakdownLine[] = [];
 
   if (r.tarif_mode === "groupe") {
@@ -962,6 +970,14 @@ export function resaBreakdown(
         amount: (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0),
       });
     }
+    // pu_bebe est réutilisé comme "PU bébé supp." en forfait groupe (comme
+    // le fait déjà le catalogue) — pas toujours 0€ (ex. Le Caire en avion).
+    if (Number(r.participants_extra_bebes) || 0) {
+      lines.push({
+        label: `${fmtEuros(r.pu_bebe)} € x ${r.participants_extra_bebes} bébé(s) supp.`,
+        amount: (Number(r.participants_extra_bebes) || 0) * (Number(r.pu_bebe) || 0),
+      });
+    }
   } else {
     if (nbAd > 0) {
       lines.push({
@@ -975,14 +991,10 @@ export function resaBreakdown(
         amount: nbEnf * (Number(r.pu_enfant) || 0),
       });
     }
-    // Un bébé ne se facture jamais (aucun tarif bébé au niveau d'une
-    // réservation, contrairement au catalogue) — cette ligne à 0 € sert
-    // juste à montrer qu'il a bien été pris en compte, pas oublié.
-    if (r.participants_mode === "tous" && (Number(client.bebes) || 0) > 0) {
-      const nbBebe = Number(client.bebes) || 0;
+    if (nbBebe > 0) {
       lines.push({
-        label: `${fmtEuros(0)} € x ${nbBebe} bébé${nbBebe > 1 ? "s" : ""}`,
-        amount: 0,
+        label: `${fmtEuros(r.pu_bebe)} € x ${nbBebe} bébé${nbBebe > 1 ? "s" : ""}`,
+        amount: nbBebe * (Number(r.pu_bebe) || 0),
       });
     }
     if (nbAcc > 0) {

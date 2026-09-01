@@ -442,20 +442,31 @@ export default function ConfirmationDocumentStage({
       await new Promise((r) => setTimeout(r, 50));
       if (cancelled || !ref.current) return;
       // Les captures PayPal + le QR code sont des <img> ordinaires — sans
-      // attendre explicitement leur chargement, toPng peut rasteriser avant
-      // qu'ils soient décodés et les rendre invisibles dans le résultat
-      // (constaté : la photo "entre proches" absente du PDF/PNG généré).
+      // attendre explicitement leur chargement ET leur décodage, toPng peut
+      // rasteriser avant qu'ils soient prêts et les rendre invisibles dans
+      // le résultat (constaté plusieurs fois, de façon intermittente : la
+      // photo "entre proches" absente du PDF/PNG généré alors que tout est
+      // en data URI donc déjà "chargé" — img.complete peut être vrai avant
+      // que le décodage pour affichage soit réellement terminé, d'où
+      // decode() plutôt qu'un simple check de complete).
       const imgs = Array.from(ref.current.querySelectorAll("img"));
       await Promise.all(
         imgs.map((img) =>
-          img.complete
-            ? Promise.resolve()
-            : new Promise((resolve) => {
-                img.onload = resolve;
-                img.onerror = resolve;
-              })
+          img
+            .decode()
+            .catch(
+              () =>
+                new Promise<void>((resolve) => {
+                  img.onload = () => resolve();
+                  img.onerror = () => resolve();
+                })
+            )
         )
       );
+      // Laisse le navigateur peindre réellement les images décodées avant
+      // de rasteriser — decode() résout dès que les pixels sont prêts, pas
+      // forcément une fois qu'ils sont passés par le pipeline de rendu.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       if (cancelled || !ref.current) return;
       try {
         // Les liens (PayPal.me, créer un compte) doivent rester mesurés
@@ -468,6 +479,12 @@ export default function ConfirmationDocumentStage({
           rect: el.getBoundingClientRect(),
         }));
 
+        // Un premier rendu "à blanc" avant le vrai : contournement connu de
+        // html-to-image pour son bug intermittent d'images manquantes (le
+        // premier appel amorce le cache interne de la lib, le second est
+        // fiable — sans ce doublon, la capture "entre proches" ressortait
+        // parfois vide malgré des <img> bien décodées juste avant).
+        await toPng(ref.current, { width: DOC_WIDTH, pixelRatio: 2 });
         const dataUrl = await toPng(ref.current, { width: DOC_WIDTH, pixelRatio: 2 });
         const filename = `confirmation-${(client.nom || "client").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
         if (format === "png") {

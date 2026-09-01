@@ -52,11 +52,6 @@ export function computePaiementsDuJour(
   todayStr: string,
   onUpdateClient: (id: string, patch: Partial<Client>) => void
 ) {
-  const premiereActiviteDe = (clientId: string) =>
-    [...reservations]
-      .filter((r) => r.client_id === clientId && r.statut_resa !== "Annulée" && r.date_debut)
-      .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""))[0] || null;
-
   const encaisses: Ligne[] = [];
   const aPayer: Ligne[] = [];
 
@@ -84,36 +79,8 @@ export function computePaiementsDuJour(
       };
       (c.solde_paye ? encaisses : aPayer).push(ligne);
     }
-
-    // Acompte — deux motifs bien distincts pour ne pas les confondre :
-    // "à payer" se base sur la date de début du séjour (l'acompte doit être
-    // réglé avant que ça commence), "encaissé" se base sur la date réelle
-    // d'encaissement (acompte_date_encaissement) — jamais l'inverse, sinon
-    // un acompte payé il y a 3 jours ressort comme "encaissé aujourd'hui"
-    // simplement parce que le séjour démarre aujourd'hui.
-    const premiereActivite = premiereActiviteDe(c.id);
-    const acompteAPayerAujourdhui =
-      c.paiement_type === "acompte" &&
-      c.acompte_valide &&
-      !c.acompte_paye &&
-      premiereActivite?.date_debut === todayStr;
-    const acompteEncaisseAujourdhui = c.acompte_paye && c.acompte_date_encaissement === todayStr;
-    if (acompteAPayerAujourdhui || acompteEncaisseAujourdhui) {
-      const ligne: Ligne = {
-        client: c,
-        libelle: "Acompte",
-        montant: Number(c.acompte_montant) || 0,
-        paye: !!c.acompte_paye,
-        onTogglePaye: () =>
-          onUpdateClient(
-            c.id,
-            c.acompte_paye
-              ? { acompte_paye: false, acompte_date_encaissement: null }
-              : { acompte_paye: true, acompte_date_encaissement: todayStr }
-          ),
-      };
-      (c.acompte_paye ? encaisses : aPayer).push(ligne);
-    }
+    // Volontairement pas d'acompte ici (PayPal ou autre) — cette popup ne
+    // couvre que le solde : RDV paiement et solde réglé à une activité.
   }
 
   return { encaisses, aPayer };

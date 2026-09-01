@@ -7,6 +7,7 @@ import QRCode from "qrcode";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { agesLabel, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { PAYPAL_ME_LINK, AGENCY_CONTACT } from "@/lib/constants";
+import { PAYPAL_ENTRE_PROCHES_1, PAYPAL_ENTRE_PROCHES_2 } from "@/lib/paypalScreenshots";
 
 // Un PNG (Instagram) est une image plate — aucun lien ne peut jamais y être
 // cliquable, quel que soit l'outil utilisé. Le QR code est le contournement
@@ -64,7 +65,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
     <div style={{ marginBottom: 22 }}>
       <div
         style={{
-          fontSize: 12,
+          fontSize: 13.5,
           fontWeight: 600,
           color: "#211C16",
           textTransform: "uppercase",
@@ -116,11 +117,11 @@ function ConfirmationTemplate({
       }}
     >
       <div style={{ background: "#211C16", padding: "30px 34px 24px", textAlign: "center" }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#C9973E", letterSpacing: 2, textTransform: "uppercase" }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#C9973E", letterSpacing: 2, textTransform: "uppercase" }}>
           Autour des Dunes
         </div>
-        <div style={{ fontSize: 27, fontWeight: 600, color: "#FFFFFF", marginTop: 10 }}>Séjour confirmé</div>
-        <div style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", fontSize: 14, color: "#C9B79A", marginTop: 8 }}>
+        <div style={{ fontSize: 30, fontWeight: 600, color: "#FFFFFF", marginTop: 10 }}>Séjour confirmé</div>
+        <div style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", fontSize: 16, color: "#C9B79A", marginTop: 8 }}>
           Du {fmtDateLong(client.date_debut)} au {fmtDateLong(client.date_fin)} — {hotelVille || "Hurghada"}
         </div>
       </div>
@@ -128,12 +129,12 @@ function ConfirmationTemplate({
       <div style={{ padding: 32 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
           <div>
-            <div style={{ fontSize: 17, fontWeight: 600 }}>{client.nom || "—"}</div>
-            <div style={{ fontSize: 13, color: "#6B6558", marginTop: 3 }}>{paxLine(client)}</div>
+            <div style={{ fontSize: 19, fontWeight: 600 }}>{client.nom || "—"}</div>
+            <div style={{ fontSize: 14.5, color: "#6B6558", marginTop: 3 }}>{paxLine(client)}</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 11, color: "#948C7A" }}>Total du séjour</div>
-            <div style={{ fontSize: 19, fontWeight: 700, color: "#C9973E" }}>{euros(totalSejour)}</div>
+            <div style={{ fontSize: 12.5, color: "#948C7A" }}>Total du séjour</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#C9973E" }}>{euros(totalSejour)}</div>
           </div>
         </div>
 
@@ -153,12 +154,12 @@ function ConfirmationTemplate({
                   }}
                 >
                   <div>
-                    <div style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", fontSize: 12, color: "#8B7F63" }}>
+                    <div style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", fontSize: 13.5, color: "#8B7F63" }}>
                       {fmtDateShort(r.date_debut || "")}
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2 }}>{r.nom_activite || "Activité"}</div>
+                    <div style={{ fontSize: 15.5, fontWeight: 500, marginTop: 2 }}>{r.nom_activite || "Activité"}</div>
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{euros(total)}</div>
+                  <div style={{ fontSize: 15.5, fontWeight: 600 }}>{euros(total)}</div>
                 </div>
               );
             })}
@@ -169,7 +170,7 @@ function ConfirmationTemplate({
           <div style={{ background: "#F2E6D2", borderRadius: 10, padding: "15px 17px" }}>
             {client.paiement_type === "acompte" && (
               <>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 15.5, marginBottom: 10 }}>
                   <span>Acompte à régler via · {client.acompte_mode || "—"}</span>
                   <span style={{ fontWeight: 700 }}>{euros(acompteMontant)}</span>
                 </div>
@@ -187,10 +188,10 @@ function ConfirmationTemplate({
                             textAlign: "center",
                             background: "#211C16",
                             color: "#FFFFFF",
-                            fontSize: 13,
+                            fontSize: 14.5,
                             fontWeight: 600,
                             borderRadius: 8,
-                            padding: "9px 10px",
+                            padding: "11px 10px",
                             textDecoration: "none",
                           }}
                         >
@@ -201,24 +202,24 @@ function ConfirmationTemplate({
                             style={{
                               background: "#FFFFFF",
                               borderRadius: 8,
-                              padding: 3,
+                              padding: 4,
                               flexShrink: 0,
                               lineHeight: 0,
                             }}
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={qrDataUrl} alt="QR code de paiement PayPal" style={{ width: 38, height: 38 }} />
+                            <img src={qrDataUrl} alt="QR code de paiement PayPal" style={{ width: 48, height: 48 }} />
                           </div>
                         )}
                       </div>
                     ) : (
-                      <div style={{ fontSize: 12.5, color: "#5C5342", marginBottom: 10 }}>
+                      <div style={{ fontSize: 13.5, color: "#5C5342", marginBottom: 10 }}>
                         Adresse PayPal : {AGENCY_CONTACT.email}
                       </div>
                     )}
                     <div
                       style={{
-                        fontSize: 12.5,
+                        fontSize: 13.5,
                         color: "#5C5342",
                         lineHeight: 1.7,
                         background: "#FFFFFF",
@@ -240,15 +241,15 @@ function ConfirmationTemplate({
                       <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src="/documents/paypal-entre-proches-1.jpg"
+                          src={PAYPAL_ENTRE_PROCHES_1}
                           alt="Écran PayPal — Entre proches"
-                          style={{ width: 56, borderRadius: 4, border: "0.5px solid #EBE6D9" }}
+                          style={{ width: 120, borderRadius: 4, border: "0.5px solid #EBE6D9" }}
                         />
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src="/documents/paypal-entre-proches-2.jpg"
+                          src={PAYPAL_ENTRE_PROCHES_2}
                           alt="Écran PayPal — Pour vos proches coché"
-                          style={{ width: 56, borderRadius: 4, border: "0.5px solid #EBE6D9" }}
+                          style={{ width: 120, borderRadius: 4, border: "0.5px solid #EBE6D9" }}
                         />
                       </div>
                       <div>3) Une fois le règlement effectué, envoyez-nous une capture d&apos;écran de la confirmation.</div>
@@ -261,7 +262,7 @@ function ConfirmationTemplate({
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                fontSize: 14,
+                fontSize: 15.5,
                 fontWeight: 600,
                 paddingTop: client.paiement_type === "acompte" ? 10 : 0,
                 borderTop: client.paiement_type === "acompte" ? "1px solid rgba(33,28,22,0.12)" : "none",
@@ -270,7 +271,7 @@ function ConfirmationTemplate({
               <span>Solde à régler sur place</span>
               <span>{euros(soldeMontant)}</span>
             </div>
-            <div style={{ fontSize: 12.5, color: "#5C5342", lineHeight: 1.7, marginTop: 6 }}>
+            <div style={{ fontSize: 13.5, color: "#5C5342", lineHeight: 1.7, marginTop: 6 }}>
               <strong>En espèces, en euros,</strong> <u>auprès de notre équipe présente sur votre première activité</u>.
               Les <u>distributeurs égyptiens ne délivrent pas d&apos;euros</u> — <strong>à prévoir avant le départ.</strong>
             </div>
@@ -279,31 +280,31 @@ function ConfirmationTemplate({
 
         <Section label="À savoir">
           <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+            <div style={{ fontSize: 15.5, fontWeight: 600, marginBottom: 4 }}>
               Horaire du rendez-vous transfert depuis votre hôtel
             </div>
-            <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.6, marginBottom: 15 }}>
+            <div style={{ fontSize: 13.5, color: "#6B6558", lineHeight: 1.6, marginBottom: 15 }}>
               Confirmé la veille de chaque activité, entre 17h et 19h.
             </div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Annulation</div>
-            <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.65 }}>{CONDITIONS_ANNULATION}</div>
+            <div style={{ fontSize: 15.5, fontWeight: 600, marginBottom: 4 }}>Annulation</div>
+            <div style={{ fontSize: 13.5, color: "#6B6558", lineHeight: 1.65 }}>{CONDITIONS_ANNULATION}</div>
           </div>
         </Section>
 
         {acomptePaypal && (
           <Section label="Questions fréquentes">
             <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 5 }}>
                 Pourquoi « paiement entre proches » ?
               </div>
-              <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.65, marginBottom: 16 }}>
+              <div style={{ fontSize: 13.5, color: "#6B6558", lineHeight: 1.65, marginBottom: 16 }}>
                 Sans cette option, PayPal nous prélève 3,1 % du montant envoyé — nous devons alors vous refacturer
                 cette part pour ne pas la perdre, comme pour tous nos clients. Une facture justificative peut vous
                 être fournie sur demande. Si vous préférez régler en « Biens et services », ajoutez simplement 3,1 %
                 à votre montant d&apos;acompte.
               </div>
-              <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 5 }}>Vous n&apos;avez pas de compte PayPal ?</div>
-              <div style={{ fontSize: 12.5, color: "#6B6558", lineHeight: 1.65 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 5 }}>Vous n&apos;avez pas de compte PayPal ?</div>
+              <div style={{ fontSize: 13.5, color: "#6B6558", lineHeight: 1.65 }}>
                 Vous pouvez en créer un en une minute —{" "}
                 <a
                   href="https://www.paypal.com/fr/webapps/mpp/account-selection"
@@ -319,10 +320,10 @@ function ConfirmationTemplate({
         )}
 
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontFamily: "var(--font-fraunces)", fontSize: 15, fontWeight: 600, color: "#211C16" }}>
+          <div style={{ fontFamily: "var(--font-fraunces)", fontSize: 17, fontWeight: 600, color: "#211C16" }}>
             Merci d&apos;avoir choisi Autour des Dunes
           </div>
-          <div style={{ fontSize: 11.5, color: "#948C7A", marginTop: 8 }}>Une question ? Écrivez-nous.</div>
+          <div style={{ fontSize: 13, color: "#948C7A", marginTop: 8 }}>Une question ? Écrivez-nous.</div>
         </div>
       </div>
     </div>

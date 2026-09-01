@@ -2,7 +2,7 @@ import jsPDF from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
 import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { participantsFor, isGrandEgyptianMuseum } from "@/lib/resa";
-import { todayStr } from "@/lib/dates";
+import { addDays, todayStr } from "@/lib/dates";
 
 function euros(n: number) {
   return `${(Number(n) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
@@ -22,6 +22,10 @@ const PAGE_WIDTH = 210;
 const RAISON_SOCIALE = "Autour Des Dunes Hurghada for Tourism Management and Marketing";
 const ADRESSE_LEGALE = "Red Sea – Hurghada, Flat No. 17, 3rd Floor, Aldau Heights, Elmohamady Square, Égypte";
 const TRN_EGYPTIEN = "758172326";
+
+// Durée de validité affichée sur un devis (voir retour de Mélanie du
+// 31/08/2026) — au-delà, les tarifs/disponibilités ne sont plus garantis.
+const DEVIS_VALIDITE_JOURS = 15;
 
 // Numéro de document lisible (ex. F26-08-473) : année-mois + un suffixe basé
 // sur l'heure de génération. Pas de compteur séquentiel en base aujourd'hui
@@ -187,14 +191,20 @@ export function generateClientDocument(
   doc.text(`Le ${fmtDate(todayStr())}`, rightColX, y + 2, { align: "right" });
   y += 10;
 
+  if (docType === "devis") {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(7.5);
+    doc.setTextColor(120, 110, 100);
+    doc.text(`Valable jusqu'au ${fmtDate(addDays(todayStr(), DEVIS_VALIDITE_JOURS))}`, MARGIN, y);
+    y += 7;
+  }
+
   if (docType === "facture") {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(7.5);
     doc.setTextColor(120, 110, 100);
     doc.text("e-Invoicing (ETA) — document conforme au système de facturation électronique égyptien.", MARGIN, y);
     y += 7;
-  } else {
-    y += 2;
   }
 
   // -- Tableau des activités -----------------------------------------------
@@ -339,7 +349,9 @@ export function generateClientDocument(
   doc.setFontSize(7.5);
   doc.setTextColor(140, 140, 140);
   doc.text(
-    docType === "devis" ? "Ce devis est indicatif et ne constitue pas une facture." : "MERCI DE VOTRE CONFIANCE",
+    docType === "devis"
+      ? `Ce devis est indicatif et ne constitue pas une facture. Valable jusqu'au ${fmtDate(addDays(todayStr(), DEVIS_VALIDITE_JOURS))}.`
+      : "MERCI DE VOTRE CONFIANCE",
     MARGIN,
     y
   );

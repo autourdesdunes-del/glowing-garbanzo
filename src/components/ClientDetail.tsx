@@ -25,6 +25,7 @@ import GuidedActivityModal from "@/components/GuidedActivityModal";
 import AvoirUseModal from "@/components/AvoirUseModal";
 import AnnulerClientModal from "@/components/AnnulerClientModal";
 import IncidentsModal from "@/components/IncidentsModal";
+import DevisPaiementModal from "@/components/DevisPaiementModal";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
@@ -289,6 +290,7 @@ export default function ClientDetail({
   const [avoirAppliedNotice, setAvoirAppliedNotice] = useState<number | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [showIncidentsModal, setShowIncidentsModal] = useState(false);
+  const [showDevisPaiementModal, setShowDevisPaiementModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -756,7 +758,36 @@ export default function ClientDetail({
   const totalPayeHeader = acomptePayeMontant + avoirUtiliseHeader + (client.solde_paye ? soldeRestantHeader : 0);
   const paiementFullyPaid = totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader;
 
+  const jumpToPaiements = () => {
+    setOpen({ ...CLOSED_SECTIONS, Paiements: true });
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document.getElementById("section-Paiements")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    });
+  };
+
+  // Une facture sans conditions de paiement enregistrées afficherait "Aucun
+  // acompte enregistré" à la place de vrais chiffres — on bloque donc et on
+  // renvoie vers Paiements plutôt que de générer un document vide (retour
+  // de Mélanie du 31/08). "intégral" compte comme rempli dès qu'il est
+  // choisi (son propre flux gère le détail) ; "acompte" seulement une fois
+  // un montant réellement saisi.
+  const paiementRempli =
+    client.paiement_type === "integral" ||
+    (client.paiement_type === "acompte" && Number(client.acompte_montant) > 0);
+
   const handleDownload = async (docType: "devis" | "facture") => {
+    if (docType === "facture" && !paiementRempli) {
+      const ok = await confirm({
+        title: "Aucun paiement enregistré",
+        message:
+          "Cette fiche n'a pas encore d'acompte ni de mode de règlement renseignés — la facture serait générée sans ces informations. Remplir Paiements maintenant ?",
+        confirmLabel: "Aller à Paiements",
+      });
+      if (ok) jumpToPaiements();
+      return;
+    }
     setGeneratingDoc(docType);
     try {
       generateClientDocument(docType, client, reservations, resaOptions, resaTarifs);
@@ -817,7 +848,7 @@ export default function ClientDetail({
             </div>
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => handleDownload("devis")}
+                onClick={() => setShowDevisPaiementModal(true)}
                 disabled={generatingDoc !== null}
                 className="whitespace-nowrap rounded-md border border-[#8B4531]/25 px-2 py-1 text-xs text-[#8B4531] hover:bg-[#8B4531]/5 disabled:opacity-50"
               >
@@ -961,16 +992,7 @@ export default function ClientDetail({
               section: "Contact",
             })
           }
-          onJumpToPaiements={() => {
-            setOpen({ ...CLOSED_SECTIONS, Paiements: true });
-            requestAnimationFrame(() => {
-              setTimeout(() => {
-                document
-                  .getElementById("section-Paiements")
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }, 100);
-            });
-          }}
+          onJumpToPaiements={jumpToPaiements}
         />
       </div>
 
@@ -1177,6 +1199,15 @@ export default function ClientDetail({
           onUpdate={(id, patch) => setIncidents((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)))}
           onDelete={(id) => setIncidents((prev) => prev.filter((i) => i.id !== id))}
           onClose={() => setShowIncidentsModal(false)}
+        />
+      )}
+      {showDevisPaiementModal && (
+        <DevisPaiementModal
+          client={client}
+          totalSejour={totalSejourHeader}
+          onUpdateClient={onChange}
+          onConfirm={() => handleDownload("devis")}
+          onClose={() => setShowDevisPaiementModal(false)}
         />
       )}
     </div>

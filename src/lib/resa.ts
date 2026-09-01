@@ -728,10 +728,17 @@ export function isSpeedboatSemiPriveMaisonDauphins(nom: string) {
   return isSpeedboat(n) && n.includes("semi-privé") && n.includes("maison des dauphins");
 }
 
+export function isSeascope(nom: string) {
+  return (nom || "").toLowerCase().includes("seascope");
+}
+
 // En dehors du sunset (horaire fixe), des formules "journée" fixes, et du
 // semi-privé Maison des dauphins, tous les speedboat doivent préciser
-// matin/après-midi.
+// matin/après-midi — comme Seascope, qui utilisait jusqu'ici une case à
+// cocher générique "Matin / Après-midi" sans que le choix ne se retrouve
+// nulle part (ni dans le titre, ni utilisable pour filtrer/trier).
 export function needsMomentSpeedboat(nom: string) {
+  if (isSeascope(nom)) return true;
   if (!isSpeedboat(nom)) return false;
   if (isSpeedboatSunset(nom)) return false;
   if (isSpeedboatSemiPriveMaisonDauphins(nom)) return false;

@@ -347,8 +347,13 @@ export default function AddActivityWizard({
   const tarifs = draftId ? resaTarifs[draftId] || [] : [];
   const catalogueItem = r?.catalogue_item_id ? catalogue.find((a) => a.id === r.catalogue_item_id) : null;
   const champsRequis = catalogueItem?.champs_requis_liste || [];
+  // "Matin / Après-midi" est maintenant géré par une vraie étape moment
+  // (voir needsMomentSpeedboat) plutôt qu'une case à cocher générique — ne
+  // plus la redemander séparément si l'activité passe par cette étape.
   const champsRequisPersonnalises = champsRequis.filter(
-    (c) => !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c)
+    (c) =>
+      !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c) &&
+      !(needsMomentSpeedboat(catalogueItem?.nom || "") && c.toLowerCase().includes("matin"))
   );
   const catTarifs = catalogueItem ? catalogueTarifs[catalogueItem.id] || [] : [];
   const catTransfertTarifs = catalogueItem ? transfertTarifs[catalogueItem.id] || [] : [];
@@ -375,8 +380,14 @@ export default function AddActivityWizard({
   // du CLIENT est demandé), l'étape "Informations requises" n'a de sens
   // qu'une fois la date connue — on la déplace donc après plutôt qu'avant.
   const specifsApresDate = champsRequis.includes("Vol & horaire");
+  // Si "Matin / Après-midi" est le seul champ requis, il est maintenant
+  // couvert par l'étape "moment" (voir plus bas) — l'étape "Informations
+  // requises" ne doit alors pas s'afficher vide.
+  const hasSpecifsAAfficher =
+    champsRequisPersonnalises.length > 0 ||
+    champsRequis.some((c) => (CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c));
   const steps: Step[] = ["choix"];
-  if (champsRequis.length > 0 && !specifsApresDate) steps.push("specifs");
+  if (hasSpecifsAAfficher && !specifsApresDate) steps.push("specifs");
   steps.push("date");
   if (specifsApresDate) steps.push("specifs");
   if (catalogueItem && speedboatIleType(catalogueItem.nom)) steps.push("ile");

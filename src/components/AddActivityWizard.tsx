@@ -23,6 +23,7 @@ import {
   hauteSaisonAttendu,
   isChevalOuChameau,
   isDeuxiemeIleOption,
+  isCaireAeroportTransfert,
   isDiscouragedBusActivity,
   isTitreLibreActivity,
   isFamilySafariBedouin,
@@ -52,6 +53,7 @@ import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
 import PhotoVolUpload from "@/components/PhotoVolUpload";
 import TransfertSensModal from "@/components/TransfertSensModal";
 import TitreLibreModal from "@/components/TitreLibreModal";
+import CaireAeroportAlert from "@/components/CaireAeroportAlert";
 
 function joursAvant(dateStr: string | null) {
   if (!dateStr) return null;
@@ -321,6 +323,7 @@ export default function AddActivityWizard({
   } | null>(null);
   const [pendingSensTransfert, setPendingSensTransfert] = useState<CatalogueItem | null>(null);
   const [pendingTitreLibre, setPendingTitreLibre] = useState<CatalogueItem | null>(null);
+  const [pendingCaireAeroport, setPendingCaireAeroport] = useState<CatalogueItem | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
   // Deux relances Hossam distinctes pour "Le Caire en avion" : une première
@@ -577,6 +580,20 @@ export default function AddActivityWizard({
       : [];
     const groupesCatalogue = catalogueToutVoir ? construireRubriquesCatalogue(catalogue) : [];
 
+    // Regroupe les vérifications qui suivent l'avertissement Caire (sens du
+    // transfert, titre libre, ou création directe) — utilisé à la fois pour
+    // les items qui n'ont pas besoin de cet avertissement et pour le bouton
+    // "Continuer quand même" de la modale.
+    const proceedAfterCaireCheck = (a: CatalogueItem) => {
+      if (transfertSensOptions(a.nom).length > 0) {
+        setPendingSensTransfert(a);
+      } else if (isTitreLibreActivity(a.nom)) {
+        setPendingTitreLibre(a);
+      } else {
+        startFromCatalogue(a);
+      }
+    };
+
     const activiteBouton = (a: CatalogueItem) => (
       <button
         key={a.id}
@@ -587,12 +604,10 @@ export default function AddActivityWizard({
             setPendingRedirect({ item: a, kind: "bus" });
           } else if (isFamilySafariBedouin(a.nom) && isAdultsOnly(client)) {
             setPendingRedirect({ item: a, kind: "safari" });
-          } else if (transfertSensOptions(a.nom).length > 0) {
-            setPendingSensTransfert(a);
-          } else if (isTitreLibreActivity(a.nom)) {
-            setPendingTitreLibre(a);
+          } else if (isCaireAeroportTransfert(a.nom)) {
+            setPendingCaireAeroport(a);
           } else {
-            startFromCatalogue(a);
+            proceedAfterCaireCheck(a);
           }
         }}
         className="block w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717] disabled:opacity-50"
@@ -623,6 +638,16 @@ export default function AddActivityWizard({
               setPendingRedirect(null);
               const newId = await startFromCatalogue(item);
               if (newId) await onBusEscalation(item.nom, newId);
+            }}
+          />
+        )}
+        {pendingCaireAeroport && (
+          <CaireAeroportAlert
+            onCancel={() => setPendingCaireAeroport(null)}
+            onProceedAnyway={() => {
+              const item = pendingCaireAeroport;
+              setPendingCaireAeroport(null);
+              proceedAfterCaireCheck(item);
             }}
           />
         )}

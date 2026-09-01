@@ -398,6 +398,14 @@ export function isDiscouragedBusActivity(nom: string) {
   return (n.includes("caire") || n.includes("louxor")) && n.includes("bus") && !n.includes("mini");
 }
 
+// Le Caire : on ne vend normalement plus ce transfert (voir HELP) — avant
+// de laisser l'ajouter, on avertit et on demande de vérifier avec Hossam ou
+// de le vendre à 30€ minimum au lieu des 20€ catalogue.
+export function isCaireAeroportTransfert(nom: string) {
+  const n = (nom || "").toLowerCase();
+  return n.includes("transfert") && n.includes("aéroport") && n.includes("caire");
+}
+
 export function isFamilySafariBedouin(nom: string) {
   const n = (nom || "").toLowerCase();
   return n.includes("safari") && n.includes("bédouin");

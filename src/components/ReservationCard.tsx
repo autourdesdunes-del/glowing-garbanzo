@@ -46,7 +46,6 @@ import {
   speedboatIleType,
   SPEEDBOAT_ILES,
   STATUT_PAIEMENT_OPTIONS,
-  ajusteTitreTransfertAeroport,
   isAeroportTransfertHorsHurghada,
   senseTransfertAeroport,
 } from "@/lib/resa";
@@ -1140,11 +1139,7 @@ export default function ReservationCard({
                   <input
                     id={`field-numero-vol-${r.id}`}
                     value={r.numero_vol}
-                    onChange={(e) => {
-                      const numero_vol = e.target.value;
-                      const titre = ajusteTitreTransfertAeroport(r.nom_activite, numero_vol, r.horaire_vol);
-                      onUpdate({ numero_vol, ...(titre ? { nom_activite: titre } : {}) });
-                    }}
+                    onChange={(e) => onUpdate({ numero_vol: e.target.value })}
                     className={`input ${
                       validationError && !r.numero_vol.trim()
                         ? "border-red-300 focus:border-red-400"
@@ -1162,11 +1157,7 @@ export default function ReservationCard({
                   <input
                     id={`field-horaire-vol-${r.id}`}
                     value={r.horaire_vol}
-                    onChange={(e) => {
-                      const horaire_vol = e.target.value;
-                      const titre = ajusteTitreTransfertAeroport(r.nom_activite, r.numero_vol, horaire_vol);
-                      onUpdate({ horaire_vol, ...(titre ? { nom_activite: titre } : {}) });
-                    }}
+                    onChange={(e) => onUpdate({ horaire_vol: e.target.value })}
                     className={`input ${
                       validationError && !r.horaire_vol.trim()
                         ? "border-red-300 focus:border-red-400"

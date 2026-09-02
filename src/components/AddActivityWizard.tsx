@@ -46,7 +46,6 @@ import {
   SPEEDBOAT_ILES,
   SensTransfertOption,
   transfertSensOptions,
-  ajusteTitreTransfertAeroport,
   senseTransfertAeroport,
 } from "@/lib/resa";
 import { addDays, todayStr, weekdayFr } from "@/lib/dates";
@@ -933,11 +932,7 @@ export default function AddActivityWizard({
               <Field label="Numéro de vol du client">
                 <input
                   value={r.numero_vol}
-                  onChange={(e) => {
-                    const numero_vol = e.target.value;
-                    const titre = ajusteTitreTransfertAeroport(r.nom_activite, numero_vol, r.horaire_vol);
-                    onUpdateReservation(r.id, { numero_vol, ...(titre ? { nom_activite: titre } : {}) });
-                  }}
+                  onChange={(e) => onUpdateReservation(r.id, { numero_vol: e.target.value })}
                   className="input"
                 />
               </Field>
@@ -950,11 +945,7 @@ export default function AddActivityWizard({
               >
                 <input
                   value={r.horaire_vol}
-                  onChange={(e) => {
-                    const horaire_vol = e.target.value;
-                    const titre = ajusteTitreTransfertAeroport(r.nom_activite, r.numero_vol, horaire_vol);
-                    onUpdateReservation(r.id, { horaire_vol, ...(titre ? { nom_activite: titre } : {}) });
-                  }}
+                  onChange={(e) => onUpdateReservation(r.id, { horaire_vol: e.target.value })}
                   className="input"
                 />
               </Field>

@@ -458,38 +458,6 @@ export function transfertSensOptions(nomCatalogue: string): SensTransfertOption[
   return [];
 }
 
-// Une fois le sens du transfert aéroport posé (voir transfertSensOptions
-// ci-dessus), le titre doit aussi refléter le numéro de vol et l'horaire dès
-// qu'ils sont connus — visible directement dans Réservations et la fiche
-// client, sans ouvrir l'activité. Le sens et la ville sont retrouvés dans le
-// titre actuel plutôt que stockés à part, pour rester idempotent d'une
-// modif à l'autre. Retourne null si ce n'est pas un transfert aéroport (le
-// titre reste alors inchangé).
-export function ajusteTitreTransfertAeroport(
-  nomActiviteActuel: string,
-  numeroVol: string,
-  horaireVol: string
-): string | null {
-  const aeroportHotel = nomActiviteActuel.match(/^Transfert aéroport (.+?) - hôtel\b/);
-  if (aeroportHotel) {
-    const bits = [
-      horaireVol.trim() && `arrivée à ${horaireVol.trim()}`,
-      numeroVol.trim() && `vol ${numeroVol.trim()}`,
-    ].filter(Boolean);
-    return `Transfert aéroport ${aeroportHotel[1]} - hôtel${bits.length ? ` (${bits.join(", ")})` : ""}`;
-  }
-  const hotelAeroport = nomActiviteActuel.match(/^Transfert hôtel (.+?) - aéroport\b/);
-  if (hotelAeroport) {
-    const ville = hotelAeroport[1];
-    const bits = [
-      horaireVol.trim() && `vol départ à ${horaireVol.trim()}`,
-      numeroVol.trim() && `vol ${numeroVol.trim()}`,
-    ].filter(Boolean);
-    return `Transfert hôtel ${ville} - aéroport ${ville}${bits.length ? ` (${bits.join(", ")})` : ""}`;
-  }
-  return null;
-}
-
 // Le Caire, Louxor et Assouan sont hors de la région Hurghada — un transfert
 // aéroport vers l'une de ces villes ne peut donc jamais avoir de "taxe de
 // transfert région Hurghada" (concept lié à l'hôtel du CLIENT, sans rapport

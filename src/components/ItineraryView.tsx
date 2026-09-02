@@ -27,6 +27,7 @@ import {
   paiementStatutKey,
   pointureBadge,
   packBadge,
+  taxeTransfertManquante,
   volBadge,
   paiementBadge,
   participantsFor,
@@ -209,6 +210,11 @@ export default function ItineraryView({
           {packBadge(r) && (
             <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
               {packBadge(r)}
+            </span>
+          )}
+          {taxeTransfertManquante(r, hotelHorsHurghada) && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+              ⚠ Taxe de transfert manquante
             </span>
           )}
           {pointureBadge(r) && (

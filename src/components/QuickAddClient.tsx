@@ -968,6 +968,8 @@ export default function QuickAddClient({
                   packs={packs}
                   canSeeMargins={false}
                   hotelHorsHurghada={hotelHorsHurghada}
+                  hotelVille={hotelMatch?.ville}
+                  taxesRef={taxesRef}
                   coutsMap={{}}
                   onUpdateCoutReel={() => {}}
                   onBusEscalation={handleBusEscalation}

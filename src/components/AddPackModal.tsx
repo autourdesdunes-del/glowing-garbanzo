@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { CatalogueItem, Pack, Reservation } from "@/lib/types";
-import { packSlotPrix } from "@/lib/resa";
+import { CatalogueItem, Pack, Reservation, TransfertTaxe } from "@/lib/types";
+import { noTaxeTransfert, packSlotPrix } from "@/lib/resa";
+import { matchTransfertTaxe } from "@/lib/hotelHelp";
 import { todayStr } from "@/lib/dates";
 import { Field } from "@/components/Field";
 import { useToast } from "@/components/ToastProvider";
@@ -15,12 +16,18 @@ import { useToast } from "@/components/ToastProvider";
 export default function AddPackModal({
   catalogue,
   packs,
+  hotelHorsHurghada,
+  hotelVille,
+  taxesRef = [],
   onAddReservation,
   onUpdateReservation,
   onClose,
 }: {
   catalogue: CatalogueItem[];
   packs: Pack[];
+  hotelHorsHurghada?: boolean;
+  hotelVille?: string;
+  taxesRef?: TransfertTaxe[];
   onAddReservation: (opts?: { skipAvoirPrompt?: boolean }) => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onClose: () => void;
@@ -32,6 +39,9 @@ export default function AddPackModal({
   const [adultes, setAdultes] = useState(2);
   const [enfants, setEnfants] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [taxeAlerte, setTaxeAlerte] = useState<{ nbActivites: number; montantParActivite: number; note: string } | null>(
+    null
+  );
 
   const pack = packs.find((p) => p.id === packId) || null;
   const itemById = (id: string) => catalogue.find((c) => c.id === id) || null;
@@ -60,6 +70,12 @@ export default function AddPackModal({
       .map((slot) => itemById(choix[slot.ordre]))
       .filter((i): i is CatalogueItem => !!i);
     const prix = packSlotPrix(pack, itemsChoisis);
+    // La taxe de transfert n'est jamais incluse dans le prix d'un pack — un
+    // pack créant plusieurs activités à des dates différentes, chacune la
+    // doit individuellement (comme n'importe quelle activité isolée),
+    // jamais une seule fois pour tout le pack.
+    const taxe = hotelHorsHurghada && hotelVille ? matchTransfertTaxe(taxesRef, hotelVille, adultes, enfants) : null;
+    let nbActivitesAvecTaxe = 0;
     for (const slot of pack.slots) {
       const item = itemById(choix[slot.ordre]);
       if (!item) continue;
@@ -69,6 +85,8 @@ export default function AddPackModal({
         toast("Échec de la création d'une des activités du pack.");
         continue;
       }
+      const concerneParTaxe = !!taxe && taxe.type !== "aucune" && !noTaxeTransfert(item.nom);
+      if (concerneParTaxe) nbActivitesAvecTaxe++;
       onUpdateReservation(id, {
         nom_activite: item.nom,
         catalogue_item_id: item.id,
@@ -87,11 +105,58 @@ export default function AddPackModal({
         a_prevoir: item.a_prevoir,
         point_rdv: item.point_rdv,
         photo_path: item.photo_path,
+        ...(concerneParTaxe
+          ? {
+              transfert_inclus: false,
+              transfert_montant: taxe?.type === "montant" ? taxe.montant : 0,
+              ...(taxe?.type === "a_demander"
+                ? { info_importante: `Taxe de transfert à demander : ${taxe.note}` }
+                : {}),
+            }
+          : {}),
       });
     }
     setSubmitting(false);
-    onClose();
+    if (taxe?.type === "montant" && nbActivitesAvecTaxe > 0) {
+      setTaxeAlerte({ nbActivites: nbActivitesAvecTaxe, montantParActivite: taxe.montant, note: "" });
+    } else if (taxe?.type === "a_demander" && nbActivitesAvecTaxe > 0) {
+      setTaxeAlerte({ nbActivites: nbActivitesAvecTaxe, montantParActivite: 0, note: taxe.note });
+    } else {
+      onClose();
+    }
   };
+
+  if (taxeAlerte) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+        <div className="w-full max-w-md rounded-[6px] border-2 border-red-600 bg-red-50 p-6">
+          <h2 className="font-heading text-lg font-semibold text-red-700">⚠ Taxe de transfert à ajouter</h2>
+          <p className="mt-2 text-sm text-red-800">
+            Cet hôtel n&apos;est pas sur Hurghada : une taxe de transfert s&apos;applique à chacune des{" "}
+            {taxeAlerte.nbActivites} activités du pack, pas seulement une fois pour l&apos;ensemble.
+          </p>
+          {taxeAlerte.montantParActivite > 0 ? (
+            <p className="mt-2 text-sm font-semibold text-red-800">
+              → {taxeAlerte.montantParActivite} € à ajouter sur chacune des {taxeAlerte.nbActivites} activités
+              (déjà pré-rempli automatiquement sur chaque carte).
+            </p>
+          ) : (
+            <p className="mt-2 text-sm font-semibold text-red-800">
+              → Montant à demander ({taxeAlerte.note}) sur chacune des {taxeAlerte.nbActivites} activités —
+              indiqué en info importante sur chaque carte, à compléter dès que connu.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-4 w-full rounded-md bg-red-700 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            J&apos;ai compris
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">

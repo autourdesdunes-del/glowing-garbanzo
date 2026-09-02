@@ -1191,6 +1191,8 @@ export default function ClientDetail({
         packs={packs}
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}
+        hotelVille={hotelMatch?.ville}
+        taxesRef={taxesRef}
         coutsMap={coutsMap}
         onUpdateCoutReel={updateCoutReel}
         onBusEscalation={handleBusEscalation}
@@ -1281,6 +1283,7 @@ export default function ClientDetail({
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}
           hotelVille={hotelMatch?.ville}
+          taxesRef={taxesRef}
           coutsMap={coutsMap}
           onUpdateCoutReel={updateCoutReel}
           onRequestAdd={() => setGuidedOpen(true)}

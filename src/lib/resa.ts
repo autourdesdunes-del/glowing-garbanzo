@@ -416,6 +416,20 @@ export function noTaxeTransfert(nom: string): boolean {
   );
 }
 
+// Vrai quand l'hôtel du client est hors Hurghada, que l'activité est
+// concernée par une taxe de transfert (voir noTaxeTransfert /
+// isAeroportTransfertHorsHurghada), que le mode "Taxe de transfert" a bien
+// été choisi (transfert_inclus=false) mais que le montant est resté à 0€ —
+// c'est-à-dire jamais réellement saisi. Sert à alerter visuellement sur la
+// carte plutôt que de laisser un 0€ silencieux (vécu avec un client à Sahl
+// Hasheesh où la taxe n'a jamais été ajoutée).
+export function taxeTransfertManquante(r: Reservation, hotelHorsHurghada?: boolean): boolean {
+  if (!hotelHorsHurghada) return false;
+  if (noTaxeTransfert(r.nom_activite)) return false;
+  if (isAeroportTransfertHorsHurghada(r.nom_activite)) return false;
+  return !r.transfert_inclus && (Number(r.transfert_montant) || 0) <= 0;
+}
+
 export type CroisiereSens = "louxor_assouan" | "assouan_louxor";
 
 export function croisiereSens(nom: string): CroisiereSens | null {

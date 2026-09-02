@@ -14,6 +14,7 @@ import {
   Reservation,
   ReservationOption,
   ReservationTarif,
+  TransfertTaxe,
 } from "@/lib/types";
 
 type Step = "activites" | "paiements";
@@ -46,6 +47,8 @@ export default function GuidedActivityModal({
   packs,
   canSeeMargins,
   hotelHorsHurghada,
+  hotelVille,
+  taxesRef,
   coutsMap,
   onUpdateCoutReel,
   onBusEscalation,
@@ -77,6 +80,8 @@ export default function GuidedActivityModal({
   packs: Pack[];
   canSeeMargins: boolean;
   hotelHorsHurghada: boolean;
+  hotelVille?: string;
+  taxesRef: TransfertTaxe[];
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
@@ -158,6 +163,8 @@ export default function GuidedActivityModal({
             packs={packs}
             canSeeMargins={canSeeMargins}
             hotelHorsHurghada={hotelHorsHurghada}
+            hotelVille={hotelVille}
+            taxesRef={taxesRef}
             coutsMap={coutsMap}
             onUpdateCoutReel={onUpdateCoutReel}
             onAddingNewChange={setWizardOpen}

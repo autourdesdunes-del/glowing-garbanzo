@@ -34,7 +34,6 @@ import {
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
-import { localDateStr } from "@/lib/dates";
 import { buildPaxEnglish } from "@/components/client-steps";
 import { hotelDisplayForEgypt } from "@/lib/hotelHelp";
 
@@ -57,20 +56,6 @@ function fmtDate(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 }
-function toStr(d: Date) {
-  return localDateStr(d);
-}
-function enumerateDays(start: string, end: string) {
-  const days: string[] = [];
-  const cur = new Date(start + "T00:00:00");
-  const last = new Date(end + "T00:00:00");
-  while (cur <= last) {
-    days.push(toStr(cur));
-    cur.setDate(cur.getDate() + 1);
-  }
-  return days;
-}
-
 export default function ItineraryView({
   client,
   reservations,
@@ -277,7 +262,10 @@ export default function ItineraryView({
           )}
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
-          <span>{day ? fmtDate(day) : "Date à définir"}</span>
+          <span>
+            {day ? fmtDate(day) : "Date à définir"}
+            {day && r.date_fin && r.date_fin !== day ? ` → ${fmtDateShort(r.date_fin)}` : ""}
+          </span>
           {r.pickup_reel ? (
             <span>· Pick-up {r.pickup_reel}</span>
           ) : (
@@ -312,10 +300,14 @@ export default function ItineraryView({
   // du séjour du client — sinon une activité datée disparaît silencieusement
   // dès que le séjour (Contact > Séjour) n'est pas encore renseigné, ou que
   // l'activité tombe hors de cette plage (avant l'arrivée, après le départ).
+  // Un jour par activité datée — sur sa date de début uniquement, jamais un
+  // groupe par jour couvert (une activité sur plusieurs jours, ex. "Le
+  // Caire 2 jours", ne doit apparaître qu'une seule fois, avec sa plage de
+  // dates affichée sur cette unique carte — pas une carte par jour).
   const daySet = new Set<string>();
   reservationsAffichees.forEach((r) => {
     if (!r.date_debut) return;
-    enumerateDays(r.date_debut, r.date_fin || r.date_debut).forEach((d) => daySet.add(d));
+    daySet.add(r.date_debut);
   });
   const days = Array.from(daySet).sort();
 
@@ -567,11 +559,7 @@ export default function ItineraryView({
       )}
 
       {days.map((day) => {
-        const dayResas = reservationsAffichees.filter((r) => {
-          if (!r.date_debut) return false;
-          const end = r.date_fin || r.date_debut;
-          return day >= r.date_debut && day <= end;
-        });
+        const dayResas = reservationsAffichees.filter((r) => r.date_debut === day);
 
         return (
           <div key={day} className="rounded-md border border-[#666666]/15 bg-white p-2.5">

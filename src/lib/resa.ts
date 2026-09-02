@@ -492,15 +492,16 @@ export function isAeroportTransfertHorsHurghada(nomActivite: string) {
 }
 
 // Certaines activités catalogue durent plusieurs jours consécutifs (Le
-// Caire/Louxor 2 jours, Montgolfière 2 jours, Siwa 2 ou 3 jours...) — le
-// nom catalogue suffit à déduire le nombre de jours, pour présélectionner
-// automatiquement la date de fin dès la date de début choisie. Les
-// circuits/croisières ne sont volontairement pas couverts ici (traités à
-// part, plus complexes — plusieurs villes/étapes).
+// Caire/Louxor 2 jours, Montgolfière 2 jours, Siwa 2 ou 3 jours, croisières
+// 4 ou 5 jours...) — le nom catalogue suffit à déduire le nombre de jours,
+// pour présélectionner automatiquement la date de fin dès la date de début
+// choisie (le jour de début reste, lui, validé par jours_disponibles/
+// JourIndisponibleAlert comme pour toute activité). Les circuits ne sont
+// volontairement pas couverts ici (plus complexes — plusieurs villes/étapes).
 export function dureeJoursActivite(nom: string): number | null {
   const n = (nom || "").toLowerCase();
-  if (n.includes("3 jours")) return 3;
-  if (n.includes("2 jours")) return 2;
+  const match = n.match(/(\d+)\s*jours?\b/);
+  if (match && Number(match[1]) >= 2) return Number(match[1]);
   // Ex. "Louxor 1 jour visites & 1 jour Montgolfière" — 2 jours au total
   // sans que "2 jours" apparaisse littéralement dans le nom.
   if (n.includes("1 jour") && n.includes("montgolfi")) return 2;

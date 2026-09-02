@@ -781,8 +781,16 @@ export default function QuickAddClient({
                         <div className="mt-2 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
                           ⚠ Attention, cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut
                           comporter une taxe de transfert
-                          {taxeMatch?.type === "montant" ? ` (${taxeMatch.montant} €)` : ""}
-                          {taxeMatch?.type === "a_demander" ? ` (${taxeMatch.note})` : ""}.
+                          {(answers.adultes || 0) > 0 && taxeMatch?.type === "montant"
+                            ? ` (${taxeMatch.montant} €)`
+                            : ""}
+                          {(answers.adultes || 0) > 0 && taxeMatch?.type === "a_demander"
+                            ? ` (${taxeMatch.note})`
+                            : ""}
+                          {(answers.adultes || 0) === 0
+                            ? " — montant précis à confirmer une fois le nombre de participants renseigné"
+                            : ""}
+                          .
                         </div>
                       )
                     ) : (
@@ -801,13 +809,34 @@ export default function QuickAddClient({
                     <AjouterHotelZoneModal
                       hotelNom={answers.hotel || ""}
                       onAdd={async (ville) => {
+                        const nom = (answers.hotel || "").trim();
                         const { data, error } = await supabase
                           .from("hotels_reference")
-                          .insert({ nom: answers.hotel || "", ville, sur_hurghada: ville === "Hurghada" })
+                          .insert({ nom, ville, sur_hurghada: ville === "Hurghada" })
                           .select()
                           .single();
                         if (!error && data) {
                           setHotelsRef((prev) => [...prev, data as HotelReference]);
+                          setAjouterHotelZoneOpen(false);
+                          return;
+                        }
+                        // Déjà répertorié sous un nom identique (index unique
+                        // sur hotels_reference) — pas une vraie erreur : on
+                        // récupère juste la fiche existante au lieu d'en
+                        // recréer une, pour débloquer le pas suivant.
+                        if (error?.code === "23505") {
+                          const { data: existing } = await supabase
+                            .from("hotels_reference")
+                            .select("*")
+                            .ilike("nom", nom)
+                            .maybeSingle();
+                          if (existing) {
+                            setHotelsRef((prev) =>
+                              prev.some((h) => h.id === existing.id) ? prev : [...prev, existing as HotelReference]
+                            );
+                          }
+                        } else {
+                          toast("Échec de l'ajout de l'hôtel.");
                         }
                         setAjouterHotelZoneOpen(false);
                       }}

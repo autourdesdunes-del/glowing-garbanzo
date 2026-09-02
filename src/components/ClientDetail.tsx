@@ -855,17 +855,32 @@ export default function ClientDetail({
   // AjouterHotelZoneModal) sans renvoyer l'employée vers HELP — la fiche en
   // cours profite tout de suite de la détection de taxe de transfert, et
   // l'hôtel reste disponible pour tous les clients suivants.
-  const addHotelRef = async (nom: string, ville: string) => {
+  const addHotelRef = async (nomBrut: string, ville: string) => {
+    const nom = nomBrut.trim();
     const { data, error } = await supabase
       .from("hotels_reference")
       .insert({ nom, ville, sur_hurghada: ville === "Hurghada" })
       .select()
       .single();
-    if (error || !data) {
-      toast("Échec de l'ajout de l'hôtel.");
+    if (!error && data) {
+      setHotelsRef((prev) => [...prev, data as HotelReference]);
       return;
     }
-    setHotelsRef((prev) => [...prev, data as HotelReference]);
+    // Déjà répertorié sous un nom identique (index unique sur
+    // hotels_reference) — pas une vraie erreur : on récupère la fiche
+    // existante au lieu d'en recréer une, pour débloquer la suite.
+    if (error?.code === "23505") {
+      const { data: existing } = await supabase
+        .from("hotels_reference")
+        .select("*")
+        .ilike("nom", nom)
+        .maybeSingle();
+      if (existing) {
+        setHotelsRef((prev) => (prev.some((h) => h.id === existing.id) ? prev : [...prev, existing as HotelReference]));
+        return;
+      }
+    }
+    toast("Échec de l'ajout de l'hôtel.");
   };
 
   // Une facture sans conditions de paiement enregistrées afficherait "Aucun

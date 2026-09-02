@@ -2202,6 +2202,8 @@ export default function AddActivityWizard({
     // Total hors réduction, pour afficher clairement ce qui est réduit/offert.
     const sousTotal =
       resaTotalMontant({ ...r, activite_offerte: false, reduction_montant: 0 }, client, options, tarifs);
+    const reductionActive = r.activite_offerte || (Number(r.reduction_montant) || 0) > 0;
+    const motifManquant = reductionActive && !r.reduction_motif.trim();
     return wrap(
       <>
         <div className="mb-3 flex gap-2">
@@ -2214,7 +2216,7 @@ export default function AddActivityWizard({
                 : "border-neutral-200 text-neutral-700 hover:border-[#171717]"
             }`}
           >
-            Aucune / Réduction partielle
+            Réduction partielle
           </button>
           <button
             type="button"
@@ -2249,7 +2251,7 @@ export default function AddActivityWizard({
           </div>
         )}
 
-        {(r.activite_offerte || (Number(r.reduction_montant) || 0) > 0) && (
+        {reductionActive && (
           <div className="mb-3">
             <label className="mb-1 block text-xs text-neutral-500">Motif (obligatoire)</label>
             <input
@@ -2258,12 +2260,15 @@ export default function AddActivityWizard({
               placeholder="ex. geste commercial, dédommagement retard…"
               className="input w-full"
             />
+            {motifManquant && (
+              <p className="mt-1 text-xs text-red-600">⚠ Merci de préciser le motif avant de continuer.</p>
+            )}
           </div>
         )}
 
         <p className="text-xs text-neutral-400">
           Total de l&apos;activité : {euros(sousTotal)} €
-          {(r.activite_offerte || (Number(r.reduction_montant) || 0) > 0) && (
+          {reductionActive && (
             <>
               {" "}
               → <span className="font-medium text-[#171717]">{euros(resaTotalMontant(r, client, options, tarifs))} €</span>
@@ -2271,7 +2276,39 @@ export default function AddActivityWizard({
           )}
         </p>
 
-        {navButtons(() => setStep("transfert"), "Suivant — Transfert")}
+        <div className="mt-4 flex gap-2">
+          <button
+            type="button"
+            onClick={goBack}
+            className="rounded-md border border-[#eaeaea] px-3 py-2 text-sm text-[#666666] hover:bg-[#fafafa]"
+          >
+            Précédent
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onUpdateReservation(r.id, {
+                activite_offerte: false,
+                reduction_montant: 0,
+                reduction_motif: "",
+              });
+              setStep("transfert");
+            }}
+            className="rounded-md border border-[#eaeaea] px-3 py-2 text-sm text-[#666666] hover:bg-[#fafafa]"
+          >
+            Passer — aucun geste
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (motifManquant) return;
+              setStep("transfert");
+            }}
+            className="flex-1 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            Suivant — Transfert
+          </button>
+        </div>
       </>
     );
   }

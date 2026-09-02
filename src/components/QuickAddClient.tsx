@@ -16,6 +16,7 @@ import {
   CatalogueTransfertTarif,
   Client,
   HotelReference,
+  Pack,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -136,6 +137,7 @@ export default function QuickAddClient({
     {}
   );
   const [catalogueOptions, setCatalogueOptions] = useState<Record<string, CatalogueOption[]>>({});
+  const [packs, setPacks] = useState<Pack[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [resaTarifs, setResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
@@ -151,6 +153,7 @@ export default function QuickAddClient({
         { data: catTarifs },
         { data: transfertTarifsData },
         { data: catOptions },
+        { data: packsData },
       ] = await Promise.all([
         supabase.from("hotels_reference").select("*"),
         supabase.from("transfert_taxes").select("*"),
@@ -159,7 +162,9 @@ export default function QuickAddClient({
         supabase.from("catalogue_tarifs").select("*"),
         supabase.from("transfert_tarifs").select("*").order("ordre", { ascending: true }),
         supabase.from("catalogue_options").select("*"),
+        supabase.from("packs").select("*").order("ordre", { ascending: true }),
       ]);
+      setPacks((packsData as Pack[]) || []);
       setHotelsRef((h as HotelReference[]) || []);
       setTaxesRef((t as TransfertTaxe[]) || []);
       const fetched = ((opts as { label: string }[]) || []).map((o) => o.label);
@@ -931,7 +936,7 @@ export default function QuickAddClient({
                   catalogueTarifs={catalogueTarifs}
                   transfertTarifs={transfertTarifs}
                   catalogueOptions={catalogueOptions}
-                  packs={[]}
+                  packs={packs}
                   canSeeMargins={false}
                   hotelHorsHurghada={hotelHorsHurghada}
                   coutsMap={{}}

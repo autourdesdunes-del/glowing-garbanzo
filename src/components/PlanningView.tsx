@@ -286,6 +286,9 @@ function ReservationSummaryCard({
             </span>
           )}
         </div>
+        {enCoursBadge(r) && (
+          <p className="mt-1 text-xs font-medium text-blue-700">Toujours en cours</p>
+        )}
         {r.pickup_reel && (
           <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-[#0F5C56]">
             🚐 Pick-up {r.pickup_reel}
@@ -459,8 +462,14 @@ function ReservationSummaryCard({
         )}
       </div>
       <p className="mt-1 text-xs text-neutral-500">
-        {fmtDate(r.date_debut as string)}
-        {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
+        {enCoursBadge(r) ? (
+          "Toujours en cours"
+        ) : (
+          <>
+            {fmtDate(r.date_debut as string)}
+            {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
+          </>
+        )}
       </p>
       {r.pickup_reel && (
         <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-[#0F5C56]">
@@ -786,8 +795,14 @@ function ActivityDetailModal({
             </button>
           </DetailRow>
           <DetailRow label="Date">
-            {fmtDate(r.date_debut || "")}
-            {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
+            {enCoursBadge(r) ? (
+              "Toujours en cours"
+            ) : (
+              <>
+                {fmtDate(r.date_debut || "")}
+                {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
+              </>
+            )}
           </DetailRow>
           {r.pickup_reel && (
             <DetailRow label="Pick-up">

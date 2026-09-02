@@ -37,6 +37,7 @@ import {
   missingChampsFor,
   momentBadge,
   pointureBadge,
+  packBadge,
   volBadge,
   needsMomentSpeedboat,
   paiementStatutKey,
@@ -331,6 +332,11 @@ export default function ReservationCard({
                 {r.photo_vol_path ? " 📷" : ""}
               </span>
             )}
+            {packBadge(r) && (
+              <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+                {packBadge(r)}
+              </span>
+            )}
             {pointureBadge(r) && (
               <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
                 {pointureBadge(r)}
@@ -400,6 +406,11 @@ export default function ReservationCard({
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
               {volBadge(r)}
               {r.photo_vol_path ? " 📷" : ""}
+            </span>
+          )}
+          {packBadge(r) && (
+            <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+              {packBadge(r)}
             </span>
           )}
           {pointureBadge(r) && (

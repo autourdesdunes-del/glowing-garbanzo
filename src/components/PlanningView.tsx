@@ -32,6 +32,7 @@ import {
   resaTotalMontant,
   reservationsActives,
   STATUT_PAIEMENT_OPTIONS,
+  packBadge,
   volBadge,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
@@ -263,6 +264,11 @@ function ReservationSummaryCard({
               {r.photo_vol_path ? " 📷" : ""}
             </span>
           )}
+          {packBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-[#C9973E]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#8B4531]">
+              {packBadge(r)}
+            </span>
+          )}
           {pointureBadge(r) && (
             <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
               {pointureBadge(r)}
@@ -326,6 +332,11 @@ function ReservationSummaryCard({
             <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
               {volBadge(r)}
               {r.photo_vol_path ? " 📷" : ""}
+            </span>
+          )}
+          {packBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-[#C9973E]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#8B4531]">
+              {packBadge(r)}
             </span>
           )}
           {pointureBadge(r) && (
@@ -413,6 +424,11 @@ function ReservationSummaryCard({
           <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
             {volBadge(r)}
             {r.photo_vol_path ? " 📷" : ""}
+          </span>
+        )}
+        {packBadge(r) && (
+          <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+            {packBadge(r)}
           </span>
         )}
         {pointureBadge(r) && (
@@ -703,6 +719,11 @@ function ActivityDetailModal({
               <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
                 {volBadge(r)}
                 {r.photo_vol_path ? " 📷" : ""}
+              </span>
+            )}
+            {packBadge(r) && (
+              <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+                {packBadge(r)}
               </span>
             )}
             {pointureBadge(r) && (

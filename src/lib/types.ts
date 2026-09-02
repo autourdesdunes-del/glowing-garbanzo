@@ -66,6 +66,34 @@ export type CatalogueItem = {
   updated_at: string;
 };
 
+// Un emplacement du pack — une ou plusieurs activités catalogue
+// alternatives ("OU"), ex. {ordre: 1, catalogue_item_ids: ["<Le Caire>", "<Louxor>"]}.
+export type PackSlot = {
+  ordre: number;
+  catalogue_item_ids: string[];
+};
+
+// Regroupement de plusieurs activités catalogue vendues ensemble à un prix
+// par personne inférieur à la somme des activités prises séparément (ex.
+// PACK EXPLORATION : Caire ou Louxor + Maison des dauphins + Safari, à
+// 125€/pers). Chaque emplacement peut proposer un choix parmi plusieurs
+// activités ("OU") — voir PackSlot. Le prix se répartit ensuite au prorata
+// sur chaque activité créée (voir packSlotPrix dans resa.ts).
+export type Pack = {
+  id: string;
+  nom: string;
+  description: string;
+  inclus: string;
+  photo_path: string;
+  prix_adulte: number;
+  prix_enfant: number;
+  valide: boolean;
+  ordre: number;
+  slots: PackSlot[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type CatalogueFaq = {
   id: string;
   catalogue_item_id: string;
@@ -150,6 +178,12 @@ export type Reservation = {
   // Abu Simbel, transfert) qui a lieu à une date différente de la croisière
   // elle-même — pointe vers la réservation "Croisière" d'origine.
   parent_reservation_id: string | null;
+  // Renseignés quand cette activité a été ajoutée via un Pack — son prix
+  // (pu_adulte/pu_enfant) est alors sa propre part du prix pack, calculée
+  // au prorata, jamais 0€, pour qu'une annulation individuelle se comporte
+  // comme une réservation normale sans casser les autres cartes du pack.
+  pack_id: string | null;
+  pack_nom: string;
   date_debut: string | null;
   date_fin: string | null;
   moment: string;
@@ -273,6 +307,7 @@ export type PaiementEtape = {
   montant: number;
   mode: string;
   date: string | null;
+  note: string;
   created_at: string;
 };
 

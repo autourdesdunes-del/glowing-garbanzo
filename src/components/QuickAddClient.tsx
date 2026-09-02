@@ -904,6 +904,7 @@ export default function QuickAddClient({
                   catalogueTarifs={catalogueTarifs}
                   transfertTarifs={transfertTarifs}
                   catalogueOptions={catalogueOptions}
+                  packs={[]}
                   canSeeMargins={false}
                   hotelHorsHurghada={hotelHorsHurghada}
                   coutsMap={{}}

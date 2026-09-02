@@ -10,6 +10,7 @@ import {
   CatalogueTarif,
   CatalogueTransfertTarif,
   Client,
+  Pack,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -42,6 +43,7 @@ export default function GuidedActivityModal({
   catalogueTarifs,
   transfertTarifs,
   catalogueOptions,
+  packs,
   canSeeMargins,
   hotelHorsHurghada,
   coutsMap,
@@ -72,6 +74,7 @@ export default function GuidedActivityModal({
   catalogueTarifs: Record<string, CatalogueTarif[]>;
   transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
+  packs: Pack[];
   canSeeMargins: boolean;
   hotelHorsHurghada: boolean;
   coutsMap: Record<string, number>;
@@ -152,6 +155,7 @@ export default function GuidedActivityModal({
             catalogueTarifs={catalogueTarifs}
             transfertTarifs={transfertTarifs}
             catalogueOptions={catalogueOptions}
+            packs={packs}
             canSeeMargins={canSeeMargins}
             hotelHorsHurghada={hotelHorsHurghada}
             coutsMap={coutsMap}

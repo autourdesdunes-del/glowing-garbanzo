@@ -18,6 +18,7 @@ import {
   Incident,
   JourEscalation,
   PaiementEtape,
+  Pack,
   PaypalPaiement,
   PlanningShift,
   Profile,
@@ -41,6 +42,7 @@ import ProspectSummaryModal from "@/components/ProspectSummaryModal";
 import ChangePasswordButton from "@/components/ChangePasswordButton";
 import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
+import PacksAdminView from "@/components/PacksAdminView";
 import PlanningView from "@/components/PlanningView";
 import RecapMoisView from "@/components/RecapMoisView";
 import SuivisView, { SUIVIS_SUBS, SuivisSub } from "@/components/SuivisView";
@@ -388,6 +390,8 @@ function AppShellInner({
   const [managerSub, setManagerSub] = useState<ManagerSub>("attente");
   const [clients, setClients] = useState<Client[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
+  const [packs, setPacks] = useState<Pack[]>([]);
+  const [catalogueSubView, setCatalogueSubView] = useState<"activites" | "packs">("activites");
   const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [prospectSummaryId, setProspectSummaryId] = useState<string | null>(null);
@@ -519,6 +523,7 @@ function AppShellInner({
         { data: catOptions },
         { data: catFaq },
         { data: catJours },
+        { data: packsData },
         { data: profs },
         { data: shifts },
         { data: paypal },
@@ -535,6 +540,7 @@ function AppShellInner({
         supabase.from("catalogue_options").select("*"),
         supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
         supabase.from("catalogue_jours").select("*").order("ordre", { ascending: true }),
+        supabase.from("packs").select("*").order("ordre", { ascending: true }),
         supabase.from("profiles").select("*"),
         supabase.from("planning_shifts").select("*"),
         // Chargé sans attendre l'ouverture de Suivis : le pop-up de rappel
@@ -549,6 +555,7 @@ function AppShellInner({
         // personnel de vérification des dossiers (PersonalNudgeAlert).
         supabase.from("verifications").select("*"),
       ]);
+      setPacks((packsData as Pack[]) || []);
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
@@ -1004,6 +1011,7 @@ function AppShellInner({
         { data: catOptions },
         { data: catFaq },
         { data: catJours },
+        { data: packsData },
         { data: profs },
         { data: shifts },
         { data: paypal },
@@ -1017,12 +1025,14 @@ function AppShellInner({
         supabase.from("catalogue_options").select("*"),
         supabase.from("catalogue_faq").select("*").order("created_at", { ascending: true }),
         supabase.from("catalogue_jours").select("*").order("ordre", { ascending: true }),
+        supabase.from("packs").select("*").order("ordre", { ascending: true }),
         supabase.from("profiles").select("*"),
         supabase.from("planning_shifts").select("*"),
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
         supabase.from("incidents").select("*").order("created_at", { ascending: false }),
         supabase.from("verifications").select("*"),
       ]);
+      setPacks((packsData as Pack[]) || []);
 
       if (freshClients) {
         setClients(
@@ -1595,6 +1605,35 @@ function AppShellInner({
     if (!ok) return;
     setCatalogue((prev) => prev.filter((a) => a.id !== id));
     const { error } = await supabase.from("catalogue_activites").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  const addPack = async () => {
+    const ordre = packs.length ? Math.max(...packs.map((p) => p.ordre)) + 1 : 0;
+    const { data, error } = await supabase.from("packs").insert({ ordre }).select().single();
+    if (!error && data) {
+      setPacks((prev) => [...prev, data as Pack]);
+    } else {
+      toast("Impossible de créer le pack.");
+    }
+  };
+
+  const updatePack = async (id: string, patch: Partial<Pack>) => {
+    setPacks((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    const { error } = await supabase.from("packs").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement du pack.");
+  };
+
+  const deletePack = async (id: string) => {
+    const ok = await confirm({
+      title: "Supprimer ce pack ?",
+      message: "Il ne sera plus proposé pour de nouvelles réservations. Les activités déjà créées à partir de ce pack ne sont pas affectées.",
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (!ok) return;
+    setPacks((prev) => prev.filter((p) => p.id !== id));
+    const { error } = await supabase.from("packs").delete().eq("id", id);
     if (error) toast("Échec de la suppression.");
   };
 
@@ -2585,6 +2624,7 @@ function AppShellInner({
                   catalogueTarifs={catalogueTarifs}
                   transfertTarifs={transfertTarifs}
                   catalogueOptions={catalogueOptions}
+                  packs={packs}
                   onOpenHelp={() => setMode("help")}
                 />
               </>
@@ -2597,6 +2637,31 @@ function AppShellInner({
 
       {mode === "catalogue" && (
         <div className="flex-1 overflow-y-auto">
+          <div className="flex gap-2 border-b border-[#eaeaea] px-4 pt-3">
+            <button
+              onClick={() => setCatalogueSubView("activites")}
+              className={`rounded-t-md px-3 py-1.5 text-sm font-medium ${
+                catalogueSubView === "activites"
+                  ? "border border-b-0 border-[#eaeaea] bg-white text-[#171717]"
+                  : "text-[#666666] hover:text-[#171717]"
+              }`}
+            >
+              Activités
+            </button>
+            <button
+              onClick={() => setCatalogueSubView("packs")}
+              className={`rounded-t-md px-3 py-1.5 text-sm font-medium ${
+                catalogueSubView === "packs"
+                  ? "border border-b-0 border-[#eaeaea] bg-white text-[#171717]"
+                  : "text-[#666666] hover:text-[#171717]"
+              }`}
+            >
+              Packs
+            </button>
+          </div>
+          {catalogueSubView === "packs" ? (
+            <PacksAdminView packs={packs} catalogue={catalogue} onAdd={addPack} onUpdate={updatePack} onDelete={deletePack} />
+          ) : (
           <CatalogueView
             items={catalogue}
             onAdd={addCatalogueItem}
@@ -2629,6 +2694,7 @@ function AppShellInner({
             topRentabiliteIds={topRentabiliteIds}
             canSeeMargins={effectiveIsDirection}
           />
+          )}
         </div>
       )}
 

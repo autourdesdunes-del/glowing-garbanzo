@@ -25,6 +25,7 @@ import {
   reductionBadge,
   paiementStatutKey,
   pointureBadge,
+  packBadge,
   volBadge,
   paiementBadge,
   participantsFor,
@@ -197,6 +198,11 @@ export default function ItineraryView({
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
               {volBadge(r)}
               {r.photo_vol_path ? " 📷" : ""}
+            </span>
+          )}
+          {packBadge(r) && (
+            <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
+              {packBadge(r)}
             </span>
           )}
           {pointureBadge(r) && (

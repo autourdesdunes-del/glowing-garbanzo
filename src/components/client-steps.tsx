@@ -16,6 +16,7 @@ import {
   HotelReference,
   Incident,
   PaiementEtape,
+  Pack,
   Remboursement,
   Reservation,
   ReservationOption,
@@ -27,6 +28,7 @@ import {
   ASSIGNE_A_OPTIONS,
   CANAUX,
   MODES_PAIEMENT,
+  NOTES_ETAPE_PAIEMENT_PRESETS,
   RAISONS_REMBOURSEMENT,
   RELATIONS,
   STATUTS,
@@ -45,6 +47,7 @@ import { matchHotel, matchTransfertTaxe, hotelDisplayForEgypt, villeTransfertInf
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
 import ItineraryView from "@/components/ItineraryView";
+import AddPackModal from "@/components/AddPackModal";
 import { Field, PropertyRow } from "@/components/Field";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
@@ -1212,6 +1215,7 @@ export function ActivitesStep({
   catalogueTarifs,
   transfertTarifs,
   catalogueOptions,
+  packs,
   canSeeMargins,
   hotelHorsHurghada,
   hotelVille,
@@ -1242,6 +1246,7 @@ export function ActivitesStep({
   catalogueTarifs: Record<string, CatalogueTarif[]>;
   transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
+  packs: Pack[];
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
   hotelVille?: string;
@@ -1275,6 +1280,7 @@ export function ActivitesStep({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addingNew, setAddingNewState] = useState(false);
+  const [addingPack, setAddingPack] = useState(false);
   const setAddingNew = (v: boolean) => {
     setAddingNewState(v);
     onAddingNewChange?.(v);
@@ -1315,18 +1321,38 @@ export function ActivitesStep({
   return (
     <div className="space-y-3">
       {!onRequestAdd && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           {clientAnnule ? (
             <p className="text-xs text-neutral-400">Client annulé — impossible d&apos;ajouter une activité.</p>
           ) : (
-            <button
-              onClick={() => setAddingNew(true)}
-              className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-            >
-              + Ajouter une activité
-            </button>
+            <>
+              {packs.some((p) => p.valide) && (
+                <button
+                  onClick={() => setAddingPack(true)}
+                  className="rounded-md border border-[#C9973E] px-3 py-1.5 text-sm font-medium text-[#C9973E] hover:bg-[#C9973E]/10"
+                >
+                  + Ajouter un pack
+                </button>
+              )}
+              <button
+                onClick={() => setAddingNew(true)}
+                className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                + Ajouter une activité
+              </button>
+            </>
           )}
         </div>
+      )}
+
+      {addingPack && (
+        <AddPackModal
+          catalogue={catalogue}
+          packs={packs}
+          onAddReservation={onAddReservation}
+          onUpdateReservation={onUpdateReservation}
+          onClose={() => setAddingPack(false)}
+        />
       )}
 
       <ItineraryView
@@ -1874,7 +1900,7 @@ export function PaiementsStep({
   resaTarifs: Record<string, ReservationTarif[]>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   paiementsEtapes?: PaiementEtape[];
-  onAddPaiementEtape?: (montant: number, mode: string, date: string) => void;
+  onAddPaiementEtape?: (montant: number, mode: string, date: string, note: string) => void;
   onDeletePaiementEtape?: (id: string) => void;
 }) {
   const confirm = useConfirm();
@@ -1888,6 +1914,8 @@ export function PaiementsStep({
   const [etapeMontant, setEtapeMontant] = useState("");
   const [etapeMode, setEtapeMode] = useState<string>(MODES_PAIEMENT[0] || "");
   const [etapeDate, setEtapeDate] = useState(todayStr());
+  const [etapeNotePreset, setEtapeNotePreset] = useState("");
+  const [etapeNoteLibre, setEtapeNoteLibre] = useState("");
 
   // Après avoir marqué l'acompte encaissé, si un billet d'avion attend
   // encore d'être signalé à Hossam, on le rappelle tout de suite — c'est
@@ -1962,7 +1990,15 @@ export function PaiementsStep({
   // (acompte, étapes libres, solde) — mélange trois sources différentes
   // dans une seule liste triée par date, plutôt que de laisser l'équipe
   // recomposer l'historique à la main entre plusieurs blocs.
-  type PaiementLigne = { id: string; label: string; montant: number; when: string; sortKey: string; etapeId?: string };
+  type PaiementLigne = {
+    id: string;
+    label: string;
+    montant: number;
+    when: string;
+    sortKey: string;
+    etapeId?: string;
+    note?: string;
+  };
   const paiementsChronologiques: PaiementLigne[] = [];
   if (client.acompte_paye) {
     paiementsChronologiques.push({
@@ -1971,6 +2007,7 @@ export function PaiementsStep({
       montant: Number(client.acompte_montant) || 0,
       when: fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts) || "—",
       sortKey: client.acompte_date_encaissement || "",
+      note: "Acompte prévu pour valider la réservation",
     });
   }
   etapesTriees.forEach((e) => {
@@ -1981,9 +2018,14 @@ export function PaiementsStep({
       when: e.date ? fmtDateDMY(e.date) : "—",
       sortKey: e.date || "",
       etapeId: e.id,
+      note: e.note,
     });
   });
-  if (client.solde_paye) {
+  // Si l'acompte + les étapes couvraient déjà tout le séjour au moment où le
+  // solde a été marqué "payé" (ex. via le popup "solde réglé"), il n'y a
+  // aucun règlement réel à ajouter à la liste — une ligne "Solde — 0 €" ne
+  // ferait que semer la confusion sur ce qui s'est vraiment passé.
+  if (client.solde_paye && soldeRestant > 0) {
     paiementsChronologiques.push({
       id: "solde",
       label: `Solde — ${client.solde_mode}`,
@@ -2000,8 +2042,15 @@ export function PaiementsStep({
       toast("Indique un montant valide pour cette étape.");
       return;
     }
-    onAddPaiementEtape(montant, etapeMode, etapeDate);
+    const note = etapeNotePreset === "Autre" ? etapeNoteLibre.trim() : etapeNotePreset;
+    if (!note) {
+      toast("Indique pourquoi ce paiement arrive (choisis une raison ou écris-la).");
+      return;
+    }
+    onAddPaiementEtape(montant, etapeMode, etapeDate, note);
     setEtapeMontant("");
+    setEtapeNotePreset("");
+    setEtapeNoteLibre("");
     setAddingEtape(false);
   };
 
@@ -2182,36 +2231,67 @@ export function PaiementsStep({
             + Ajouter une étape
           </button>
           {addingEtape && (
-            <div className="mt-2 flex flex-wrap items-end gap-2 rounded-md border border-neutral-200 bg-white p-2.5">
-              <Field label="Montant (€)">
-                <input
-                  type="number"
-                  value={etapeMontant}
-                  onChange={(e) => setEtapeMontant(e.target.value)}
-                  className="input w-28"
-                />
-              </Field>
-              <Field label="Mode">
-                <select value={etapeMode} onChange={(e) => setEtapeMode(e.target.value)} className="input">
-                  {MODES_PAIEMENT.map((m) => (
-                    <option key={m}>{m}</option>
+            <div className="mt-2 flex flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2.5">
+              <div className="flex flex-wrap items-end gap-2">
+                <Field label="Montant (€)">
+                  <input
+                    type="number"
+                    value={etapeMontant}
+                    onChange={(e) => setEtapeMontant(e.target.value)}
+                    className="input w-28"
+                  />
+                </Field>
+                <Field label="Mode">
+                  <select value={etapeMode} onChange={(e) => setEtapeMode(e.target.value)} className="input">
+                    {MODES_PAIEMENT.map((m) => (
+                      <option key={m}>{m}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Date">
+                  <input
+                    type="date"
+                    value={etapeDate}
+                    onChange={(e) => setEtapeDate(e.target.value)}
+                    className="input"
+                  />
+                </Field>
+              </div>
+              <Field label="Pourquoi ce paiement ?">
+                <div className="flex flex-wrap gap-1.5">
+                  {NOTES_ETAPE_PAIEMENT_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setEtapeNotePreset(preset)}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                        etapeNotePreset === preset
+                          ? "border-[#171717] bg-[#171717] text-white"
+                          : "border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+                      }`}
+                    >
+                      {preset}
+                    </button>
                   ))}
-                </select>
+                </div>
               </Field>
-              <Field label="Date">
+              {etapeNotePreset === "Autre" && (
                 <input
-                  type="date"
-                  value={etapeDate}
-                  onChange={(e) => setEtapeDate(e.target.value)}
+                  type="text"
+                  value={etapeNoteLibre}
+                  onChange={(e) => setEtapeNoteLibre(e.target.value)}
+                  placeholder="Explique en une phrase ce qui s'est passé"
                   className="input"
                 />
-              </Field>
-              <button
-                onClick={ajouterEtape}
-                className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-              >
-                Ajouter
-              </button>
+              )}
+              <div>
+                <button
+                  onClick={ajouterEtape}
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                >
+                  Ajouter
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -2222,25 +2302,25 @@ export function PaiementsStep({
           <h3 className="mb-1.5 text-sm font-semibold text-[#171717]">Résumé des paiements</h3>
           <div className="space-y-1">
             {paiementsChronologiques.map((ligne) => (
-              <div
-                key={ligne.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-[#fafafa] px-2.5 py-1.5 text-sm"
-              >
-                <span className="text-[#171717]">
-                  {ligne.label} — {euros(ligne.montant)} €
-                </span>
-                <span className="flex items-center gap-2 text-xs text-neutral-500">
-                  {ligne.when}
-                  {ligne.etapeId && (
-                    <button
-                      onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
-                      title="Retirer cette étape"
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      🗑
-                    </button>
-                  )}
-                </span>
+              <div key={ligne.id} className="rounded-md bg-[#fafafa] px-2.5 py-1.5 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[#171717]">
+                    {ligne.label} — {euros(ligne.montant)} €
+                  </span>
+                  <span className="flex items-center gap-2 text-xs text-neutral-500">
+                    {ligne.when}
+                    {ligne.etapeId && (
+                      <button
+                        onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
+                        title="Retirer cette étape"
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        🗑
+                      </button>
+                    )}
+                  </span>
+                </div>
+                {ligne.note && <div className="mt-0.5 text-xs italic text-[#8B4531]">{ligne.note}</div>}
               </div>
             ))}
           </div>

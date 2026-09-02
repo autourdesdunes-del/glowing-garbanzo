@@ -2,6 +2,7 @@ import {
   AssouanVerification,
   CatalogueItem,
   Client,
+  Pack,
   PaiementEtape,
   Reservation,
   ReservationOption,
@@ -294,6 +295,21 @@ export function isCroisiere(nom: string): boolean {
   return (nom || "").toLowerCase().includes("croisière au fil du nil");
 }
 
+// Séjours de plusieurs jours où le client est déjà sur place (Le Caire,
+// Louxor, croisière, Siwa) ou n'implique pas de trajet depuis Hurghada
+// (Abu Simbel/Assouan) — aucune taxe de transfert ne s'applique, jamais à
+// saisir à la main pour ces activités-là.
+export function noTaxeTransfert(nom: string): boolean {
+  const n = (nom || "").toLowerCase();
+  return (
+    n.includes("déjà sur place") ||
+    isCroisiere(n) ||
+    n.includes("siwa") ||
+    n.includes("abu simbel") ||
+    n.includes("assouan")
+  );
+}
+
 export type CroisiereSens = "louxor_assouan" | "assouan_louxor";
 
 export function croisiereSens(nom: string): CroisiereSens | null {
@@ -334,11 +350,32 @@ export function croisiereOptionDateProposee(croisiereNom: string, dateDebut: str
 // Excursion d'une journée en privatif (depuis Assouan)" à 120€/60€, et les
 // transferts privatifs, en forfait fixe quel que soit le nombre de
 // personnes — jamais multiplié par un nombre de participants).
+// catalogue_item_id pointe vers la vraie fiche catalogue correspondante —
+// nécessaire pour que la carte séparée hérite correctement de ses propres
+// règles (ex. vérification hébergement Assouan pour Abu Simbel/transferts).
 export const CROISIERE_OPTION_PRICING: Record<string, Partial<Reservation>> = {
-  Montgolfière: { tarif_mode: "personne", pu_adulte: 80, pu_enfant: 80 },
-  "Abu Simbel": { tarif_mode: "personne", pu_adulte: 120, pu_enfant: 60 },
-  "Transfert Assouan - Hurghada": { tarif_mode: "groupe", prix_groupe_base: 180 },
-  "Transfert Assouan - Louxor": { tarif_mode: "groupe", prix_groupe_base: 140 },
+  Montgolfière: {
+    tarif_mode: "personne",
+    pu_adulte: 80,
+    pu_enfant: 80,
+    catalogue_item_id: "092814a3-fedd-454e-9709-ca1f01165170",
+  },
+  "Abu Simbel": {
+    tarif_mode: "personne",
+    pu_adulte: 120,
+    pu_enfant: 60,
+    catalogue_item_id: "bc267a50-f40b-40ff-a7b2-633d756e364e",
+  },
+  "Transfert Assouan - Hurghada": {
+    tarif_mode: "groupe",
+    prix_groupe_base: 180,
+    catalogue_item_id: "ebdab078-bec9-44b9-8e7f-88c20ca82922",
+  },
+  "Transfert Assouan - Louxor": {
+    tarif_mode: "groupe",
+    prix_groupe_base: 140,
+    catalogue_item_id: "01e22dd6-0aa1-444a-a245-e33684d892aa",
+  },
 };
 
 // N° de vol / horaire d'arrivée du client (transferts aéroport) — affiché
@@ -354,6 +391,44 @@ export function volBadge(r: Reservation) {
 export function pointureBadge(r: Reservation) {
   if (!r.pointure.trim()) return "";
   return `👟 ${r.pointure.trim()}`;
+}
+
+// Signale qu'une activité fait partie d'un Pack — pour que l'équipe
+// comprenne pourquoi son prix est réduit par rapport au tarif catalogue
+// normal, même en consultant cette carte isolément.
+export function packBadge(r: Reservation) {
+  if (!r.pack_id || !r.pack_nom.trim()) return "";
+  return `Pack : ${r.pack_nom.trim()}`;
+}
+
+// Répartit le prix du pack (prix_adulte/prix_enfant) sur chaque activité
+// choisie, au prorata de son prix catalogue normal — jamais un prix à 0€
+// caché sur certaines cartes : si le client annule une des activités, seule
+// sa part disparaît du total, exactement comme une réservation normale.
+// Repli en parts égales si la somme des prix catalogue normaux est nulle
+// (ex. items sans prix catalogue renseigné).
+export function packSlotPrix(
+  pack: Pack,
+  itemsChoisis: CatalogueItem[]
+): { itemId: string; pu_adulte: number; pu_enfant: number }[] {
+  const sommeAdulte = itemsChoisis.reduce((s, i) => s + (Number(i.pu_adulte) || 0), 0);
+  const sommeEnfant = itemsChoisis.reduce((s, i) => s + (Number(i.pu_enfant) || 0), 0);
+  const n = itemsChoisis.length || 1;
+  return itemsChoisis.map((item) => {
+    const pu_adulte =
+      sommeAdulte > 0
+        ? (pack.prix_adulte * (Number(item.pu_adulte) || 0)) / sommeAdulte
+        : pack.prix_adulte / n;
+    const pu_enfant =
+      sommeEnfant > 0
+        ? (pack.prix_enfant * (Number(item.pu_enfant) || 0)) / sommeEnfant
+        : pack.prix_enfant / n;
+    return {
+      itemId: item.id,
+      pu_adulte: Math.round(pu_adulte * 100) / 100,
+      pu_enfant: Math.round(pu_enfant * 100) / 100,
+    };
+  });
 }
 
 // Champs requis pas encore remplis pour cette activité — logique partagée

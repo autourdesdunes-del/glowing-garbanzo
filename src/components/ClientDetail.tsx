@@ -14,6 +14,7 @@ import {
   HotelReference,
   Incident,
   PaiementEtape,
+  Pack,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -29,6 +30,7 @@ import IncidentsModal from "@/components/IncidentsModal";
 import DevisPaiementModal from "@/components/DevisPaiementModal";
 import ConfirmationDocumentStage from "@/components/ConfirmationDocument";
 import DuplicateClientModal from "@/components/DuplicateClientModal";
+import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
 import { STATUT_COLORS } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
@@ -105,6 +107,7 @@ export default function ClientDetail({
   catalogueTarifs,
   transfertTarifs,
   catalogueOptions,
+  packs,
   onOpenHelp,
 }: {
   client: Client;
@@ -120,6 +123,7 @@ export default function ClientDetail({
   catalogueTarifs: Record<string, CatalogueTarif[]>;
   transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
+  packs: Pack[];
   onOpenHelp: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
@@ -149,6 +153,10 @@ export default function ClientDetail({
   // qu'elles étaient juste dans un doublon jamais rapproché de l'original).
   const [dupMatches, setDupMatches] = useState<DuplicateMatch[]>([]);
   const [dupDismissedFor, setDupDismissedFor] = useState("");
+  // Re-propose la vérification hébergement Assouan juste après avoir généré
+  // le bon de confirmation — le bon peut partir au client avant que l'info
+  // ait été redemandée/revalidée, donc on la rappelle à ce moment précis.
+  const [assouanRepromptId, setAssouanRepromptId] = useState<string | null>(null);
   const [momentConflict, setMomentConflict] = useState<{ current: Reservation; other: Reservation } | null>(
     null
   );
@@ -348,10 +356,10 @@ export default function ClientDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
 
-  const addPaiementEtape = async (montant: number, mode: string, date: string) => {
+  const addPaiementEtape = async (montant: number, mode: string, date: string, note: string) => {
     const { data, error } = await supabase
       .from("paiements_etapes")
-      .insert({ client_id: client.id, montant, mode, date: date || null })
+      .insert({ client_id: client.id, montant, mode, date: date || null, note })
       .select()
       .single();
     if (!error && data) {
@@ -1160,6 +1168,7 @@ export default function ClientDetail({
         catalogueTarifs={catalogueTarifs}
         transfertTarifs={transfertTarifs}
         catalogueOptions={catalogueOptions}
+        packs={packs}
         canSeeMargins={canSeeMargins}
         hotelHorsHurghada={hotelHorsHurghada}
         coutsMap={coutsMap}
@@ -1248,6 +1257,7 @@ export default function ClientDetail({
           catalogueTarifs={catalogueTarifs}
           transfertTarifs={transfertTarifs}
           catalogueOptions={catalogueOptions}
+          packs={packs}
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}
           hotelVille={hotelMatch?.ville}
@@ -1460,8 +1470,32 @@ export default function ClientDetail({
         resaTarifs={resaTarifs}
         hotelVille={hotelMatch?.ville}
         format={confirmationFormat}
-        onDone={() => setConfirmationFormat(null)}
+        onDone={() => {
+          setConfirmationFormat(null);
+          const activiteAVerifier = reservations.find((rr) => {
+            const item = catalogue.find((c) => c.id === rr.catalogue_item_id);
+            if (!item?.necessite_verif_hebergement_assouan) return false;
+            const verif = assouanVerifications.find((v) => v.reservation_id === rr.id);
+            return verif?.statut !== "validee";
+          });
+          if (activiteAVerifier) setAssouanRepromptId(activiteAVerifier.id);
+        }}
       />
+      {assouanRepromptId &&
+        (() => {
+          const r = reservations.find((rr) => rr.id === assouanRepromptId);
+          if (!r) return null;
+          return (
+            <AssouanHebergementAlert
+              nomActivite={r.nom_activite}
+              onClose={() => setAssouanRepromptId(null)}
+              onConfirmerInfo={async () => {
+                await handleAssouanVerification(r.nom_activite, r.id);
+                setAssouanRepromptId(null);
+              }}
+            />
+          );
+        })()}
       {dupMatches.length > 0 && (
         <DuplicateClientModal
           current={client}

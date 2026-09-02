@@ -1,6 +1,7 @@
 import { Client, HotelReference, Reservation } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/dates";
 import { matchHotel } from "@/lib/hotelHelp";
+import { senseTransfertAeroport } from "@/lib/resa";
 
 // Le numéro de chambre n'a de sens à demander que pour un hôtel situé à
 // Hurghada ou dans sa région (transferts courts, l'équipe locale y va
@@ -20,6 +21,7 @@ export const INFO_MANQUANTE_AUTO_WHATSAPP = "Numéro WhatsApp";
 export const INFO_MANQUANTE_AUTO_ACOMPTE = "Acompte PayPal";
 export const INFO_MANQUANTE_AUTO_BILLET = "Billets d'avion";
 export const INFO_MANQUANTE_AUTO_PASSEPORT = "Passeport";
+export const INFO_MANQUANTE_AUTO_VOL_TRANSFERT = "Flight ticket info";
 
 export function infosManquantesAuto(
   client: Client,
@@ -55,6 +57,21 @@ export function infosManquantesAuto(
     result.push(INFO_MANQUANTE_AUTO_BILLET);
   }
   if (client.passeport_photos.length === 0) result.push(INFO_MANQUANTE_AUTO_PASSEPORT);
+  // Un transfert aéroport sans numéro de vol ni horaire ne peut pas être
+  // organisé côté équipe Égypte — signalé tant que l'un des deux manque,
+  // pour toute réservation active de ce type (le sens du transfert suffit
+  // à le détecter, pas besoin de savoir si l'item catalogue l'exige).
+  if (
+    reservations.some(
+      (r) =>
+        r.client_id === client.id &&
+        r.statut_resa !== "Annulée" &&
+        senseTransfertAeroport(r.nom_activite) &&
+        (!r.numero_vol.trim() || !r.horaire_vol.trim())
+    )
+  ) {
+    result.push(INFO_MANQUANTE_AUTO_VOL_TRANSFERT);
+  }
   return result;
 }
 

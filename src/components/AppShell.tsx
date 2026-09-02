@@ -2234,7 +2234,12 @@ function AppShellInner({
         onUpdateReservation={updateReservationById}
       />
       <PaypalPaiementRappel
-        paypalPaiements={paypalPaiements}
+        // Rappel limité aux paiements reçus à partir du 1er septembre 2026 —
+        // avant cette date, un gros arriéré de paiements jamais rattachés
+        // faisait ressurgir le pop-up en continu. Le rattrapage de
+        // l'arriéré reste possible manuellement via Suivis > Paiements
+        // PayPal, qui lui n'est pas filtré.
+        paypalPaiements={paypalPaiements.filter((p) => p.paypal_recu_le >= "2026-09-01")}
         clients={clients}
         onRattacher={rattacherPaypalPaiement}
       />

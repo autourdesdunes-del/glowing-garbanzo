@@ -2209,9 +2209,26 @@ export default function AddActivityWizard({
         <div className="mb-3 flex gap-2">
           <button
             type="button"
-            onClick={() => onUpdateReservation(r.id, { activite_offerte: false, reduction_montant: 0 })}
+            onClick={() =>
+              onUpdateReservation(r.id, {
+                activite_offerte: false,
+                reduction_montant: 0,
+                reduction_motif: "",
+              })
+            }
             className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium ${
-              !r.activite_offerte
+              !reductionActive
+                ? "border-[#171717] bg-[#171717] text-white"
+                : "border-neutral-200 text-neutral-700 hover:border-[#171717]"
+            }`}
+          >
+            Passer — aucun geste
+          </button>
+          <button
+            type="button"
+            onClick={() => onUpdateReservation(r.id, { activite_offerte: false, reduction_montant: 1 })}
+            className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium ${
+              reductionActive && !r.activite_offerte
                 ? "border-[#171717] bg-[#171717] text-white"
                 : "border-neutral-200 text-neutral-700 hover:border-[#171717]"
             }`}
@@ -2231,7 +2248,7 @@ export default function AddActivityWizard({
           </button>
         </div>
 
-        {!r.activite_offerte && (
+        {!r.activite_offerte && reductionActive && (
           <div className="mb-3 flex items-center gap-2">
             <span className="text-sm text-neutral-600">Montant de la réduction</span>
             <input
@@ -2283,20 +2300,6 @@ export default function AddActivityWizard({
             className="rounded-md border border-[#eaeaea] px-3 py-2 text-sm text-[#666666] hover:bg-[#fafafa]"
           >
             Précédent
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onUpdateReservation(r.id, {
-                activite_offerte: false,
-                reduction_montant: 0,
-                reduction_motif: "",
-              });
-              setStep("transfert");
-            }}
-            className="rounded-md border border-[#eaeaea] px-3 py-2 text-sm text-[#666666] hover:bg-[#fafafa]"
-          >
-            Passer — aucun geste
           </button>
           <button
             type="button"

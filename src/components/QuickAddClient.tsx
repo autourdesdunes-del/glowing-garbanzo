@@ -7,6 +7,7 @@ import { useConfirm } from "@/components/ConfirmProvider";
 import { ActivitesStep, Field, PaiementsStep } from "@/components/client-steps";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import DuplicateClientModal from "@/components/DuplicateClientModal";
+import AjouterHotelZoneModal from "@/components/AjouterHotelZoneModal";
 import { CANAUX, RELATIONS } from "@/lib/constants";
 import {
   CatalogueItem,
@@ -127,6 +128,7 @@ export default function QuickAddClient({
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
+  const [ajouterHotelZoneOpen, setAjouterHotelZoneOpen] = useState(false);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
@@ -778,10 +780,34 @@ export default function QuickAddClient({
                         </div>
                       )
                     ) : (
-                      <div className="mt-2 rounded-md bg-neutral-100 px-3 py-2 text-xs text-neutral-500">
-                        Hôtel non répertorié dans HELP.
+                      <div className="mt-2 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
+                        ⚠ Cet hôtel n&apos;est pas répertorié — il faut l&apos;ajouter pour continuer.{" "}
+                        <button
+                          type="button"
+                          onClick={() => setAjouterHotelZoneOpen(true)}
+                          className="underline hover:no-underline"
+                        >
+                          L&apos;ajouter
+                        </button>
                       </div>
                     ))}
+                  {ajouterHotelZoneOpen && (
+                    <AjouterHotelZoneModal
+                      hotelNom={answers.hotel || ""}
+                      onAdd={async (ville) => {
+                        const { data, error } = await supabase
+                          .from("hotels_reference")
+                          .insert({ nom: answers.hotel || "", ville, sur_hurghada: ville === "Hurghada" })
+                          .select()
+                          .single();
+                        if (!error && data) {
+                          setHotelsRef((prev) => [...prev, data as HotelReference]);
+                        }
+                        setAjouterHotelZoneOpen(false);
+                      }}
+                      onClose={() => setAjouterHotelZoneOpen(false)}
+                    />
+                  )}
                 </>
               )}
 
@@ -962,7 +988,11 @@ export default function QuickAddClient({
                   <button
                     type="button"
                     onClick={goNext}
-                    disabled={creating || (step === "nom" && !nomDraft.trim())}
+                    disabled={
+                      creating ||
+                      (step === "nom" && !nomDraft.trim()) ||
+                      (step === "hotel" && !!(answers.hotel || "").trim() && !hotelMatch)
+                    }
                     className="flex-1 rounded-[6px] bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                   >
                     {creating ? "Création…" : "Suivant"}

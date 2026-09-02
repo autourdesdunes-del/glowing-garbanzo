@@ -607,6 +607,18 @@ export function ContactStep({
                       className="input-flat w-full font-medium"
                     />
                   </PropertyRow>
+                  {clientHotels.length === 0 && client.hotel.trim() && !hotelMatch && (
+                    <div className="pl-[26px] text-xs text-orange-600">
+                      ⚠ Cet hôtel n&apos;est pas répertorié — il faut l&apos;ajouter pour continuer.{" "}
+                      <button
+                        type="button"
+                        onClick={() => setAjouterHotelZoneOpen(true)}
+                        className="underline hover:no-underline"
+                      >
+                        L&apos;ajouter
+                      </button>
+                    </div>
+                  )}
                   <PropertyRow label="N° chambre(s)">
                     <input
                       value={client.chambre}
@@ -751,8 +763,14 @@ export function ContactStep({
             </div>
             <button
               type="button"
+              disabled={
+                client.type_hebergement !== "airbnb" &&
+                clientHotels.length === 0 &&
+                !!client.hotel.trim() &&
+                !hotelMatch
+              }
               onClick={() => setHotelModalOpen(false)}
-              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90"
+              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Valider
             </button>

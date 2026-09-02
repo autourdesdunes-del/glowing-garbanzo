@@ -21,6 +21,7 @@ import {
   fmtEncaisseLe,
   isDeuxiemeIleOption,
   momentBadge,
+  optionsBadge,
   reductionBadge,
   paiementBadge,
   paiementStatutKey,
@@ -251,6 +252,11 @@ function ReservationSummaryCard({
               {reductionBadge(r)}
             </span>
           )}
+          {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+            <span className="whitespace-nowrap rounded-full bg-[#0F5C56] px-1.5 py-0.5 text-[10px] font-medium text-white">
+              {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+            </span>
+          )}
           {volBadge(r) && (
             <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
               {volBadge(r)}
@@ -398,6 +404,11 @@ function ReservationSummaryCard({
             {reductionBadge(r)}
           </span>
         )}
+        {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+          <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
+            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+          </span>
+        )}
         {volBadge(r) && (
           <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
             {volBadge(r)}
@@ -517,7 +528,7 @@ function ActivityDetailModal({
   const options = resaOptions[r.id] || [];
   const tarifs = resaTarifs[r.id] || [];
   const total = resaTotalMontant(r, client, options, tarifs);
-  const breakdown = resaBreakdown(r, client, options, tarifs);
+  const breakdown = resaBreakdown(r, client, options, tarifs, reservations);
   const { nbAd, nbEnf } = participantsFor(r, client);
   const soldeIci = client.solde_activite_id === r.id;
   // Le calcul du restant à payer a besoin des réservations de CE client
@@ -681,6 +692,11 @@ function ActivityDetailModal({
             {reductionBadge(r) && (
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                 {reductionBadge(r)}
+              </span>
+            )}
+            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+              <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
+                {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
               </span>
             )}
             {volBadge(r) && (
@@ -937,6 +953,12 @@ function ActivityDetailModal({
           <div className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
             {reductionBadge(r)}
             {r.reduction_motif ? ` — ${r.reduction_motif}` : ""}
+          </div>
+        )}
+
+        {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+          <div className="mt-3 rounded-md bg-[#0F5C56]/10 px-3 py-2 text-xs text-[#171717]">
+            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
           </div>
         )}
 

@@ -92,6 +92,10 @@ export type ReservationOption = {
   nom: string;
   prix: number;
   quantite: number;
+  // Vrai pour une option de croisière (Montgolfière, Abu Simbel, transfert)
+  // dont le prix est en réalité compté sur sa propre carte, créée à sa date
+  // réelle — jamais compté deux fois dans le total de la croisière.
+  prix_compte_ailleurs: boolean;
 };
 
 export type CatalogueTarif = {
@@ -108,6 +112,9 @@ export type CatalogueOption = {
   nom: string;
   prix: number;
   mode: "personne" | "groupe";
+  // Texte explicatif (conditions, éligibilité...) affiché en petit sous le
+  // nom de l'option — le nom lui-même reste court (ex. "Montgolfière").
+  description: string;
   created_at: string;
 };
 
@@ -139,6 +146,10 @@ export type Reservation = {
   client_id: string;
   nom_activite: string;
   catalogue_item_id: string | null;
+  // Carte créée automatiquement pour une option de croisière (Montgolfière,
+  // Abu Simbel, transfert) qui a lieu à une date différente de la croisière
+  // elle-même — pointe vers la réservation "Croisière" d'origine.
+  parent_reservation_id: string | null;
   date_debut: string | null;
   date_fin: string | null;
   moment: string;

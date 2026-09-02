@@ -278,6 +278,69 @@ export function reductionBadge(r: Reservation): string {
   return "";
 }
 
+// Badge "Option : X" / "Options : X + Y" à côté du titre — reprend
+// uniquement le nom court de chaque option choisie (jamais son descriptif),
+// partagé entre fiche client et vue Réservations.
+export function optionsBadge(options: ReservationOption[]): string {
+  const noms = options.map((o) => o.nom.trim()).filter(Boolean);
+  if (noms.length === 0) return "";
+  return `${noms.length > 1 ? "Options" : "Option"} : ${noms.join(" + ")}`;
+}
+
+// Croisières au fil du Nil : seule activité dont certaines options ont lieu
+// à une date différente de l'activité elle-même (Montgolfière, Abu Simbel,
+// transfert retour) — chacune devient sa propre carte, à la bonne date.
+export function isCroisiere(nom: string): boolean {
+  return (nom || "").toLowerCase().includes("croisière au fil du nil");
+}
+
+export type CroisiereSens = "louxor_assouan" | "assouan_louxor";
+
+export function croisiereSens(nom: string): CroisiereSens | null {
+  const n = (nom || "").toLowerCase();
+  if (n.includes("louxor vers assouan")) return "louxor_assouan";
+  if (n.includes("assouan vers louxor")) return "assouan_louxor";
+  return null;
+}
+
+// Jour de croisière (1 = jour de départ) où a lieu chaque option — d'après
+// l'itinéraire réel communiqué par l'agence, différent selon le sens.
+export const CROISIERE_OPTION_NOMS = ["Montgolfière", "Abu Simbel", "Transfert Assouan - Hurghada", "Transfert Assouan - Louxor"];
+
+const CROISIERE_OPTION_JOURS: Record<CroisiereSens, Record<string, number>> = {
+  louxor_assouan: { Montgolfière: 2, "Abu Simbel": 4, "Transfert Assouan - Hurghada": 5 },
+  assouan_louxor: {
+    Montgolfière: 4,
+    "Abu Simbel": 2,
+    "Transfert Assouan - Hurghada": 4,
+    "Transfert Assouan - Louxor": 4,
+  },
+};
+
+// Date proposée (à faire valider par la conseillère) pour la carte séparée
+// d'une option de croisière — null si le sens ou le jour est inconnu, ou si
+// la croisière n'a pas encore de date de début.
+export function croisiereOptionDateProposee(croisiereNom: string, dateDebut: string | null, optionNom: string) {
+  if (!dateDebut) return null;
+  const sens = croisiereSens(croisiereNom);
+  if (!sens) return null;
+  const jour = CROISIERE_OPTION_JOURS[sens][optionNom];
+  if (!jour) return null;
+  return addDays(dateDebut, jour - 1);
+}
+
+// Tarifs de la carte séparée créée pour chaque option de croisière — repris
+// du catalogue (fiches "Vol en Montgolfière (Louxor)", "Abu Simbel –
+// Excursion d'une journée en privatif (depuis Assouan)" à 120€/60€, et les
+// transferts privatifs, en forfait fixe quel que soit le nombre de
+// personnes — jamais multiplié par un nombre de participants).
+export const CROISIERE_OPTION_PRICING: Record<string, Partial<Reservation>> = {
+  Montgolfière: { tarif_mode: "personne", pu_adulte: 80, pu_enfant: 80 },
+  "Abu Simbel": { tarif_mode: "personne", pu_adulte: 120, pu_enfant: 60 },
+  "Transfert Assouan - Hurghada": { tarif_mode: "groupe", prix_groupe_base: 180 },
+  "Transfert Assouan - Louxor": { tarif_mode: "groupe", prix_groupe_base: 140 },
+};
+
 // N° de vol / horaire d'arrivée du client (transferts aéroport) — affiché
 // juste à côté du titre, pas seulement dans le détail, pour que l'équipe
 // voie l'info sans ouvrir la fiche.
@@ -1021,8 +1084,10 @@ export function resaTotalMontant(
         nbBebe * (Number(r.pu_bebe) || 0) +
         nbAcc * (Number(r.pu_accompagnateur) || 0) +
         nbEnf3 * (Number(r.pu_enfant_3ans) || 0);
+  // Une option de croisière avec carte séparée (Montgolfière, Abu Simbel,
+  // transfert) ne compte jamais ici — son prix est déjà sur sa propre carte.
   const optionsTotal = options.reduce(
-    (s, o) => s + (Number(o.prix) || 0) * (Number(o.quantite) || 1),
+    (s, o) => s + (o.prix_compte_ailleurs ? 0 : (Number(o.prix) || 0) * (Number(o.quantite) || 1)),
     0
   );
   const tarifsTotal = tarifs.reduce((s, t) => s + (Number(t.quantite) || 0) * (Number(t.pu) || 0), 0);
@@ -1079,6 +1144,11 @@ function fmtEuros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
+function fmtDateFr(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+}
+
 export type ResaBreakdownLine = { label: string; amount: number };
 
 // Détail du calcul du total d'une activité (ex. "25 € x 2 adultes = 50,00 €")
@@ -1087,7 +1157,8 @@ export function resaBreakdown(
   r: Reservation,
   client: Client,
   options: ReservationOption[] = [],
-  tarifs: ReservationTarif[] = []
+  tarifs: ReservationTarif[] = [],
+  allReservations: Reservation[] = []
 ): ResaBreakdownLine[] {
   const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
   const lines: ResaBreakdownLine[] = [];
@@ -1151,6 +1222,18 @@ export function resaBreakdown(
 
   options.forEach((o) => {
     const qty = Number(o.quantite) || 1;
+    if (o.prix_compte_ailleurs) {
+      const carte = allReservations.find(
+        (rr) => rr.parent_reservation_id === r.id && rr.nom_activite === o.nom
+      );
+      lines.push({
+        label: carte?.date_debut
+          ? `Option ${o.nom} — prix compté sur sa carte du ${fmtDateFr(carte.date_debut)}`
+          : `Option ${o.nom} — prix compté sur sa carte séparée`,
+        amount: 0,
+      });
+      return;
+    }
     lines.push({
       label: qty > 1 ? `Option ${o.nom} (${fmtEuros(o.prix)} € x ${qty})` : `Option ${o.nom}`,
       amount: (Number(o.prix) || 0) * qty,

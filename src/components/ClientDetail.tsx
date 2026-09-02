@@ -722,10 +722,19 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
-  const addOption = async (resaId: string, seed?: { nom: string; prix: number }) => {
+  const addOption = async (
+    resaId: string,
+    seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean }
+  ) => {
     const { data, error } = await supabase
       .from("reservation_options")
-      .insert({ reservation_id: resaId, nom: seed?.nom || "Guide francophone", prix: seed?.prix || 0 })
+      .insert({
+        reservation_id: resaId,
+        nom: seed?.nom || "Guide francophone",
+        prix: seed?.prix || 0,
+        ...(seed?.quantite ? { quantite: seed.quantite } : {}),
+        ...(seed?.prix_compte_ailleurs ? { prix_compte_ailleurs: true } : {}),
+      })
       .select()
       .single();
     if (!error && data) {

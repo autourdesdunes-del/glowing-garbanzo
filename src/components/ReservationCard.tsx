@@ -23,7 +23,7 @@ import {
   groupeExtraCounts,
   billetEtapeShortLabel,
   billetUploadPatch,
-  formatOptionLabel,
+  optionsBadge,
   hauteSaisonAttendu,
   isDeuxiemeIleOption,
   isGrandEgyptianMuseum,
@@ -336,16 +336,11 @@ export default function ReservationCard({
                 {pointureBadge(r)}
               </span>
             )}
-            {options
-              .filter((o) => !isDeuxiemeIleOption(o.nom))
-              .map((o) => (
-                <span
-                  key={o.id}
-                  className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white"
-                >
-                  ⚙ {formatOptionLabel(o)}
-                </span>
-              ))}
+            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+              <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
+                {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+              </span>
+            )}
             <span className="flex-1" />
             <span className="font-amounts text-sm">{euros(total)} €</span>
           </div>
@@ -412,16 +407,11 @@ export default function ReservationCard({
               {pointureBadge(r)}
             </span>
           )}
-          {options
-            .filter((o) => !isDeuxiemeIleOption(o.nom))
-            .map((o) => (
-              <span
-                key={o.id}
-                className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white"
-              >
-                ⚙ {formatOptionLabel(o)}
-              </span>
-            ))}
+          {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+            <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
+              {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+            </span>
+          )}
         </div>
         <p className="mt-1 text-xs text-neutral-500">
           {fmtDate(r.date_debut)}
@@ -656,9 +646,9 @@ export default function ReservationCard({
       )}
 
 
-      {options.length > 0 && (
+      {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
         <div className="mb-3 rounded-md bg-[#C9973E]/10 px-3 py-2 text-xs text-[#666666]">
-          ⚠ Option(s) ajoutée(s) : {options.map((o) => formatOptionLabel(o)).join(", ")}
+          {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
         </div>
       )}
 

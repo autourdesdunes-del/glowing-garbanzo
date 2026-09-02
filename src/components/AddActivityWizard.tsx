@@ -25,6 +25,7 @@ import {
   isDeuxiemeIleOption,
   isAeroportTransfertHorsHurghada,
   isCaireAeroportTransfert,
+  isCroisiere,
   isDiscouragedBusActivity,
   dureeJoursActivite,
   isTitreLibreActivity,
@@ -38,6 +39,9 @@ import {
   isSpeedboatPriveMaisonDauphins,
   joursDisponiblesMismatch,
   needsMomentSpeedboat,
+  croisiereOptionDateProposee,
+  CROISIERE_OPTION_NOMS,
+  CROISIERE_OPTION_PRICING,
   participantsFor,
   resaBreakdown,
   resaTotalMontant,
@@ -57,6 +61,7 @@ import PhotoVolUpload from "@/components/PhotoVolUpload";
 import TransfertSensModal from "@/components/TransfertSensModal";
 import TitreLibreModal from "@/components/TitreLibreModal";
 import CaireAeroportAlert from "@/components/CaireAeroportAlert";
+import CroisiereOptionDateModal from "@/components/CroisiereOptionDateModal";
 
 function joursAvant(dateStr: string | null) {
   if (!dateStr) return null;
@@ -295,7 +300,7 @@ export default function AddActivityWizard({
   onAddReservation: () => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
-  onAddOption: (resaId: string, seed?: { nom: string; prix: number }) => void;
+  onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean }) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
   onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
@@ -329,6 +334,12 @@ export default function AddActivityWizard({
   const [pendingSensTransfert, setPendingSensTransfert] = useState<CatalogueItem | null>(null);
   const [pendingTitreLibre, setPendingTitreLibre] = useState<CatalogueItem | null>(null);
   const [pendingCaireAeroport, setPendingCaireAeroport] = useState<CatalogueItem | null>(null);
+  // Option de croisière (Montgolfière, Abu Simbel, transfert) dont la date
+  // reste à faire valider par la conseillère avant de créer sa carte séparée.
+  const [pendingCroisiereOption, setPendingCroisiereOption] = useState<{
+    optionNom: string;
+    dateProposee: string;
+  } | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
   // Deux relances Hossam distinctes pour "Le Caire en avion" : une première
@@ -1568,7 +1579,7 @@ export default function AddActivityWizard({
   if (step === "tarifs") {
     const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
     const total = resaTotalMontant(r, client, options, tarifs);
-    const breakdown = resaBreakdown(r, client, options, tarifs);
+    const breakdown = resaBreakdown(r, client, options, tarifs, reservations);
 
     // Modifier le "x N" d'adulte/enfant/bébé en mode "tous" doit basculer en
     // "custom" (sinon rien à modifier — ces nombres sont déduits du séjour
@@ -2076,15 +2087,78 @@ export default function AddActivityWizard({
         ...(iType ? { nom_activite: speedboatIleTitre(iType, r.ile_selectionnee, ile2) } : {}),
       });
     };
+    // Croisières au fil du Nil : Parachute/2ème île/Privatif n'ont aucun
+    // sens ici (activités bateau) — Montgolfière/Abu Simbel/transferts ont
+    // en plus lieu à une date différente de la croisière (voir plus bas).
+    const estCroisiere = isCroisiere(r.nom_activite);
+    const presetsAffiches = estCroisiere
+      ? OPTIONS_PRESETS.filter((p) => !["Parachute", "2ème île", "Privatif"].includes(p))
+      : OPTIONS_PRESETS;
+    const { nbAd: nbAdOptions, nbEnf: nbEnfOptions } = participantsFor(r, client);
+    const isQuantitePersonne = (nom: string) => nom === "Parachute" || nom === "Montgolfière" || nom === "Abu Simbel";
+
+    const carteLieePour = (nomOption: string) =>
+      reservations.find((rr) => rr.parent_reservation_id === r.id && rr.nom_activite === nomOption);
+
+    const confirmerDateOption = async (nomOption: string, date: string) => {
+      const opt = options.find((o) => o.nom === nomOption);
+      const newId = await onAddReservation();
+      if (!newId) return;
+      const pricing = CROISIERE_OPTION_PRICING[nomOption] || {};
+      onUpdateReservation(newId, {
+        nom_activite: nomOption,
+        date_debut: date,
+        parent_reservation_id: r.id,
+        transfert_inclus: true,
+        ...(pricing.tarif_mode === "personne"
+          ? {
+              participants_mode: "custom",
+              participants_adultes: opt?.quantite || nbAdOptions + nbEnfOptions,
+              participants_enfants: 0,
+            }
+          : { participants_mode: "tous" }),
+        ...pricing,
+      });
+    };
+
+    const supprimerOption = (o: ReservationOption) => {
+      const carte = carteLieePour(o.nom);
+      if (carte) onDeleteReservation(carte.id);
+      onDeleteOption(r.id, o.id);
+    };
+
+    const optionsEnAttenteDeDate = estCroisiere
+      ? options.filter((o) => CROISIERE_OPTION_NOMS.includes(o.nom) && !carteLieePour(o.nom))
+      : [];
+
     return wrap(
       <>
+        {pendingCroisiereOption && (
+          <CroisiereOptionDateModal
+            optionNom={pendingCroisiereOption.optionNom}
+            dateProposee={pendingCroisiereOption.dateProposee}
+            onCancel={() => {
+              const opt = options.find((o) => o.nom === pendingCroisiereOption.optionNom);
+              if (opt) onDeleteOption(r.id, opt.id);
+              setPendingCroisiereOption(null);
+            }}
+            onConfirm={async (date) => {
+              const nomOption = pendingCroisiereOption.optionNom;
+              setPendingCroisiereOption(null);
+              await confirmerDateOption(nomOption, date);
+            }}
+          />
+        )}
         {options.map((o) => {
+          const isCroisiereOption = estCroisiere && CROISIERE_OPTION_NOMS.includes(o.nom);
           const isParachute = o.nom === "Parachute";
           const is2emeIle = isDeuxiemeIleOption(o.nom);
+          const description = catOptions.find((co) => co.nom === o.nom)?.description;
+          const carte = isCroisiereOption ? carteLieePour(o.nom) : null;
           return (
             <div key={o.id} className="mb-2 flex flex-wrap items-center gap-2">
               <select
-                value={OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) ? o.nom : "Autre"}
+                value={presetsAffiches.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) ? o.nom : "Autre"}
                 onChange={(e) => {
                   const nom = e.target.value === "Autre" ? "" : e.target.value;
                   onUpdateOption(
@@ -2095,11 +2169,11 @@ export default function AddActivityWizard({
                 }}
                 className="input"
               >
-                {OPTIONS_PRESETS.map((p) => (
+                {presetsAffiches.map((p) => (
                   <option key={p}>{p}</option>
                 ))}
               </select>
-              {!OPTIONS_PRESETS.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) && (
+              {!presetsAffiches.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) && (
                 <input
                   placeholder="Préciser"
                   value={o.nom}
@@ -2109,12 +2183,12 @@ export default function AddActivityWizard({
               )}
               <input
                 type="number"
-                placeholder={isParachute ? "PU €" : "Prix €"}
+                placeholder={isQuantitePersonne(o.nom) ? "PU €" : "Prix €"}
                 value={o.prix}
                 onChange={(e) => onUpdateOption(r.id, o.id, { prix: Number(e.target.value) })}
                 className="input w-24"
               />
-              {isParachute && (
+              {isQuantitePersonne(o.nom) && (
                 <>
                   <span className="text-xs text-neutral-400">×</span>
                   <input
@@ -2125,14 +2199,26 @@ export default function AddActivityWizard({
                     onChange={(e) => onUpdateOption(r.id, o.id, { quantite: Number(e.target.value) })}
                     className="input w-32"
                   />
-                  <span className="font-amounts text-xs text-neutral-500">
-                    = {euros((Number(o.prix) || 0) * (Number(o.quantite) || 1))} €
-                  </span>
+                  {!isCroisiereOption && (
+                    <span className="font-amounts text-xs text-neutral-500">
+                      = {euros((Number(o.prix) || 0) * (Number(o.quantite) || 1))} €
+                    </span>
+                  )}
                 </>
               )}
-              <button onClick={() => onDeleteOption(r.id, o.id)} className="text-red-600">
+              <button onClick={() => supprimerOption(o)} className="text-red-600">
                 ✕
               </button>
+              {description && (
+                <p className="w-full text-xs text-red-600">{description}</p>
+              )}
+              {isCroisiereOption && (
+                <p className="w-full text-xs text-neutral-500">
+                  {carte
+                    ? `📅 Carte séparée créée le ${carte.date_debut ? new Date(carte.date_debut + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" }) : "?"}.`
+                    : "⚠ Date à confirmer avant de continuer."}
+                </p>
+              )}
               {is2emeIle && (
                 <div className="mt-1 flex w-full flex-wrap gap-2">
                   {SPEEDBOAT_ILES.filter((ile) => ile !== r.ile_selectionnee).map((ile) => (
@@ -2165,7 +2251,20 @@ export default function AddActivityWizard({
             <button
               key={co.id}
               type="button"
-              onClick={() => onAddOption(r.id, { nom: co.nom, prix: co.prix })}
+              onClick={() => {
+                const estOptionCroisiere = estCroisiere && CROISIERE_OPTION_NOMS.includes(co.nom);
+                onAddOption(r.id, {
+                  nom: co.nom,
+                  prix: co.prix,
+                  ...(isQuantitePersonne(co.nom) ? { quantite: nbAdOptions + nbEnfOptions } : {}),
+                  ...(estOptionCroisiere ? { prix_compte_ailleurs: true } : {}),
+                });
+                if (estOptionCroisiere) {
+                  const dateProposee =
+                    croisiereOptionDateProposee(r.nom_activite, r.date_debut, co.nom) || r.date_debut || todayStr();
+                  setPendingCroisiereOption({ optionNom: co.nom, dateProposee });
+                }
+              }}
               className="mb-2 mr-2 rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-500 hover:border-[#171717] hover:text-[#171717]"
             >
               + {co.nom} ({euros(co.prix)} € {co.mode === "groupe" ? "groupe" : "/pers."})
@@ -2184,7 +2283,35 @@ export default function AddActivityWizard({
           </button>
         </div>
 
-        {navButtons(() => setStep("reduction"), "Suivant — Réduction")}
+        {optionsEnAttenteDeDate.length > 0 && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Merci de confirmer la date de : {optionsEnAttenteDeDate.map((o) => o.nom).join(", ")} avant de
+            continuer.
+            <div className="mt-1 flex flex-wrap gap-2">
+              {optionsEnAttenteDeDate.map((o) => (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() =>
+                    setPendingCroisiereOption({
+                      optionNom: o.nom,
+                      dateProposee:
+                        croisiereOptionDateProposee(r.nom_activite, r.date_debut, o.nom) || r.date_debut || todayStr(),
+                    })
+                  }
+                  className="rounded-full border border-red-300 px-2.5 py-1 font-medium hover:bg-red-100"
+                >
+                  Confirmer la date de {o.nom}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {navButtons(() => {
+          if (optionsEnAttenteDeDate.length > 0) return;
+          setStep("reduction");
+        }, "Suivant — Réduction")}
       </>
     );
   }

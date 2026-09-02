@@ -19,9 +19,9 @@ import {
   activitePaiementWarning,
   chevalChameauBadge,
   cleanActivityTitle,
-  formatOptionLabel,
   isDeuxiemeIleOption,
   momentBadge,
+  optionsBadge,
   reductionBadge,
   paiementStatutKey,
   pointureBadge,
@@ -99,7 +99,7 @@ export default function ItineraryView({
   onSetPickup: (id: string, pickup: string) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
-  onAddOption: (resaId: string, seed?: { nom: string; prix: number }) => void;
+  onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean }) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
   onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
@@ -209,16 +209,11 @@ export default function ItineraryView({
               {chevalChameauBadge(r, client)}
             </span>
           )}
-          {(resaOptions[r.id] || [])
-            .filter((o) => !isDeuxiemeIleOption(o.nom))
-            .map((o) => (
-              <span
-                key={o.id}
-                className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white"
-              >
-                ⚙ {formatOptionLabel(o)}
-              </span>
-            ))}
+          {optionsBadge((resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+            <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white">
+              {optionsBadge((resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom)))}
+            </span>
+          )}
           {busEscalation && (
             <span
               className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
@@ -323,7 +318,9 @@ export default function ItineraryView({
     ? resaTotalMontant(expandedReservation, client, expOptions, expTarifs)
     : 0;
   const expBadge = expandedReservation ? paiementBadge(client, expandedReservation) : null;
-  const expBreakdown = expandedReservation ? resaBreakdown(expandedReservation, client, expOptions, expTarifs) : [];
+  const expBreakdown = expandedReservation
+    ? resaBreakdown(expandedReservation, client, expOptions, expTarifs, reservations)
+    : [];
   const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${hotelDisplayForEgypt(
     client.hotel,
     hotelVille
@@ -364,6 +361,11 @@ export default function ItineraryView({
                 {reductionBadge(expandedReservation) && (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                     {reductionBadge(expandedReservation)}
+                  </span>
+                )}
+                {optionsBadge(expOptions.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+                  <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
+                    {optionsBadge(expOptions.filter((o) => !isDeuxiemeIleOption(o.nom)))}
                   </span>
                 )}
               </h3>

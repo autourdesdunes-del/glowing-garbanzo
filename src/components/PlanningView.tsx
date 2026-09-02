@@ -22,6 +22,7 @@ import {
   isDeuxiemeIleOption,
   momentBadge,
   optionsBadge,
+  enCoursBadge,
   reductionBadge,
   paiementBadge,
   paiementStatutKey,
@@ -253,6 +254,11 @@ function ReservationSummaryCard({
               {reductionBadge(r)}
             </span>
           )}
+          {enCoursBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+              {enCoursBadge(r)}
+            </span>
+          )}
           {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
             <span className="whitespace-nowrap rounded-full bg-[#0F5C56] px-1.5 py-0.5 text-[10px] font-medium text-white">
               {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
@@ -413,6 +419,11 @@ function ReservationSummaryCard({
         {reductionBadge(r) && (
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
             {reductionBadge(r)}
+          </span>
+        )}
+        {enCoursBadge(r) && (
+          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+            {enCoursBadge(r)}
           </span>
         )}
         {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
@@ -710,6 +721,11 @@ function ActivityDetailModal({
                 {reductionBadge(r)}
               </span>
             )}
+            {enCoursBadge(r) && (
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                {enCoursBadge(r)}
+              </span>
+            )}
             {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
               <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
                 {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
@@ -975,6 +991,10 @@ function ActivityDetailModal({
             {reductionBadge(r)}
             {r.reduction_motif ? ` — ${r.reduction_motif}` : ""}
           </div>
+        )}
+
+        {enCoursBadge(r) && (
+          <div className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">{enCoursBadge(r)}</div>
         )}
 
         {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (

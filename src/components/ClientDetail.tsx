@@ -520,7 +520,10 @@ export default function ClientDetail({
     if (error) toast("Échec de l'enregistrement du coût.");
   };
 
-  const addReservation = async (attempt = 0): Promise<string | null> => {
+  const addReservation = async (
+    opts?: { skipAvoirPrompt?: boolean },
+    attempt = 0
+  ): Promise<string | null> => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -548,15 +551,17 @@ export default function ClientDetail({
       setReservations((prev) => [...prev, newReservation]);
       // Cette nouvelle activité peut être l'occasion de consommer un avoir
       // en attente — le montant utilisé se rattache à cette réservation
-      // précise pour rester visible sur sa carte.
-      if (avoirDisponible > 0) setAvoirPromptReservationId(newReservation.id);
+      // précise pour rester visible sur sa carte. Sauf pour une carte créée
+      // automatiquement en arrière-plan (option de croisière) : ce prompt
+      // interromprait un pop-up déjà ouvert sans rapport avec cette carte.
+      if (avoirDisponible > 0 && !opts?.skipAvoirPrompt) setAvoirPromptReservationId(newReservation.id);
       return newReservation.id;
     }
     // Un token d'auth silencieusement expiré échoue une seule fois — on le
     // rafraîchit et on retente avant d'afficher un échec à l'employée.
     if (attempt === 0) {
       await supabase.auth.refreshSession();
-      return addReservation(1);
+      return addReservation(opts, 1);
     }
     console.error("addReservation", error);
     toast(

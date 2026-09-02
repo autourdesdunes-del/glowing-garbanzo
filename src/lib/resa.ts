@@ -288,6 +288,17 @@ export function optionsBadge(options: ReservationOption[]): string {
   return `${noms.length > 1 ? "Options" : "Option"} : ${noms.join(" + ")}`;
 }
 
+// Une activité sur plusieurs jours (ex. croisière) reste triée/affichée à sa
+// date de DÉBUT dans toutes les vues Réservations, même les jours suivants —
+// sans ce badge, elle se confond avec une activité qui commencerait
+// aujourd'hui alors qu'elle est en réalité déjà en cours depuis un moment.
+export function enCoursBadge(r: Reservation): string {
+  if (!r.date_debut || !r.date_fin || r.date_fin === r.date_debut) return "";
+  const today = todayStr();
+  if (today <= r.date_debut || today > r.date_fin) return "";
+  return `📍 Toujours en cours (jusqu'au ${fmtDateFr(r.date_fin)})`;
+}
+
 // Croisières au fil du Nil : seule activité dont certaines options ont lieu
 // à une date différente de l'activité elle-même (Montgolfière, Abu Simbel,
 // transfert retour) — chacune devient sa propre carte, à la bonne date.

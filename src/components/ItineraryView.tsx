@@ -22,6 +22,7 @@ import {
   isDeuxiemeIleOption,
   momentBadge,
   optionsBadge,
+  enCoursBadge,
   reductionBadge,
   paiementStatutKey,
   pointureBadge,
@@ -192,6 +193,11 @@ export default function ItineraryView({
           {reductionBadge(r) && (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
               {reductionBadge(r)}
+            </span>
+          )}
+          {enCoursBadge(r) && (
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+              {enCoursBadge(r)}
             </span>
           )}
           {volBadge(r) && (

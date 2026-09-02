@@ -298,7 +298,7 @@ export default function AddActivityWizard({
     joursDisponibles: string[]
   ) => Promise<void>;
   onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
-  onAddReservation: () => Promise<string | null>;
+  onAddReservation: (opts?: { skipAvoirPrompt?: boolean }) => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
   onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean }) => void;
@@ -2103,7 +2103,7 @@ export default function AddActivityWizard({
 
     const confirmerDateOption = async (nomOption: string, date: string) => {
       const opt = options.find((o) => o.nom === nomOption);
-      const newId = await onAddReservation();
+      const newId = await onAddReservation({ skipAvoirPrompt: true });
       if (!newId) return;
       const pricing = CROISIERE_OPTION_PRICING[nomOption] || {};
       onUpdateReservation(newId, {

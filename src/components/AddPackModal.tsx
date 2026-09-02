@@ -21,7 +21,7 @@ export default function AddPackModal({
 }: {
   catalogue: CatalogueItem[];
   packs: Pack[];
-  onAddReservation: () => Promise<string | null>;
+  onAddReservation: (opts?: { skipAvoirPrompt?: boolean }) => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onClose: () => void;
 }) {

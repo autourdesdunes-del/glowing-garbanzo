@@ -1237,6 +1237,7 @@ export function ActivitesStep({
   canSeeMargins,
   hotelHorsHurghada,
   hotelVille,
+  taxesRef = [],
   coutsMap,
   onUpdateCoutReel,
   onRequestAdd,
@@ -1268,6 +1269,7 @@ export function ActivitesStep({
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
   hotelVille?: string;
+  taxesRef?: TransfertTaxe[];
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   // Dans le dossier normal, ce bouton doit rouvrir la petite fenêtre
@@ -1367,6 +1369,9 @@ export function ActivitesStep({
         <AddPackModal
           catalogue={catalogue}
           packs={packs}
+          hotelHorsHurghada={hotelHorsHurghada}
+          hotelVille={hotelVille}
+          taxesRef={taxesRef}
           onAddReservation={onAddReservation}
           onUpdateReservation={onUpdateReservation}
           onClose={() => setAddingPack(false)}
@@ -2156,7 +2161,9 @@ export function PaiementsStep({
         </select>
         {!!client.paiement_type && !isDirection && (
           <p className="mt-1 text-xs text-neutral-500">
-            🔒 Choix figé une fois défini — seule la Direction peut le modifier.
+            🔒 Choix figé une fois défini — seule la Direction peut le modifier. Pour enregistrer un
+            paiement : clique &quot;Marquer encaissé&quot; sur l&apos;acompte ou le solde concerné, ou
+            utilise &quot;+ Ajouter une étape&quot;.
           </p>
         )}
 

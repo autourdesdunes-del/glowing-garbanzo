@@ -154,7 +154,7 @@ export default function ItineraryView({
   const renderCard = (r: Reservation, day?: string) => {
 
     const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
-    const badge = paiementBadge(client, r);
+    const badge = paiementBadge(client, r, reservations, resaOptions, resaTarifs, paiementsEtapes);
     const paiementWarning = activitePaiementWarning(
       client,
       r,
@@ -329,7 +329,9 @@ export default function ItineraryView({
   const expTotal = expandedReservation
     ? resaTotalMontant(expandedReservation, client, expOptions, expTarifs)
     : 0;
-  const expBadge = expandedReservation ? paiementBadge(client, expandedReservation) : null;
+  const expBadge = expandedReservation
+    ? paiementBadge(client, expandedReservation, reservations, resaOptions, resaTarifs, paiementsEtapes)
+    : null;
   const expBreakdown = expandedReservation
     ? resaBreakdown(expandedReservation, client, expOptions, expTarifs, reservations)
     : [];

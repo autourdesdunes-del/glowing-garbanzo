@@ -206,7 +206,7 @@ function ReservationSummaryCard({
   // clients (bug déjà rencontré).
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
-  const badge = paiementBadge(client, r);
+  const badge = paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
   const paiementWarning = activitePaiementWarning(
     client,
     r,
@@ -562,7 +562,7 @@ function ActivityDetailModal({
   // uniquement — jamais du tableau global toutes activités confondues.
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
-  const badge = paiementBadge(effectiveClient, r);
+  const badge = paiementBadge(effectiveClient, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
   // Le solde peut être en attente de règlement sur une AUTRE activité déjà
   // identifiée (solde_activite_id pointe ailleurs) — dans ce cas on
   // renseigne où et quand, plutôt que de ne rien dire du tout.

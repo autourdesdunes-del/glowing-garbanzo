@@ -162,7 +162,44 @@ const RDV_FINALISE_LABELS: Record<string, string> = {
   "Espèces EGP": "Payé en EGP - rendez-vous paiement finalisé",
 };
 
-export function paiementBadge(client: Client, r: Reservation) {
+// Même calcul que le récapitulatif "Paiements" de la fiche client (acompte
+// + étapes libres + avoir, plus le solde si déjà marqué payé) — factorisé
+// ici pour que paiementBadge s'appuie sur exactement la même réalité,
+// jamais une version approximative recalculée à part.
+export function paiementProgress(
+  client: Client,
+  reservations: Reservation[],
+  resaOptions: Record<string, ReservationOption[]>,
+  resaTarifs: Record<string, ReservationTarif[]>,
+  etapes: PaiementEtape[] = []
+): { totalSejour: number; totalPaye: number; reste: number } {
+  const totalSejour = reservationsActives(reservations).reduce(
+    (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
+    0
+  );
+  const acomptePaye =
+    client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  const avoirUtilise = avoirUtiliseTotal(reservations);
+  const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
+  const soldeRestant = Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
+  const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
+  return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0) };
+}
+
+// Seuil à partir duquel un séjour presque entièrement réglé (ex. Célia
+// Nichanian : 1510,8€/1530€) ne doit plus afficher "En attente" sur les
+// activités qui ne sont pas le point de collecte du solde — ce libellé
+// laisse penser que rien n'a été payé, alors que la quasi-totalité l'est.
+const SEUIL_PRESQUE_PAYE = 0.9;
+
+export function paiementBadge(
+  client: Client,
+  r: Reservation,
+  reservations?: Reservation[],
+  resaOptions?: Record<string, ReservationOption[]>,
+  resaTarifs?: Record<string, ReservationTarif[]>,
+  etapes?: PaiementEtape[]
+) {
   // Le bouton "Rendez-vous finalisé" (étape Paiements) marque le solde payé
   // et pose ce drapeau — le badge doit alors le préciser plutôt que le
   // libellé "Payé" générique, sur toutes les activités.
@@ -174,6 +211,48 @@ export function paiementBadge(client: Client, r: Reservation) {
   }
   const key = paiementStatutKey(client, r);
   const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key)!;
+
+  // Sans le contexte complet (anciens appels à 2 arguments), comportement
+  // inchangé — ces deux affinages ont besoin de connaître le reste à payer
+  // réel du séjour entier.
+  if (!reservations || !resaOptions || !resaTarifs) return { label: opt.label, className: opt.className };
+
+  const { totalPaye, totalSejour, reste } = paiementProgress(
+    client,
+    reservations,
+    resaOptions,
+    resaTarifs,
+    etapes || []
+  );
+
+  // Le point de collecte désigné pour le solde, une fois sa date passée
+  // sans encaissement : "Paiement à l'activité" devient trompeur, ce n'est
+  // plus "à venir" mais du retard non signalé.
+  if (
+    (key === "activite_eur" || key === "activite_cb" || key === "activite_egp") &&
+    r.date_debut &&
+    r.date_debut < todayStr()
+  ) {
+    return {
+      label: `⚠️ ${fmtEuros(reste)} € en retard — non collecté à l'activité prévue`,
+      className: "bg-red-100 text-red-700",
+    };
+  }
+
+  // Activité qui n'est pas le point de collecte du solde : "En attente" est
+  // trompeur si la quasi-totalité du séjour est déjà réglée — cette carte
+  // précise n'attend rien de particulier.
+  if (
+    (key === "attente" || key === "attente_paypal") &&
+    totalSejour > 0 &&
+    totalPaye / totalSejour >= SEUIL_PRESQUE_PAYE
+  ) {
+    return {
+      label: `Presque payé — reste ${fmtEuros(reste)} €`,
+      className: "bg-blue-100 text-blue-700",
+    };
+  }
+
   return { label: opt.label, className: opt.className };
 }
 
@@ -192,9 +271,16 @@ export function reservationsActives(reservations: Reservation[]) {
   return reservations.filter((r) => r.statut_resa !== "Annulée");
 }
 
-// "Paiement intégral" → "à la première activité" : signale, sur l'activité
-// choisie comme point de collecte (la première par défaut, ou une autre si
-// l'employée en a sélectionné une autre), le montant qui reste à encaisser.
+// Point de collecte du solde (acompte + activité désignée, ou paiement
+// intégral "à la première activité") : signale, sur cette activité, le
+// montant qui reste à encaisser. Une fois la date de cette activité passée
+// sans encaissement, le rappel réapparaît aussi sur la prochaine activité
+// réelle du client (chronologiquement, à partir d'aujourd'hui) — sinon il
+// devient invisible dès que la carte d'origine glisse dans le passé (vécu
+// sur Célia Nichanian : solde resté attaché à un speedboat déjà passé,
+// personne ne le revoyait). Seul le montant en € est repris sur la
+// prochaine activité — le montant EGP intégral est confirmé à la main pour
+// l'activité d'origine, pas transposable telle quelle ailleurs.
 export function activitePaiementWarning(
   client: Client,
   r: Reservation,
@@ -204,13 +290,22 @@ export function activitePaiementWarning(
   etapes: PaiementEtape[] = []
 ): { amount: number; devise: "€" | "EGP" } | null {
   if (client.solde_paye) return null;
-  if (client.paiement_integral_mode !== "activite_eur" && client.paiement_integral_mode !== "activite_egp")
-    return null;
-  if (client.solde_activite_id !== r.id) return null;
-  if (client.paiement_integral_mode === "activite_egp") {
+  if (!client.solde_activite_id) return null;
+  const estCollecte = r.id === client.solde_activite_id;
+  if (estCollecte && client.paiement_integral_mode === "activite_egp") {
     // Montant confirmé (et ajustable) par l'employée via la fenêtre de
     // conversion — jamais recalculé silencieusement à l'affichage.
     return { amount: client.egp_montant, devise: "EGP" };
+  }
+  if (!estCollecte) {
+    if (client.paiement_integral_mode === "activite_egp") return null;
+    const collecte = reservations.find((rr) => rr.id === client.solde_activite_id);
+    const collecteDepassee = !!collecte?.date_debut && collecte.date_debut < todayStr();
+    if (!collecteDepassee) return null;
+    const prochaine = [...reservationsActives(reservations)]
+      .filter((rr) => rr.date_debut && rr.date_debut >= todayStr())
+      .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""))[0];
+    if (!prochaine || prochaine.id !== r.id) return null;
   }
   const totalSejour = reservationsActives(reservations).reduce(
     (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),

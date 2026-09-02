@@ -21,7 +21,7 @@ import {
   ReservationTarif,
   TransfertTaxe,
 } from "@/lib/types";
-import { matchHotel } from "@/lib/hotelHelp";
+import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import { DuplicateMatch, findDuplicateClients } from "@/lib/duplicates";
 
 type StepId =
@@ -357,7 +357,7 @@ export default function QuickAddClient({
 
   const hotelMatch = matchHotel(answers.hotel || "", hotelsRef);
   const taxeMatch = hotelMatch
-    ? taxesRef.find((t) => t.ville.trim().toLowerCase() === hotelMatch.ville.trim().toLowerCase())
+    ? matchTransfertTaxe(taxesRef, hotelMatch.ville, answers.adultes || 0, answers.enfants || 0)
     : null;
   const hotelHorsHurghada = !!hotelMatch && !hotelMatch.sur_hurghada;
 
@@ -776,7 +776,8 @@ export default function QuickAddClient({
                         <div className="mt-2 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
                           ⚠ Attention, cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut
                           comporter une taxe de transfert
-                          {taxeMatch ? ` (${taxeMatch.montant} €)` : ""}.
+                          {taxeMatch?.type === "montant" ? ` (${taxeMatch.montant} €)` : ""}
+                          {taxeMatch?.type === "a_demander" ? ` (${taxeMatch.note})` : ""}.
                         </div>
                       )
                     ) : (

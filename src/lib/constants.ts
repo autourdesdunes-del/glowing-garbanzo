@@ -59,6 +59,19 @@ export const MODES_PAIEMENT = [
   "Virement bancaire",
 ] as const;
 
+// Notes pré-écrites proposées pour chaque étape de paiement libre — la note
+// est obligatoire (voir PaiementsStep) mais doit rester rapide à saisir au
+// quotidien, d'où cette liste de raisons les plus fréquentes plutôt qu'un
+// champ texte vide à chaque fois. "Autre" laisse toujours la main libre.
+export const NOTES_ETAPE_PAIEMENT_PRESETS = [
+  "Complément envoyé spontanément par le client",
+  "Client avait oublié le cash, payé par un autre mode",
+  "Ajout d'une activité sur place réglée à part",
+  "Paiement partiel car le client n'avait pas la somme complète",
+  "Rattrapage d'un paiement en retard",
+  "Autre",
+] as const;
+
 // Progression du billet d'avion, dans l'ordre réel du processus avec
 // Hossam : acompte en attente -> acompte payé, demande à envoyer -> demande
 // envoyée, en attente du billet -> billet reçu, à envoyer au client ->

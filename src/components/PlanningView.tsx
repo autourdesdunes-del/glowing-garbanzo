@@ -555,7 +555,7 @@ function ActivityDetailModal({
   const options = resaOptions[r.id] || [];
   const tarifs = resaTarifs[r.id] || [];
   const total = resaTotalMontant(r, client, options, tarifs);
-  const breakdown = resaBreakdown(r, client, options, tarifs, reservations);
+  const breakdown = resaBreakdown(r, client, options, tarifs, reservations, matchHotel(client.hotel, hotelsRef)?.ville);
   const { nbAd, nbEnf } = participantsFor(r, client);
   const soldeIci = client.solde_activite_id === r.id;
   // Le calcul du restant à payer a besoin des réservations de CE client

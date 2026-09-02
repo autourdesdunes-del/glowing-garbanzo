@@ -427,7 +427,14 @@ export function taxeTransfertManquante(r: Reservation, hotelHorsHurghada?: boole
   if (!hotelHorsHurghada) return false;
   if (noTaxeTransfert(r.nom_activite)) return false;
   if (isAeroportTransfertHorsHurghada(r.nom_activite)) return false;
-  return !r.transfert_inclus && (Number(r.transfert_montant) || 0) <= 0;
+  // Ne se fie plus à transfert_inclus seul : cette activité a pu être créée
+  // avant que l'hôtel soit répertorié (transfert_inclus vaut alors "true"
+  // par défaut faute de savoir que l'hôtel est hors Hurghada) et rester
+  // figée à ce mauvais réglage même une fois l'hôtel ajouté — vécu sur un
+  // pack ajouté avant que "The V luxury Sahl Hasheesh" soit répertorié. Un
+  // montant à 0€ pour un hôtel hors Hurghada est toujours suspect, que
+  // "Transfert inclus" ait été coché ou non.
+  return (Number(r.transfert_montant) || 0) <= 0;
 }
 
 export type CroisiereSens = "louxor_assouan" | "assouan_louxor";

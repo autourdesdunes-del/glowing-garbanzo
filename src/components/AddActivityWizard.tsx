@@ -26,6 +26,7 @@ import {
   isAeroportTransfertHorsHurghada,
   isCaireAeroportTransfert,
   isCroisiere,
+  noTaxeTransfert,
   isDiscouragedBusActivity,
   dureeJoursActivite,
   isTitreLibreActivity,
@@ -2491,6 +2492,11 @@ export default function AddActivityWizard({
           Taxe de transfert
         </button>
       </div>
+      {noTaxeTransfert(catalogueItem?.nom || r.nom_activite) && (
+        <p className="mt-2 text-xs text-neutral-500">
+          Cette excursion n&apos;est pas concernée par une taxe de transfert.
+        </p>
+      )}
       {!isAeroportTransfertHorsHurghada(r.nom_activite) &&
         (hotelHorsHurghada ? (
           r.transfert_inclus && (

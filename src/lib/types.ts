@@ -167,6 +167,9 @@ export type Reservation = {
   pax_override: string;
   transfert_inclus: boolean;
   transfert_montant: number;
+  reduction_montant: number;
+  reduction_motif: string;
+  activite_offerte: boolean;
   zone_transfert: string;
   vehicule_transfert: string;
   horaire_approx: string;

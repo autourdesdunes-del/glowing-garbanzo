@@ -230,6 +230,7 @@ type Step =
   | "monte"
   | "tarifs"
   | "options"
+  | "reduction"
   | "transfert";
 
 const STEP_TITLES: Record<Step, string> = {
@@ -242,6 +243,7 @@ const STEP_TITLES: Record<Step, string> = {
   monte: "Monte des enfants",
   tarifs: "Tarifs",
   options: "Options supplémentaires",
+  reduction: "Réduction / activité offerte",
   transfert: "Taxe de transfert",
 };
 
@@ -404,7 +406,7 @@ export default function AddActivityWizard({
   if (catalogueItem && needsMomentSpeedboat(catalogueItem.nom)) steps.push("moment");
   steps.push("participants");
   if (showMonteStep) steps.push("monte");
-  steps.push("tarifs", "options", "transfert");
+  steps.push("tarifs", "options", "reduction", "transfert");
   const stepIndex = steps.indexOf(step);
 
   // Édition d'une activité existante : on saute directement l'étape
@@ -2190,6 +2192,84 @@ export default function AddActivityWizard({
             + Ajouter une option
           </button>
         </div>
+
+        {navButtons(() => setStep("reduction"), "Suivant — Réduction")}
+      </>
+    );
+  }
+
+  if (step === "reduction") {
+    // Total hors réduction, pour afficher clairement ce qui est réduit/offert.
+    const sousTotal =
+      resaTotalMontant({ ...r, activite_offerte: false, reduction_montant: 0 }, client, options, tarifs);
+    return wrap(
+      <>
+        <div className="mb-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => onUpdateReservation(r.id, { activite_offerte: false, reduction_montant: 0 })}
+            className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium ${
+              !r.activite_offerte
+                ? "border-[#171717] bg-[#171717] text-white"
+                : "border-neutral-200 text-neutral-700 hover:border-[#171717]"
+            }`}
+          >
+            Aucune / Réduction partielle
+          </button>
+          <button
+            type="button"
+            onClick={() => onUpdateReservation(r.id, { activite_offerte: true, reduction_montant: sousTotal })}
+            className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium ${
+              r.activite_offerte
+                ? "border-[#171717] bg-[#171717] text-white"
+                : "border-neutral-200 text-neutral-700 hover:border-[#171717]"
+            }`}
+          >
+            🎁 Activité offerte
+          </button>
+        </div>
+
+        {!r.activite_offerte && (
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-sm text-neutral-600">Montant de la réduction</span>
+            <input
+              type="number"
+              min={0}
+              max={sousTotal}
+              value={r.reduction_montant || ""}
+              onChange={(e) =>
+                onUpdateReservation(r.id, {
+                  reduction_montant: Math.min(Math.max(Number(e.target.value) || 0, 0), sousTotal),
+                })
+              }
+              placeholder="0"
+              className="input w-24"
+            />
+            <span className="text-sm text-neutral-600">€</span>
+          </div>
+        )}
+
+        {(r.activite_offerte || (Number(r.reduction_montant) || 0) > 0) && (
+          <div className="mb-3">
+            <label className="mb-1 block text-xs text-neutral-500">Motif (obligatoire)</label>
+            <input
+              value={r.reduction_motif}
+              onChange={(e) => onUpdateReservation(r.id, { reduction_motif: e.target.value })}
+              placeholder="ex. geste commercial, dédommagement retard…"
+              className="input w-full"
+            />
+          </div>
+        )}
+
+        <p className="text-xs text-neutral-400">
+          Total de l&apos;activité : {euros(sousTotal)} €
+          {(r.activite_offerte || (Number(r.reduction_montant) || 0) > 0) && (
+            <>
+              {" "}
+              → <span className="font-medium text-[#171717]">{euros(resaTotalMontant(r, client, options, tarifs))} €</span>
+            </>
+          )}
+        </p>
 
         {navButtons(() => setStep("transfert"), "Suivant — Transfert")}
       </>

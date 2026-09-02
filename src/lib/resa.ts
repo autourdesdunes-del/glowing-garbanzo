@@ -268,6 +268,16 @@ export function momentBadge(r: Reservation) {
   return value;
 }
 
+// Badge "🎁 Offerte" / "− 20 €" à afficher à côté du titre d'une activité
+// réduite/offerte — une seule fonction partagée pour que la fiche client et
+// la vue Réservations affichent toujours exactement la même chose.
+export function reductionBadge(r: Reservation): string {
+  if (r.activite_offerte) return "🎁 Offerte";
+  const montant = Number(r.reduction_montant) || 0;
+  if (montant > 0) return `− ${fmtEuros(montant)} €`;
+  return "";
+}
+
 // N° de vol / horaire d'arrivée du client (transferts aéroport) — affiché
 // juste à côté du titre, pas seulement dans le détail, pour que l'équipe
 // voie l'info sans ouvrir la fiche.
@@ -1054,7 +1064,12 @@ export function resaTotalMontant(
   // automatiquement dès que l'île est sélectionnée, jamais à saisir à la main.
   const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
   const supplementGEM = isGrandEgyptianMuseum(r.site_caire) ? nbAd * 20 + nbEnf * 10 : 0;
-  return base + optionsTotal + tarifsTotal + transfert + supplementIle + supplementGEM;
+  const brut = base + optionsTotal + tarifsTotal + transfert + supplementIle + supplementGEM;
+  // Activité offerte : le client ne paie rien, quel que soit le montant
+  // enregistré (mis à jour pour suivre le total au moment où c'est décidé,
+  // mais toujours plafonné au total réel pour ne jamais passer en négatif).
+  const reduction = r.activite_offerte ? brut : Math.min(Math.max(Number(r.reduction_montant) || 0, 0), brut);
+  return brut - reduction;
 }
 
 // Le Grand Egyptian Museum (nouveau musée) est en supplément par rapport aux
@@ -1199,6 +1214,16 @@ export function resaBreakdown(
     lines.push({
       label: `Supplément Grand Egyptian Museum (20 € x ${nbAd} ad. + 10 € x ${nbEnf} enf.)`,
       amount: supplementGEM,
+    });
+  }
+
+  const brut = lines.reduce((s, l) => s + l.amount, 0);
+  const reduction = r.activite_offerte ? brut : Math.min(Math.max(Number(r.reduction_montant) || 0, 0), brut);
+  if (reduction > 0) {
+    const motif = r.reduction_motif ? ` (${r.reduction_motif})` : "";
+    lines.push({
+      label: `${r.activite_offerte ? "Activité offerte" : "Réduction"}${motif}`,
+      amount: -reduction,
     });
   }
 

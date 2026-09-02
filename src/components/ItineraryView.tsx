@@ -22,6 +22,7 @@ import {
   formatOptionLabel,
   isDeuxiemeIleOption,
   momentBadge,
+  reductionBadge,
   paiementStatutKey,
   pointureBadge,
   volBadge,
@@ -202,6 +203,11 @@ export default function ItineraryView({
               {momentBadge(r)}
             </span>
           )}
+          {reductionBadge(r) && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+              {reductionBadge(r)}
+            </span>
+          )}
           {volBadge(r) && (
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
               {volBadge(r)}
@@ -361,6 +367,11 @@ export default function ItineraryView({
                     className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
                   >
                     ⚠ {expandedReservation.info_importante}
+                  </span>
+                )}
+                {reductionBadge(expandedReservation) && (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    {reductionBadge(expandedReservation)}
                   </span>
                 )}
               </h3>

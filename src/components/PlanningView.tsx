@@ -21,6 +21,7 @@ import {
   fmtEncaisseLe,
   isDeuxiemeIleOption,
   momentBadge,
+  reductionBadge,
   paiementBadge,
   paiementStatutKey,
   participantsFor,
@@ -245,6 +246,11 @@ function ReservationSummaryCard({
               {momentBadge(r)}
             </span>
           )}
+          {reductionBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+              {reductionBadge(r)}
+            </span>
+          )}
           {volBadge(r) && (
             <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
               {volBadge(r)}
@@ -385,6 +391,11 @@ function ReservationSummaryCard({
         {momentBadge(r) && (
           <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
             {momentBadge(r)}
+          </span>
+        )}
+        {reductionBadge(r) && (
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            {reductionBadge(r)}
           </span>
         )}
         {volBadge(r) && (
@@ -667,6 +678,11 @@ function ActivityDetailModal({
                 {momentBadge(r)}
               </span>
             )}
+            {reductionBadge(r) && (
+              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                {reductionBadge(r)}
+              </span>
+            )}
             {volBadge(r) && (
               <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600">
                 {volBadge(r)}
@@ -914,6 +930,13 @@ function ActivityDetailModal({
         {r.info_importante && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
             ⚠ {r.info_importante}
+          </div>
+        )}
+
+        {reductionBadge(r) && (
+          <div className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+            {reductionBadge(r)}
+            {r.reduction_motif ? ` — ${r.reduction_motif}` : ""}
           </div>
         )}
 

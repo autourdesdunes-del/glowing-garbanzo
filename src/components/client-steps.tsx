@@ -1315,6 +1315,7 @@ export function ActivitesStep({
         transfertTarifs={transfertTarifs}
         catalogueOptions={catalogueOptions}
         hotelHorsHurghada={hotelHorsHurghada}
+        hotelVille={hotelVille}
         onAddReservation={onAddReservation}
         onUpdateReservation={onUpdateReservation}
         onDeleteReservation={onDeleteReservation}

@@ -339,7 +339,7 @@ export default function ItineraryView({
     ? paiementBadge(client, expandedReservation, reservations, resaOptions, resaTarifs, paiementsEtapes)
     : null;
   const expBreakdown = expandedReservation
-    ? resaBreakdown(expandedReservation, client, expOptions, expTarifs, reservations)
+    ? resaBreakdown(expandedReservation, client, expOptions, expTarifs, reservations, hotelVille)
     : [];
   const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${hotelDisplayForEgypt(
     client.hotel,

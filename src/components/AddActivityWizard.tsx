@@ -264,6 +264,7 @@ export default function AddActivityWizard({
   transfertTarifs,
   catalogueOptions,
   hotelHorsHurghada,
+  hotelVille,
   onAddReservation,
   onUpdateReservation,
   onDeleteReservation,
@@ -289,6 +290,7 @@ export default function AddActivityWizard({
   transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
   catalogueOptions: Record<string, CatalogueOption[]>;
   hotelHorsHurghada?: boolean;
+  hotelVille?: string;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   onJourEscalation: (
     nomActivite: string,
@@ -1580,7 +1582,7 @@ export default function AddActivityWizard({
   if (step === "tarifs") {
     const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
     const total = resaTotalMontant(r, client, options, tarifs);
-    const breakdown = resaBreakdown(r, client, options, tarifs, reservations);
+    const breakdown = resaBreakdown(r, client, options, tarifs, reservations, hotelVille);
 
     // Modifier le "x N" d'adulte/enfant/bébé en mode "tous" doit basculer en
     // "custom" (sinon rien à modifier — ces nombres sont déduits du séjour

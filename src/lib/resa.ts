@@ -1360,7 +1360,8 @@ export function resaBreakdown(
   client: Client,
   options: ReservationOption[] = [],
   tarifs: ReservationTarif[] = [],
-  allReservations: Reservation[] = []
+  allReservations: Reservation[] = [],
+  hotelVille?: string
 ): ResaBreakdownLine[] {
   const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
   const lines: ResaBreakdownLine[] = [];
@@ -1451,7 +1452,10 @@ export function resaBreakdown(
   });
 
   if (!r.transfert_inclus && Number(r.transfert_montant)) {
-    lines.push({ label: "Taxe de transfert", amount: Number(r.transfert_montant) || 0 });
+    lines.push({
+      label: hotelVille ? `Taxe de transfert (${hotelVille})` : "Taxe de transfert",
+      amount: Number(r.transfert_montant) || 0,
+    });
   }
 
   const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;

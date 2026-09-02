@@ -420,12 +420,12 @@ export function transfertSensOptions(nomCatalogue: string): SensTransfertOption[
       {
         value: "aeroport_hotel",
         label: "Aéroport → Hôtel",
-        titre: `Transfert aéroport ${ville} - hôtel`,
+        titre: `Transfert aéroport ${ville} - hôtel (Aéroport → Hôtel)`,
       },
       {
         value: "hotel_aeroport",
         label: "Hôtel → Aéroport",
-        titre: `Transfert hôtel ${ville} - aéroport ${ville}`,
+        titre: `Transfert hôtel ${ville} - aéroport (Hôtel → Aéroport)`,
       },
     ];
   }

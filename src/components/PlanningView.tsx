@@ -1536,9 +1536,18 @@ export default function PlanningView({
 
     rows.sort((a, b) => (a.r.date_debut || "").localeCompare(b.r.date_debut || ""));
 
+    // "Hier"/"Aujourd'hui"/"Demain" ne montrent qu'un seul jour à la fois —
+    // regrouper par date_debut de chaque activité y affichait la date de
+    // DÉBUT d'une activité sur plusieurs jours (ex. "31 août" pour une
+    // croisière en cours) au lieu du jour réellement consulté, ce qui
+    // donnait l'impression d'être resté sur un autre jour. Un seul groupe,
+    // sous le jour du filtre, pour ces trois vues.
+    const filterDateSingle =
+      filter === "hier" ? toStr(yesterday) : filter === "aujourdhui" ? todayStr : filter === "demain" ? toStr(tomorrow) : null;
+
     const byDate: Record<string, Row[]> = {};
     rows.forEach((row) => {
-      const key = row.r.date_debut as string;
+      const key = filterDateSingle || (row.r.date_debut as string);
       byDate[key] = [...(byDate[key] || []), row];
     });
     return { byDate, todayStr };

@@ -1333,6 +1333,7 @@ export default function ClientDetail({
               paiementsEtapes={paiementsEtapes}
               onAddPaiementEtape={addPaiementEtape}
               onDeletePaiementEtape={deletePaiementEtape}
+              isDirection={canSeeMargins}
             />
           </div>
         </div>

@@ -177,6 +177,7 @@ export default function GuidedActivityModal({
             resaOptions={resaOptions}
             resaTarifs={resaTarifs}
             onUpdateReservation={onUpdateReservation}
+            isDirection={canSeeMargins}
           />
         )}
 

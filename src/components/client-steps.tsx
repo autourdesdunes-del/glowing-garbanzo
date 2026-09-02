@@ -1912,6 +1912,7 @@ export function PaiementsStep({
   paiementsEtapes = [],
   onAddPaiementEtape = () => {},
   onDeletePaiementEtape = () => {},
+  isDirection = false,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -1920,6 +1921,7 @@ export function PaiementsStep({
   paiementsEtapes?: PaiementEtape[];
   onAddPaiementEtape?: (montant: number, mode: string, date: string, note: string) => void;
   onDeletePaiementEtape?: (id: string) => void;
+  isDirection?: boolean;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -2145,12 +2147,18 @@ export function PaiementsStep({
         <select
           value={client.paiement_type}
           onChange={(e) => onChange({ paiement_type: e.target.value })}
-          className="input"
+          disabled={!!client.paiement_type && !isDirection}
+          className="input disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
         >
           <option value="">Choisir…</option>
           <option value="integral">Paiement intégral en une seule fois</option>
           <option value="acompte">Paiement acompte + règlement à l&apos;arrivée</option>
         </select>
+        {!!client.paiement_type && !isDirection && (
+          <p className="mt-1 text-xs text-neutral-500">
+            🔒 Choix figé une fois défini — seule la Direction peut le modifier.
+          </p>
+        )}
 
         {client.paiement_type === "integral" && (
           <PaiementResteFlow

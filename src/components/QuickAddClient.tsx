@@ -951,6 +951,11 @@ export default function QuickAddClient({
                   resaOptions={resaOptions}
                   resaTarifs={resaTarifs}
                   onUpdateReservation={updateReservation}
+                  // Rien n'est encore figé pendant la création du dossier —
+                  // le verrou "Type de paiement" (réservé à la Direction une
+                  // fois le dossier établi) ne doit pas gêner la première
+                  // saisie si l'employée change d'avis avant de valider.
+                  isDirection
                 />
               )}
 

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { clientAPayeQuelqueChose, reglementAnnulation, resaTotalMontant } from "@/lib/resa";
-import { RAISONS_ANNULATION } from "@/lib/constants";
+import { clientAPayeQuelqueChose, isMontgolfiereActivity, reglementAnnulation, resaTotalMontant } from "@/lib/resa";
+import { ANNULATION_TYPES, RAISONS_ANNULATION } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
@@ -40,7 +40,14 @@ export default function AnnulerActiviteModal({
   onClose: () => void;
 }) {
   const toast = useToast();
-  const [raison, setRaison] = useState<string>(RAISONS_ANNULATION[0]);
+  const estMontgolfiere = isMontgolfiereActivity(r.nom_activite);
+  // Une Montgolfière annulée l'est presque toujours par les autorités pour
+  // météo — présélectionné pour éviter de le ressaisir à chaque fois,
+  // reste modifiable si ce n'est pas le cas.
+  const [annulationType, setAnnulationType] = useState<(typeof ANNULATION_TYPES)[number]["value"]>(
+    estMontgolfiere ? "gouvernement" : "client"
+  );
+  const [raison, setRaison] = useState<string>(estMontgolfiere ? "Météo" : RAISONS_ANNULATION[0]);
   const [raisonAutre, setRaisonAutre] = useState("");
   const [exception, setException] = useState(false);
   const [remboursementChoix, setRemboursementChoix] = useState<"rembourse" | "avoir" | "">("");
@@ -50,7 +57,13 @@ export default function AnnulerActiviteModal({
 
   const montant = resaTotalMontant(r, client, options, tarifs);
   const reglement = reglementAnnulation(r, catalogueItem, new Date());
-  const remboursable = reglement.remboursable || exception;
+  // Une annulation agence ou gouvernement n'est jamais la faute du client —
+  // toujours remboursable, aucune exception à faire valider par Hossam.
+  const remboursable = annulationType !== "client" || reglement.remboursable || exception;
+  const raisonAffichee =
+    annulationType === "client"
+      ? reglement.raison
+      : ANNULATION_TYPES.find((t) => t.value === annulationType)?.label || "";
   // Rien à rembourser si l'agence n'a jamais reçu d'argent pour ce séjour
   // (acompte pas encore encaissé, solde pas payé) ou si l'activité est
   // gratuite — même si la règle d'annulation dirait "remboursable".
@@ -107,6 +120,7 @@ export default function AnnulerActiviteModal({
       annulation_remb_avoir: remboursementPossible ? remboursementChoix : "",
       annulation_exception_hossam: exception,
       annulation_prevenir_hossam: reglement.prevenirHossam,
+      annulation_type: annulationType,
     });
     setSubmitting(false);
     onClose();
@@ -143,6 +157,26 @@ export default function AnnulerActiviteModal({
           </button>
         </div>
 
+        <div className="mt-3">
+          <label className="mb-1 block text-xs font-medium text-neutral-500">Type d&apos;annulation</label>
+          <div className="flex gap-2">
+            {ANNULATION_TYPES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setAnnulationType(t.value)}
+                className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium ${
+                  annulationType === t.value
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div
           className={`mt-3 rounded-md border px-3 py-2 text-sm ${
             remboursable
@@ -150,10 +184,10 @@ export default function AnnulerActiviteModal({
               : "border-red-200 bg-red-50 text-red-700"
           }`}
         >
-          {remboursable ? "✅ Remboursable" : "❌ Non remboursable"} — {reglement.raison}
+          {remboursable ? "✅ Remboursable" : "❌ Non remboursable"} — {raisonAffichee}
         </div>
 
-        {!reglement.remboursable && (
+        {annulationType === "client" && !reglement.remboursable && (
           <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
             <input type="checkbox" checked={exception} onChange={(e) => setException(e.target.checked)} />
             Exception validée par Hossam — rembourser quand même

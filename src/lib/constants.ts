@@ -261,6 +261,16 @@ export const RAISONS_ANNULATION = [
   "Autre",
 ] as const;
 
+// Qui est à l'origine de l'annulation — une annulation agence ou
+// gouvernement (ex. Montgolfière annulée pour météo par les autorités) est
+// toujours remboursable, sans exception Hossam à valider, contrairement à
+// une annulation client où la règle par activité s'applique.
+export const ANNULATION_TYPES = [
+  { value: "client", label: "Annulation client" },
+  { value: "agence", label: "Annulation agence" },
+  { value: "gouvernement", label: "Annulation gouvernement" },
+] as const;
+
 // Zones où un hôtel de la mer Rouge peut se trouver — proposées dans la
 // pop-up "Hôtel non répertorié" (ContactStep) et alignées sur les villes
 // déjà utilisées dans transfert_taxes, pour que la taxe de transfert se

@@ -244,6 +244,10 @@ export type Reservation = {
   annulation_remb_avoir: "" | "rembourse" | "avoir";
   annulation_exception_hossam: boolean;
   annulation_prevenir_hossam: boolean;
+  // Qui est à l'origine de l'annulation — distinct de annulation_raison
+  // (Météo, Client ne veut plus...) : une annulation agence/gouvernement
+  // est toujours remboursable sans exception Hossam à valider.
+  annulation_type: "client" | "agence" | "gouvernement";
   billet_requis: boolean;
   billet_etape: string;
   billet_demande_envoyee_le: string | null;

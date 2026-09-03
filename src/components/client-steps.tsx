@@ -281,17 +281,27 @@ function datesSummary(client: Client) {
   return `${fmtLong(debut!, !sameYear)} → ${fmtLong(fin!, true)}`;
 }
 
-function contactViaSummary(client: Client) {
-  if (client.canal === "Instagram" || client.canal === "TikTok") {
-    return client.pseudo_contact ? `${client.canal} — @${client.pseudo_contact}` : client.canal;
+function canalLabel(canal: string, client: Client) {
+  if (canal === "Instagram" || canal === "TikTok") {
+    return client.pseudo_contact ? `${canal} — @${client.pseudo_contact}` : canal;
   }
-  if (client.canal === "Email") {
+  if (canal === "Email") {
     return client.email ? `Email — ${client.email}` : "Email";
   }
-  if (client.canal === "Autre") {
+  if (canal === "Autre") {
     return client.canal_autre || "Autre";
   }
-  return client.canal;
+  return canal;
+}
+
+function contactViaSummary(client: Client) {
+  const principal = canalLabel(client.canal, client);
+  if (!client.canal_secondaire) return principal;
+  const secondaire =
+    client.canal_secondaire === "Autre"
+      ? client.canal_secondaire_autre || "Autre"
+      : client.canal_secondaire;
+  return `${principal} + ${secondaire}`;
 }
 
 function whatsappSummary(client: Client) {
@@ -1143,6 +1153,54 @@ export function ContactStep({
                   />
                 </PropertyRow>
               )}
+
+              {/* Certains clients arrivent par deux canaux à la fois (ex.
+                  WhatsApp + Email, WhatsApp + Instagram) — un second canal
+                  optionnel plutôt qu'un vrai multi-choix, pour rester simple
+                  et ne rien casser dans le reste de la fiche. */}
+              {client.canal_secondaire ? (
+                <>
+                  <PropertyRow label="+ Canal">
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={client.canal_secondaire}
+                        onChange={(e) => onChange({ canal_secondaire: e.target.value })}
+                        className="input-flat flex-1"
+                      >
+                        {CANAUX.filter((c) => c !== client.canal).map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => onChange({ canal_secondaire: "", canal_secondaire_autre: "" })}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  </PropertyRow>
+                  {client.canal_secondaire === "Autre" && (
+                    <PropertyRow label="Préciser (2e canal)">
+                      <input
+                        value={client.canal_secondaire_autre}
+                        onChange={(e) => onChange({ canal_secondaire_autre: e.target.value })}
+                        className="input-flat w-full"
+                      />
+                    </PropertyRow>
+                  )}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange({ canal_secondaire: CANAUX.find((c) => c !== client.canal) || CANAUX[0] })
+                  }
+                  className="text-xs text-[#171717] hover:underline"
+                >
+                  + Ajouter un second canal
+                </button>
+              )}
             </div>
             <button
               type="button"
@@ -1354,6 +1412,7 @@ export function ActivitesStep({
   onUpdateCoutReel,
   onRequestAdd,
   onAddingNewChange,
+  onActivityFinished,
   onBusEscalation,
   busEscalations,
   onJourEscalation,
@@ -1397,6 +1456,10 @@ export function ActivitesStep({
   // avant même que l'employée ait rempli quoi que ce soit), au lieu de
   // passer par "Annuler" du pas-à-pas qui la supprime proprement.
   onAddingNewChange?: (adding: boolean) => void;
+  // Appelé uniquement quand l'activité est effectivement ajoutée (bouton
+  // "Ajouter cette activité" au bout du wizard) — jamais sur "Annuler", ni
+  // en direct pendant qu'on la configure (voir checkRepriseApresAjout).
+  onActivityFinished?: () => void;
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   busEscalations: BusEscalation[];
   onJourEscalation: (
@@ -1441,7 +1504,10 @@ export function ActivitesStep({
         reservations={reservations}
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
-        onFinish={() => setAddingNew(false)}
+        onFinish={() => {
+          setAddingNew(false);
+          onActivityFinished?.();
+        }}
         onCancel={() => setAddingNew(false)}
         onBusEscalation={onBusEscalation}
         onJourEscalation={onJourEscalation}

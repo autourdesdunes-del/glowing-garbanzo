@@ -2167,11 +2167,11 @@ export function PaiementsStep({
     });
   }
   paiementsChronologiques.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-  // Replie automatiquement "Type de paiement" dès que le résumé compte plus
-  // de 2 lignes, pour désencombrer — une seule fois (si l'employée le
+  // Replie automatiquement "Type de paiement" dès que le résumé compte 2
+  // lignes ou plus, pour désencombrer — une seule fois (si l'employée le
   // rouvre ensuite, on ne le referme plus tout seul dans son dos).
   useEffect(() => {
-    if (paiementsChronologiques.length > 2 && !typeDePaiementAutoReplieRef.current) {
+    if (paiementsChronologiques.length >= 2 && !typeDePaiementAutoReplieRef.current) {
       typeDePaiementAutoReplieRef.current = true;
       setTypeDePaiementOpen(false);
     }

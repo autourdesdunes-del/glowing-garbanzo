@@ -35,10 +35,10 @@ import {
   ZONES_HOTEL,
 } from "@/lib/constants";
 import {
-  agesLabel,
   cleanActivityTitle,
   fmtEncaisseLe,
   hossamBilletMessage,
+  paxSummary,
   reservationsActives,
   resaTotalMontant,
   soldeInclutAcompteImpaye,
@@ -234,20 +234,6 @@ function AgeChips({
       </button>
     </div>
   );
-}
-
-function paxSummary(client: Client) {
-  const parts: string[] = [`${client.adultes || 0} adulte${(client.adultes || 0) > 1 ? "s" : ""}`];
-  if (client.enfants > 0) {
-    parts.push(`${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${agesLabel(client.ages_enfants)}`);
-  }
-  if (client.bebes > 0) {
-    parts.push(`${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes)}`);
-  }
-  if (client.ados_presents) {
-    parts.push(`ados${agesLabel(client.ages_ados)}`);
-  }
-  return parts.join(", ");
 }
 
 // "2 sept." — utilisé pour les dates d'arrivée/départ de chaque hôtel du

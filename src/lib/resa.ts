@@ -8,7 +8,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { addDays, todayStr, weekdayFr } from "@/lib/dates";
+import { addDays, fmtAnnulationSuffix, todayStr, weekdayFr } from "@/lib/dates";
 import { CHAMPS_REQUIS_PRESETS } from "@/lib/constants";
 
 // Un client confirmé, séjour proche (dans les 14 jours, ou déjà en cours),
@@ -485,7 +485,9 @@ export function optionsBadge(
         allReservations.find(
           (rr) => rr.parent_reservation_id === parentReservationId && rr.nom_activite === nom
         );
-      return carte && carte.statut_resa === "Annulée" ? `${nom} (annulée)` : nom;
+      return carte && carte.statut_resa === "Annulée"
+        ? `${nom} ${fmtAnnulationSuffix(carte.annulation_date, carte.annulation_heure)}`
+        : nom;
     })
     .filter(Boolean);
   if (noms.length === 0) return "";
@@ -1259,6 +1261,22 @@ export function agesLabel(ages: string) {
   const clean = (ages || "").trim();
   if (!clean) return "";
   return /\bans?\b/i.test(clean) ? ` (${clean})` : ` (${clean} ans)`;
+}
+
+// "2 adultes, 1 enfant (5 ans)" — résumé du nombre de participants d'un
+// séjour, réutilisé partout où on affiche un client en un coup d'œil.
+export function paxSummary(client: Client) {
+  const parts: string[] = [`${client.adultes || 0} adulte${(client.adultes || 0) > 1 ? "s" : ""}`];
+  if (client.enfants > 0) {
+    parts.push(`${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${agesLabel(client.ages_enfants)}`);
+  }
+  if (client.bebes > 0) {
+    parts.push(`${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes)}`);
+  }
+  if (client.ados_presents) {
+    parts.push(`ados${agesLabel(client.ages_ados)}`);
+  }
+  return parts.join(", ");
 }
 
 export function participantsFor(r: Reservation, client: Client) {

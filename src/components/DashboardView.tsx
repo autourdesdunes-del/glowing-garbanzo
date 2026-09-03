@@ -14,7 +14,7 @@ import {
   ReservationTarif,
   UserShift,
 } from "@/lib/types";
-import { cleanActivityTitle, missingChampsFor, resaTotalMontant } from "@/lib/resa";
+import { cleanActivityTitle, missingChampsFor, paxSummary, resaTotalMontant } from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
@@ -236,6 +236,69 @@ function ActionRow({
   );
 }
 
+// Popup générique "coup d'œil rapide" : nom, pourquoi c'est signalé, et
+// l'action à faire — réutilisée pour les 4 métriques cliquables du
+// tableau de bord (Cas urgents, Prospects à relancer, Dossiers incomplets,
+// Pick-ups manquants) pour éviter 4 popups copiés-collés.
+function InfoListModal({
+  title,
+  rows,
+  onClose,
+}: {
+  title: string;
+  rows: {
+    key: string;
+    name: string;
+    reason: string;
+    actionLabel: string;
+    onAction: () => void;
+  }[];
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="font-heading text-base font-semibold text-[#171717]">
+            {title} ({rows.length})
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-neutral-400 hover:text-[#171717]"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="mt-3 space-y-2">
+          {rows.length === 0 && (
+            <p className="text-sm text-neutral-500">Rien à signaler.</p>
+          )}
+          {rows.map((row) => (
+            <div key={row.key} className="rounded-md border border-neutral-100 px-3 py-2 text-sm">
+              <p className="font-medium text-[#171717]">{row.name}</p>
+              <p className="mt-0.5 text-xs text-neutral-500">{row.reason}</p>
+              <button
+                type="button"
+                onClick={row.onAction}
+                className="mt-1.5 text-xs font-medium text-[#0F5C56] hover:underline"
+              >
+                {row.actionLabel} →
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardView({
   userEmail,
   viewAsUserId,
@@ -326,6 +389,11 @@ export default function DashboardView({
   const [pickClientForCancelOpen, setPickClientForCancelOpen] = useState(false);
   const [pickClientForRemboursementOpen, setPickClientForRemboursementOpen] = useState(false);
   const [clientsEgyptModalOpen, setClientsEgyptModalOpen] = useState(false);
+  const [expandedEgyptClientId, setExpandedEgyptClientId] = useState<string | null>(null);
+  const [urgentModalOpen, setUrgentModalOpen] = useState(false);
+  const [prospectsModalOpen, setProspectsModalOpen] = useState(false);
+  const [incompleteModalOpen, setIncompleteModalOpen] = useState(false);
+  const [pickupsModalOpen, setPickupsModalOpen] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
   const [shiftFin, setShiftFin] = useState("");
   const [showActivitesEnAttenteModal, setShowActivitesEnAttenteModal] = useState(false);
@@ -514,6 +582,94 @@ export default function DashboardView({
 
   const urgentCount =
     rdvToday.length + pickupsMissingTomorrow.length + billetsUrgents.length + acomptesUrgents.length;
+
+  // Lignes des popups "coup d'œil rapide" des 4 métriques cliquables — même
+  // union de sources que urgentCount/staleProspects/incompleteUpcoming/
+  // pickupsMissingTomorrow ci-dessus, juste reformatées en nom + pourquoi +
+  // action.
+  const urgentRows = [
+    ...rdvToday.map((c) => ({
+      key: `rdv-${c.id}`,
+      name: c.nom || "Sans nom",
+      reason: "RDV de paiement du solde aujourd'hui",
+      actionLabel: "Voir la fiche",
+      onAction: () => {
+        setUrgentModalOpen(false);
+        onOpenClient(c.id);
+      },
+    })),
+    ...pickupsMissingTomorrow.map((r) => {
+      const c = clientById(r.client_id);
+      return {
+        key: `pickup-${r.id}`,
+        name: c?.nom || "Sans nom",
+        reason: `Pick-up réel manquant pour demain — ${cleanActivityTitle(r.nom_activite) || "Activité"}`,
+        actionLabel: "Renseigner le pick-up",
+        onAction: () => {
+          setUrgentModalOpen(false);
+          if (c) onOpenClient(c.id);
+        },
+      };
+    }),
+    ...billetsUrgents.map((r) => {
+      const c = clientById(r.client_id);
+      return {
+        key: `billet-${r.id}`,
+        name: c?.nom || "Sans nom",
+        reason: `Billet d'avion pas encore reçu — vol le ${fmtDate(r.billet_date)}`,
+        actionLabel: "Voir la fiche",
+        onAction: () => {
+          setUrgentModalOpen(false);
+          if (c) onOpenClient(c.id);
+        },
+      };
+    }),
+    ...acomptesUrgents.map((c) => ({
+      key: `acompte-${c.id}`,
+      name: c.nom || "Sans nom",
+      reason: `Acompte non réglé — arrivée le ${fmtDate(c.date_debut)}`,
+      actionLabel: "Voir la fiche",
+      onAction: () => {
+        setUrgentModalOpen(false);
+        onOpenClient(c.id);
+      },
+    })),
+  ];
+
+  const prospectRows = staleProspects.map((c) => ({
+    key: c.id,
+    name: c.nom || "Sans nom",
+    reason: c.dernier_contact_date
+      ? `Dernier contact il y a ${daysSince(c.dernier_contact_date)} j — arrivée le ${fmtDate(c.date_debut)}`
+      : `Jamais recontacté depuis la création — arrivée le ${fmtDate(c.date_debut)}`,
+    actionLabel: "Marquer comme relancé",
+    onAction: () => marquerRelance(c),
+  }));
+
+  const incompleteRows = incompleteUpcoming.map((c) => ({
+    key: c.id,
+    name: c.nom || "Sans nom",
+    reason: `Manque : ${infosManquantesToutes(c, reservations).join(", ")}`,
+    actionLabel: "Compléter la fiche",
+    onAction: () => {
+      setIncompleteModalOpen(false);
+      onOpenClient(c.id);
+    },
+  }));
+
+  const pickupRows = pickupsMissingTomorrow.map((r) => {
+    const c = clientById(r.client_id);
+    return {
+      key: r.id,
+      name: c?.nom || "Sans nom",
+      reason: `${cleanActivityTitle(r.nom_activite) || "Activité"} — demain ${fmtDate(r.date_debut)}`,
+      actionLabel: "Renseigner le pick-up",
+      onAction: () => {
+        setPickupsModalOpen(false);
+        if (c) onOpenClient(c.id);
+      },
+    };
+  });
 
   // Total toutes rubriques "Actions rapides" confondues — affiché en cloche
   // en haut de la section pour voir d'un coup d'œil s'il y a quelque chose à
@@ -727,34 +883,85 @@ export default function DashboardView({
               {[...clientsInEgypt]
                 .sort((a, b) => (a.date_fin || "").localeCompare(b.date_fin || ""))
                 .map((c) => {
-                  const nbActivites = reservations.filter(
+                  const activitesClient = reservations.filter(
                     (r) => r.client_id === c.id && r.statut_resa !== "Annulée"
-                  ).length;
+                  );
+                  const nbActivites = activitesClient.length;
+                  const expanded = expandedEgyptClientId === c.id;
                   return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        setClientsEgyptModalOpen(false);
-                        onOpenClient(c.id);
-                      }}
-                      className="flex w-full items-center justify-between gap-2 rounded-md border border-neutral-100 px-3 py-2 text-left text-sm hover:border-[#C9973E] hover:bg-[#fafafa]"
-                    >
-                      <span>
-                        <span className="font-medium text-[#171717]">{c.nom || "Sans nom"}</span>
-                        <span className="ml-2 text-xs text-neutral-500">
-                          {fmtDate(c.date_debut)} → {fmtDate(c.date_fin)}
-                        </span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
-                        {nbActivites} activité{nbActivites > 1 ? "s" : ""}
-                      </span>
-                    </button>
+                    <div key={c.id} className="rounded-md border border-neutral-100 hover:border-[#C9973E]">
+                      <div className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setClientsEgyptModalOpen(false);
+                            onOpenClient(c.id);
+                          }}
+                          className="min-w-0 flex-1 text-left hover:underline"
+                        >
+                          <span className="font-medium text-[#171717]">{c.nom || "Sans nom"}</span>
+                          <span className="ml-2 text-xs text-neutral-500">
+                            {fmtDate(c.date_debut)} → {fmtDate(c.date_fin)}
+                          </span>
+                          <span className="block text-xs text-neutral-500">{paxSummary(c)}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedEgyptClientId(expanded ? null : c.id)}
+                          className="shrink-0 rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56] hover:bg-[#0F5C56]/20"
+                        >
+                          {nbActivites} activité{nbActivites > 1 ? "s" : ""} {expanded ? "▲" : "▼"}
+                        </button>
+                      </div>
+                      {expanded && (
+                        <div className="border-t border-neutral-100 px-3 py-2">
+                          {nbActivites === 0 ? (
+                            <p className="text-xs text-neutral-500">Aucune activité réservée.</p>
+                          ) : (
+                            <ul className="space-y-1">
+                              {activitesClient.map((r) => (
+                                <li key={r.id} className="text-xs text-neutral-600">
+                                  <span className="font-medium text-[#171717]">
+                                    {cleanActivityTitle(r.nom_activite) || "Activité"}
+                                  </span>{" "}
+                                  — {fmtDate(r.date_debut)}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
             </div>
           </div>
         </div>
+      )}
+
+      {urgentModalOpen && (
+        <InfoListModal title="Cas urgents" rows={urgentRows} onClose={() => setUrgentModalOpen(false)} />
+      )}
+      {prospectsModalOpen && (
+        <InfoListModal
+          title="Prospects à relancer"
+          rows={prospectRows}
+          onClose={() => setProspectsModalOpen(false)}
+        />
+      )}
+      {incompleteModalOpen && (
+        <InfoListModal
+          title="Dossiers incomplets"
+          rows={incompleteRows}
+          onClose={() => setIncompleteModalOpen(false)}
+        />
+      )}
+      {pickupsModalOpen && (
+        <InfoListModal
+          title="Pick-ups manquants"
+          rows={pickupRows}
+          onClose={() => setPickupsModalOpen(false)}
+        />
       )}
 
       {showTeamShiftsToday && (
@@ -805,24 +1012,28 @@ export default function DashboardView({
           value={String(urgentCount)}
           sub={urgentCount > 0 ? "à traiter" : "rien pour l'instant"}
           tone={urgentCount > 0 ? "error" : "default"}
+          onClick={urgentCount > 0 ? () => setUrgentModalOpen(true) : undefined}
         />
         <Metric
           label="Prospects à relancer"
           value={String(staleProspects.length)}
           sub="arrivée < 14 j"
           tone="default"
+          onClick={staleProspects.length > 0 ? () => setProspectsModalOpen(true) : undefined}
         />
         <Metric
           label="Dossiers incomplets"
           value={String(incompleteUpcoming.length)}
           sub="arrivée < 14 j"
           tone="default"
+          onClick={incompleteUpcoming.length > 0 ? () => setIncompleteModalOpen(true) : undefined}
         />
         <Metric
           label="Pick-ups manquants"
           value={String(pickupsMissingTomorrow.length)}
           sub="demain"
           tone="default"
+          onClick={pickupsMissingTomorrow.length > 0 ? () => setPickupsModalOpen(true) : undefined}
         />
       </div>
 

@@ -308,6 +308,9 @@ export type PaiementEtape = {
   mode: string;
   date: string | null;
   note: string;
+  // Activité où l'argent a été remis en main propre (espèces/CB) — vide
+  // pour PayPal/virement, qui ne passent jamais par une activité précise.
+  activite_nom: string;
   created_at: string;
 };
 

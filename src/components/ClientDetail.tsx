@@ -356,10 +356,16 @@ export default function ClientDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
 
-  const addPaiementEtape = async (montant: number, mode: string, date: string, note: string) => {
+  const addPaiementEtape = async (
+    montant: number,
+    mode: string,
+    date: string,
+    note: string,
+    activiteNom: string
+  ) => {
     const { data, error } = await supabase
       .from("paiements_etapes")
-      .insert({ client_id: client.id, montant, mode, date: date || null, note })
+      .insert({ client_id: client.id, montant, mode, date: date || null, note, activite_nom: activiteNom })
       .select()
       .single();
     if (!error && data) {

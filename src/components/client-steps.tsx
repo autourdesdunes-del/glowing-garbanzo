@@ -36,6 +36,7 @@ import {
 } from "@/lib/constants";
 import {
   agesLabel,
+  cleanActivityTitle,
   fmtEncaisseLe,
   hossamBilletMessage,
   reservationsActives,
@@ -1925,7 +1926,7 @@ export function PaiementsStep({
   resaTarifs: Record<string, ReservationTarif[]>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   paiementsEtapes?: PaiementEtape[];
-  onAddPaiementEtape?: (montant: number, mode: string, date: string, note: string) => void;
+  onAddPaiementEtape?: (montant: number, mode: string, date: string, note: string, activiteNom: string) => void;
   onDeletePaiementEtape?: (id: string) => void;
   isDirection?: boolean;
 }) {
@@ -1942,6 +1943,17 @@ export function PaiementsStep({
   const [etapeDate, setEtapeDate] = useState(todayStr());
   const [etapeNotePreset, setEtapeNotePreset] = useState("");
   const [etapeNoteLibre, setEtapeNoteLibre] = useState("");
+  // Remis en main propre (espèces/CB) : on demande toujours où, jamais pour
+  // PayPal/virement qui ne passent par aucune activité précise.
+  const [etapeActiviteConfirm, setEtapeActiviteConfirm] = useState<{
+    montant: number;
+    mode: string;
+    date: string;
+    note: string;
+    candidats: Reservation[];
+    choix: string;
+    libre: string;
+  } | null>(null);
 
   // Après avoir marqué l'acompte encaissé, si un billet d'avion attend
   // encore d'être signalé à Hossam, on le rappelle tout de suite — c'est
@@ -2024,6 +2036,7 @@ export function PaiementsStep({
     sortKey: string;
     etapeId?: string;
     note?: string;
+    activite?: string;
   };
   const paiementsChronologiques: PaiementLigne[] = [];
   if (client.acompte_paye) {
@@ -2045,6 +2058,7 @@ export function PaiementsStep({
       sortKey: e.date || "",
       etapeId: e.id,
       note: e.note,
+      activite: e.activite_nom,
     });
   });
   // Si l'acompte + les étapes couvraient déjà tout le séjour au moment où le
@@ -2062,6 +2076,18 @@ export function PaiementsStep({
   }
   paiementsChronologiques.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 
+  // Espèces/CB : l'argent est remis en main propre sur une activité — on
+  // demande toujours laquelle (PayPal/virement ne passent par aucune
+  // activité, inutile de demander).
+  const MODES_AVEC_ACTIVITE = ["Espèces EUR", "Espèces EGP", "Carte bleue"];
+
+  const resetEtapeForm = () => {
+    setEtapeMontant("");
+    setEtapeNotePreset("");
+    setEtapeNoteLibre("");
+    setAddingEtape(false);
+  };
+
   const ajouterEtape = () => {
     const montant = Number(etapeMontant);
     if (!montant || montant <= 0) {
@@ -2073,11 +2099,39 @@ export function PaiementsStep({
       toast("Indique pourquoi ce paiement arrive (choisis une raison ou écris-la).");
       return;
     }
-    onAddPaiementEtape(montant, etapeMode, etapeDate, note);
-    setEtapeMontant("");
-    setEtapeNotePreset("");
-    setEtapeNoteLibre("");
-    setAddingEtape(false);
+    if (!MODES_AVEC_ACTIVITE.includes(etapeMode)) {
+      onAddPaiementEtape(montant, etapeMode, etapeDate, note, "");
+      resetEtapeForm();
+      return;
+    }
+    // Activités du même jour proposées en premier — c'est le cas le plus
+    // fréquent (payé sur place, le jour même de l'activité).
+    const candidats = reservationsActives(reservations).filter((r) => r.date_debut === etapeDate);
+    setEtapeActiviteConfirm({
+      montant,
+      mode: etapeMode,
+      date: etapeDate,
+      note,
+      candidats,
+      choix: candidats[0]?.id || "autre",
+      libre: "",
+    });
+  };
+
+  const confirmerEtapeActivite = () => {
+    if (!etapeActiviteConfirm) return;
+    const { montant, mode, date, note, candidats, choix, libre } = etapeActiviteConfirm;
+    const activiteNom =
+      choix === "autre"
+        ? libre.trim()
+        : cleanActivityTitle(candidats.find((r) => r.id === choix)?.nom_activite || "");
+    if (choix === "autre" && !activiteNom) {
+      toast("Indique où ce paiement a été récolté.");
+      return;
+    }
+    onAddPaiementEtape(montant, mode, date, note, activiteNom);
+    setEtapeActiviteConfirm(null);
+    resetEtapeForm();
   };
 
   const validerAcompte = () => {
@@ -2341,22 +2395,87 @@ export function PaiementsStep({
                   <span className="text-[#171717]">
                     {ligne.label} — {euros(ligne.montant)} €
                   </span>
-                  <span className="flex items-center gap-2 text-xs text-neutral-500">
-                    {ligne.when}
-                    {ligne.etapeId && (
-                      <button
-                        onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
-                        title="Retirer cette étape"
-                        className="text-red-500 hover:text-red-600"
-                      >
-                        🗑
-                      </button>
-                    )}
-                  </span>
+                  <div className="flex flex-col items-end gap-0.5 text-xs text-neutral-500">
+                    <span className="flex items-center gap-2">
+                      {ligne.when}
+                      {ligne.etapeId && (
+                        <button
+                          onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
+                          title="Retirer cette étape"
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          🗑
+                        </button>
+                      )}
+                    </span>
+                    {ligne.activite && <span>({ligne.activite})</span>}
+                  </div>
                 </div>
                 {ligne.note && <div className="mt-0.5 text-xs italic text-[#8B4531]">{ligne.note}</div>}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {etapeActiviteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Où ce paiement a-t-il été récolté ?
+            </h2>
+            <p className="mb-3 text-sm text-neutral-600">
+              {euros(etapeActiviteConfirm.montant)} € en {etapeActiviteConfirm.mode}, le{" "}
+              {fmtDateDMY(etapeActiviteConfirm.date)}.
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {etapeActiviteConfirm.candidats.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, choix: r.id })}
+                  className={`rounded-md border px-3 py-2 text-left text-sm ${
+                    etapeActiviteConfirm.choix === r.id
+                      ? "border-[#171717] bg-[#171717] text-white"
+                      : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                  }`}
+                >
+                  {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
+                </button>
+              ))}
+              <button
+                onClick={() => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, choix: "autre" })}
+                className={`rounded-md border px-3 py-2 text-left text-sm ${
+                  etapeActiviteConfirm.choix === "autre"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                }`}
+              >
+                Autre
+              </button>
+              {etapeActiviteConfirm.choix === "autre" && (
+                <input
+                  type="text"
+                  value={etapeActiviteConfirm.libre}
+                  onChange={(e) => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, libre: e.target.value })}
+                  placeholder="Où ce paiement a été récolté"
+                  className="input"
+                />
+              )}
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setEtapeActiviteConfirm(null)}
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmerEtapeActivite}
+                className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+              >
+                Confirmer
+              </button>
+            </div>
           </div>
         </div>
       )}

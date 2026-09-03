@@ -549,6 +549,12 @@ export default function ClientDetail({
         transfert_inclus: !hotelHorsHurghada,
         cree_par_id: user?.id || null,
         cree_par_nom: creeParNom,
+        // Une activité ajoutée à un client déjà "Client confirmé" est
+        // confirmée d'office — sinon elle reste en Brouillon pour toujours
+        // tant que personne ne pense à aller cliquer "Valider" sur la carte
+        // (constaté : 80% des activités bloquées en Brouillon en pratique,
+        // ce qui vidait les factures qui ne reprennent que les Confirmées).
+        statut_resa: client.statut === "Client confirmé" ? "Confirmée" : "Brouillon",
       })
       .select()
       .single();

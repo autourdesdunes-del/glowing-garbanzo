@@ -1247,6 +1247,7 @@ function AppShellInner({
   };
 
   const updateClientById = async (id: string, patch: Partial<Client>) => {
+    const previousStatut = clients.find((c) => c.id === id)?.statut;
     if (patch.statut) {
       const current = clients.find((c) => c.id === id);
       if (current && patch.statut !== current.statut) {
@@ -1286,6 +1287,18 @@ function AppShellInner({
           annulation_raison: r.annulation_raison || "Client annulé",
           annulation_date: r.annulation_date || localDateStr(new Date()),
         });
+      }
+    }
+
+    // Les activités ajoutées pendant la négociation (client encore
+    // Prospect/En négociation) restent en Brouillon — sans cette bascule, un
+    // client qui passe "Client confirmé" garde des activités bloquées en
+    // Brouillon indéfiniment, invisibles pour la facturation (qui ne reprend
+    // que les Confirmées) alors que rien ne le signale sur la fiche client.
+    if (patch.statut === "Client confirmé" && previousStatut !== "Client confirmé") {
+      const aConfirmer = allReservations.filter((r) => r.client_id === id && r.statut_resa === "Brouillon");
+      for (const r of aConfirmer) {
+        await updateReservationById(r.id, { statut_resa: "Confirmée" });
       }
     }
   };

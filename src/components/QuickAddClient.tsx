@@ -387,6 +387,7 @@ export default function QuickAddClient({
         transfert_inclus: !hotelHorsHurghada,
         cree_par_id: user?.id || null,
         cree_par_nom: creeParNom,
+        statut_resa: (answers.statut ?? defaultStatut) === "Client confirmé" ? "Confirmée" : "Brouillon",
       })
       .select()
       .single();

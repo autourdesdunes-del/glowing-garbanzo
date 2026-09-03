@@ -38,6 +38,7 @@ import {
   momentBadge,
   pointureBadge,
   packBadge,
+  siteCaireBadge,
   taxeTransfertManquante,
   volBadge,
   needsMomentSpeedboat,
@@ -339,6 +340,11 @@ export default function ReservationCard({
                 {packBadge(r)}
               </span>
             )}
+            {siteCaireBadge(r) && (
+              <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
+                {siteCaireBadge(r)}
+              </span>
+            )}
             {taxeTransfertManquante(r, hotelHorsHurghada) && (
               <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                 ⚠ Taxe de transfert manquante
@@ -418,6 +424,11 @@ export default function ReservationCard({
           {packBadge(r) && (
             <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
               {packBadge(r)}
+            </span>
+          )}
+          {siteCaireBadge(r) && (
+            <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
+              {siteCaireBadge(r)}
             </span>
           )}
           {taxeTransfertManquante(r, hotelHorsHurghada) && (

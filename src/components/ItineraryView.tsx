@@ -28,6 +28,7 @@ import {
   paiementStatutKey,
   pointureBadge,
   packBadge,
+  siteCaireBadge,
   taxeTransfertManquante,
   volBadge,
   paiementBadge,
@@ -238,6 +239,11 @@ export default function ItineraryView({
           {packBadge(r) && (
             <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
               {packBadge(r)}
+            </span>
+          )}
+          {siteCaireBadge(r) && (
+            <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-[11px] font-medium text-[#0F5C56]">
+              {siteCaireBadge(r)}
             </span>
           )}
           {taxeTransfertManquante(r, hotelHorsHurghada) && (

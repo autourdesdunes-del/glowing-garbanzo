@@ -35,6 +35,7 @@ import {
   soldeInclutAcompteImpaye,
   STATUT_PAIEMENT_OPTIONS,
   packBadge,
+  siteCaireBadge,
   volBadge,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
@@ -337,6 +338,11 @@ function ReservationSummaryCard({
               {packBadge(r)}
             </span>
           )}
+          {siteCaireBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-[#0F5C56]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#0F5C56]">
+              {siteCaireBadge(r)}
+            </span>
+          )}
           {pointureBadge(r) && (
             <span className="whitespace-nowrap rounded-full bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-600">
               {pointureBadge(r)}
@@ -405,6 +411,11 @@ function ReservationSummaryCard({
           {packBadge(r) && (
             <span className="whitespace-nowrap rounded-full bg-[#C9973E]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#8B4531]">
               {packBadge(r)}
+            </span>
+          )}
+          {siteCaireBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-[#0F5C56]/10 px-1.5 py-0.5 text-[10px] font-medium text-[#0F5C56]">
+              {siteCaireBadge(r)}
             </span>
           )}
           {pointureBadge(r) && (
@@ -502,6 +513,11 @@ function ReservationSummaryCard({
         {packBadge(r) && (
           <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
             {packBadge(r)}
+          </span>
+        )}
+        {siteCaireBadge(r) && (
+          <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
+            {siteCaireBadge(r)}
           </span>
         )}
         {pointureBadge(r) && (
@@ -803,6 +819,11 @@ function ActivityDetailModal({
             {packBadge(r) && (
               <span className="rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
                 {packBadge(r)}
+              </span>
+            )}
+            {siteCaireBadge(r) && (
+              <span className="rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
+                {siteCaireBadge(r)}
               </span>
             )}
             {pointureBadge(r) && (

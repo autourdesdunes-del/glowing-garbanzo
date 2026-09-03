@@ -1339,6 +1339,21 @@ export function isGrandEgyptianMuseum(siteCaire: string) {
   return siteCaire === "Grand Egyptian Museum (nouveau musée)";
 }
 
+// Libellé court en anglais du site du Caire choisi (pour l'équipe Égypte),
+// affiché à côté du titre — les pyramides sont toujours visitées, seul le
+// deuxième site varie selon le choix fait dans le pas-à-pas.
+const SITE_CAIRE_EN: Record<string, string> = {
+  "Musée du Caire (ancien musée)": "old museum",
+  Saqqarah: "saqqarah",
+  "Citadelle Mohamed Ali": "citadel",
+  "Grand Egyptian Museum (nouveau musée)": "new museum",
+};
+
+export function siteCaireBadge(r: Reservation): string {
+  if (!r.site_caire) return "";
+  return `(pyramids + ${SITE_CAIRE_EN[r.site_caire] || r.site_caire})`;
+}
+
 // Certaines activités du catalogue n'ont lieu que certains jours de la
 // semaine (ex. Louxor en mini-bus : mardi/jeudi/dimanche seulement) — un
 // jours_disponibles vide veut dire "tous les jours", jamais "aucun jour".

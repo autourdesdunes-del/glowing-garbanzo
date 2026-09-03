@@ -2353,6 +2353,18 @@ export function PaiementsStep({
     });
   };
 
+  const clickMontantAcompteDifferent = () => {
+    const now = new Date();
+    const defaultTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    setAcompteDateModal({
+      step: "choix",
+      date: todayStr(),
+      time: defaultTime,
+      montant: String(client.acompte_montant),
+      montantDifferent: true,
+    });
+  };
+
   const resteApresAcompte = Math.max(
     totalSejour -
       (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0) -
@@ -2494,6 +2506,7 @@ export function PaiementsStep({
                       paye={client.acompte_paye}
                       onMarquer={clickMarquerAcompteEncaisse}
                       onAnnuler={clickMarquerAcompteEncaisse}
+                      onDifferent={!client.acompte_paye ? clickMontantAcompteDifferent : undefined}
                     />
                     {isDirection && (
                       <button

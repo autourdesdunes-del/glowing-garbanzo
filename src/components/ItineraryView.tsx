@@ -218,9 +218,10 @@ export default function ItineraryView({
         className="cursor-pointer rounded-md bg-[#fafafa]/50 px-2.5 py-1.5 text-sm hover:bg-[#fafafa]"
       >
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="font-medium text-[#171717]">
+          <span className={`font-medium ${r.statut_resa === "Annulée" ? "text-red-600" : "text-[#171717]"}`}>
             {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+            {r.statut_resa === "Annulée" ? " (annulé)" : ""}
           </span>
           {r.info_importante.trim() && (
             <span
@@ -423,9 +424,14 @@ export default function ItineraryView({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
-              <h3 className="font-heading flex flex-wrap items-center gap-1.5 text-lg font-semibold text-[#171717]">
+              <h3
+                className={`font-heading flex flex-wrap items-center gap-1.5 text-lg font-semibold ${
+                  expandedReservation.statut_resa === "Annulée" ? "text-red-600" : "text-[#171717]"
+                }`}
+              >
                 {cleanActivityTitle(expandedReservation.nom_activite) || "Activité sans nom"}
                 {expandedReservation.horaire_souhaite ? ` (${expandedReservation.horaire_souhaite})` : ""}
+                {expandedReservation.statut_resa === "Annulée" ? " (annulé)" : ""}
                 {expandedReservation.info_importante.trim() && (
                   <span
                     title={expandedReservation.info_importante}
@@ -446,7 +452,33 @@ export default function ItineraryView({
                 )}
               </h3>
               <div className="flex shrink-0 items-center gap-1.5">
-                {expandedReservation.statut_resa !== "Annulée" && (
+                {expandedReservation.statut_resa === "Annulée" ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: "Reprogrammer cette activité ?",
+                        message:
+                          "L'activité redevient active (statut Confirmée) et l'annulation est effacée. Un remboursement ou avoir déjà créé pour cette annulation n'est PAS annulé automatiquement — à retirer toi-même dans Suivi si besoin.",
+                        confirmLabel: "Reprogrammer",
+                      });
+                      if (!ok) return;
+                      onUpdateReservation(expandedReservation.id, {
+                        statut_resa: "Confirmée",
+                        annulation_raison: "",
+                        annulation_date: null,
+                        annulation_remb_avoir: "",
+                        annulation_exception_hossam: false,
+                        annulation_prevenir_hossam: false,
+                        annulation_type: "client",
+                      });
+                    }}
+                    title="Reprogrammer cette activité (annule l'annulation)"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#0F5C56]/10 text-[#0F5C56] hover:bg-[#0F5C56]/20"
+                  >
+                    ↩
+                  </button>
+                ) : (
                   <button
                     type="button"
                     onClick={() => setAnnulerActiviteId(expandedReservation.id)}

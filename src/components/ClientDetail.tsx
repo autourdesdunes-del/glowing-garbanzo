@@ -1282,6 +1282,11 @@ export default function ClientDetail({
                 {reservations.length}
               </span>
             )}
+            {reservations.filter((r) => r.statut_resa === "Annulée").length > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-100 px-1 text-xs font-semibold text-red-600">
+                ({reservations.filter((r) => r.statut_resa === "Annulée").length})
+              </span>
+            )}
             {client.statut !== "Client annulé" && (
               <span
                 role="button"

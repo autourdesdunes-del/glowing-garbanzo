@@ -2216,6 +2216,9 @@ export default function AddActivityWizard({
                   <option key={p}>{p}</option>
                 ))}
               </select>
+              {isCroisiereOption && carte?.statut_resa === "Annulée" && (
+                <span className="text-xs font-medium text-red-600">(annulée)</span>
+              )}
               {!presetsAffiches.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) && (
                 <input
                   placeholder="Préciser"

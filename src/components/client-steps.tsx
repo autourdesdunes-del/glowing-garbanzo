@@ -2117,7 +2117,11 @@ export function PaiementsStep({
   const [residuelAgencePropose, setResiduelAgencePropose] = useState<number | null>(null);
   const residuelAgenceVuRef = useRef<number | null>(null);
 
-  const DIFFERENT_NOTE = "Réglé différemment de ce qui était prévu initialement";
+  // Le texte inclut le montant réel — recalculé au moment d'enregistrer
+  // (voir ajouterEtape/confirmerEtapeActivite) pour rester juste même si le
+  // montant est ajusté après ouverture de ce flux.
+  const noteEncaissementDifferent = (montant: number) =>
+    `Règlement du solde ajusté à ${euros(montant)} € par rapport à ce qui était prévu initialement`;
 
   const ouvrirEncaissementDifferent = (prefill: {
     montant: number;
@@ -2133,7 +2137,7 @@ export function PaiementsStep({
         montant: prefill.montant,
         mode: prefill.mode,
         date,
-        note: DIFFERENT_NOTE,
+        note: noteEncaissementDifferent(prefill.montant),
         candidats: resa ? [resa] : [],
         choix: resa?.id || "autre",
         libre: "",
@@ -2143,7 +2147,8 @@ export function PaiementsStep({
     setEtapeMontant(String(prefill.montant));
     setEtapeMode(prefill.mode);
     setEtapeDate(date);
-    setEtapeNotePreset(DIFFERENT_NOTE);
+    setEtapeNotePreset("Autre");
+    setEtapeNoteLibre(noteEncaissementDifferent(prefill.montant));
     setAddingEtape(true);
   };
 
@@ -2315,7 +2320,11 @@ export function PaiementsStep({
       toast("Indique un montant valide pour cette étape.");
       return;
     }
-    const note = etapeNotePreset === "Autre" ? etapeNoteLibre.trim() : etapeNotePreset;
+    const note = encaissementDifferentEnCours.current
+      ? noteEncaissementDifferent(montant)
+      : etapeNotePreset === "Autre"
+        ? etapeNoteLibre.trim()
+        : etapeNotePreset;
     if (!note) {
       toast("Indique pourquoi ce paiement arrive (choisis une raison ou écris-la).");
       return;
@@ -2351,7 +2360,8 @@ export function PaiementsStep({
       toast("Indique où ce paiement a été récolté.");
       return;
     }
-    onAddPaiementEtape(montant, mode, date, note, activiteNom);
+    const noteFinale = encaissementDifferentEnCours.current ? noteEncaissementDifferent(montant) : note;
+    onAddPaiementEtape(montant, mode, date, noteFinale, activiteNom);
     apresAjoutEncaissementDifferent(montant, client.paiement_type === "acompte" ? resteApresAcompte : reste);
     setEtapeActiviteConfirm(null);
     resetEtapeForm();
@@ -2424,8 +2434,19 @@ export function PaiementsStep({
       avoirUtilise,
     0
   );
+  // Un résiduel déjà pris en charge séparément par l'agence (voir
+  // residuelAgencePropose) ne doit plus compter comme "attendu à
+  // l'activité" — sinon l'écart affiché inclut encore ces quelques
+  // centimes déjà réglés ailleurs (ex. "604,26€" au lieu de "604€" si les
+  // 0,26€ restants ont déjà été pris en charge par l'agence).
+  const agenceEtapesSum = paiementsEtapes
+    .filter((e) => e.mode === "Agence")
+    .reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const montantActiviteAttenduReel = Math.max(
-    totalSejour - (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0) - avoirUtilise,
+    totalSejour -
+      (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0) -
+      avoirUtilise -
+      agenceEtapesSum,
     0
   );
 

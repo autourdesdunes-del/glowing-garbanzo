@@ -171,20 +171,29 @@ function Metric({
   sub,
   tone,
   first,
+  onClick,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone: "default" | "error";
   first?: boolean;
+  onClick?: () => void;
 }) {
   const valueClass = tone === "error" ? "text-[#EE0000]" : "text-[#171717]";
+  const Wrapper = onClick ? "button" : "div";
   return (
-    <div className={`flex-1 px-5 ${first ? "pl-0" : "border-l border-[#eaeaea]"}`}>
+    <Wrapper
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={`flex-1 px-5 text-left ${first ? "pl-0" : "border-l border-[#eaeaea]"} ${
+        onClick ? "cursor-pointer hover:opacity-70" : ""
+      }`}
+    >
       <p className="text-[11px] font-medium text-[#666666]">{label}</p>
       <p className={`mt-1.5 text-[28px] font-bold leading-none ${valueClass}`}>{value}</p>
       {sub && <p className="mt-1.5 text-xs text-[#666666]">{sub}</p>}
-    </div>
+    </Wrapper>
   );
 }
 
@@ -316,6 +325,7 @@ export default function DashboardView({
   const [pickClientForActivityOpen, setPickClientForActivityOpen] = useState(false);
   const [pickClientForCancelOpen, setPickClientForCancelOpen] = useState(false);
   const [pickClientForRemboursementOpen, setPickClientForRemboursementOpen] = useState(false);
+  const [clientsEgyptModalOpen, setClientsEgyptModalOpen] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
   const [shiftFin, setShiftFin] = useState("");
   const [showActivitesEnAttenteModal, setShowActivitesEnAttenteModal] = useState(false);
@@ -576,8 +586,8 @@ export default function DashboardView({
               day: "numeric",
               month: "long",
             })}
-            <span className="mx-2 text-[#eaeaea]">·</span>
-            {plannedShift ? (
+            {!isDirection && <span className="mx-2 text-[#eaeaea]">·</span>}
+            {isDirection ? null : plannedShift ? (
               <span className="text-[#666666]">
                 {plannedShift.statut === "conge"
                   ? "Congé aujourd'hui"
@@ -692,6 +702,61 @@ export default function DashboardView({
         />
       )}
 
+      {clientsEgyptModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setClientsEgyptModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-heading text-base font-semibold text-[#171717]">
+                Clients en Égypte ({clientsInEgypt.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => setClientsEgyptModalOpen(false)}
+                className="text-neutral-400 hover:text-[#171717]"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-3 space-y-1.5">
+              {[...clientsInEgypt]
+                .sort((a, b) => (a.date_fin || "").localeCompare(b.date_fin || ""))
+                .map((c) => {
+                  const nbActivites = reservations.filter(
+                    (r) => r.client_id === c.id && r.statut_resa !== "Annulée"
+                  ).length;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setClientsEgyptModalOpen(false);
+                        onOpenClient(c.id);
+                      }}
+                      className="flex w-full items-center justify-between gap-2 rounded-md border border-neutral-100 px-3 py-2 text-left text-sm hover:border-[#C9973E] hover:bg-[#fafafa]"
+                    >
+                      <span>
+                        <span className="font-medium text-[#171717]">{c.nom || "Sans nom"}</span>
+                        <span className="ml-2 text-xs text-neutral-500">
+                          {fmtDate(c.date_debut)} → {fmtDate(c.date_fin)}
+                        </span>
+                      </span>
+                      <span className="shrink-0 rounded-full bg-[#0F5C56]/10 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
+                        {nbActivites} activité{nbActivites > 1 ? "s" : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showTeamShiftsToday && (
         <div className="rounded-[10px] border border-[#eaeaea] bg-white p-4">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
@@ -728,7 +793,13 @@ export default function DashboardView({
       )}
 
       <div className="flex">
-        <Metric first label="Clients en Égypte" value={String(clientsInEgypt.length)} tone="default" />
+        <Metric
+          first
+          label="Clients en Égypte"
+          value={String(clientsInEgypt.length)}
+          tone="default"
+          onClick={clientsInEgypt.length > 0 ? () => setClientsEgyptModalOpen(true) : undefined}
+        />
         <Metric
           label="Cas urgents"
           value={String(urgentCount)}

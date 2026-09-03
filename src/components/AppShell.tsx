@@ -2273,16 +2273,17 @@ function AppShellInner({
         clients={clients}
         onUpdateReservation={updateReservationById}
       />
-      <PaypalPaiementRappel
-        // Rappel limité aux paiements reçus à partir du 1er septembre 2026 —
-        // avant cette date, un gros arriéré de paiements jamais rattachés
-        // faisait ressurgir le pop-up en continu. Le rattrapage de
-        // l'arriéré reste possible manuellement via Suivis > Paiements
-        // PayPal, qui lui n'est pas filtré.
-        paypalPaiements={paypalPaiements.filter((p) => p.paypal_recu_le >= "2026-09-01")}
-        clients={clients}
-        onRattacher={rattacherPaypalPaiement}
-      />
+      {/* Popup désactivée à la demande de Mélanie le 03/09/2026 — trop
+          fréquente/gênante même après le filtre du 1er septembre. Le
+          rattachement des paiements PayPal reste possible manuellement via
+          Suivis > Paiements PayPal. Réactiver en remettant ce composant. */}
+      {false && (
+        <PaypalPaiementRappel
+          paypalPaiements={paypalPaiements.filter((p) => p.paypal_recu_le >= "2026-09-01")}
+          clients={clients}
+          onRattacher={rattacherPaypalPaiement}
+        />
+      )}
       <AnnulationHossamAlert reservations={allReservations} clients={clients} userEmail={userEmail} />
       <DoublonPossibleAlert
         clients={clients}

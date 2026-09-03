@@ -595,6 +595,20 @@ export default function ClientDetail({
     if (!error && data) {
       const newReservation = data as Reservation;
       setReservations((prev) => [...prev, newReservation]);
+      // Un solde déjà marqué payé ne doit pas absorber par magie une
+      // nouvelle activité ajoutée après coup (règle du solde unique) : on
+      // fige ici, une seule fois, le total du séjour d'AVANT cet ajout —
+      // ça permet à paiementBadge de détecter l'écart ensuite et de ne
+      // plus afficher "Payé" sur cette nouvelle activité qui, elle,
+      // n'a jamais été réglée (vécu : Louxor en mini-bus payé le 25/08,
+      // puis plongée sous-marine ajoutée ensuite affichée "Payé" à tort).
+      if (client.solde_paye && !client.solde_montant) {
+        const totalAvant = reservationsActives(reservations).reduce(
+          (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
+          0
+        );
+        onChange({ solde_montant: totalAvant });
+      }
       // Cette nouvelle activité peut être l'occasion de consommer un avoir
       // en attente — le montant utilisé se rattache à cette réservation
       // précise pour rester visible sur sa carte. Sauf pour une carte créée

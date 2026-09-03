@@ -199,7 +199,17 @@ export function paiementProgress(
   const avoirUtilise = avoirUtiliseTotal(reservations);
   const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const soldeRestant = Math.max(totalSejour - acompteEngage - etapesSum - avoirUtilise, 0);
-  const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
+  // Le solde marqué payé couvre le total du séjour TEL QU'IL ÉTAIT au moment
+  // de l'encaissement (client.solde_montant, figé alors) — jamais le total
+  // recalculé maintenant, sinon une activité ajoutée après coup se
+  // retrouverait comptée payée par magie (règle du solde unique : un "payé"
+  // du passé ne peut pas s'étendre tout seul à une activité qui n'existait
+  // pas encore). On plafonne à soldeRestant pour ne jamais dépasser le
+  // besoin réel si le séjour a au contraire diminué depuis.
+  const soldePayeMontant = client.solde_paye
+    ? Math.min(Number(client.solde_montant) || soldeRestant, soldeRestant)
+    : 0;
+  const totalPaye = acomptePaye + etapesSum + avoirUtilise + soldePayeMontant;
   return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0), soldeRestant };
 }
 
@@ -209,6 +219,15 @@ export function paiementProgress(
 // laisse penser que rien n'a été payé, alors que la quasi-totalité l'est.
 const SEUIL_PRESQUE_PAYE = 0.9;
 
+const PAYE_KEYS = new Set([
+  "paye_eur",
+  "paye_egp",
+  "paye_cb",
+  "paye_virement",
+  "paye_paypal",
+  "paye_mixte",
+]);
+
 export function paiementBadge(
   client: Client,
   r: Reservation,
@@ -217,6 +236,43 @@ export function paiementBadge(
   resaTarifs?: Record<string, ReservationTarif[]>,
   etapes?: PaiementEtape[]
 ) {
+  const key = paiementStatutKey(client, r);
+  const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key)!;
+
+  // Sans le contexte complet (anciens appels à 2 arguments), comportement
+  // inchangé — ces affinages ont besoin de connaître le reste à payer réel
+  // du séjour entier.
+  if (!reservations || !resaOptions || !resaTarifs) {
+    if (client.solde_paye && client.solde_rdv_finalise) {
+      return {
+        label: RDV_FINALISE_LABELS[client.solde_mode] || "Payé en € - rendez-vous paiement finalisé",
+        className: "bg-green-100 text-green-700",
+      };
+    }
+    return { label: opt.label, className: opt.className };
+  }
+
+  const { totalPaye, totalSejour, reste, soldeRestant } = paiementProgress(
+    client,
+    reservations,
+    resaOptions,
+    resaTarifs,
+    etapes || []
+  );
+
+  // Le solde avait été marqué payé (éventuellement via un RDV finalisé),
+  // mais une activité ajoutée depuis a fait grossir le total du séjour
+  // au-delà de ce qui a réellement été encaissé (règle du solde unique : un
+  // "payé" qui datait d'avant cette activité ne peut pas s'appliquer à elle
+  // par magie) — le badge "Payé" redeviendrait mensonger, il faut rouvrir un
+  // vrai statut "à régler".
+  if ((PAYE_KEYS.has(key) || (client.solde_paye && client.solde_rdv_finalise)) && reste > 0) {
+    return {
+      label: `⚠️ Nouvelle activité non réglée — ${fmtEuros(reste)} € à encaisser`,
+      className: "bg-red-100 text-red-700",
+    };
+  }
+
   // Le bouton "Rendez-vous finalisé" (étape Paiements) marque le solde payé
   // et pose ce drapeau — le badge doit alors le préciser plutôt que le
   // libellé "Payé" générique, sur toutes les activités.
@@ -226,21 +282,6 @@ export function paiementBadge(
       className: "bg-green-100 text-green-700",
     };
   }
-  const key = paiementStatutKey(client, r);
-  const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key)!;
-
-  // Sans le contexte complet (anciens appels à 2 arguments), comportement
-  // inchangé — ces deux affinages ont besoin de connaître le reste à payer
-  // réel du séjour entier.
-  if (!reservations || !resaOptions || !resaTarifs) return { label: opt.label, className: opt.className };
-
-  const { totalPaye, totalSejour, reste, soldeRestant } = paiementProgress(
-    client,
-    reservations,
-    resaOptions,
-    resaTarifs,
-    etapes || []
-  );
 
   // Le point de collecte désigné pour le solde, une fois sa date passée
   // sans encaissement : "Paiement à l'activité" devient trompeur, ce n'est

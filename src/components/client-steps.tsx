@@ -1371,6 +1371,7 @@ export function ActivitesStep({
         catalogueOptions={catalogueOptions}
         hotelHorsHurghada={hotelHorsHurghada}
         hotelVille={hotelVille}
+        taxesRef={taxesRef}
         onAddReservation={onAddReservation}
         onUpdateReservation={onUpdateReservation}
         onDeleteReservation={onDeleteReservation}
@@ -1569,6 +1570,7 @@ function PaiementResteFlow({
   onChange,
   reservations,
   montantACouvrir,
+  totalSejour,
   montantActiviteAttenduPrevu,
   montantActiviteAttenduReel,
   confirm,
@@ -1580,6 +1582,11 @@ function PaiementResteFlow({
   onChange: (patch: Partial<Client>) => void;
   reservations: Reservation[];
   montantACouvrir: number;
+  // Total du séjour au moment où le solde est marqué payé — figé dans
+  // client.solde_montant pour que paiementProgress puisse ensuite détecter
+  // qu'une activité ajoutée après coup a fait grossir le total (voir
+  // resa.ts) sans se faire tromper par un solde_paye qui date d'avant.
+  totalSejour: number;
   // Montant attendu à l'activité de collecte, avant/après ajustement de
   // l'acompte, SANS déduire ce qui est déjà réglé — sert uniquement à
   // signaler durablement l'écart ("604€ au lieu de 600€"), même une fois
@@ -1645,7 +1652,7 @@ function PaiementResteFlow({
       cancelLabel: "Non, je m'en occupe manuellement",
     });
     if (ok) {
-      onChange({ solde_paye: true, solde_rdv_finalise: true });
+      onChange({ solde_paye: true, solde_rdv_finalise: true, solde_montant: totalSejour });
     }
   };
 
@@ -1659,7 +1666,13 @@ function PaiementResteFlow({
 
   const marquerEncaisse = async (mode: string) => {
     if (!(await confirmerAcompteInclus())) return;
-    onChange({ solde_paye: true, solde_mode: mode, solde_rdv_finalise: false, solde_date: todayStr() });
+    onChange({
+      solde_paye: true,
+      solde_mode: mode,
+      solde_rdv_finalise: false,
+      solde_date: todayStr(),
+      solde_montant: totalSejour,
+    });
   };
 
   const supprimerCartePaiement = () => {
@@ -1670,6 +1683,7 @@ function PaiementResteFlow({
       solde_rdv_heure: "",
       solde_activite_id: null,
       solde_mode: "Espèces EUR",
+      solde_montant: 0,
     });
   };
 
@@ -2220,7 +2234,14 @@ export function PaiementsStep({
   // du séjour une fois l'acompte, les étapes libres et un éventuel avoir
   // consommé déduits.
   const soldeRestant = Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
-  const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
+  // Le solde marqué payé couvre le total du séjour tel qu'il était figé à ce
+  // moment-là (client.solde_montant) — jamais le total recalculé maintenant,
+  // sinon une activité ajoutée après coup se retrouve comptée payée par
+  // magie (même bug que paiementProgress dans resa.ts, voir ce fichier).
+  const soldePayeMontant = client.solde_paye
+    ? Math.min(Number(client.solde_montant) || soldeRestant, soldeRestant)
+    : 0;
+  const totalPaye = acomptePaye + etapesSum + avoirUtilise + soldePayeMontant;
   const reste = totalSejour - totalPaye;
 
   // Dès que l'acompte + les étapes libres couvrent tout le séjour (avant
@@ -2574,6 +2595,7 @@ export function PaiementsStep({
             onChange={onChange}
             reservations={reservations}
             montantACouvrir={totalSejour}
+            totalSejour={totalSejour}
             confirm={confirm}
             toast={toast}
             isDirection={isDirection}
@@ -2665,6 +2687,7 @@ export function PaiementsStep({
                 onChange={onChange}
                 reservations={reservations}
                 montantACouvrir={resteApresAcompte}
+                totalSejour={totalSejour}
                 montantActiviteAttenduPrevu={montantActiviteAttenduPrevu}
                 montantActiviteAttenduReel={montantActiviteAttenduReel}
                 confirm={confirm}
@@ -2881,7 +2904,7 @@ export function PaiementsStep({
                 onClick={() => {
                   const montant = residuelAgencePropose;
                   setResiduelAgencePropose(null);
-                  onChange({ solde_paye: true });
+                  onChange({ solde_paye: true, solde_montant: totalSejour });
                   onAddPaiementEtape(
                     montant,
                     "Agence",

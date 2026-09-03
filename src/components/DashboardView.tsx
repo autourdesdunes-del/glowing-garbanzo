@@ -237,6 +237,8 @@ export default function DashboardView({
   isDirection,
   onOpenClient,
   onOpenClientForNewActivity,
+  onOpenClientForCancelActivity,
+  onOpenClientForRemboursement,
   onOpenRdvPaiements,
   onOpenPickupsChambres,
   onOpenNumerosChambre,
@@ -269,6 +271,8 @@ export default function DashboardView({
   isDirection: boolean;
   onOpenClient: (id: string) => void;
   onOpenClientForNewActivity: (id: string) => void;
+  onOpenClientForCancelActivity: (id: string) => void;
+  onOpenClientForRemboursement: (id: string) => void;
   onOpenRdvPaiements: () => void;
   onOpenPickupsChambres: () => void;
   onOpenNumerosChambre: () => void;
@@ -308,6 +312,8 @@ export default function DashboardView({
   const [plannedShift, setPlannedShift] = useState<PlanningShift | null>(null);
   const [editingShift, setEditingShift] = useState(false);
   const [pickClientForActivityOpen, setPickClientForActivityOpen] = useState(false);
+  const [pickClientForCancelOpen, setPickClientForCancelOpen] = useState(false);
+  const [pickClientForRemboursementOpen, setPickClientForRemboursementOpen] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
   const [shiftFin, setShiftFin] = useState("");
   const [showActivitesEnAttenteModal, setShowActivitesEnAttenteModal] = useState(false);
@@ -627,6 +633,18 @@ export default function DashboardView({
           >
             + Nouvelle activité
           </button>
+          <button
+            onClick={() => setPickClientForCancelOpen(true)}
+            className="whitespace-nowrap rounded-[6px] border border-red-600 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+          >
+            Annuler une activité
+          </button>
+          <button
+            onClick={() => setPickClientForRemboursementOpen(true)}
+            className="whitespace-nowrap rounded-[6px] border border-[#0F5C56] px-3 py-1.5 text-sm font-medium text-[#0F5C56] hover:bg-[#0F5C56]/5"
+          >
+            + Remboursement / avoir
+          </button>
         </div>
       </div>
 
@@ -639,6 +657,30 @@ export default function DashboardView({
             onOpenClientForNewActivity(clientId);
           }}
           onClose={() => setPickClientForActivityOpen(false)}
+        />
+      )}
+
+      {pickClientForCancelOpen && (
+        <PickClientModal
+          clients={clients}
+          title="Annuler une activité de quel client ?"
+          onSelect={(clientId) => {
+            setPickClientForCancelOpen(false);
+            onOpenClientForCancelActivity(clientId);
+          }}
+          onClose={() => setPickClientForCancelOpen(false)}
+        />
+      )}
+
+      {pickClientForRemboursementOpen && (
+        <PickClientModal
+          clients={clients}
+          title="Ajouter un remboursement/avoir à quel client ?"
+          onSelect={(clientId) => {
+            setPickClientForRemboursementOpen(false);
+            onOpenClientForRemboursement(clientId);
+          }}
+          onClose={() => setPickClientForRemboursementOpen(false)}
         />
       )}
 

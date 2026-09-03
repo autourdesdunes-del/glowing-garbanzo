@@ -42,6 +42,7 @@ import {
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
+import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import { buildPaxEnglish } from "@/components/client-steps";
 import { hotelEgyptLinePourActivite } from "@/lib/hotelHelp";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -183,6 +184,7 @@ export default function ItineraryView({
   // Réservations) — cliquer dessus ensuite ouvre l'édition complète pour
   // changer ce qu'il faut, puis "Valider" ramène au résumé mis à jour.
   const [editingExpanded, setEditingExpanded] = useState(false);
+  const [annulerActiviteId, setAnnulerActiviteId] = useState<string | null>(null);
   const [egyptOpen, setEgyptOpen] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   useEffect(() => {
@@ -443,7 +445,17 @@ export default function ItineraryView({
                   </span>
                 )}
               </h3>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5">
+                {expandedReservation.statut_resa !== "Annulée" && (
+                  <button
+                    type="button"
+                    onClick={() => setAnnulerActiviteId(expandedReservation.id)}
+                    title="Annuler l'activité (raison, remboursement/avoir)"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100"
+                  >
+                    🚫
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -451,15 +463,15 @@ export default function ItineraryView({
                     onDeleteReservation(expandedReservation.id);
                     onToggleExpand(null);
                   }}
-                  title="Supprimer cette activité"
-                  className="text-red-500 hover:text-red-600"
+                  title="Supprimer définitivement cette activité"
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-red-50 hover:text-red-600"
                 >
                   🗑
                 </button>
                 <button
                   type="button"
                   onClick={() => onToggleExpand(null)}
-                  className="text-neutral-400 hover:text-[#171717]"
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 hover:text-[#171717]"
                 >
                   ✕
                 </button>
@@ -640,6 +652,23 @@ export default function ItineraryView({
           </div>
         );
       })}
+
+      {annulerActiviteId &&
+        (() => {
+          const resaAnnuler = reservations.find((r) => r.id === annulerActiviteId);
+          if (!resaAnnuler) return null;
+          return (
+            <AnnulerActiviteModal
+              r={resaAnnuler}
+              client={client}
+              options={resaOptions[resaAnnuler.id] || []}
+              tarifs={resaTarifs[resaAnnuler.id] || []}
+              catalogueItem={catalogue.find((c) => c.id === resaAnnuler.catalogue_item_id)}
+              onUpdate={(patch) => onUpdateReservation(resaAnnuler.id, patch)}
+              onClose={() => setAnnulerActiviteId(null)}
+            />
+          );
+        })()}
     </div>
   );
 }

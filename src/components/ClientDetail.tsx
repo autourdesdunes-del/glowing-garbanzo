@@ -111,6 +111,8 @@ export default function ClientDetail({
   onOpenHelp,
   autoOpenActivity,
   onAutoOpenActivityHandled,
+  autoOpenSection,
+  onAutoOpenSectionHandled,
 }: {
   client: Client;
   allClients: Client[];
@@ -133,6 +135,11 @@ export default function ClientDetail({
   // sa fiche complète d'abord.
   autoOpenActivity?: boolean;
   onAutoOpenActivityHandled?: () => void;
+  // Ouvre directement une section précise en arrivant sur la fiche — utilisé
+  // par "Annuler une activité" (section Activités, pour choisir laquelle) et
+  // "Ajouter un remboursement/avoir" (section Suivi) depuis le dashboard.
+  autoOpenSection?: "Activités" | "Suivi";
+  onAutoOpenSectionHandled?: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const confirm = useConfirm();
@@ -181,6 +188,17 @@ export default function ClientDetail({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoOpenActivity]);
+
+  useEffect(() => {
+    if (autoOpenSection) {
+      setOpen((prev) => ({ ...prev, [autoOpenSection]: true }));
+      requestAnimationFrame(() => {
+        document.getElementById(`section-${autoOpenSection}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      onAutoOpenSectionHandled?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenSection]);
 
   const refreshBusEscalations = async () => {
     const { data } = await supabase

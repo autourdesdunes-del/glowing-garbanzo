@@ -387,6 +387,9 @@ function AppShellInner({
   const [focusReservationId, setFocusReservationId] = useState<string | null>(null);
   const [billetAutoOpenId, setBilletAutoOpenId] = useState<string | null>(null);
   const [activityAutoOpenClientId, setActivityAutoOpenClientId] = useState<string | null>(null);
+  const [sectionAutoOpen, setSectionAutoOpen] = useState<{ clientId: string; section: "Activités" | "Suivi" } | null>(
+    null
+  );
   const [prospectsSub, setProspectsSub] = useState<ProspectsSub>("toutes");
   const [managerSub, setManagerSub] = useState<ManagerSub>("attente");
   const [clients, setClients] = useState<Client[]>([]);
@@ -854,6 +857,18 @@ function AppShellInner({
   const openClientForNewActivity = (clientId: string) => {
     openClient(clientId);
     setActivityAutoOpenClientId(clientId);
+  };
+
+  // Idem, pour "Annuler une activité" (ouvre la section Activités, pour
+  // qu'elle choisisse laquelle) et "Ajouter un remboursement/avoir" (ouvre
+  // la section Suivi) depuis le dashboard.
+  const openClientForCancelActivity = (clientId: string) => {
+    openClient(clientId);
+    setSectionAutoOpen({ clientId, section: "Activités" });
+  };
+  const openClientForRemboursement = (clientId: string) => {
+    openClient(clientId);
+    setSectionAutoOpen({ clientId, section: "Suivi" });
   };
 
   const openPickupsChambres = () => {
@@ -2442,6 +2457,8 @@ function AppShellInner({
               isDirection={effectiveIsDirection}
               onOpenClient={openClient}
               onOpenClientForNewActivity={openClientForNewActivity}
+              onOpenClientForCancelActivity={openClientForCancelActivity}
+              onOpenClientForRemboursement={openClientForRemboursement}
               onOpenRdvPaiements={openRdvPaiements}
               onOpenPickupsChambres={openPickupsChambres}
               onOpenNumerosChambre={openNumerosChambre}
@@ -2659,6 +2676,8 @@ function AppShellInner({
                   onOpenHelp={() => setMode("help")}
                   autoOpenActivity={activityAutoOpenClientId === selected.id}
                   onAutoOpenActivityHandled={() => setActivityAutoOpenClientId(null)}
+                  autoOpenSection={sectionAutoOpen?.clientId === selected.id ? sectionAutoOpen.section : undefined}
+                  onAutoOpenSectionHandled={() => setSectionAutoOpen(null)}
                 />
               </>
             )}

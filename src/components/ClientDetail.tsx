@@ -109,6 +109,8 @@ export default function ClientDetail({
   catalogueOptions,
   packs,
   onOpenHelp,
+  autoOpenActivity,
+  onAutoOpenActivityHandled,
 }: {
   client: Client;
   allClients: Client[];
@@ -125,6 +127,12 @@ export default function ClientDetail({
   catalogueOptions: Record<string, CatalogueOption[]>;
   packs: Pack[];
   onOpenHelp: () => void;
+  // Ouvre directement le pas-à-pas "Ajouter une activité" en arrivant sur
+  // la fiche — utilisé par le bouton "+ Nouvelle activité" du dashboard,
+  // qui rattache une activité à un client déjà existant sans repasser par
+  // sa fiche complète d'abord.
+  autoOpenActivity?: boolean;
+  onAutoOpenActivityHandled?: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const confirm = useConfirm();
@@ -165,6 +173,14 @@ export default function ClientDetail({
     setOpen(CLOSED_SECTIONS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
+
+  useEffect(() => {
+    if (autoOpenActivity) {
+      setGuidedOpen(true);
+      onAutoOpenActivityHandled?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenActivity]);
 
   const refreshBusEscalations = async () => {
     const { data } = await supabase

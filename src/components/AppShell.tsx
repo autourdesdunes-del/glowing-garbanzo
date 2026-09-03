@@ -386,6 +386,7 @@ function AppShellInner({
   const [rdvAutoOpenClientId, setRdvAutoOpenClientId] = useState<string | null>(null);
   const [focusReservationId, setFocusReservationId] = useState<string | null>(null);
   const [billetAutoOpenId, setBilletAutoOpenId] = useState<string | null>(null);
+  const [activityAutoOpenClientId, setActivityAutoOpenClientId] = useState<string | null>(null);
   const [prospectsSub, setProspectsSub] = useState<ProspectsSub>("toutes");
   const [managerSub, setManagerSub] = useState<ManagerSub>("attente");
   const [clients, setClients] = useState<Client[]>([]);
@@ -844,6 +845,15 @@ function AppShellInner({
     setMode("suivis");
     setSuivisSub("rdv");
     if (clientId) setRdvAutoOpenClientId(clientId);
+  };
+
+  // Depuis le dashboard, "+ Nouvelle activité" : rattacher directement à un
+  // client déjà existant sans devoir d'abord chercher/ouvrir sa fiche puis
+  // cliquer "Ajouter une activité" — ouvre la fiche avec le pas-à-pas guidé
+  // déjà lancé.
+  const openClientForNewActivity = (clientId: string) => {
+    openClient(clientId);
+    setActivityAutoOpenClientId(clientId);
   };
 
   const openPickupsChambres = () => {
@@ -2431,6 +2441,7 @@ function AppShellInner({
               resaTarifs={allResaTarifs}
               isDirection={effectiveIsDirection}
               onOpenClient={openClient}
+              onOpenClientForNewActivity={openClientForNewActivity}
               onOpenRdvPaiements={openRdvPaiements}
               onOpenPickupsChambres={openPickupsChambres}
               onOpenNumerosChambre={openNumerosChambre}
@@ -2646,6 +2657,8 @@ function AppShellInner({
                   catalogueOptions={catalogueOptions}
                   packs={packs}
                   onOpenHelp={() => setMode("help")}
+                  autoOpenActivity={activityAutoOpenClientId === selected.id}
+                  onAutoOpenActivityHandled={() => setActivityAutoOpenClientId(null)}
                 />
               </>
             )}

@@ -20,6 +20,7 @@ import { addDays, localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
 import QuickAddClient from "@/components/QuickAddClient";
+import PickClientModal from "@/components/PickClientModal";
 import PaiementsDuJourModal, { computePaiementsDuJour } from "@/components/PaiementsDuJourModal";
 
 function euros(n: number) {
@@ -235,6 +236,7 @@ export default function DashboardView({
   resaTarifs,
   isDirection,
   onOpenClient,
+  onOpenClientForNewActivity,
   onOpenRdvPaiements,
   onOpenPickupsChambres,
   onOpenNumerosChambre,
@@ -266,6 +268,7 @@ export default function DashboardView({
   resaTarifs: Record<string, ReservationTarif[]>;
   isDirection: boolean;
   onOpenClient: (id: string) => void;
+  onOpenClientForNewActivity: (id: string) => void;
   onOpenRdvPaiements: () => void;
   onOpenPickupsChambres: () => void;
   onOpenNumerosChambre: () => void;
@@ -304,6 +307,7 @@ export default function DashboardView({
   const [shift, setShift] = useState<UserShift | null>(null);
   const [plannedShift, setPlannedShift] = useState<PlanningShift | null>(null);
   const [editingShift, setEditingShift] = useState(false);
+  const [pickClientForActivityOpen, setPickClientForActivityOpen] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
   const [shiftFin, setShiftFin] = useState("");
   const [showActivitesEnAttenteModal, setShowActivitesEnAttenteModal] = useState(false);
@@ -609,14 +613,34 @@ export default function DashboardView({
             )}
           </p>
         </div>
-        <QuickAddClient
-          onCreate={onCreateClient}
-          onUpdateClient={onUpdateClient}
-          clients={clients}
-          onDeleteClient={onDeleteClient}
-          onOpenClient={onOpenClient}
-        />
+        <div className="flex gap-2">
+          <QuickAddClient
+            onCreate={onCreateClient}
+            onUpdateClient={onUpdateClient}
+            clients={clients}
+            onDeleteClient={onDeleteClient}
+            onOpenClient={onOpenClient}
+          />
+          <button
+            onClick={() => setPickClientForActivityOpen(true)}
+            className="whitespace-nowrap rounded-[6px] border border-[#171717] px-3 py-1.5 text-sm font-medium text-[#171717] hover:bg-[#171717]/5"
+          >
+            + Nouvelle activité
+          </button>
+        </div>
       </div>
+
+      {pickClientForActivityOpen && (
+        <PickClientModal
+          clients={clients}
+          title="Ajouter une activité à un client existant"
+          onSelect={(clientId) => {
+            setPickClientForActivityOpen(false);
+            onOpenClientForNewActivity(clientId);
+          }}
+          onClose={() => setPickClientForActivityOpen(false)}
+        />
+      )}
 
       {showTeamShiftsToday && (
         <div className="rounded-[10px] border border-[#eaeaea] bg-white p-4">

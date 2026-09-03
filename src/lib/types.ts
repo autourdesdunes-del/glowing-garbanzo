@@ -384,6 +384,9 @@ export type Client = {
   email: string;
   // Deuxième email, jamais obligatoire.
   email_2: string;
+  // Adresse PayPal du client — collée une seule fois, jamais retapée de
+  // mémoire, puis réutilisée automatiquement à chaque remboursement.
+  paypal_email: string;
   hotel: string;
   chambre: string;
   // "hotel" (par défaut) ou "airbnb" — remplace la ligne Hôtel/Chambre par
@@ -499,6 +502,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   telephone_2: "",
   email: "",
   email_2: "",
+  paypal_email: "",
   hotel: "",
   chambre: "",
   type_hebergement: "hotel",

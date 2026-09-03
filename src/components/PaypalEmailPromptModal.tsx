@@ -27,11 +27,26 @@ export default function PaypalEmailPromptModal({
         <p className="mt-1 text-xs text-neutral-500">
           Nécessaire pour effectuer le remboursement — voir Suivis &gt; Remboursements.
         </p>
+        <div className="mt-2 rounded-md bg-orange-50 px-2.5 py-1.5 text-xs text-orange-700">
+          ⚠️ Une erreur ici envoie l&apos;argent à la mauvaise personne. Collez toujours l&apos;adresse
+          depuis la conversation avec le client — ne la retapez jamais de mémoire.
+        </div>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="email@paypal.com"
+          onKeyDown={(e) => {
+            // Saisie clavier bloquée (sauf navigation/coller/couper) — pour
+            // forcer le collage depuis la conversation du client plutôt
+            // qu'une ressaisie de mémoire, source d'erreurs déjà vécue
+            // (florence.degoulange@hotmail.fr au lieu de .com).
+            const allowed = ["Tab", "Backspace", "Delete", "ArrowLeft", "ArrowRight", "Home", "End"];
+            const isPasteOrCutOrSelectAll = (e.metaKey || e.ctrlKey) && ["v", "x", "a", "c"].includes(e.key.toLowerCase());
+            if (!allowed.includes(e.key) && !isPasteOrCutOrSelectAll) {
+              e.preventDefault();
+            }
+          }}
+          placeholder="Collez l'adresse ici (Ctrl/Cmd+V)"
           autoFocus
           className="input mt-3 text-sm"
         />

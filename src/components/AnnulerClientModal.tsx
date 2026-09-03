@@ -41,7 +41,7 @@ export default function AnnulerClientModal({
   const [raison, setRaison] = useState<string>(RAISONS_ANNULATION[0]);
   const [raisonAutre, setRaisonAutre] = useState("");
   const [remboursementChoix, setRemboursementChoix] = useState<"rembourse" | "avoir" | "">("");
-  const [paypalEmail, setPaypalEmail] = useState(client.email || "");
+  const [paypalEmail, setPaypalEmail] = useState(client.paypal_email || client.email || "");
   const [showPaypalPrompt, setShowPaypalPrompt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -108,7 +108,16 @@ export default function AnnulerClientModal({
       });
     }
 
-    onUpdateClient({ statut: "Client annulé", annulation_raison: raisonFinale, annulation_date: date });
+    onUpdateClient({
+      statut: "Client annulé",
+      annulation_raison: raisonFinale,
+      annulation_date: date,
+      // Mémorise l'adresse pour les prochains remboursements de ce client —
+      // plus besoin de la recoller/ressaisir la prochaine fois.
+      ...(remboursementChoix === "rembourse" && paypalEmail.trim() && paypalEmail.trim() !== client.paypal_email
+        ? { paypal_email: paypalEmail.trim() }
+        : {}),
+    });
     setSubmitting(false);
     onClose();
   };

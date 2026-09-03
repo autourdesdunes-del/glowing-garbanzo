@@ -27,6 +27,7 @@ export default function AnnulerActiviteModal({
   tarifs,
   catalogueItem,
   onUpdate,
+  onUpdateClient,
   onClose,
 }: {
   r: Reservation;
@@ -35,6 +36,7 @@ export default function AnnulerActiviteModal({
   tarifs: ReservationTarif[];
   catalogueItem: CatalogueItem | undefined;
   onUpdate: (patch: Partial<Reservation>) => void;
+  onUpdateClient?: (patch: Partial<Client>) => void;
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -42,7 +44,7 @@ export default function AnnulerActiviteModal({
   const [raisonAutre, setRaisonAutre] = useState("");
   const [exception, setException] = useState(false);
   const [remboursementChoix, setRemboursementChoix] = useState<"rembourse" | "avoir" | "">("");
-  const [paypalEmail, setPaypalEmail] = useState(client.email || "");
+  const [paypalEmail, setPaypalEmail] = useState(client.paypal_email || client.email || "");
   const [showPaypalPrompt, setShowPaypalPrompt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -81,6 +83,11 @@ export default function AnnulerActiviteModal({
         date_probleme: todayStr(),
       });
       if (error) toast("Échec de la création du remboursement.");
+      // Mémorise l'adresse pour les prochains remboursements de ce client
+      // — plus besoin de la recoller/ressaisir la prochaine fois.
+      if (emailPourRemb.trim() && emailPourRemb.trim() !== client.paypal_email) {
+        onUpdateClient?.({ paypal_email: emailPourRemb.trim() });
+      }
     } else if (remboursementPossible && remboursementChoix === "avoir") {
       const { error } = await supabase.from("avoirs").insert({
         client_id: client.id,

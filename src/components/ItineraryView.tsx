@@ -665,6 +665,7 @@ export default function ItineraryView({
               tarifs={resaTarifs[resaAnnuler.id] || []}
               catalogueItem={catalogue.find((c) => c.id === resaAnnuler.catalogue_item_id)}
               onUpdate={(patch) => onUpdateReservation(resaAnnuler.id, patch)}
+              onUpdateClient={onUpdateClient}
               onClose={() => setAnnulerActiviteId(null)}
             />
           );

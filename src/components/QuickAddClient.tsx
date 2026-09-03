@@ -515,7 +515,7 @@ export default function QuickAddClient({
         }}
         className="whitespace-nowrap rounded-[6px] bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
       >
-        + Nouveau
+        + Nouveau client
       </button>
 
       {open && (

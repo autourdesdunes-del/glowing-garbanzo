@@ -658,6 +658,10 @@ export function isCaireAeroportTransfert(nom: string) {
   return n.includes("transfert") && n.includes("aéroport") && n.includes("caire");
 }
 
+export function isPlongee(nom: string) {
+  return (nom || "").toLowerCase().includes("plongée");
+}
+
 export function isFamilySafariBedouin(nom: string) {
   const n = (nom || "").toLowerCase();
   return n.includes("safari") && n.includes("bédouin");

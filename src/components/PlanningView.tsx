@@ -117,8 +117,28 @@ const FR_EN_DICT: [RegExp, string][] = [
   [/égypte/gi, "Egypt"],
   [/guide francophone/gi, "French-speaking guide"],
   [/guide anglophone/gi, "English-speaking guide"],
+  [/\bvol\b/gi, "flight"],
   [/ avec /gi, " with "],
   [/ et /gi, " and "],
+  // Filet de sécurité final : les petits mots de liaison français (articles,
+  // prépositions) qui traînent encore une fois tout le reste traduit — sans
+  // ça un "de"/"des"/"en" isolé restait visible au milieu d'une phrase
+  // sinon entièrement en anglais.
+  [/\bd'/gi, ""],
+  [/\bl'/gi, ""],
+  [/\bdes\b/gi, ""],
+  [/\bdu\b/gi, ""],
+  [/\bde\b/gi, ""],
+  [/\ble\b/gi, "the"],
+  [/\bla\b/gi, "the"],
+  [/\bles\b/gi, "the"],
+  [/\ben\b/gi, "in"],
+  [/\bau\b/gi, "at"],
+  [/\baux\b/gi, "to the"],
+  [/\bsur\b/gi, "on"],
+  [/\bune\b/gi, "a"],
+  [/\bun\b/gi, "a"],
+  [/\s{2,}/g, " "],
 ];
 function translateFr(text: string) {
   let out = text;

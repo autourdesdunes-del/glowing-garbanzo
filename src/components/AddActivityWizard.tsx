@@ -25,6 +25,7 @@ import {
   isDeuxiemeIleOption,
   isAeroportTransfertHorsHurghada,
   isCaireAeroportTransfert,
+  isPlongee,
   isCroisiere,
   noTaxeTransfert,
   isDiscouragedBusActivity,
@@ -62,6 +63,7 @@ import PhotoVolUpload from "@/components/PhotoVolUpload";
 import TransfertSensModal from "@/components/TransfertSensModal";
 import TitreLibreModal from "@/components/TitreLibreModal";
 import CaireAeroportAlert from "@/components/CaireAeroportAlert";
+import PlongeeGuideAlert from "@/components/PlongeeGuideAlert";
 import CroisiereOptionDateModal from "@/components/CroisiereOptionDateModal";
 
 function joursAvant(dateStr: string | null) {
@@ -337,6 +339,7 @@ export default function AddActivityWizard({
   const [pendingSensTransfert, setPendingSensTransfert] = useState<CatalogueItem | null>(null);
   const [pendingTitreLibre, setPendingTitreLibre] = useState<CatalogueItem | null>(null);
   const [pendingCaireAeroport, setPendingCaireAeroport] = useState<CatalogueItem | null>(null);
+  const [pendingPlongeeGuide, setPendingPlongeeGuide] = useState<CatalogueItem | null>(null);
   // Option de croisière (Montgolfière, Abu Simbel, transfert) dont la date
   // reste à faire valider par la conseillère avant de créer sa carte séparée.
   const [pendingCroisiereOption, setPendingCroisiereOption] = useState<{
@@ -625,6 +628,8 @@ export default function AddActivityWizard({
             setPendingRedirect({ item: a, kind: "safari" });
           } else if (isCaireAeroportTransfert(a.nom)) {
             setPendingCaireAeroport(a);
+          } else if (isPlongee(a.nom)) {
+            setPendingPlongeeGuide(a);
           } else {
             proceedAfterCaireCheck(a);
           }
@@ -666,6 +671,15 @@ export default function AddActivityWizard({
             onProceedAnyway={() => {
               const item = pendingCaireAeroport;
               setPendingCaireAeroport(null);
+              proceedAfterCaireCheck(item);
+            }}
+          />
+        )}
+        {pendingPlongeeGuide && (
+          <PlongeeGuideAlert
+            onContinue={() => {
+              const item = pendingPlongeeGuide;
+              setPendingPlongeeGuide(null);
               proceedAfterCaireCheck(item);
             }}
           />

@@ -305,7 +305,7 @@ export default function AddActivityWizard({
   onAddReservation: (opts?: { skipAvoirPrompt?: boolean }) => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
-  onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean }) => void;
+  onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean; verrouille?: boolean }) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
   onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
@@ -1167,6 +1167,18 @@ export default function AddActivityWizard({
                 weekdayFr(r.date_debut as string),
                 joursDisponibles
               );
+              setJourAcceptedDate(r.date_debut);
+              setJourAlertOpen(false);
+              proceedAfterDate();
+            }}
+            onPasserPrivatif={async () => {
+              const { nbAd, nbEnf } = participantsFor(r, client);
+              onAddOption(r.id, {
+                nom: "Privatif",
+                prix: 5,
+                quantite: nbAd + nbEnf,
+                verrouille: true,
+              });
               setJourAcceptedDate(r.date_debut);
               setJourAlertOpen(false);
               proceedAfterDate();
@@ -2172,6 +2184,20 @@ export default function AddActivityWizard({
           const is2emeIle = isDeuxiemeIleOption(o.nom);
           const description = catOptions.find((co) => co.nom === o.nom)?.description;
           const carte = isCroisiereOption ? carteLieePour(o.nom) : null;
+          if (o.verrouille) {
+            return (
+              <div
+                key={o.id}
+                className="mb-2 flex flex-wrap items-center gap-2 rounded-md bg-neutral-50 px-2 py-1.5 text-sm"
+              >
+                <span className="font-medium text-[#171717]">🔒 {o.nom}</span>
+                <span className="font-amounts text-xs text-neutral-500">
+                  {euros(o.prix)} € x {o.quantite} = {euros((Number(o.prix) || 0) * (Number(o.quantite) || 1))} €
+                </span>
+                <span className="text-xs text-neutral-400">— non modifiable</span>
+              </div>
+            );
+          }
           return (
             <div key={o.id} className="mb-2 flex flex-wrap items-center gap-2">
               <select

@@ -14,14 +14,20 @@ export default function JourIndisponibleAlert({
   joursDisponibles,
   onChangeDate,
   onDemanderAutorisation,
+  onPasserPrivatif,
 }: {
   nomActivite: string;
   jourChoisi: string;
   joursDisponibles: string[];
   onChangeDate: () => void;
   onDemanderAutorisation: () => void;
+  // Optionnel : certaines activités peuvent se faire en privatif n'importe
+  // quel jour moyennant un supplément (5€/pers) — cette 3e option n'est
+  // proposée que quand le parent la fournit.
+  onPasserPrivatif?: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const [submittingPrivatif, setSubmittingPrivatif] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -52,6 +58,19 @@ export default function JourIndisponibleAlert({
           >
             Demander l&apos;autorisation à un supérieur
           </button>
+          {onPasserPrivatif && (
+            <button
+              type="button"
+              disabled={submittingPrivatif}
+              onClick={async () => {
+                setSubmittingPrivatif(true);
+                await onPasserPrivatif();
+              }}
+              className="w-full rounded-md border border-[#0F5C56] px-3 py-2 text-sm font-medium text-[#0F5C56] hover:bg-[#0F5C56]/10 disabled:opacity-50"
+            >
+              Je passe l&apos;activité en privatif (+5€/pers)
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -124,6 +124,10 @@ export type ReservationOption = {
   // dont le prix est en réalité compté sur sa propre carte, créée à sa date
   // réelle — jamais compté deux fois dans le total de la croisière.
   prix_compte_ailleurs: boolean;
+  // Vrai pour une option ajoutée automatiquement suite à un choix ferme
+  // (ex. "passer en privatif" après un jour indisponible) — non modifiable
+  // ni supprimable ensuite, contrairement à une option ajoutée normalement.
+  verrouille: boolean;
 };
 
 export type CatalogueTarif = {

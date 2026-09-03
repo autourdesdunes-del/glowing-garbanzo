@@ -67,7 +67,7 @@ export default function GuidedActivityModal({
   onAddReservation: (opts?: { skipAvoirPrompt?: boolean }) => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onDeleteReservation: (id: string) => void;
-  onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean }) => void;
+  onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean; verrouille?: boolean }) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
   onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;

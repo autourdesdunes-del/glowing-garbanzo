@@ -749,7 +749,7 @@ export default function ClientDetail({
 
   const addOption = async (
     resaId: string,
-    seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean }
+    seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean; verrouille?: boolean }
   ) => {
     const { data, error } = await supabase
       .from("reservation_options")
@@ -759,6 +759,7 @@ export default function ClientDetail({
         prix: seed?.prix || 0,
         ...(seed?.quantite ? { quantite: seed.quantite } : {}),
         ...(seed?.prix_compte_ailleurs ? { prix_compte_ailleurs: true } : {}),
+        ...(seed?.verrouille ? { verrouille: true } : {}),
       })
       .select()
       .single();

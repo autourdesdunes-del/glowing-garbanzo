@@ -55,7 +55,10 @@ export default function AnnulerActiviteModal({
   const [showPaypalPrompt, setShowPaypalPrompt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const montant = resaTotalMontant(r, client, options, tarifs);
+  const montantTotal = resaTotalMontant(r, client, options, tarifs);
+  // Modifiable — permet un remboursement partiel (ex. frais déjà engagés
+  // non récupérables) au lieu de toujours forcer le prix total de l'activité.
+  const [montant, setMontant] = useState(montantTotal);
   const reglement = reglementAnnulation(r, catalogueItem, new Date());
   // Une annulation agence ou gouvernement n'est jamais la faute du client —
   // toujours remboursable, aucune exception à faire valider par Hossam.
@@ -215,8 +218,19 @@ export default function AnnulerActiviteModal({
         {remboursable && (
           <div className="mt-3">
             <label className="mb-1 block text-xs font-medium text-neutral-500">
-              Montant concerné : {euros(montant)} €
+              Montant à rembourser (€)
+              {montant !== montantTotal && (
+                <span className="ml-1 font-normal text-neutral-400">
+                  (prix de l&apos;activité : {euros(montantTotal)} €)
+                </span>
+              )}
             </label>
+            <input
+              type="number"
+              value={montant}
+              onChange={(e) => setMontant(Number(e.target.value) || 0)}
+              className="input mb-2 max-w-[160px]"
+            />
             {remboursementPossible ? (
               <>
                 <div className="flex gap-2">

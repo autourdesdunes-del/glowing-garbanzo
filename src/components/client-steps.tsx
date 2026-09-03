@@ -3252,6 +3252,8 @@ export function SuiviStep({
   const [remboursements, setRemboursements] = useState<Remboursement[]>([]);
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [verifNom, setVerifNom] = useState("");
+  const [expandedRembId, setExpandedRembId] = useState<string | null>(null);
+  const [expandedAvoirId, setExpandedAvoirId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
 
   useEffect(() => {
@@ -3400,6 +3402,7 @@ export function SuiviStep({
         <div className="space-y-4">
           {remboursements.map((r) => {
             const activiteLiee = reservations.find((res) => res.id === r.activite_id);
+            const isExpanded = expandedRembId === r.id;
             return (
               <div
                 key={r.id}
@@ -3410,7 +3413,11 @@ export function SuiviStep({
                     r.statut === "Effectué" ? "bg-green-50" : "bg-[#f5a623]/10"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedRembId(isExpanded ? null : r.id)}
+                    className="flex flex-1 flex-wrap items-center gap-3 text-left"
+                  >
                     <span className="font-heading text-xl font-semibold text-[#171717]">
                       {euros(r.montant)} €
                     </span>
@@ -3426,15 +3433,31 @@ export function SuiviStep({
                     <span className="rounded-full bg-white px-2 py-0.5 text-xs text-neutral-500">
                       {r.mode}
                     </span>
-                  </div>
-                  <button
-                    onClick={() => deleteRemboursement(r.id)}
-                    className="text-xs text-red-500 hover:underline"
-                  >
-                    Retirer
+                    {r.raison && (
+                      <span className="text-xs text-neutral-500">{r.raison === "Autre" ? r.raison_autre : r.raison}</span>
+                    )}
                   </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedRembId(isExpanded ? null : r.id)}
+                      title="Modifier"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-white/60 text-neutral-500 hover:bg-white hover:text-[#171717]"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteRemboursement(r.id)}
+                      title="Supprimer"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-white/60 text-red-500 hover:bg-red-50"
+                    >
+                      🗑
+                    </button>
+                  </div>
                 </div>
 
+                {isExpanded && (
                 <div className="space-y-4 p-4">
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Montant (€)">
@@ -3583,6 +3606,7 @@ export function SuiviStep({
                     )}
                   </div>
                 </div>
+                )}
               </div>
             );
           })}
@@ -3603,17 +3627,47 @@ export function SuiviStep({
         </div>
         {avoirs.length === 0 && <div className="text-sm text-neutral-400">Aucun avoir.</div>}
         <div className="space-y-3">
-          {avoirs.map((a) => (
+          {avoirs.map((a) => {
+            const isExpandedAvoir = expandedAvoirId === a.id;
+            return (
             <div key={a.id} className="rounded-md border border-neutral-200 bg-white p-3">
-              <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 font-medium text-[#8B4531]">
-                  Restant : {euros(a.montant_restant)} € / {euros(a.montant)} €
-                </span>
-                <span className="text-neutral-500">
-                  À utiliser jusqu&apos;au {client.date_fin ? fmtDate(client.date_fin) : "—"} (date de fin de séjour)
-                </span>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setExpandedAvoirId(isExpandedAvoir ? null : a.id)}
+                  className="flex flex-1 flex-wrap items-center gap-2 text-left"
+                >
+                  <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 font-medium text-[#8B4531]">
+                    Restant : {euros(a.montant_restant)} € / {euros(a.montant)} €
+                  </span>
+                  <span className="text-neutral-500">
+                    À utiliser jusqu&apos;au {client.date_fin ? fmtDate(client.date_fin) : "—"} (date de fin de séjour)
+                  </span>
+                  {a.raison && (
+                    <span className="text-neutral-500">— {a.raison === "Autre" ? a.raison_autre : a.raison}</span>
+                  )}
+                </button>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedAvoirId(isExpandedAvoir ? null : a.id)}
+                    title="Modifier"
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-[#171717]"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteAvoir(a.id)}
+                    title="Supprimer"
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-red-500 hover:bg-red-50"
+                  >
+                    🗑
+                  </button>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              {isExpandedAvoir && (
+              <div className="mt-2 grid grid-cols-2 gap-3">
                 <Field label="Montant de l'avoir (€)">
                   <input
                     type="number"
@@ -3669,14 +3723,10 @@ export function SuiviStep({
                   />
                 </Field>
               </div>
-              <button
-                onClick={() => onDeleteAvoir(a.id)}
-                className="mt-2 text-xs text-red-600 hover:underline"
-              >
-                Retirer
-              </button>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

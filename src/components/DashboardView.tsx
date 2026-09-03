@@ -580,12 +580,13 @@ export default function DashboardView({
       c.date_debut <= addDays(todayStr, 4)
   );
 
-  const urgentCount =
-    rdvToday.length + pickupsMissingTomorrow.length + billetsUrgents.length + acomptesUrgents.length;
+  // Les pick-ups manquants ont déjà leur propre métrique dédiée
+  // ("Pick-ups manquants") : les compter aussi dans "Cas urgents" faisait
+  // doublon, donc ils en sont exclus ici.
+  const urgentCount = rdvToday.length + billetsUrgents.length + acomptesUrgents.length;
 
-  // Lignes des popups "coup d'œil rapide" des 4 métriques cliquables — même
-  // union de sources que urgentCount/staleProspects/incompleteUpcoming/
-  // pickupsMissingTomorrow ci-dessus, juste reformatées en nom + pourquoi +
+  // Lignes du popup "coup d'œil rapide" de "Cas urgents" — même union de
+  // sources que urgentCount ci-dessus, reformatées en nom + pourquoi +
   // action.
   const urgentRows = [
     ...rdvToday.map((c) => ({
@@ -598,19 +599,6 @@ export default function DashboardView({
         onOpenClient(c.id);
       },
     })),
-    ...pickupsMissingTomorrow.map((r) => {
-      const c = clientById(r.client_id);
-      return {
-        key: `pickup-${r.id}`,
-        name: c?.nom || "Sans nom",
-        reason: `Pick-up réel manquant pour demain — ${cleanActivityTitle(r.nom_activite) || "Activité"}`,
-        actionLabel: "Renseigner le pick-up",
-        onAction: () => {
-          setUrgentModalOpen(false);
-          if (c) onOpenClient(c.id);
-        },
-      };
-    }),
     ...billetsUrgents.map((r) => {
       const c = clientById(r.client_id);
       return {

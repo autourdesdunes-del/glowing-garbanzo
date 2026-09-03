@@ -2284,11 +2284,16 @@ export default function SuivisView({
                     <div key={clientId} className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
                       <div className="border-b border-neutral-100 px-3 py-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <ClientNameLink
-                            nom={client.nom}
-                            onClick={() => onOpenClient(client.id)}
-                            className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-                          />
+                          <span className="flex items-center gap-1.5">
+                            <ClientNameLink
+                              nom={client.nom}
+                              onClick={() => onOpenClient(client.id)}
+                              className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                            />
+                            {client.paypal_email && (
+                              <span className="text-xs text-neutral-400">— {client.paypal_email}</span>
+                            )}
+                          </span>
                           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                             Total à rembourser : {euros(totalClient)} €
                           </span>

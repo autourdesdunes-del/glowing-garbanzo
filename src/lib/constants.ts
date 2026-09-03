@@ -256,6 +256,7 @@ export const REGLES_ANNULATION = [
 export const RAISONS_ANNULATION = [
   "Météo",
   "Client ne veut plus",
+  "Malade",
   "Changement de programme",
   "Non-présentation",
   "Autre",

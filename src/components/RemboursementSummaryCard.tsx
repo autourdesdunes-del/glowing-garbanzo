@@ -85,7 +85,7 @@ export default function RemboursementSummaryCard({
         onClick ? "hover:bg-[#fafafa]" : ""
       }`}
     >
-      <div className="min-w-0 flex-1 space-y-0.5">
+      <div className="min-w-0 flex-1 space-y-2">
         <p className="text-sm font-medium text-[#171717]">
           {client.nom || "Sans nom"} — {moyenPaiement}
         </p>

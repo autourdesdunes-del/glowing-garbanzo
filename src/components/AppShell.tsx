@@ -1484,6 +1484,12 @@ function AppShellInner({
     if (error) toast("Échec de l'enregistrement du remboursement.");
   };
 
+  const deleteRemboursement = async (id: string) => {
+    setAllRemboursements((prev) => prev.filter((r) => r.id !== id));
+    const { error } = await supabase.from("remboursements").delete().eq("id", id);
+    if (error) toast("Échec de la suppression du remboursement.");
+  };
+
   const resolveCatalogueModificationRequest = async (id: string) => {
     setCatalogueModificationRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, statut: "Traité" } : r))
@@ -2809,6 +2815,8 @@ function AppShellInner({
               paiementsEtapes={allPaiementsEtapes}
               remboursements={allRemboursements}
               onUpdateRemboursement={updateRemboursement}
+              onDeleteRemboursement={deleteRemboursement}
+              isDirection={effectiveIsDirection}
               incidents={allIncidents}
               verifications={allVerifications}
               paypalPaiements={paypalPaiements}

@@ -155,6 +155,8 @@ function RemboursementCard({
   isOpen,
   onToggle,
   onOpenClient,
+  isDirection,
+  onDelete,
 }: {
   r: Remboursement;
   client: Client;
@@ -162,6 +164,8 @@ function RemboursementCard({
   isOpen: boolean;
   onToggle: () => void;
   onOpenClient: (id: string) => void;
+  isDirection?: boolean;
+  onDelete?: () => void;
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
@@ -225,6 +229,18 @@ function RemboursementCard({
               </span>
               {r.preuve_photo_path && <VoirPreuveRemboursementLink path={r.preuve_photo_path} />}
             </div>
+          )}
+          {isDirection && onDelete && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="border-t border-neutral-100 pt-2 text-xs font-medium text-red-600 hover:underline"
+            >
+              🗑 Supprimer ce remboursement (Direction)
+            </button>
           )}
         </div>
       )}
@@ -1157,6 +1173,8 @@ export default function SuivisView({
   paiementsEtapes = [],
   remboursements,
   onUpdateRemboursement,
+  onDeleteRemboursement,
+  isDirection = false,
   incidents,
   verifications,
   paypalPaiements,
@@ -1180,6 +1198,8 @@ export default function SuivisView({
   paiementsEtapes?: PaiementEtape[];
   remboursements: Remboursement[];
   onUpdateRemboursement: (id: string, patch: Partial<Remboursement>) => void;
+  onDeleteRemboursement?: (id: string) => void;
+  isDirection?: boolean;
   incidents: Incident[];
   verifications: Verification[];
   paypalPaiements: PaypalPaiement[];
@@ -2372,6 +2392,20 @@ export default function SuivisView({
                       </button>
                     </div>
                     <RemboursementSummaryCard r={r} client={client} activiteLiee={activite} />
+                    {isDirection && onDeleteRemboursement && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm("Supprimer ce remboursement ? Cette action est irréversible.")) {
+                            onDeleteRemboursement(r.id);
+                            setOpenRembModalId(null);
+                          }
+                        }}
+                        className="w-full border-t border-neutral-100 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
+                      >
+                        🗑 Supprimer ce remboursement (Direction)
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -2439,6 +2473,15 @@ export default function SuivisView({
                                 isOpen={!!expanded[key]}
                                 onToggle={() => toggleExpand(key)}
                                 onOpenClient={onOpenClient}
+                                isDirection={isDirection}
+                                onDelete={
+                                  onDeleteRemboursement
+                                    ? () => {
+                                        if (window.confirm("Supprimer ce remboursement ? Cette action est irréversible."))
+                                          onDeleteRemboursement(r.id);
+                                      }
+                                    : undefined
+                                }
                               />
                             );
                           })}
@@ -2466,6 +2509,15 @@ export default function SuivisView({
                           isOpen={!!expanded[key]}
                           onToggle={() => toggleExpand(key)}
                           onOpenClient={onOpenClient}
+                          isDirection={isDirection}
+                          onDelete={
+                            onDeleteRemboursement
+                              ? () => {
+                                  if (window.confirm("Supprimer ce remboursement ? Cette action est irréversible."))
+                                    onDeleteRemboursement(r.id);
+                                }
+                              : undefined
+                          }
                         />
                       );
                     })}

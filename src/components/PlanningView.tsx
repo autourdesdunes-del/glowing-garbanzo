@@ -63,34 +63,74 @@ function fmtDDMM(dateStr: string) {
 // tout le temps dans les noms d'activités/options. Le reste (noms propres,
 // lieux) reste tel quel.
 const FR_EN_DICT: [RegExp, string][] = [
+  [/déjà sur place/gi, "already on-site"],
+  [/aller[- ]retour/gi, "round trip"],
+  [/au coucher du soleil/gi, "at sunset"],
+  [/au coucher de soleil/gi, "at sunset"],
+  [/coucher du soleil/gi, "sunset"],
   [/coucher de soleil/gi, "sunset"],
   [/demi[- ]journée/gi, "half day"],
   [/journée complète/gi, "full day"],
   [/journée/gi, "day"],
+  [/jours/gi, "days"],
+  [/jour/gi, "day"],
+  [/nuits/gi, "nights"],
+  [/nuit/gi, "night"],
   [/semi-privé/gi, "semi-private"],
-  [/privé/gi, "private"],
+  [/privatif/gi, "private"],
+  [/privée?/gi, "private"],
   [/après-midi/gi, "afternoon"],
   [/matin/gi, "morning"],
   [/chevaux/gi, "horses"],
   [/cheval/gi, "horse"],
   [/chameaux/gi, "camels"],
   [/chameau/gi, "camel"],
+  [/plongée sous-marine/gi, "scuba diving"],
   [/plongée/gi, "diving"],
   [/randonnée/gi, "hike"],
   [/désert/gi, "desert"],
   [/île/gi, "island"],
   [/maison des dauphins/gi, "dolphin house"],
   [/dauphins/gi, "dolphins"],
+  [/nage avec/gi, "swim with"],
+  [/bassin/gi, "pool"],
   [/tortues/gi, "turtles"],
   [/visites/gi, "visits"],
+  [/balade à/gi, "ride to"],
+  [/balade/gi, "ride"],
+  [/dîner spectacle/gi, "dinner show"],
+  [/dîner/gi, "dinner"],
+  [/spectacle/gi, "show"],
+  [/bédouin/gi, "bedouin"],
+  [/montgolfière/gi, "hot air balloon"],
+  [/transfert/gi, "transfer"],
+  [/aéroport/gi, "airport"],
+  [/aléatoire/gi, "random"],
+  [/arrêts/gi, "stops"],
+  [/voiture/gi, "car"],
+  [/avion/gi, "plane"],
+  [/mer rouge/gi, "Red Sea"],
+  [/\bmer\b/gi, "sea"],
+  [/le caire/gi, "Cairo"],
+  [/louxor/gi, "Luxor"],
+  [/assouan/gi, "Aswan"],
+  [/égypte/gi, "Egypt"],
   [/guide francophone/gi, "French-speaking guide"],
   [/guide anglophone/gi, "English-speaking guide"],
   [/ avec /gi, " with "],
+  [/ et /gi, " and "],
 ];
 function translateFr(text: string) {
   let out = text;
   FR_EN_DICT.forEach(([re, repl]) => {
-    out = out.replace(re, repl);
+    // Garde la casse du mot d'origine (ex. "Transfert" en début de titre ne
+    // doit pas devenir "transfer" en minuscule, ce qui casserait la casse
+    // du titre entier).
+    out = out.replace(re, (match) =>
+      match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()
+        ? repl.charAt(0).toUpperCase() + repl.slice(1)
+        : repl
+    );
   });
   return out;
 }

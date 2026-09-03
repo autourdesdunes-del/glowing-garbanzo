@@ -10,7 +10,9 @@ import {
   Reservation,
   ReservationOption,
   ReservationTarif,
+  TransfertTaxe,
 } from "@/lib/types";
+import { matchTransfertTaxe } from "@/lib/hotelHelp";
 import {
   CHAMPS_REQUIS_PRESETS,
   CRENEAUX_ACTIVITE,
@@ -267,6 +269,7 @@ export default function AddActivityWizard({
   catalogueOptions,
   hotelHorsHurghada,
   hotelVille,
+  taxesRef,
   onAddReservation,
   onUpdateReservation,
   onDeleteReservation,
@@ -293,6 +296,7 @@ export default function AddActivityWizard({
   catalogueOptions: Record<string, CatalogueOption[]>;
   hotelHorsHurghada?: boolean;
   hotelVille?: string;
+  taxesRef?: TransfertTaxe[];
   onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
   onJourEscalation: (
     nomActivite: string,
@@ -433,6 +437,22 @@ export default function AddActivityWizard({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Hôtel hors Hurghada (Sahl Hasheesh, Makadi, El Gouna, Safaga, Soma
+  // Bay…) : pré-remplit automatiquement la taxe de transfert conseillée dès
+  // l'arrivée sur cette étape, plutôt que de laisser 0€ par défaut — sans
+  // ça, l'employée oublie régulièrement de la remplir. Ne touche jamais un
+  // montant déjà saisi (à la main ou lors d'un passage précédent).
+  useEffect(() => {
+    if (step !== "transfert" || !r || r.transfert_inclus || r.transfert_montant) return;
+    if (!hotelHorsHurghada || !hotelVille) return;
+    const { nbAd, nbEnf } = participantsFor(r, client);
+    const taxe = matchTransfertTaxe(taxesRef ?? [], hotelVille, nbAd, nbEnf);
+    if (taxe.type === "montant" && taxe.montant > 0) {
+      onUpdateReservation(r.id, { transfert_montant: taxe.montant });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, r?.id, r?.transfert_inclus, r?.transfert_montant, hotelHorsHurghada, hotelVille]);
 
   const startFromCatalogue = async (
     item: CatalogueItem,
@@ -2483,6 +2503,13 @@ export default function AddActivityWizard({
   // step === "transfert"
   const total = resaTotalMontant(r, client, options, tarifs);
   const { nbAd: nbAdTransfert, nbEnf: nbEnfTransfert } = participantsFor(r, client);
+  // Hôtel hors Hurghada (Sahl Hasheesh, Makadi, El Gouna, Safaga, Soma Bay…) :
+  // le montant conseillé vient de la même table de référence que partout
+  // ailleurs (transfert_taxes) — jamais deviné à la main par l'employée.
+  const taxeSuggeree =
+    hotelHorsHurghada && hotelVille
+      ? matchTransfertTaxe(taxesRef ?? [], hotelVille, nbAdTransfert, nbEnfTransfert)
+      : null;
 
   const finishClick = () => {
     if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedFinale) {
@@ -2546,7 +2573,14 @@ export default function AddActivityWizard({
         (hotelHorsHurghada ? (
           r.transfert_inclus && (
             <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-700">
-              <span>⚠ Cet hôtel n&apos;est pas sur Hurghada, il y a peut-être une taxe de transfert.</span>
+              <span>
+                ⚠ N&apos;oubliez pas de remplir cette case car le client est à {hotelVille}
+                {taxeSuggeree?.type === "montant"
+                  ? ` — prix conseillé : ${euros(taxeSuggeree.montant)}€.`
+                  : taxeSuggeree?.type === "a_demander"
+                    ? ` — montant à demander (${taxeSuggeree.note}).`
+                    : "."}
+              </span>
               <button
                 type="button"
                 onClick={() => onUpdateReservation(r.id, { transfert_inclus: false })}
@@ -2571,6 +2605,16 @@ export default function AddActivityWizard({
               className="input"
             />
           </Field>
+          {taxeSuggeree?.type === "montant" && (
+            <p className="mt-1 text-[11px] text-neutral-500">
+              Prix conseillé pour {hotelVille} : {euros(taxeSuggeree.montant)}€ (déjà pré-rempli).
+            </p>
+          )}
+          {taxeSuggeree?.type === "a_demander" && (
+            <p className="mt-1 text-[11px] text-neutral-500">
+              Pas de montant fixe pour {hotelVille} : {taxeSuggeree.note}.
+            </p>
+          )}
         </div>
       )}
 

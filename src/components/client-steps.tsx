@@ -288,7 +288,8 @@ function contactViaSummary(client: Client) {
 }
 
 function whatsappSummary(client: Client) {
-  return client.telephone || "Non renseigné";
+  if (!client.telephone) return "Non renseigné";
+  return client.telephone_2 ? `${client.telephone} / ${client.telephone_2}` : client.telephone;
 }
 
 type StepProps = {
@@ -952,12 +953,29 @@ export function ContactStep({
                   className="input-flat w-full"
                 />
               </PropertyRow>
+              <PropertyRow label="What's app 2" icon={<PropIcon name="phone" />}>
+                <input
+                  value={client.telephone_2}
+                  onChange={(e) => onChange({ telephone_2: e.target.value })}
+                  placeholder="Deuxième numéro (optionnel)"
+                  className="input-flat w-full"
+                />
+              </PropertyRow>
               <PropertyRow label="Email" icon={<PropIcon name="mail" />}>
                 <input
                   type="email"
                   value={client.email}
                   onChange={(e) => onChange({ email: e.target.value })}
                   placeholder="Email"
+                  className="input-flat w-full"
+                />
+              </PropertyRow>
+              <PropertyRow label="Email 2" icon={<PropIcon name="mail" />}>
+                <input
+                  type="email"
+                  value={client.email_2}
+                  onChange={(e) => onChange({ email_2: e.target.value })}
+                  placeholder="Deuxième email (optionnel)"
                   className="input-flat w-full"
                 />
               </PropertyRow>
@@ -1000,25 +1018,46 @@ export function ContactStep({
                 </select>
               </PropertyRow>
               {(client.canal === "Instagram" || client.canal === "TikTok") && (
-                <PropertyRow label="Pseudo">
-                  <input
-                    value={client.pseudo_contact}
-                    onChange={(e) => onChange({ pseudo_contact: e.target.value })}
-                    placeholder="pseudo"
-                    className="input-flat w-full"
-                  />
-                </PropertyRow>
+                <>
+                  <PropertyRow label="Pseudo">
+                    <input
+                      value={client.pseudo_contact}
+                      onChange={(e) => onChange({ pseudo_contact: e.target.value })}
+                      placeholder="pseudo"
+                      className="input-flat w-full"
+                    />
+                  </PropertyRow>
+                  <PropertyRow label="Pseudo 2">
+                    <input
+                      value={client.pseudo_contact_2}
+                      onChange={(e) => onChange({ pseudo_contact_2: e.target.value })}
+                      placeholder="deuxième pseudo (optionnel)"
+                      className="input-flat w-full"
+                    />
+                  </PropertyRow>
+                </>
               )}
               {client.canal === "Email" && (
-                <PropertyRow label="Email">
-                  <input
-                    type="email"
-                    value={client.email}
-                    onChange={(e) => onChange({ email: e.target.value })}
-                    placeholder="email"
-                    className="input-flat w-full"
-                  />
-                </PropertyRow>
+                <>
+                  <PropertyRow label="Email">
+                    <input
+                      type="email"
+                      value={client.email}
+                      onChange={(e) => onChange({ email: e.target.value })}
+                      placeholder="email"
+                      className="input-flat w-full"
+                    />
+                  </PropertyRow>
+                  <PropertyRow label="Email 2">
+                    <input
+                      type="email"
+                      value={client.email_2}
+                      onChange={(e) => onChange({ email_2: e.target.value })}
+                      placeholder="deuxième email (optionnel)"
+                      className="input-flat w-full"
+                    />
+                  </PropertyRow>
+                </>
               )}
               {client.canal === "Autre" && (
                 <PropertyRow label="Préciser">

@@ -623,14 +623,23 @@ export default function QuickAddClient({
               )}
 
               {step === "pseudo" && (
-                <Field label={`Pseudo ${answers.canal}`}>
-                  <input
-                    autoFocus
-                    value={answers.pseudo_contact || ""}
-                    onChange={(e) => patch({ pseudo_contact: e.target.value })}
-                    className="input"
-                  />
-                </Field>
+                <>
+                  <Field label={`Pseudo ${answers.canal}`}>
+                    <input
+                      autoFocus
+                      value={answers.pseudo_contact || ""}
+                      onChange={(e) => patch({ pseudo_contact: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                  <Field label="Deuxième pseudo (optionnel)">
+                    <input
+                      value={answers.pseudo_contact_2 || ""}
+                      onChange={(e) => patch({ pseudo_contact_2: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                </>
               )}
 
               {step === "relation" && (
@@ -660,29 +669,48 @@ export default function QuickAddClient({
               )}
 
               {step === "telephone" && (
-                <Field label="Téléphone / WhatsApp">
-                  <input
-                    autoFocus
-                    value={answers.telephone || ""}
-                    onChange={(e) => patch({ telephone: e.target.value })}
-                    className="input"
-                  />
-                </Field>
+                <>
+                  <Field label="Téléphone / WhatsApp">
+                    <input
+                      autoFocus
+                      value={answers.telephone || ""}
+                      onChange={(e) => patch({ telephone: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                  <Field label="Deuxième numéro (optionnel)">
+                    <input
+                      value={answers.telephone_2 || ""}
+                      onChange={(e) => patch({ telephone_2: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                </>
               )}
 
               {step === "email" && (
-                <Field label="Email">
-                  <input
-                    autoFocus
-                    type="email"
-                    value={answers.email || ""}
-                    onChange={(e) => patch({ email: e.target.value })}
-                    className="input"
-                  />
-                  <p className="mt-1 text-xs text-[#666666]">
-                    Obligatoire pour passer le dossier en &quot;Client confirmé&quot;.
-                  </p>
-                </Field>
+                <>
+                  <Field label="Email">
+                    <input
+                      autoFocus
+                      type="email"
+                      value={answers.email || ""}
+                      onChange={(e) => patch({ email: e.target.value })}
+                      className="input"
+                    />
+                    <p className="mt-1 text-xs text-[#666666]">
+                      Obligatoire pour passer le dossier en &quot;Client confirmé&quot;.
+                    </p>
+                  </Field>
+                  <Field label="Deuxième email (optionnel)">
+                    <input
+                      type="email"
+                      value={answers.email_2 || ""}
+                      onChange={(e) => patch({ email_2: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                </>
               )}
 
               {step === "passeport" && (

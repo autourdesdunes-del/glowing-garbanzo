@@ -368,11 +368,18 @@ export type Client = {
   canal: string;
   canal_autre: string;
   pseudo_contact: string;
+  // Deuxième pseudo Instagram/TikTok, jamais obligatoire.
+  pseudo_contact_2: string;
   relation_grace_a: string;
   relation_autre: string;
   statut: string;
   telephone: string;
+  // Deuxième numéro WhatsApp, jamais obligatoire (ex. couple qui alterne,
+  // numéro local en plus du numéro d'origine).
+  telephone_2: string;
   email: string;
+  // Deuxième email, jamais obligatoire.
+  email_2: string;
   hotel: string;
   chambre: string;
   // "hotel" (par défaut) ou "airbnb" — remplace la ligne Hôtel/Chambre par
@@ -480,11 +487,14 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   canal: "WhatsApp",
   canal_autre: "",
   pseudo_contact: "",
+  pseudo_contact_2: "",
   relation_grace_a: "Instagram",
   relation_autre: "",
   statut: "Prospect",
   telephone: "",
+  telephone_2: "",
   email: "",
+  email_2: "",
   hotel: "",
   chambre: "",
   type_hebergement: "hotel",

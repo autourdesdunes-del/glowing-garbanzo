@@ -5,13 +5,14 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CatalogueItem,
   Client,
+  ClientHotel,
   HotelReference,
   PaiementEtape,
   Reservation,
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { matchHotel, hotelDisplayForEgypt } from "@/lib/hotelHelp";
+import { matchHotel, hotelDisplayForEgypt, hotelEgyptLinePourActivite } from "@/lib/hotelHelp";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
@@ -615,6 +616,21 @@ function ActivityDetailModal({
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   const [photoVolUrl, setPhotoVolUrl] = useState("");
+  // Séjour multi-hôtels (circuit) : pour que le bloc équipe Égypte de cette
+  // activité précise affiche seulement l'hôtel où le client se trouve ce
+  // jour-là, pas les trois à la fois (voir hotelEgyptLinePourActivite).
+  const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("client_hotels")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("ordre", { ascending: true });
+      setClientHotels((data as ClientHotel[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
   // Le client vient d'une liste tenue par le parent (rafraîchie par polling)
   // — sans état local, changer le statut de paiement ici mettrait à jour la
   // base mais l'affichage resterait sur l'ancien statut jusqu'au prochain
@@ -720,9 +736,14 @@ function ActivityDetailModal({
   const hotelMatch = matchHotel(client.hotel, hotelsRef);
   const egyptBlock = `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${buildPaxEnglish(
     client
-  )}\n\nHotel : ${hotelDisplayForEgypt(client.hotel, hotelMatch?.ville)}\nRoom Number : ${
-    client.chambre || "—"
-  }\n\nWhat's app : ${client.telephone || "—"}${paymentLine ? `\n\n${paymentLine}` : ""}`;
+  )}\n\nHotel : ${hotelEgyptLinePourActivite(
+    clientHotels,
+    r.date_debut,
+    client.hotel,
+    hotelMatch?.ville
+  )}\nRoom Number : ${client.chambre || "—"}\n\nWhat's app : ${client.telephone || "—"}${
+    paymentLine ? `\n\n${paymentLine}` : ""
+  }`;
 
   const copyEgyptBlock = async () => {
     try {

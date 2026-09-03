@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   AssouanVerification,
   BusEscalation,
@@ -9,6 +10,7 @@ import {
   CatalogueTarif,
   CatalogueTransfertTarif,
   Client,
+  ClientHotel,
   PaiementEtape,
   Reservation,
   ReservationOption,
@@ -41,7 +43,7 @@ import {
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import { buildPaxEnglish } from "@/components/client-steps";
-import { hotelDisplayForEgypt } from "@/lib/hotelHelp";
+import { hotelEgyptLinePourActivite } from "@/lib/hotelHelp";
 import { useConfirm } from "@/components/ConfirmProvider";
 
 function euros(n: number) {
@@ -135,6 +137,22 @@ export default function ItineraryView({
   assouanVerifications?: AssouanVerification[];
 }) {
   const confirm = useConfirm();
+  // Séjour multi-hôtels (circuit) : chargé ici pour que le bloc équipe
+  // Égypte de l'activité ouverte affiche seulement l'hôtel où le client se
+  // trouve ce jour-là, pas les trois à la fois (voir hotelEgyptLinePourActivite).
+  const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data } = await supabase
+        .from("client_hotels")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("ordre", { ascending: true });
+      setClientHotels((data as ClientHotel[]) || []);
+    })();
+  }, [client.id]);
+
   // Marquer une activité "Payé - ..." déclare tout le séjour réglé (règle
   // du solde unique) — si l'acompte est encore "en attente" à ce moment-là,
   // il faut le signaler avant de valider, sinon un acompte jamais réellement
@@ -375,7 +393,9 @@ export default function ItineraryView({
   const expBreakdown = expandedReservation
     ? resaBreakdown(expandedReservation, client, expOptions, expTarifs, reservations, hotelVille)
     : [];
-  const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${hotelDisplayForEgypt(
+  const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${hotelEgyptLinePourActivite(
+    clientHotels,
+    expandedReservation?.date_debut || null,
     client.hotel,
     hotelVille
   )}\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;

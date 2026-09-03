@@ -45,7 +45,13 @@ import {
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
-import { matchHotel, matchTransfertTaxe, hotelDisplayForEgypt, villeTransfertInfo } from "@/lib/hotelHelp";
+import {
+  matchHotel,
+  matchTransfertTaxe,
+  hotelDisplayForEgypt,
+  hotelsEgyptLines,
+  villeTransfertInfo,
+} from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr } from "@/lib/dates";
 import ItineraryView from "@/components/ItineraryView";
@@ -452,9 +458,16 @@ export function ContactStep({
 
   const nbAutresInfos = 4;
 
-  const egyptCopyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${hotelDisplayForEgypt(
-    client.hotel,
-    hotelMatch?.ville
+  // Séjour multi-hôtels (circuit) : une ligne par étape plutôt qu'un
+  // "Hotel : —" qui resterait vide (le champ hotel du client n'est jamais
+  // rempli quand le circuit passe par plusieurs hôtels).
+  const hotelLines =
+    clientHotels.length > 0
+      ? hotelsEgyptLines(clientHotels)
+      : [`Hotel : ${hotelDisplayForEgypt(client.hotel, hotelMatch?.ville)}`];
+
+  const egyptCopyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\n${hotelLines.join(
+    "\n"
   )}\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
   const doCopyEgypt = async () => {
     try {

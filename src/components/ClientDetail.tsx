@@ -31,7 +31,7 @@ import DevisPaiementModal from "@/components/DevisPaiementModal";
 import ConfirmationDocumentStage from "@/components/ConfirmationDocument";
 import DuplicateClientModal from "@/components/DuplicateClientModal";
 import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
-import { STATUT_COLORS } from "@/lib/constants";
+import { STATUT_COLORS, MODES_PAIEMENT } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
 import { DuplicateMatch, findDuplicateClients, normText } from "@/lib/duplicates";
@@ -903,6 +903,64 @@ export default function ClientDetail({
     acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + (client.solde_paye ? soldeRestantHeader : 0);
   const paiementFullyPaid = totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader;
 
+  // Une activité ajoutée après un solde déjà entièrement réglé fait
+  // grossir le séjour au-delà de ce qui a été figé lors de la clôture
+  // (client.solde_montant) — jamais absorbée en silence dans le "Payé"
+  // existant (règle du solde unique : ce qui était payé avant reste payé,
+  // la nouveauté suit son propre règlement, choisi ci-dessous). Ce
+  // déclencheur vit ici (et non dans l'onglet Paiements) car il doit se
+  // déclencher dès l'ajout de l'activité depuis "Activités", que l'onglet
+  // Paiements soit ouvert ou non.
+  const [repriseModal, setRepriseModal] = useState<{
+    montant: string;
+    mode: string;
+    activiteId: string;
+  } | null>(null);
+  const repriseBaselineVuRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!client.solde_paye || client.reprise_montant > 0) {
+      repriseBaselineVuRef.current = null;
+      return;
+    }
+    const baseline = Number(client.solde_montant) || totalSejourHeader;
+    const diff = Math.round((totalSejourHeader - baseline) * 100) / 100;
+    // Comparé au dernier écart proposé (pas seulement à la base figée) :
+    // si le séjour grossit encore avant que la première reprise ait été
+    // traitée (deuxième activité ajoutée sans avoir répondu au premier
+    // pop-up), il faut re-proposer avec le nouveau montant.
+    if (diff > 0.01 && repriseBaselineVuRef.current !== diff) {
+      repriseBaselineVuRef.current = diff;
+      const derniereActivite = [...reservationsActives(reservations)].sort((a, b) =>
+        (a.created_at || "").localeCompare(b.created_at || "")
+      ).pop();
+      setRepriseModal({
+        montant: String(diff),
+        mode: MODES_PAIEMENT[0] || "Espèces EUR",
+        activiteId: derniereActivite?.id || "",
+      });
+    }
+  }, [totalSejourHeader, client.solde_paye, client.solde_montant, client.reprise_montant, reservations]);
+
+  const confirmerReprise = () => {
+    if (!repriseModal) return;
+    const montant = Number(repriseModal.montant) || 0;
+    if (montant <= 0) {
+      toast("Renseigne un montant avant de valider.");
+      return;
+    }
+    const modeSansActivite = repriseModal.mode === "PayPal" || repriseModal.mode === "Virement bancaire";
+    if (!modeSansActivite && !repriseModal.activiteId) {
+      toast("Choisis à quelle activité relier ce paiement.");
+      return;
+    }
+    onChange({
+      reprise_montant: montant,
+      reprise_mode: repriseModal.mode,
+      reprise_activite_id: modeSansActivite ? null : repriseModal.activiteId,
+    });
+    setRepriseModal(null);
+  };
+
   const jumpToPaiements = () => {
     setPaiementsModalOpen(true);
     requestAnimationFrame(() => {
@@ -1448,6 +1506,80 @@ export default function ClientDetail({
         onClose={() => setAvoirPromptReservationId(null)}
         onUse={useAvoir}
       />
+
+      {repriseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Le client avait déjà réglé toutes ses activités
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Pour cette nouvelle activité, quel est le règlement prévu ?
+            </p>
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-neutral-500">Montant</label>
+              <input
+                type="number"
+                step="0.01"
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                value={repriseModal.montant}
+                onChange={(e) => setRepriseModal({ ...repriseModal, montant: e.target.value })}
+              />
+            </div>
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-neutral-500">Mode de règlement</label>
+              <select
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                value={repriseModal.mode}
+                onChange={(e) => setRepriseModal({ ...repriseModal, mode: e.target.value })}
+              >
+                {MODES_PAIEMENT.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {repriseModal.mode !== "PayPal" && repriseModal.mode !== "Virement bancaire" && (
+              <div className="mb-4">
+                <label className="mb-1 block text-xs font-medium text-neutral-500">
+                  À quelle activité relier ce paiement ?
+                </label>
+                <select
+                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  value={repriseModal.activiteId}
+                  onChange={(e) => setRepriseModal({ ...repriseModal, activiteId: e.target.value })}
+                >
+                  <option value="">— Choisir —</option>
+                  {reservationsActives(reservations).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.nom_activite || "Activité sans nom"}
+                      {r.date_debut ? ` — ${fmtDate(r.date_debut)}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={confirmerReprise}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Valider
+              </button>
+              <button
+                onClick={() => {
+                  setRepriseModal(null);
+                  setPaiementsModalOpen(true);
+                }}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Plutôt ajouter une étape
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {avoirAppliedNotice !== null && (
         <div

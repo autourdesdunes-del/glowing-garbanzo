@@ -2564,7 +2564,7 @@ export function PaiementsStep({
                         ? ` — encaissé le ${fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts)}`
                         : ""}
                     </p>
-                    {client.acompte_montant_prevu !== null &&
+                    {typeof client.acompte_montant_prevu === "number" &&
                       Number(client.acompte_montant_prevu) !== Number(client.acompte_montant) && (
                         <p className="mt-0.5 text-xs font-medium text-red-600">
                           au lieu de {euros(client.acompte_montant_prevu)} € → raison :{" "}

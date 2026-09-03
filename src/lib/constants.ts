@@ -25,6 +25,7 @@ export const RELATIONS = [
   "Bouche à oreille",
   "Instagram",
   "TikTok",
+  "Groupe Facebook",
   "Influenceurs",
   "Google",
   "Site internet",

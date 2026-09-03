@@ -299,6 +299,67 @@ function whatsappSummary(client: Client) {
   return client.telephone_2 ? `${client.telephone} / ${client.telephone_2}` : client.telephone;
 }
 
+// Sélecteur simple avec une petite barre de recherche pour filtrer une
+// liste d'options longue (ex. "Relation grâce à") — un <select> HTML natif
+// n'offre aucun moyen de chercher dedans, il faut dérouler toute la liste
+// à chaque fois.
+function SearchableSelect({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: readonly string[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const filtered = search.trim()
+    ? options.filter((o) => o.toLowerCase().includes(search.trim().toLowerCase()))
+    : options;
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="input-flat text-left">
+        {value || "—"}
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <input
+        autoFocus
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="Rechercher…"
+        className="input-flat w-full"
+      />
+      <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-md border border-[#eaeaea] bg-white shadow-sm">
+        {filtered.length === 0 && <p className="px-3 py-2 text-xs text-neutral-400">Aucun résultat.</p>}
+        {filtered.map((o) => (
+          <button
+            key={o}
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              onChange(o);
+              setSearch("");
+              setOpen(false);
+            }}
+            className={`block w-full px-3 py-1.5 text-left text-sm hover:bg-[#fafafa] ${
+              o === value ? "font-medium text-[#171717]" : "text-neutral-600"
+            }`}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 type StepProps = {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
@@ -1127,15 +1188,11 @@ export function ContactStep({
           </PropertyRow>
 
           <PropertyRow label="Relation grâce à" icon={<PropIcon name="megaphone" />}>
-            <select
+            <SearchableSelect
               value={client.relation_grace_a}
-              onChange={(e) => onChange({ relation_grace_a: e.target.value })}
-              className="input-flat"
-            >
-              {RELATIONS.map((r) => (
-                <option key={r}>{r}</option>
-              ))}
-            </select>
+              options={RELATIONS}
+              onChange={(v) => onChange({ relation_grace_a: v })}
+            />
           </PropertyRow>
           {client.relation_grace_a === "Autre" && (
             <PropertyRow label="Préciser la relation">

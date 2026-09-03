@@ -107,8 +107,10 @@ const FR_EN_DICT: [RegExp, string][] = [
   [/dîner/gi, "dinner"],
   [/spectacle/gi, "show"],
   [/bédouin/gi, "bedouin"],
+  [/croisière/gi, "cruise"],
   [/montgolfière/gi, "hot air balloon"],
   [/transfert/gi, "transfer"],
+  [/\bvers\b/gi, "to"],
   [/aéroport/gi, "airport"],
   [/aléatoire/gi, "random"],
   [/arrêts/gi, "stops"],
@@ -158,6 +160,28 @@ function translateFr(text: string) {
     );
   });
   return out;
+}
+// "Croisière au fil du Nil de X vers Y (N jours et M nuits)" est une
+// tournure figée que la traduction mot à mot rendait illisible ("Croisière
+// at fil Nil Luxor vers Aswan...") — reconstruite entièrement plutôt que
+// rafistolée avec plus d'entrées au dictionnaire.
+function translateCroisiereTitle(nom: string): string | null {
+  const m = nom.match(
+    /^Croisière au fil du Nil de (.+?) vers (.+?)\s*\((\d+)\s*jours?\s*et\s*(\d+)\s*nuits?\)/i
+  );
+  if (!m) return null;
+  const [, villeA, villeB, jours, nuits] = m;
+  return `Nile Cruise from ${translateFr(villeA.trim())} to ${translateFr(villeB.trim())} (${jours} days and ${nuits} nights)`;
+}
+// "(déjà sur place)" ne veut rien dire pour l'équipe Égypte sans savoir de
+// quelle ville il s'agit — "already in Cairo"/"already in Luxor" est plus
+// clair que le générique "already on-site" du dictionnaire.
+function translateDejaSurPlace(nom: string): string {
+  const traduit = translateFr(nom);
+  const villeMatch = nom.match(/^(.+?)\s+\d.*\(déjà sur place\)/i);
+  if (!villeMatch) return traduit;
+  const ville = translateFr(villeMatch[1].trim());
+  return traduit.replace(/\(already on-site\)/i, `(already in ${ville})`);
 }
 // Le titre stocké peut porter un suffixe " — ..." (île / moment / créneau,
 // posé par l'assistant d'ajout) — on ne veut que le nom de base ici, le
@@ -704,19 +728,37 @@ function ActivityDetailModal({
 
   // Bloc équipe Égypte : la traduction reste "au mieux" (dictionnaire de
   // vocabulaire métier récurrent), pas un vrai moteur de traduction.
-  const activiteLines: string[] = [fmtDDMM(r.date_debut || ""), translateFr(baseActivityName(r.nom_activite))];
+  const titreBase = baseActivityName(r.nom_activite);
+  const titreTraduit =
+    translateCroisiereTitle(titreBase) ||
+    (titreBase.includes("déjà sur place") ? translateDejaSurPlace(titreBase) : translateFr(titreBase));
+  const activiteLines: string[] = [fmtDDMM(r.date_debut || ""), titreTraduit];
   const siteCaireLine = siteCaireEgyptLine(r);
   if (siteCaireLine) activiteLines.push(siteCaireLine);
   // La "2ème île" n'est jamais listée comme option ici — elle est déjà dans
   // le titre (ex. "avec Paradise + Hula Hula"), la répéter en dessous ferait
   // doublon. Format volontairement sans "participants" (tournure française
   // "N participants X") — juste la quantité et le nom, à l'anglaise.
+  // Montgolfière et Transfert Assouan - X (options de la croisière) ont
+  // chacune leur propre carte à leur vraie date (voir CROISIERE_OPTION_PRICING
+  // dans resa.ts) — on va chercher cette date pour l'afficher ici, sinon
+  // l'équipe Égypte ne sait pas quand ces à-côtés ont réellement lieu.
   options
     .filter((o) => !isDeuxiemeIleOption(o.nom))
     .forEach((o) => {
       const qty = Number(o.quantite) || 1;
       const label = translateFr(o.nom);
-      activiteLines.push(qty > 1 ? `${qty} ${label}` : label);
+      const carteLiee = clientReservations.find(
+        (rr) => rr.parent_reservation_id === r.id && rr.nom_activite === o.nom
+      );
+      const dateSuffixe = carteLiee?.date_debut ? ` (${fmtDDMM(carteLiee.date_debut)})` : "";
+      if (o.nom === "Montgolfière") {
+        activiteLines.push(`${qty} ${qty > 1 ? "ballons" : "ballon"}${dateSuffixe}`);
+      } else if (o.nom.startsWith("Transfert Assouan")) {
+        activiteLines.push(`${label} after Nile Cruise${dateSuffixe}`);
+      } else {
+        activiteLines.push(qty > 1 ? `${qty} ${label}` : label);
+      }
     });
   const momentEn = momentBadge(r);
   if (momentEn) activiteLines.push(translateFr(momentEn));

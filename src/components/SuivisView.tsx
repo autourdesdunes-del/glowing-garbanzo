@@ -37,6 +37,7 @@ import { BILLET_ETAPES, VILLES_VOL } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import BilletAvionUpload from "@/components/BilletAvionUpload";
 import MarquerRembourseModal from "@/components/MarquerRembourseModal";
+import RemboursementSummaryCard from "@/components/RemboursementSummaryCard";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -2295,7 +2296,7 @@ export default function SuivisView({
                         <button
                           type="button"
                           onClick={() => setMarquerRembourseIds(rembs.map((r) => r.id))}
-                          className="mt-1.5 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                          className="mt-2 rounded-md border border-emerald-700 bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700"
                         >
                           ✓ Remboursement effectué — total ({euros(totalClient)} €)
                         </button>
@@ -2320,7 +2321,7 @@ export default function SuivisView({
                                 type="button"
                                 onClick={() => setMarquerRembourseIds([r.id])}
                                 title="Marquer ce remboursement effectué"
-                                className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
+                                className="shrink-0 rounded-md border border-emerald-600 bg-white px-2 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
                               >
                                 ✓ Effectué
                               </button>
@@ -2347,15 +2348,25 @@ export default function SuivisView({
                   className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
                   onClick={() => setOpenRembModalId(null)}
                 >
-                  <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md">
-                    <RemboursementCard
-                      r={r}
-                      client={client}
-                      activite={activite}
-                      isOpen
-                      onToggle={() => setOpenRembModalId(null)}
-                      onOpenClient={onOpenClient}
-                    />
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full max-w-md overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl"
+                  >
+                    <div className="flex items-center justify-between border-b border-neutral-100 px-3 py-2">
+                      <ClientNameLink
+                        nom={client.nom}
+                        onClick={() => onOpenClient(client.id)}
+                        className="text-sm font-medium text-[#171717] hover:underline"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setOpenRembModalId(null)}
+                        className="text-neutral-400 hover:text-[#171717]"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <RemboursementSummaryCard r={r} client={client} activiteLiee={activite} />
                   </div>
                 </div>
               );

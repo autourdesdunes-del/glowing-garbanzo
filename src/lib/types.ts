@@ -441,6 +441,12 @@ export type Client = {
   // reçu (acompte_montant, mis à jour au même moment) est inférieur au
   // montant prévu. Affiché comme note sur la carte acompte une fois coché.
   acompte_entre_proches_oublie: boolean;
+  // Montant initialement prévu pour l'acompte, figé au moment de "Valider"
+  // — jamais modifié ensuite, contrairement à acompte_montant qui devient
+  // le montant réellement reçu si ajusté à l'encaissement. Sert à afficher
+  // l'écart ("135€ au lieu de X€"), null pour les dossiers créés avant
+  // cette fonctionnalité (pas d'écart affiché dans ce cas).
+  acompte_montant_prevu: number | null;
   au_revoir_envoye: boolean;
   au_revoir_envoye_le: string | null;
   // Qui a envoyé le message "au revoir" — pour le rappel personnel
@@ -552,6 +558,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   acompte_date_encaissement: null,
   acompte_encaisse_ts: null,
   acompte_entre_proches_oublie: false,
+  acompte_montant_prevu: null,
   au_revoir_envoye: false,
   au_revoir_envoye_le: null,
   au_revoir_envoye_par_id: null,

@@ -1546,6 +1546,7 @@ function PaiementResteFlow({
   onChange,
   reservations,
   montantACouvrir,
+  montantACouvrirPrevu,
   confirm,
   toast,
   isDirection = false,
@@ -1555,6 +1556,10 @@ function PaiementResteFlow({
   onChange: (patch: Partial<Client>) => void;
   reservations: Reservation[];
   montantACouvrir: number;
+  // Ce qui était prévu avant tout ajustement d'acompte — sert uniquement à
+  // afficher l'écart ("604€ au lieu de 600€"). Égal à montantACouvrir si
+  // non fourni (aucun écart à signaler).
+  montantACouvrirPrevu?: number;
   confirm: ReturnType<typeof useConfirm>;
   toast: ReturnType<typeof useToast>;
   isDirection?: boolean;
@@ -1565,6 +1570,7 @@ function PaiementResteFlow({
     activiteId?: string | null;
   }) => void;
 }) {
+  const montantPrevu = montantACouvrirPrevu ?? montantACouvrir;
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
 
@@ -1929,6 +1935,14 @@ function PaiementResteFlow({
                       {soldeMode}
                     </span>
                   </div>
+                  {montantPrevu !== montantACouvrir && (
+                    <p className="mt-1 text-xs font-medium text-red-600">
+                      {euros(montantACouvrir)} € au lieu de {euros(montantPrevu)} € → raison :{" "}
+                      {client.acompte_entre_proches_oublie
+                        ? "rattrapage de l'oubli « Entre proches »"
+                        : "montant de l'acompte ajusté"}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <EncaisseButton
@@ -2343,7 +2357,7 @@ export function PaiementsStep({
       toast("Renseigne le montant de l'acompte avant de valider.");
       return;
     }
-    onChange({ acompte_valide: true });
+    onChange({ acompte_valide: true, acompte_montant_prevu: Number(client.acompte_montant) || 0 });
   };
 
   const supprimerAcompte = () => {
@@ -2353,6 +2367,7 @@ export function PaiementsStep({
       acompte_date_encaissement: null,
       acompte_encaisse_ts: null,
       acompte_entre_proches_oublie: false,
+      acompte_montant_prevu: null,
     });
   };
 
@@ -2389,6 +2404,17 @@ export function PaiementsStep({
   const resteApresAcompte = Math.max(
     totalSejour -
       (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0) -
+      etapesSum -
+      avoirUtilise,
+    0
+  );
+  // Même calcul mais avec le montant d'acompte initialement prévu (jamais
+  // modifié) — sert uniquement à détecter et afficher l'écart sur la carte
+  // du solde quand l'acompte a finalement été encaissé pour moins/plus que
+  // prévu (ex. frais PayPal). Égal à resteApresAcompte si rien n'a changé.
+  const resteApresAcomptePrevu = Math.max(
+    totalSejour -
+      (client.acompte_valide ? Number(client.acompte_montant_prevu ?? client.acompte_montant) || 0 : 0) -
       etapesSum -
       avoirUtilise,
     0
@@ -2538,11 +2564,15 @@ export function PaiementsStep({
                         ? ` — encaissé le ${fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts)}`
                         : ""}
                     </p>
-                    {client.acompte_paye && client.acompte_entre_proches_oublie && (
-                      <p className="mt-0.5 text-xs italic text-orange-600">
-                        &quot;Entre proches&quot; a été oublié
-                      </p>
-                    )}
+                    {client.acompte_montant_prevu !== null &&
+                      Number(client.acompte_montant_prevu) !== Number(client.acompte_montant) && (
+                        <p className="mt-0.5 text-xs font-medium text-red-600">
+                          au lieu de {euros(client.acompte_montant_prevu)} € → raison :{" "}
+                          {client.acompte_entre_proches_oublie
+                            ? "oubli « Entre proches »"
+                            : "montant réel différent du prévu"}
+                        </p>
+                      )}
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-2">
                     <EncaisseButton
@@ -2575,6 +2605,7 @@ export function PaiementsStep({
                 onChange={onChange}
                 reservations={reservations}
                 montantACouvrir={resteApresAcompte}
+                montantACouvrirPrevu={resteApresAcomptePrevu}
                 confirm={confirm}
                 toast={toast}
                 isDirection={isDirection}

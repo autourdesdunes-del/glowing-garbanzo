@@ -2052,6 +2052,7 @@ export function PaiementsStep({
     date: string;
     time: string;
     montant: string;
+    montantDifferent: boolean;
   } | null>(null);
   const [billetHossamReminder, setBilletHossamReminder] = useState<Reservation | null>(null);
   const [copiedHossamReminder, setCopiedHossamReminder] = useState(false);
@@ -2348,6 +2349,7 @@ export function PaiementsStep({
       date: todayStr(),
       time: defaultTime,
       montant: String(client.acompte_montant),
+      montantDifferent: false,
     });
   };
 
@@ -2789,20 +2791,32 @@ export function PaiementsStep({
                   Marquer l&apos;acompte encaissé à la date d&apos;aujourd&apos;hui ?
                 </p>
                 <div className="mb-4">
-                  <Field label="Montant réellement reçu (€)">
-                    <input
-                      type="number"
-                      value={acompteDateModal.montant}
-                      onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
-                      className="input"
-                    />
-                  </Field>
-                  {Number(acompteDateModal.montant) !== Number(client.acompte_montant) && (
-                    <p className="mt-1 text-xs text-orange-600">
-                      ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €) — ex. frais PayPal si
-                      &quot;Entre proches&quot; n&apos;a pas été utilisé. La différence sera reportée sur le
-                      solde restant dû.
-                    </p>
+                  {acompteDateModal.montantDifferent ? (
+                    <>
+                      <Field label="Montant réellement reçu (€)">
+                        <input
+                          type="number"
+                          value={acompteDateModal.montant}
+                          onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
+                          className="input"
+                        />
+                      </Field>
+                      {Number(acompteDateModal.montant) !== Number(client.acompte_montant) && (
+                        <p className="mt-1 text-xs text-orange-600">
+                          ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €) — ex. frais PayPal si
+                          &quot;Entre proches&quot; n&apos;a pas été utilisé. La différence sera reportée sur
+                          le solde restant dû.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAcompteDateModal({ ...acompteDateModal, montantDifferent: true })}
+                      className="text-xs font-medium text-neutral-500 underline hover:text-neutral-700"
+                    >
+                      Montant de l&apos;acompte différent ?
+                    </button>
                   )}
                 </div>
                 {client.acompte_mode === "PayPal" && (
@@ -2848,19 +2862,31 @@ export function PaiementsStep({
             ) : (
               <>
                 <div className="mb-4">
-                  <Field label="Montant réellement reçu (€)">
-                    <input
-                      type="number"
-                      value={acompteDateModal.montant}
-                      onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
-                      className="input"
-                    />
-                  </Field>
-                  {Number(acompteDateModal.montant) !== Number(client.acompte_montant) && (
-                    <p className="mt-1 text-xs text-orange-600">
-                      ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €) — la différence sera
-                      reportée sur le solde restant dû.
-                    </p>
+                  {acompteDateModal.montantDifferent ? (
+                    <>
+                      <Field label="Montant réellement reçu (€)">
+                        <input
+                          type="number"
+                          value={acompteDateModal.montant}
+                          onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
+                          className="input"
+                        />
+                      </Field>
+                      {Number(acompteDateModal.montant) !== Number(client.acompte_montant) && (
+                        <p className="mt-1 text-xs text-orange-600">
+                          ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €) — la différence sera
+                          reportée sur le solde restant dû.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAcompteDateModal({ ...acompteDateModal, montantDifferent: true })}
+                      className="text-xs font-medium text-neutral-500 underline hover:text-neutral-700"
+                    >
+                      Montant de l&apos;acompte différent ?
+                    </button>
                   )}
                 </div>
                 <div className="mb-4 flex gap-2">

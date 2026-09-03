@@ -3248,6 +3248,12 @@ function tableLabel(table: string) {
   );
 }
 
+const ANNULATION_TYPE_PAR: Record<string, string> = {
+  client: "par le client",
+  agence: "par l'agence",
+  gouvernement: "par le gouvernement",
+};
+
 const ACTION_STYLES: Record<string, string> = {
   insert: "bg-green-100 text-green-700",
   update: "bg-blue-100 text-blue-700",
@@ -3434,62 +3440,97 @@ export function SuiviStep({
           {remboursements.map((r) => {
             const activiteLiee = reservations.find((res) => res.id === r.activite_id);
             const isExpanded = expandedRembId === r.id;
+            const moyenPaiement =
+              r.mode === "PayPal"
+                ? r.paypal_email || "adresse PayPal manquante"
+                : r.mode === "Virement bancaire"
+                  ? r.rib_photo_path
+                    ? "RIB fourni"
+                    : "RIB manquant"
+                  : r.mode || "moyen non précisé";
+            const motif =
+              (activiteLiee?.annulation_raison || (r.raison === "Autre" ? r.raison_autre : r.raison) || "—");
             return (
-              <div
-                key={r.id}
-                className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm"
-              >
-                <div
-                  className={`flex items-center justify-between gap-3 px-4 py-3 ${
-                    r.statut === "Effectué" ? "bg-green-50" : "bg-[#f5a623]/10"
-                  }`}
+              <div key={r.id} className="rounded-md border border-neutral-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setExpandedRembId(r.id)}
+                  className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-[#fafafa]"
                 >
-                  <button
-                    type="button"
-                    onClick={() => setExpandedRembId(isExpanded ? null : r.id)}
-                    className="flex flex-1 flex-wrap items-center gap-3 text-left"
-                  >
-                    <span className="font-heading text-xl font-semibold text-[#171717]">
-                      {euros(r.montant)} €
-                    </span>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <p className="text-sm font-medium text-[#171717]">
+                      {client.nom || "Sans nom"} — {moyenPaiement}
+                    </p>
+                    {activiteLiee && (
+                      <p className="text-xs text-neutral-600">
+                        Activité annulée ({ANNULATION_TYPE_PAR[activiteLiee.annulation_type] || "par le client"}) :{" "}
+                        {activiteLiee.nom_activite || "Activité sans nom"}
+                      </p>
+                    )}
+                    <p className="text-xs text-neutral-500">
+                      Date prévue de l&apos;activité : {activiteLiee?.date_debut ? fmtDate(activiteLiee.date_debut) : "—"}
+                      {" — "}Date et heure d&apos;annulation : {fmtDateTime(r.created_at)}
+                    </p>
+                    <p className="text-xs text-neutral-500">Motif : {motif}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className="font-heading text-lg font-bold text-red-600">{euros(r.montant)} €</span>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        r.statut === "Effectué"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-[#f5a623]/20 text-[#8B4531]"
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        r.statut === "Effectué" ? "bg-green-100 text-green-700" : "bg-[#f5a623]/20 text-[#8B4531]"
                       }`}
                     >
                       {r.statut}
                     </span>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-neutral-500">
-                      {r.mode}
-                    </span>
-                    {r.raison && (
-                      <span className="text-xs text-neutral-500">{r.raison === "Autre" ? r.raison_autre : r.raison}</span>
-                    )}
-                  </button>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedRembId(isExpanded ? null : r.id)}
-                      title="Modifier"
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-white/60 text-neutral-500 hover:bg-white hover:text-[#171717]"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteRemboursement(r.id)}
-                      title="Supprimer"
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-white/60 text-red-500 hover:bg-red-50"
-                    >
-                      🗑
-                    </button>
+                    <div className="flex gap-1">
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedRembId(r.id);
+                        }}
+                        title="Modifier"
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-[#171717]"
+                      >
+                        ✎
+                      </span>
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteRemboursement(r.id);
+                        }}
+                        title="Supprimer"
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-red-500 hover:bg-red-50"
+                      >
+                        🗑
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </button>
 
                 {isExpanded && (
-                <div className="space-y-4 p-4">
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                  onClick={() => setExpandedRembId(null)}
+                >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+                >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <h3 className="font-heading text-base font-semibold text-[#171717]">Remboursement — {client.nom}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedRembId(null)}
+                    className="text-neutral-400 hover:text-[#171717]"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Montant (€)">
                       <input
@@ -3637,6 +3678,8 @@ export function SuiviStep({
                     )}
                   </div>
                 </div>
+                </div>
+                </div>
                 )}
               </div>
             );
@@ -3660,45 +3703,86 @@ export function SuiviStep({
         <div className="space-y-3">
           {avoirs.map((a) => {
             const isExpandedAvoir = expandedAvoirId === a.id;
+            const activiteLieeAvoir = reservations.find((res) => res.id === a.activite_id);
+            const motifAvoir =
+              activiteLieeAvoir?.annulation_raison || (a.raison === "Autre" ? a.raison_autre : a.raison) || "—";
             return (
-            <div key={a.id} className="rounded-md border border-neutral-200 bg-white p-3">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
+            <div key={a.id} className="rounded-md border border-neutral-200 bg-white shadow-sm">
+              <button
+                type="button"
+                onClick={() => setExpandedAvoirId(a.id)}
+                className="flex w-full items-start justify-between gap-3 p-3 text-left hover:bg-[#fafafa]"
+              >
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-sm font-medium text-[#171717]">{client.nom || "Sans nom"} — Avoir</p>
+                  {activiteLieeAvoir && (
+                    <p className="text-xs text-neutral-600">
+                      Activité annulée ({ANNULATION_TYPE_PAR[activiteLieeAvoir.annulation_type] || "par le client"}) :{" "}
+                      {activiteLieeAvoir.nom_activite || "Activité sans nom"}
+                    </p>
+                  )}
+                  <p className="text-xs text-neutral-500">
+                    Date prévue de l&apos;activité :{" "}
+                    {activiteLieeAvoir?.date_debut ? fmtDate(activiteLieeAvoir.date_debut) : "—"}
+                    {" — "}Date et heure d&apos;annulation : {fmtDateTime(a.created_at)}
+                  </p>
+                  <p className="text-xs text-neutral-500">Motif : {motifAvoir}</p>
+                  <p className="text-xs text-neutral-400">
+                    À utiliser jusqu&apos;au {client.date_fin ? fmtDate(client.date_fin) : "—"} (fin de séjour)
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className="font-heading text-lg font-bold text-orange-600">
+                    {euros(a.montant_restant)} € <span className="text-xs font-normal text-neutral-400">/ {euros(a.montant)} €</span>
+                  </span>
+                  <div className="flex gap-1">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedAvoirId(a.id);
+                      }}
+                      title="Modifier"
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-[#171717]"
+                    >
+                      ✎
+                    </span>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteAvoir(a.id);
+                      }}
+                      title="Supprimer"
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-red-500 hover:bg-red-50"
+                    >
+                      🗑
+                    </span>
+                  </div>
+                </div>
+              </button>
+              {isExpandedAvoir && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                onClick={() => setExpandedAvoirId(null)}
+              >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+              >
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <h3 className="font-heading text-base font-semibold text-[#171717]">Avoir — {client.nom}</h3>
                 <button
                   type="button"
-                  onClick={() => setExpandedAvoirId(isExpandedAvoir ? null : a.id)}
-                  className="flex flex-1 flex-wrap items-center gap-2 text-left"
+                  onClick={() => setExpandedAvoirId(null)}
+                  className="text-neutral-400 hover:text-[#171717]"
                 >
-                  <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 font-medium text-[#8B4531]">
-                    Restant : {euros(a.montant_restant)} € / {euros(a.montant)} €
-                  </span>
-                  <span className="text-neutral-500">
-                    À utiliser jusqu&apos;au {client.date_fin ? fmtDate(client.date_fin) : "—"} (date de fin de séjour)
-                  </span>
-                  {a.raison && (
-                    <span className="text-neutral-500">— {a.raison === "Autre" ? a.raison_autre : a.raison}</span>
-                  )}
+                  ✕
                 </button>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedAvoirId(isExpandedAvoir ? null : a.id)}
-                    title="Modifier"
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-[#171717]"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteAvoir(a.id)}
-                    title="Supprimer"
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-red-500 hover:bg-red-50"
-                  >
-                    🗑
-                  </button>
-                </div>
               </div>
-              {isExpandedAvoir && (
-              <div className="mt-2 grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Field label="Montant de l'avoir (€)">
                   <input
                     type="number"
@@ -3753,6 +3837,8 @@ export function SuiviStep({
                     className="input"
                   />
                 </Field>
+              </div>
+              </div>
               </div>
               )}
             </div>

@@ -1519,6 +1519,28 @@ function EncaisseButton({
   );
 }
 
+// Écart entre ce qui était attendu au solde (avant ajustement de l'acompte)
+// et ce qui l'est réellement — affiché à l'identique quel que soit le mode
+// choisi pour le solde (RDV, virement/paypal/CB, activité), pour que ça
+// fonctionne pour chaque client, pas seulement "paiement à l'activité".
+function EcartAcompteLine({
+  reel,
+  prevu,
+  entreProchesOublie,
+}: {
+  reel: number;
+  prevu: number;
+  entreProchesOublie: boolean;
+}) {
+  if (reel === prevu) return null;
+  return (
+    <p className="mt-1 text-xs font-medium text-red-600">
+      {euros(reel)} € au lieu de {euros(prevu)} € → raison :{" "}
+      {entreProchesOublie ? "rattrapage de l'oubli « Entre proches »" : "montant de l'acompte ajusté"}
+    </p>
+  );
+}
+
 const INTEGRAL_MODES = [
   { key: "rdv", label: "Rendez-vous paiement planifié", className: "border-blue-300 bg-blue-50 text-blue-700" },
   { key: "activite_eur", label: "Paiement à la première activité en €", className: "border-orange-300 bg-orange-50 text-orange-700" },
@@ -1796,6 +1818,11 @@ function PaiementResteFlow({
                     {client.solde_mode}
                   </span>
                 </div>
+                <EcartAcompteLine
+                  reel={montantAttenduReel}
+                  prevu={montantAttenduPrevu}
+                  entreProchesOublie={client.acompte_entre_proches_oublie}
+                />
               </div>
               <div className="flex flex-shrink-0 items-center gap-2">
                 <EncaisseButton
@@ -1859,6 +1886,11 @@ function PaiementResteFlow({
                         {soldeMode}
                       </span>
                     </div>
+                    <EcartAcompteLine
+                      reel={montantAttenduReel}
+                      prevu={montantAttenduPrevu}
+                      entreProchesOublie={client.acompte_entre_proches_oublie}
+                    />
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-2">
                     <EncaisseButton
@@ -1940,14 +1972,11 @@ function PaiementResteFlow({
                       {soldeMode}
                     </span>
                   </div>
-                  {montantAttenduReel !== montantAttenduPrevu && (
-                    <p className="mt-1 text-xs font-medium text-red-600">
-                      {euros(montantAttenduReel)} € au lieu de {euros(montantAttenduPrevu)} € → raison :{" "}
-                      {client.acompte_entre_proches_oublie
-                        ? "rattrapage de l'oubli « Entre proches »"
-                        : "montant de l'acompte ajusté"}
-                    </p>
-                  )}
+                  <EcartAcompteLine
+                    reel={montantAttenduReel}
+                    prevu={montantAttenduPrevu}
+                    entreProchesOublie={client.acompte_entre_proches_oublie}
+                  />
                 </div>
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <EncaisseButton

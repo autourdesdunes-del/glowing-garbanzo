@@ -76,6 +76,9 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
 // de contenu s'affiche ici.
 export const DIRECTION_SUBS = [
   { key: "dashboard", label: "Tableau de bord direction" },
+  // Même contenu que Suivis > Remboursements (voir AppShell.tsx) — dupliqué
+  // ici temporairement, le temps de migrer cet onglet vers le dashboard.
+  { key: "remboursements", label: "Remboursements" },
   { key: "comptabilite", label: "Comptabilité" },
   { key: "marketing", label: "Digital marketing" },
   { key: "statsAgences", label: "Stat agences" },

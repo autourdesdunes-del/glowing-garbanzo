@@ -2907,6 +2907,36 @@ function AppShellInner({
             </div>
           ) : !planningLoaded ? (
             <Spinner />
+          ) : directionSub === "remboursements" ? (
+            // Même contenu que Suivis > Remboursements — dupliqué ici
+            // temporairement (à retirer de Suivi une fois migré vers le
+            // dashboard, voir demande de Mélanie).
+            <SuivisView
+              sub="remb"
+              clients={clients}
+              reservations={allReservations}
+              resaOptions={allResaOptions}
+              resaTarifs={allResaTarifs}
+              paiementsEtapes={allPaiementsEtapes}
+              remboursements={allRemboursements}
+              onUpdateRemboursement={updateRemboursement}
+              onDeleteRemboursement={deleteRemboursement}
+              isDirection={effectiveIsDirection}
+              incidents={allIncidents}
+              verifications={allVerifications}
+              paypalPaiements={paypalPaiements}
+              onRattacherPaiement={rattacherPaypalPaiement}
+              profiles={teamProfiles}
+              currentUserId={userId}
+              planningShifts={teamPlanningShifts}
+              catalogue={catalogue}
+              onUpdateClient={updateClientById}
+              onUpdateReservation={updateReservationById}
+              onOpenClient={openClient}
+              initialRdvModalClientId={null}
+              initialBilletId={null}
+              onOpenReservationActivity={openReservationFromBillet}
+            />
           ) : (
             <DirectionView
               sub={directionSub}

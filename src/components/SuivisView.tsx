@@ -231,16 +231,19 @@ function RemboursementCard({
             </div>
           )}
           {isDirection && onDelete && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="border-t border-neutral-100 pt-2 text-xs font-medium text-red-600 hover:underline"
-            >
-              🗑 Supprimer ce remboursement (Direction)
-            </button>
+            <div className="border-t border-neutral-100 pt-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                title="Supprimer ce remboursement (Direction)"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100"
+              >
+                🗑
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -2383,29 +2386,32 @@ export default function SuivisView({
                         onClick={() => onOpenClient(client.id)}
                         className="text-sm font-medium text-[#171717] hover:underline"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setOpenRembModalId(null)}
-                        className="text-neutral-400 hover:text-[#171717]"
-                      >
-                        ✕
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {isDirection && onDeleteRemboursement && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm("Supprimer ce remboursement ? Cette action est irréversible.")) {
+                                onDeleteRemboursement(r.id);
+                                setOpenRembModalId(null);
+                              }
+                            }}
+                            title="Supprimer ce remboursement (Direction)"
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100"
+                          >
+                            🗑
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setOpenRembModalId(null)}
+                          className="text-neutral-400 hover:text-[#171717]"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
                     <RemboursementSummaryCard r={r} client={client} activiteLiee={activite} />
-                    {isDirection && onDeleteRemboursement && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm("Supprimer ce remboursement ? Cette action est irréversible.")) {
-                            onDeleteRemboursement(r.id);
-                            setOpenRembModalId(null);
-                          }
-                        }}
-                        className="w-full border-t border-neutral-100 px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50"
-                      >
-                        🗑 Supprimer ce remboursement (Direction)
-                      </button>
-                    )}
                   </div>
                 </div>
               );

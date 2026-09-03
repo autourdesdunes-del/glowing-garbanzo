@@ -239,6 +239,7 @@ export default function DashboardView({
   onOpenClientForNewActivity,
   onOpenClientForCancelActivity,
   onOpenClientForRemboursement,
+  onOpenRemboursements,
   onOpenRdvPaiements,
   onOpenPickupsChambres,
   onOpenNumerosChambre,
@@ -273,6 +274,7 @@ export default function DashboardView({
   onOpenClientForNewActivity: (id: string) => void;
   onOpenClientForCancelActivity: (id: string) => void;
   onOpenClientForRemboursement: (id: string) => void;
+  onOpenRemboursements: () => void;
   onOpenRdvPaiements: () => void;
   onOpenPickupsChambres: () => void;
   onOpenNumerosChambre: () => void;
@@ -644,6 +646,12 @@ export default function DashboardView({
             className="whitespace-nowrap rounded-[6px] border border-[#0F5C56] px-3 py-1.5 text-sm font-medium text-[#0F5C56] hover:bg-[#0F5C56]/5"
           >
             + Remboursement / avoir
+          </button>
+          <button
+            onClick={onOpenRemboursements}
+            className="whitespace-nowrap rounded-[6px] border border-[#C9973E] px-3 py-1.5 text-sm font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
+          >
+            Voir les remboursements
           </button>
         </div>
       </div>

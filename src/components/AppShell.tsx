@@ -749,7 +749,7 @@ function AppShellInner({
         setPlanningLoaded(true);
       }
 
-      if (mode === "suivis" && !suivisLoaded) {
+      if ((mode === "suivis" || mode === "direction") && !suivisLoaded) {
         const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
         setSuivisLoaded(true);
@@ -848,6 +848,13 @@ function AppShellInner({
     setMode("suivis");
     setSuivisSub("rdv");
     if (clientId) setRdvAutoOpenClientId(clientId);
+  };
+
+  // "remb" n'a plus d'entrée dans le sous-menu Suivi — accessible
+  // uniquement depuis ce raccourci (dashboard).
+  const openRemboursements = () => {
+    setMode("suivis");
+    setSuivisSub("remb");
   };
 
   // Depuis le dashboard, "+ Nouvelle activité" : rattacher directement à un
@@ -2472,6 +2479,7 @@ function AppShellInner({
               onOpenClientForNewActivity={openClientForNewActivity}
               onOpenClientForCancelActivity={openClientForCancelActivity}
               onOpenClientForRemboursement={openClientForRemboursement}
+              onOpenRemboursements={openRemboursements}
               onOpenRdvPaiements={openRdvPaiements}
               onOpenPickupsChambres={openPickupsChambres}
               onOpenNumerosChambre={openNumerosChambre}
@@ -2905,7 +2913,7 @@ function AppShellInner({
                 </p>
               </div>
             </div>
-          ) : !planningLoaded ? (
+          ) : !planningLoaded || (directionSub === "remboursements" && !suivisLoaded) ? (
             <Spinner />
           ) : directionSub === "remboursements" ? (
             // Même contenu que Suivis > Remboursements — dupliqué ici

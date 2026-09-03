@@ -370,12 +370,14 @@ export const SUIVIS_SUBS = [
     labelAr: "عميل بدون رد منذ 48 ساعة",
     groupe: "suivi_du_suivi",
   },
-  { key: "remb", label: "Remboursements", labelAr: "المبالغ المستردة", groupe: "suivi_du_suivi" },
   { key: "aurevoir", label: "Au revoir", labelAr: "رسالة الوداع", groupe: "suivi_du_suivi" },
   { key: "avis", label: "Avis clients", labelAr: "آراء العملاء", groupe: "suivi_du_suivi" },
 ] as const;
 
-export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"];
+// "remb" n'apparaît plus dans le sous-menu Suivi (retiré à la demande de
+// Mélanie, déplacé vers le dashboard et dupliqué dans Direction) mais reste
+// une valeur valide de sub — SuivisView sait toujours l'afficher.
+export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"] | "remb";
 
 const APPEL_PLATEFORMES = ["Instagram", "WhatsApp", "Mobile", "Google Meet", "Zoom"];
 

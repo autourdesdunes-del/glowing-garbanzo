@@ -229,6 +229,19 @@ export function repriseActiviteCible(client: Client, reservations: Reservation[]
   return [...actives].sort((a, b) => (b.date_debut || "").localeCompare(a.date_debut || ""))[0] || null;
 }
 
+// Statut "point de collecte" habituel correspondant au mode choisi pour la
+// reprise — le badge principal de l'activité doit se comporter comme un
+// vrai "Paiement à l'activité"/"En attente", jamais un texte à part : le
+// rappel visuel dédié (montant/mode) est déjà porté à côté du titre par
+// activitePaiementWarning/acompteWaitingWarning.
+const REPRISE_MODE_TO_KEY: Record<string, StatutPaiementKey> = {
+  "Espèces EUR": "activite_eur",
+  "Espèces EGP": "activite_egp",
+  "Carte bleue": "activite_cb",
+  PayPal: "attente_paypal",
+  "Virement bancaire": "attente",
+};
+
 export function paiementBadge(
   client: Client,
   r: Reservation,
@@ -238,10 +251,9 @@ export function paiementBadge(
   etapes?: PaiementEtape[]
 ) {
   if (reservations && repriseActiviteCible(client, reservations)?.id === r.id) {
-    return {
-      label: `⚠️ ${fmtEuros(client.reprise_montant)} € à régler — ${client.reprise_mode}`,
-      className: "bg-orange-100 text-orange-700",
-    };
+    const repriseKey = REPRISE_MODE_TO_KEY[client.reprise_mode] || "attente";
+    const repriseOpt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === repriseKey)!;
+    return { label: repriseOpt.label, className: repriseOpt.className };
   }
 
   const key = paiementStatutKey(client, r);
@@ -342,6 +354,21 @@ export function activitePaiementWarning(
   resaTarifs: Record<string, ReservationTarif[]>,
   etapes: PaiementEtape[] = []
 ): { amount: number; devise: "€" | "EGP" } | null {
+  // Reprise réglée en espèces/CB/EGP : prioritaire sur le solde d'origine,
+  // déjà "payé" par ailleurs (règle du solde unique — voir
+  // repriseActiviteCible) — affichée avec le même rappel que le point de
+  // collecte habituel, "à côté du titre".
+  if (
+    Number(client.reprise_montant) > 0 &&
+    client.reprise_mode !== "PayPal" &&
+    client.reprise_mode !== "Virement bancaire" &&
+    client.reprise_activite_id === r.id
+  ) {
+    return {
+      amount: Number(client.reprise_montant) || 0,
+      devise: client.reprise_mode === "Espèces EGP" ? "EGP" : "€",
+    };
+  }
   if (client.solde_paye) return null;
   if (!client.solde_activite_id) return null;
   const estCollecte = r.id === client.solde_activite_id;
@@ -381,6 +408,16 @@ export function acompteWaitingWarning(
   r: Reservation,
   reservations: Reservation[]
 ): { montant: number; mode: string } | null {
+  // Reprise réglée en PayPal/virement : affichée sur la prochaine activité
+  // à venir (voir repriseActiviteCible), avec le même rappel "waiting" que
+  // l'acompte — prioritaire sur le solde d'origine, déjà "payé" ailleurs.
+  if (
+    Number(client.reprise_montant) > 0 &&
+    (client.reprise_mode === "PayPal" || client.reprise_mode === "Virement bancaire")
+  ) {
+    const cible = repriseActiviteCible(client, reservations);
+    if (cible?.id === r.id) return { montant: Number(client.reprise_montant) || 0, mode: client.reprise_mode };
+  }
   if (client.paiement_type !== "acompte") return null;
   if (!client.acompte_valide || client.acompte_paye) return null;
   const sorted = [...reservations]

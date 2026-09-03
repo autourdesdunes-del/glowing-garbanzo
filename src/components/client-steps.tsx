@@ -2051,6 +2051,7 @@ export function PaiementsStep({
     step: "choix" | "date";
     date: string;
     time: string;
+    montant: string;
   } | null>(null);
   const [billetHossamReminder, setBilletHossamReminder] = useState<Reservation | null>(null);
   const [copiedHossamReminder, setCopiedHossamReminder] = useState(false);
@@ -2342,7 +2343,12 @@ export function PaiementsStep({
     }
     const now = new Date();
     const defaultTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    setAcompteDateModal({ step: "choix", date: todayStr(), time: defaultTime });
+    setAcompteDateModal({
+      step: "choix",
+      date: todayStr(),
+      time: defaultTime,
+      montant: String(client.acompte_montant),
+    });
   };
 
   const resteApresAcompte = Math.max(
@@ -2782,6 +2788,23 @@ export function PaiementsStep({
                 <p className="mb-4 text-sm text-neutral-600">
                   Marquer l&apos;acompte encaissé à la date d&apos;aujourd&apos;hui ?
                 </p>
+                <div className="mb-4">
+                  <Field label="Montant réellement reçu (€)">
+                    <input
+                      type="number"
+                      value={acompteDateModal.montant}
+                      onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                  {Number(acompteDateModal.montant) !== Number(client.acompte_montant) && (
+                    <p className="mt-1 text-xs text-orange-600">
+                      ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €) — ex. frais PayPal si
+                      &quot;Entre proches&quot; n&apos;a pas été utilisé. La différence sera reportée sur le
+                      solde restant dû.
+                    </p>
+                  )}
+                </div>
                 {client.acompte_mode === "PayPal" && (
                   <div className="mb-4">
                     <Field label="Heure de l'encaissement">
@@ -2800,6 +2823,7 @@ export function PaiementsStep({
                       const isPaypal = client.acompte_mode === "PayPal";
                       onChange({
                         acompte_paye: true,
+                        acompte_montant: Number(acompteDateModal.montant) || client.acompte_montant,
                         acompte_date_encaissement: todayStr(),
                         acompte_encaisse_ts:
                           isPaypal && acompteDateModal.time
@@ -2823,6 +2847,22 @@ export function PaiementsStep({
               </>
             ) : (
               <>
+                <div className="mb-4">
+                  <Field label="Montant réellement reçu (€)">
+                    <input
+                      type="number"
+                      value={acompteDateModal.montant}
+                      onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                  {Number(acompteDateModal.montant) !== Number(client.acompte_montant) && (
+                    <p className="mt-1 text-xs text-orange-600">
+                      ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €) — la différence sera
+                      reportée sur le solde restant dû.
+                    </p>
+                  )}
+                </div>
                 <div className="mb-4 flex gap-2">
                   <Field label="Date d'encaissement">
                     <input
@@ -2849,6 +2889,7 @@ export function PaiementsStep({
                       const isPaypal = client.acompte_mode === "PayPal";
                       onChange({
                         acompte_paye: true,
+                        acompte_montant: Number(acompteDateModal.montant) || client.acompte_montant,
                         acompte_date_encaissement: acompteDateModal.date,
                         acompte_encaisse_ts:
                           isPaypal && acompteDateModal.time

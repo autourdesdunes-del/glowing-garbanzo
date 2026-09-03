@@ -56,6 +56,7 @@ export default function GuidedActivityModal({
   onJourEscalation,
   onAssouanVerification,
   assouanVerifications,
+  onActivityFinished,
 }: {
   open: boolean;
   onClose: () => void;
@@ -95,6 +96,7 @@ export default function GuidedActivityModal({
   ) => Promise<void>;
   onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
   assouanVerifications: AssouanVerification[];
+  onActivityFinished?: () => void;
 }) {
   const [step, setStep] = useState<Step>("activites");
   // Tant que le pas-à-pas de création d'activité est ouvert (à l'intérieur
@@ -168,6 +170,7 @@ export default function GuidedActivityModal({
             coutsMap={coutsMap}
             onUpdateCoutReel={onUpdateCoutReel}
             onAddingNewChange={setWizardOpen}
+            onActivityFinished={onActivityFinished}
             onBusEscalation={onBusEscalation}
             busEscalations={busEscalations}
             onJourEscalation={onJourEscalation}

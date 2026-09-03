@@ -907,39 +907,30 @@ export default function ClientDetail({
   // grossir le séjour au-delà de ce qui a été figé lors de la clôture
   // (client.solde_montant) — jamais absorbée en silence dans le "Payé"
   // existant (règle du solde unique : ce qui était payé avant reste payé,
-  // la nouveauté suit son propre règlement, choisi ci-dessous). Ce
-  // déclencheur vit ici (et non dans l'onglet Paiements) car il doit se
-  // déclencher dès l'ajout de l'activité depuis "Activités", que l'onglet
-  // Paiements soit ouvert ou non.
+  // la nouveauté suit son propre règlement, choisi ci-dessous). Vérifié
+  // explicitement une fois le wizard "Ajouter une activité" terminé
+  // (bouton "Ajouter cette activité"), jamais en direct pendant qu'on le
+  // remplit — sinon le pop-up apparaît dès le choix de l'activité dans le
+  // catalogue, avant même que l'employée ait fini de la configurer.
   const [repriseModal, setRepriseModal] = useState<{
     montant: string;
     mode: string;
     activiteId: string;
   } | null>(null);
-  const repriseBaselineVuRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!client.solde_paye || client.reprise_montant > 0) {
-      repriseBaselineVuRef.current = null;
-      return;
-    }
+  const checkRepriseApresAjout = () => {
+    if (!client.solde_paye || client.reprise_montant > 0) return;
     const baseline = Number(client.solde_montant) || totalSejourHeader;
     const diff = Math.round((totalSejourHeader - baseline) * 100) / 100;
-    // Comparé au dernier écart proposé (pas seulement à la base figée) :
-    // si le séjour grossit encore avant que la première reprise ait été
-    // traitée (deuxième activité ajoutée sans avoir répondu au premier
-    // pop-up), il faut re-proposer avec le nouveau montant.
-    if (diff > 0.01 && repriseBaselineVuRef.current !== diff) {
-      repriseBaselineVuRef.current = diff;
-      const derniereActivite = [...reservationsActives(reservations)].sort((a, b) =>
-        (a.created_at || "").localeCompare(b.created_at || "")
-      ).pop();
-      setRepriseModal({
-        montant: String(diff),
-        mode: MODES_PAIEMENT[0] || "Espèces EUR",
-        activiteId: derniereActivite?.id || "",
-      });
-    }
-  }, [totalSejourHeader, client.solde_paye, client.solde_montant, client.reprise_montant, reservations]);
+    if (diff <= 0.01) return;
+    const derniereActivite = [...reservationsActives(reservations)].sort((a, b) =>
+      (a.created_at || "").localeCompare(b.created_at || "")
+    ).pop();
+    setRepriseModal({
+      montant: String(diff),
+      mode: MODES_PAIEMENT[0] || "Espèces EUR",
+      activiteId: derniereActivite?.id || "",
+    });
+  };
 
   const confirmerReprise = () => {
     if (!repriseModal) return;
@@ -1314,6 +1305,7 @@ export default function ClientDetail({
         taxesRef={taxesRef}
         coutsMap={coutsMap}
         onUpdateCoutReel={updateCoutReel}
+        onActivityFinished={checkRepriseApresAjout}
         onBusEscalation={handleBusEscalation}
         busEscalations={busEscalations}
         onJourEscalation={handleJourEscalation}
@@ -1411,6 +1403,7 @@ export default function ClientDetail({
           coutsMap={coutsMap}
           onUpdateCoutReel={updateCoutReel}
           onRequestAdd={() => setGuidedOpen(true)}
+          onActivityFinished={checkRepriseApresAjout}
           onBusEscalation={handleBusEscalation}
           busEscalations={busEscalations}
           onJourEscalation={handleJourEscalation}
@@ -1574,7 +1567,7 @@ export default function ClientDetail({
                 }}
                 className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
               >
-                Plutôt ajouter une étape
+                Programmer une deuxième étape pour ce paiement
               </button>
             </div>
           </div>

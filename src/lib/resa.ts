@@ -394,8 +394,27 @@ export function reductionBadge(r: Reservation): string {
 // Badge "Option : X" / "Options : X + Y" à côté du titre — reprend
 // uniquement le nom court de chaque option choisie (jamais son descriptif),
 // partagé entre fiche client et vue Réservations.
-export function optionsBadge(options: ReservationOption[]): string {
-  const noms = options.map((o) => o.nom.trim()).filter(Boolean);
+// Une option de croisière (Montgolfière, Abu Simbel, transfert) dont la
+// carte séparée liée a été annulée reste affichée dans ce badge — sinon
+// elle semblerait avoir disparu du tout — mais avec "(annulée)" à côté,
+// pour ne pas laisser croire qu'elle est toujours prévue.
+export function optionsBadge(
+  options: ReservationOption[],
+  allReservations: Reservation[] = [],
+  parentReservationId?: string
+): string {
+  const noms = options
+    .map((o) => {
+      const nom = o.nom.trim();
+      if (!nom) return "";
+      const carte =
+        parentReservationId &&
+        allReservations.find(
+          (rr) => rr.parent_reservation_id === parentReservationId && rr.nom_activite === nom
+        );
+      return carte && carte.statut_resa === "Annulée" ? `${nom} (annulée)` : nom;
+    })
+    .filter(Boolean);
   if (noms.length === 0) return "";
   return `${noms.length > 1 ? "Options" : "Option"} : ${noms.join(" + ")}`;
 }

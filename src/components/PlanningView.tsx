@@ -348,9 +348,9 @@ function ReservationSummaryCard({
               {enCoursBadge(r)}
             </span>
           )}
-          {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+          {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id) && (
             <span className="whitespace-nowrap rounded-full bg-[#0F5C56] px-1.5 py-0.5 text-[10px] font-medium text-white">
-              {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+              {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id)}
             </span>
           )}
           {volBadge(r) && (
@@ -525,9 +525,9 @@ function ReservationSummaryCard({
             {enCoursBadge(r)}
           </span>
         )}
-        {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+        {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id) && (
           <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
-            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id)}
           </span>
         )}
         {volBadge(r) && (
@@ -871,9 +871,9 @@ function ActivityDetailModal({
                 {enCoursBadge(r)}
               </span>
             )}
-            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id) && (
               <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
-                {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+                {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id)}
               </span>
             )}
             {volBadge(r) && (
@@ -1156,9 +1156,9 @@ function ActivityDetailModal({
           <div className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">{enCoursBadge(r)}</div>
         )}
 
-        {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+        {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id) && (
           <div className="mt-3 rounded-md bg-[#0F5C56]/10 px-3 py-2 text-xs text-[#171717]">
-            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+            {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id)}
           </div>
         )}
 

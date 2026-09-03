@@ -282,9 +282,9 @@ export default function ItineraryView({
               {chevalChameauBadge(r, client)}
             </span>
           )}
-          {optionsBadge((resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+          {optionsBadge((resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id) && (
             <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-[11px] font-medium text-white">
-              {optionsBadge((resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom)))}
+              {optionsBadge((resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id)}
             </span>
           )}
           {busEscalation && (
@@ -445,9 +445,9 @@ export default function ItineraryView({
                     {reductionBadge(expandedReservation)}
                   </span>
                 )}
-                {optionsBadge(expOptions.filter((o) => !isDeuxiemeIleOption(o.nom))) && (
+                {optionsBadge(expOptions.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, expandedReservation.id) && (
                   <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
-                    {optionsBadge(expOptions.filter((o) => !isDeuxiemeIleOption(o.nom)))}
+                    {optionsBadge(expOptions.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, expandedReservation.id)}
                   </span>
                 )}
               </h3>

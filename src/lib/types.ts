@@ -241,6 +241,9 @@ export type Reservation = {
   statut_resa: "Brouillon" | "Confirmée" | "Annulée";
   annulation_raison: string;
   annulation_date: string | null;
+  // Heure de l'annulation ("09:00") — optionnelle, affichée à côté de
+  // annulation_date sur le titre barré rouge quand elle est connue.
+  annulation_heure: string;
   annulation_remb_avoir: "" | "rembourse" | "avoir";
   annulation_exception_hossam: boolean;
   annulation_prevenir_hossam: boolean;
@@ -252,6 +255,13 @@ export type Reservation = {
   // reglementAnnulation) au moment exact de l'annulation — figé pour ne
   // jamais être recalculé plus tard avec une date qui a changé.
   annulation_delai_raison: string;
+  // Le client avait-il déjà payé quelque chose (acompte encaissé ou solde
+  // payé) au moment précis de l'annulation — figé à cet instant via
+  // clientAPayeQuelqueChose(client), jamais recalculé plus tard avec l'état
+  // courant du client. Distinct de annulation_remb_avoir : une activité
+  // payée peut être annulée sans remboursement accordé (non remboursable,
+  // ou exception refusée) — les deux ensemble donnent "payé, non remboursé".
+  annulation_paye_avant: boolean;
   billet_requis: boolean;
   billet_etape: string;
   billet_demande_envoyee_le: string | null;

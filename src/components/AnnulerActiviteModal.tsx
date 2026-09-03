@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { clientAPayeQuelqueChose, isMontgolfiereActivity, reglementAnnulation, resaTotalMontant } from "@/lib/resa";
 import { ANNULATION_TYPES, RAISONS_ANNULATION } from "@/lib/constants";
-import { todayStr } from "@/lib/dates";
+import { nowHHMM, todayStr } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
 import PaypalEmailPromptModal from "@/components/PaypalEmailPromptModal";
@@ -49,6 +49,8 @@ export default function AnnulerActiviteModal({
   );
   const [raison, setRaison] = useState<string>(estMontgolfiere ? "Météo" : RAISONS_ANNULATION[0]);
   const [raisonAutre, setRaisonAutre] = useState("");
+  const [dateAnnulation, setDateAnnulation] = useState(todayStr());
+  const [heureAnnulation, setHeureAnnulation] = useState(nowHHMM());
   const [exception, setException] = useState(false);
   const [remboursementChoix, setRemboursementChoix] = useState<"rembourse" | "avoir" | "">("");
   const [paypalEmail, setPaypalEmail] = useState(client.paypal_email || client.email || "");
@@ -59,7 +61,11 @@ export default function AnnulerActiviteModal({
   // Modifiable — permet un remboursement partiel (ex. frais déjà engagés
   // non récupérables) au lieu de toujours forcer le prix total de l'activité.
   const [montant, setMontant] = useState(montantTotal);
-  const reglement = reglementAnnulation(r, catalogueItem, new Date());
+  // Calculé sur la date d'annulation choisie (par défaut aujourd'hui), pas
+  // toujours "maintenant" — permet de ressaisir une annulation passée (ex.
+  // reprise de données Notion) sans que le délai de 24h/48h se retrouve
+  // comparé à tort à la date du jour de la ressaisie.
+  const reglement = reglementAnnulation(r, catalogueItem, new Date(dateAnnulation + "T" + (heureAnnulation || "00:00")));
   // Une annulation agence ou gouvernement n'est jamais la faute du client —
   // toujours remboursable, aucune exception à faire valider par Hossam.
   const remboursable = annulationType !== "client" || reglement.remboursable || exception;
@@ -96,7 +102,7 @@ export default function AnnulerActiviteModal({
         mode: "PayPal",
         paypal_email: emailPourRemb.trim(),
         activite_id: r.id,
-        date_probleme: todayStr(),
+        date_probleme: dateAnnulation || todayStr(),
       });
       if (error) toast("Échec de la création du remboursement.");
       // Mémorise l'adresse pour les prochains remboursements de ce client
@@ -111,7 +117,7 @@ export default function AnnulerActiviteModal({
         montant_restant: montant,
         raison: "Annulation",
         activite_id: r.id,
-        date_probleme: todayStr(),
+        date_probleme: dateAnnulation || todayStr(),
       });
       if (error) toast("Échec de la création de l'avoir.");
     }
@@ -119,12 +125,14 @@ export default function AnnulerActiviteModal({
     onUpdate({
       statut_resa: "Annulée",
       annulation_raison: raisonFinale,
-      annulation_date: todayStr(),
+      annulation_date: dateAnnulation || todayStr(),
+      annulation_heure: heureAnnulation,
       annulation_remb_avoir: remboursementPossible ? remboursementChoix : "",
       annulation_exception_hossam: exception,
       annulation_prevenir_hossam: reglement.prevenirHossam,
       annulation_type: annulationType,
       annulation_delai_raison: reglement.raison,
+      annulation_paye_avant: clientAPayeQuelqueChose(client),
     });
     setSubmitting(false);
     onClose();
@@ -178,6 +186,27 @@ export default function AnnulerActiviteModal({
                 {t.label}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <div className="flex-1">
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Date de l&apos;annulation</label>
+            <input
+              type="date"
+              value={dateAnnulation}
+              onChange={(e) => setDateAnnulation(e.target.value)}
+              className="input text-sm"
+            />
+          </div>
+          <div className="w-28">
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Heure</label>
+            <input
+              type="time"
+              value={heureAnnulation}
+              onChange={(e) => setHeureAnnulation(e.target.value)}
+              className="input text-sm"
+            />
           </div>
         </div>
 

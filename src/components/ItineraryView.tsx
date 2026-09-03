@@ -47,6 +47,7 @@ import AjouterRemboursementAvoirModal from "@/components/AjouterRemboursementAvo
 import { buildPaxEnglish } from "@/components/client-steps";
 import { hotelEgyptLinePourActivite } from "@/lib/hotelHelp";
 import { useConfirm } from "@/components/ConfirmProvider";
+import { fmtAnnulationSuffix } from "@/lib/dates";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -223,7 +224,7 @@ export default function ItineraryView({
           <span className={`font-medium ${r.statut_resa === "Annulée" ? "text-red-600" : "text-[#171717]"}`}>
             {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
-            {r.statut_resa === "Annulée" ? " (annulé)" : ""}
+            {r.statut_resa === "Annulée" ? ` ${fmtAnnulationSuffix(r.annulation_date, r.annulation_heure)}` : ""}
           </span>
           {r.info_importante.trim() && (
             <span
@@ -433,7 +434,9 @@ export default function ItineraryView({
               >
                 {cleanActivityTitle(expandedReservation.nom_activite) || "Activité sans nom"}
                 {expandedReservation.horaire_souhaite ? ` (${expandedReservation.horaire_souhaite})` : ""}
-                {expandedReservation.statut_resa === "Annulée" ? " (annulé)" : ""}
+                {expandedReservation.statut_resa === "Annulée"
+                  ? ` ${fmtAnnulationSuffix(expandedReservation.annulation_date, expandedReservation.annulation_heure)}`
+                  : ""}
                 {expandedReservation.info_importante.trim() && (
                   <span
                     title={expandedReservation.info_importante}

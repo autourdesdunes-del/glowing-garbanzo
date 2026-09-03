@@ -56,7 +56,7 @@ import {
   transfertSensOptions,
   senseTransfertAeroport,
 } from "@/lib/resa";
-import { addDays, todayStr, weekdayFr } from "@/lib/dates";
+import { addDays, fmtAnnulationSuffix, todayStr, weekdayFr } from "@/lib/dates";
 import { Field } from "@/components/Field";
 import ActivityRedirectAlert from "@/components/ActivityRedirectAlert";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
@@ -2237,7 +2237,9 @@ export default function AddActivityWizard({
                 ))}
               </select>
               {isCroisiereOption && carte?.statut_resa === "Annulée" && (
-                <span className="text-xs font-medium text-red-600">(annulée)</span>
+                <span className="text-xs font-medium text-red-600">
+                  {fmtAnnulationSuffix(carte.annulation_date, carte.annulation_heure)}
+                </span>
               )}
               {!presetsAffiches.includes(o.nom as (typeof OPTIONS_PRESETS)[number]) && (
                 <input

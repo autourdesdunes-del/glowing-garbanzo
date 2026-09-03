@@ -53,7 +53,7 @@ import {
   isAeroportTransfertHorsHurghada,
   senseTransfertAeroport,
 } from "@/lib/resa";
-import { weekdayFr } from "@/lib/dates";
+import { fmtHeureCourte, weekdayFr } from "@/lib/dates";
 import JourIndisponibleAlert from "@/components/JourIndisponibleAlert";
 import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
 import PhotoVolUpload from "@/components/PhotoVolUpload";
@@ -297,9 +297,12 @@ export default function ReservationCard({
           </p>
           <p className="mt-1 text-xs text-neutral-400">
             Annulée le {r.annulation_date ? fmtDate(r.annulation_date) : "?"}
+            {r.annulation_heure ? ` à ${fmtHeureCourte(r.annulation_heure)}` : ""}
             {r.annulation_raison ? ` — ${r.annulation_raison}` : ""}
             {r.annulation_remb_avoir === "rembourse" && " — remboursée"}
             {r.annulation_remb_avoir === "avoir" && " — avoir créé"}
+            {r.annulation_remb_avoir === "" && r.annulation_paye_avant && " — payé, non remboursé"}
+            {r.annulation_remb_avoir === "" && !r.annulation_paye_avant && " — pas encore payé"}
           </p>
         </div>
       );

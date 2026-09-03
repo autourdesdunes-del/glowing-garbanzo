@@ -37,3 +37,35 @@ export function weekdayFr(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return WEEKDAY_FR[d.getDay()];
 }
+
+export function nowHHMM(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+// "2026-08-28" -> "28/08" — jj/mm, convention réutilisée partout où une
+// date courte doit s'afficher (annulations, billets…).
+export function fmtDDMM(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// "09:00" -> "9h" / "09:30" -> "9h30" — heure courte façon "à l'oral",
+// jamais "09h00" avec minutes à zéro.
+export function fmtHeureCourte(heure: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(heure);
+  if (!m) return "";
+  const h = Number(m[1]);
+  const min = m[2];
+  return min === "00" ? `${h}h` : `${h}h${min}`;
+}
+
+// Suffixe "(annulé le 28/08)" ou "(annulé le 28/08 à 9h)" à coller après le
+// titre d'une activité annulée — heure omise si non renseignée.
+export function fmtAnnulationSuffix(dateStr: string | null, heure: string): string {
+  const jjmm = fmtDDMM(dateStr);
+  if (!jjmm) return "(annulé)";
+  const h = fmtHeureCourte(heure);
+  return h ? `(annulé le ${jjmm} à ${h})` : `(annulé le ${jjmm})`;
+}

@@ -287,9 +287,16 @@ export type Remboursement = {
   mode: string;
   par: string;
   date_remboursement: string | null;
+  // Horodatage exact (date + heure) du moment où le remboursement a été
+  // marqué "Effectué" — date_remboursement reste une simple date pour
+  // l'affichage/tri existant.
+  date_remboursement_ts: string | null;
   statut: "En attente" | "Effectué";
   paypal_email: string;
   rib_photo_path: string | null;
+  // Preuve photo (capture PayPal, virement...) — obligatoire pour marquer
+  // "Effectué", consultable ensuite depuis la fiche client.
+  preuve_photo_path: string | null;
   created_at: string;
 };
 

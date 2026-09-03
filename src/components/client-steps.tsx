@@ -3308,6 +3308,26 @@ function tableLabel(table: string) {
   );
 }
 
+function VoirPreuveRemboursementLink({ path }: { path: string }) {
+  const [loading, setLoading] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async (e) => {
+        e.stopPropagation();
+        setLoading(true);
+        const supabase = createClient();
+        const { data } = await supabase.storage.from("remboursement-preuves").createSignedUrl(path, 3600);
+        setLoading(false);
+        if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+      }}
+      className="text-xs font-medium text-emerald-700 underline hover:no-underline"
+    >
+      {loading ? "Ouverture…" : "voir la photo"}
+    </button>
+  );
+}
+
 const ANNULATION_TYPE_PAR: Record<string, string> = {
   client: "par le client",
   agence: "par l'agence",
@@ -3545,6 +3565,15 @@ export function SuiviStep({
                         !activiteLiee.annulation_delai_raison.includes("non remboursable")
                           ? `✅ ${activiteLiee.annulation_delai_raison} (selon la règle du catalogue)`
                           : `⚠️ ${activiteLiee.annulation_delai_raison} — exceptionnel/partiel, vérifié avec Hossam`}
+                      </p>
+                    )}
+                    {r.statut === "Effectué" && (
+                      <p className="flex items-center gap-2 text-xs font-medium text-emerald-700">
+                        <span>
+                          Remboursé le{" "}
+                          {r.date_remboursement_ts ? fmtDateTime(r.date_remboursement_ts) : fmtDate(r.date_remboursement)}
+                        </span>
+                        {r.preuve_photo_path && <VoirPreuveRemboursementLink path={r.preuve_photo_path} />}
                       </p>
                     )}
                   </div>

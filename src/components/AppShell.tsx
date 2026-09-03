@@ -1478,6 +1478,12 @@ function AppShellInner({
     if (error) toast("Échec de l'enregistrement.");
   };
 
+  const updateRemboursement = async (id: string, patch: Partial<Remboursement>) => {
+    setAllRemboursements((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    const { error } = await supabase.from("remboursements").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement du remboursement.");
+  };
+
   const resolveCatalogueModificationRequest = async (id: string) => {
     setCatalogueModificationRequests((prev) =>
       prev.map((r) => (r.id === id ? { ...r, statut: "Traité" } : r))
@@ -2802,6 +2808,7 @@ function AppShellInner({
               resaTarifs={allResaTarifs}
               paiementsEtapes={allPaiementsEtapes}
               remboursements={allRemboursements}
+              onUpdateRemboursement={updateRemboursement}
               incidents={allIncidents}
               verifications={allVerifications}
               paypalPaiements={paypalPaiements}

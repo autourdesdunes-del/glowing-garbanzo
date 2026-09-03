@@ -36,6 +36,7 @@ import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { BILLET_ETAPES, VILLES_VOL } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import BilletAvionUpload from "@/components/BilletAvionUpload";
+import MarquerRembourseModal from "@/components/MarquerRembourseModal";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -71,6 +72,26 @@ function VoirRibLink({ path }: { path: string }) {
       className="text-xs font-medium text-[#171717] underline hover:no-underline"
     >
       {loading ? "Ouverture…" : "Voir le RIB"}
+    </button>
+  );
+}
+
+function VoirPreuveRemboursementLink({ path }: { path: string }) {
+  const [loading, setLoading] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={async (e) => {
+        e.stopPropagation();
+        setLoading(true);
+        const supabase = createClient();
+        const { data } = await supabase.storage.from("remboursement-preuves").createSignedUrl(path, 3600);
+        setLoading(false);
+        if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+      }}
+      className="text-xs font-medium text-[#171717] underline hover:no-underline"
+    >
+      {loading ? "Ouverture…" : "voir la photo"}
     </button>
   );
 }
@@ -194,6 +215,14 @@ function RemboursementCard({
           {r.mode === "Virement bancaire" && r.rib_photo_path && (
             <div>
               <VoirRibLink path={r.rib_photo_path} />
+            </div>
+          )}
+          {r.statut === "Effectué" && (
+            <div className="flex items-center gap-2 border-t border-neutral-100 pt-2 text-emerald-700">
+              <span className="font-medium">
+                Remboursé le {r.date_remboursement_ts ? fmtDateTime(r.date_remboursement_ts) : fmtDate(r.date_remboursement)}
+              </span>
+              {r.preuve_photo_path && <VoirPreuveRemboursementLink path={r.preuve_photo_path} />}
             </div>
           )}
         </div>
@@ -1126,6 +1155,7 @@ export default function SuivisView({
   resaTarifs,
   paiementsEtapes = [],
   remboursements,
+  onUpdateRemboursement,
   incidents,
   verifications,
   paypalPaiements,
@@ -1148,6 +1178,7 @@ export default function SuivisView({
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
   remboursements: Remboursement[];
+  onUpdateRemboursement: (id: string, patch: Partial<Remboursement>) => void;
   incidents: Incident[];
   verifications: Verification[];
   paypalPaiements: PaypalPaiement[];
@@ -1166,6 +1197,7 @@ export default function SuivisView({
   const supabase = createClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [openRembModalId, setOpenRembModalId] = useState<string | null>(null);
+  const [marquerRembourseIds, setMarquerRembourseIds] = useState<string[] | null>(null);
   // Retire une carte de la liste dès validation, sans attendre le prochain
   // rafraîchissement automatique (25s, voir AppShell.tsx) — la vraie source
   // de vérité reste la table verifications, ceci est juste un affichage
@@ -2249,32 +2281,50 @@ export default function SuivisView({
                   const totalClient = rembs.reduce((s, r) => s + (Number(r.montant) || 0), 0);
                   return (
                     <div key={clientId} className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 px-3 py-2">
-                        <ClientNameLink
-                          nom={client.nom}
-                          onClick={() => onOpenClient(client.id)}
-                          className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-                        />
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                          Total à rembourser : {euros(totalClient)} €
-                        </span>
+                      <div className="border-b border-neutral-100 px-3 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <ClientNameLink
+                            nom={client.nom}
+                            onClick={() => onOpenClient(client.id)}
+                            className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                          />
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                            Total à rembourser : {euros(totalClient)} €
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMarquerRembourseIds(rembs.map((r) => r.id))}
+                          className="mt-1.5 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          ✓ Remboursement effectué — total ({euros(totalClient)} €)
+                        </button>
                       </div>
                       <div className="divide-y divide-neutral-100">
                         {rembs.map((r) => {
                           const activite = reservations.find((res) => res.id === r.activite_id);
                           return (
-                            <button
-                              key={r.id}
-                              type="button"
-                              onClick={() => setOpenRembModalId(r.id)}
-                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-[#fafafa]"
-                            >
-                              <span className="text-[#171717]">
-                                Annulation {activite?.nom_activite || "activité"} {fmtDDMM(r.date_probleme)}
-                                {activite?.date_debut ? ` - prévue le ${fmtDDMM(activite.date_debut)}` : ""}
-                              </span>
+                            <div key={r.id} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
+                              <button
+                                type="button"
+                                onClick={() => setOpenRembModalId(r.id)}
+                                className="flex-1 text-left hover:underline"
+                              >
+                                <span className="text-[#171717]">
+                                  Annulation {activite?.nom_activite || "activité"} {fmtDDMM(r.date_probleme)}
+                                  {activite?.date_debut ? ` - prévue le ${fmtDDMM(activite.date_debut)}` : ""}
+                                </span>
+                              </button>
                               <span className="shrink-0 font-medium text-red-600">{euros(r.montant)} €</span>
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => setMarquerRembourseIds([r.id])}
+                                title="Marquer ce remboursement effectué"
+                                className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
+                              >
+                                ✓ Effectué
+                              </button>
+                            </div>
                           );
                         })}
                       </div>
@@ -2308,6 +2358,35 @@ export default function SuivisView({
                     />
                   </div>
                 </div>
+              );
+            })()}
+
+          {marquerRembourseIds &&
+            (() => {
+              const cibles = remboursements.filter((r) => marquerRembourseIds.includes(r.id));
+              if (cibles.length === 0) return null;
+              const client = clients.find((c) => c.id === cibles[0].client_id);
+              if (!client) return null;
+              const montantTotal = cibles.reduce((s, r) => s + (Number(r.montant) || 0), 0);
+              return (
+                <MarquerRembourseModal
+                  clientNom={client.nom || "Sans nom"}
+                  montantTotal={montantTotal}
+                  nbRemboursements={cibles.length}
+                  onClose={() => setMarquerRembourseIds(null)}
+                  onConfirm={async (photoPath) => {
+                    const nowIso = new Date().toISOString();
+                    for (const r of cibles) {
+                      onUpdateRemboursement(r.id, {
+                        statut: "Effectué",
+                        date_remboursement: localDateStr(new Date()),
+                        date_remboursement_ts: nowIso,
+                        preuve_photo_path: photoPath,
+                      });
+                    }
+                    setMarquerRembourseIds(null);
+                  }}
+                />
               );
             })()}
 

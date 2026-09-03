@@ -16,6 +16,7 @@ import {
   Verification,
 } from "@/lib/types";
 import { addDays, localDateStr, todayStr } from "@/lib/dates";
+import { deaccent } from "@/lib/deaccent";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
@@ -988,7 +989,9 @@ function PaypalPaiementRow({
   const [query, setQuery] = useState("");
   const matches =
     query.trim().length >= 2
-      ? clients.filter((c) => (c.nom || "").toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+      ? clients
+          .filter((c) => deaccent((c.nom || "").toLowerCase()).includes(deaccent(query.trim().toLowerCase())))
+          .slice(0, 6)
       : [];
 
   return (

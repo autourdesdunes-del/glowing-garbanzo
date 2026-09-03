@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Client, Reservation } from "@/lib/types";
+import { deaccent } from "@/lib/deaccent";
 
 export default function GlobalSearch({
   clients,
@@ -15,14 +16,14 @@ export default function GlobalSearch({
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
 
-  const q = query.trim().toLowerCase();
+  const q = deaccent(query.trim().toLowerCase());
 
   const matchedClients = useMemo(() => {
     if (q.length < 2) return [];
     return clients
       .filter(
         (c) =>
-          (c.nom || "").toLowerCase().includes(q) || (c.telephone || "").includes(q)
+          deaccent((c.nom || "").toLowerCase()).includes(q) || (c.telephone || "").includes(q)
       )
       .slice(0, 5);
   }, [clients, q]);
@@ -30,7 +31,7 @@ export default function GlobalSearch({
   const matchedReservations = useMemo(() => {
     if (q.length < 2) return [];
     return reservations
-      .filter((r) => (r.nom_activite || "").toLowerCase().includes(q))
+      .filter((r) => deaccent((r.nom_activite || "").toLowerCase()).includes(q))
       .slice(0, 5);
   }, [reservations, q]);
 

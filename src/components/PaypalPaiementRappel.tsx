@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Client, PaypalPaiement } from "@/lib/types";
 import { paypalRappelDueKey } from "@/lib/paypalRappel";
+import { deaccent } from "@/lib/deaccent";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -55,7 +56,9 @@ export default function PaypalPaiementRappel({
 
   const matches =
     query.trim().length >= 2
-      ? clients.filter((c) => (c.nom || "").toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6)
+      ? clients
+          .filter((c) => deaccent((c.nom || "").toLowerCase()).includes(deaccent(query.trim().toLowerCase())))
+          .slice(0, 6)
       : [];
 
   return (

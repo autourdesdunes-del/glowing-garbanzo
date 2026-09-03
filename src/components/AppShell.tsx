@@ -33,6 +33,7 @@ import {
 } from "@/lib/types";
 import { resaTotalMontant, sharedActivityAlerts, SharedActivityAlert } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
+import { deaccent } from "@/lib/deaccent";
 import { CLIENT_STATUTS, PROSPECT_STATUTS, STATUT_COLORS } from "@/lib/constants";
 import ClientDetail from "@/components/ClientDetail";
 import DashboardView from "@/components/DashboardView";
@@ -833,7 +834,7 @@ function AppShellInner({
   const scoped = clients.filter((c) => activeStatuts.includes(c.statut));
   const allTags = Array.from(new Set(scoped.flatMap((c) => c.tags || []))).sort();
   const filtered = scoped
-    .filter((c) => (c.nom || "").toLowerCase().includes(query.toLowerCase()))
+    .filter((c) => deaccent((c.nom || "").toLowerCase()).includes(deaccent(query.toLowerCase())))
     .filter((c) => !tagFilter || (c.tags || []).includes(tagFilter));
   const selected = clients.find((c) => c.id === selectedId) || null;
 

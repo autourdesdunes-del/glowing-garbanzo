@@ -69,6 +69,7 @@ export const NOTES_ETAPE_PAIEMENT_PRESETS = [
   "Ajout d'une activité sur place réglée à part",
   "Paiement partiel car le client n'avait pas la somme complète",
   "Rattrapage d'un paiement en retard",
+  "Réglé différemment de ce qui était prévu initialement",
   "Autre",
 ] as const;
 

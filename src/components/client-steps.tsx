@@ -1478,11 +1478,13 @@ function EncaisseButton({
   onMarquer,
   onAnnuler,
   marquerLabel = "Marquer encaissé",
+  onDifferent,
 }: {
   paye: boolean;
   onMarquer: () => void;
   onAnnuler: () => void;
   marquerLabel?: string;
+  onDifferent?: () => void;
 }) {
   if (paye) {
     return (
@@ -1503,6 +1505,14 @@ function EncaisseButton({
       >
         {marquerLabel}
       </button>
+      {onDifferent && (
+        <button
+          onClick={onDifferent}
+          className="whitespace-nowrap text-[10px] font-medium text-neutral-500 underline hover:text-neutral-700"
+        >
+          Réglé autrement
+        </button>
+      )}
     </div>
   );
 }
@@ -1537,6 +1547,7 @@ function PaiementResteFlow({
   confirm,
   toast,
   isDirection = false,
+  onEncaissementDifferent,
 }: {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
@@ -1545,6 +1556,12 @@ function PaiementResteFlow({
   confirm: ReturnType<typeof useConfirm>;
   toast: ReturnType<typeof useToast>;
   isDirection?: boolean;
+  onEncaissementDifferent: (prefill: {
+    montant: number;
+    mode: string;
+    date?: string;
+    activiteId?: string | null;
+  }) => void;
 }) {
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
@@ -1772,6 +1789,9 @@ function PaiementResteFlow({
                   paye={client.solde_paye}
                   onMarquer={finaliserRdv}
                   onAnnuler={() => onChange({ solde_paye: false, solde_rdv_finalise: false, solde_mode: "" })}
+                  onDifferent={() =>
+                    onEncaissementDifferent({ montant: montantACouvrir, mode: client.solde_mode || RDV_MODES[0] })
+                  }
                   marquerLabel="Rendez-vous finalisé"
                 />
                 {isDirection && (
@@ -1832,6 +1852,14 @@ function PaiementResteFlow({
                       paye={client.solde_paye}
                       onMarquer={() => marquerEncaisse(soldeMode)}
                       onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
+                      onDifferent={() =>
+                        onEncaissementDifferent({
+                          montant: montantACouvrir,
+                          mode: soldeMode,
+                          date: client.solde_date || undefined,
+                        })
+                      }
+                      marquerLabel={`${euros(montantACouvrir)} € encaissés`}
                     />
                     {isDirection && (
                       <button
@@ -1905,6 +1933,14 @@ function PaiementResteFlow({
                     paye={client.solde_paye}
                     onMarquer={() => marquerEncaisse(soldeMode)}
                     onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
+                    onDifferent={() =>
+                      onEncaissementDifferent({
+                        montant: montantACouvrir,
+                        mode: soldeMode,
+                        activiteId: chosenResa.id,
+                      })
+                    }
+                    marquerLabel={`${euros(montantACouvrir)} € encaissés ici`}
                   />
                   {isDirection && (
                     <button
@@ -2039,6 +2075,50 @@ export function PaiementsStep({
     choix: string;
     libre: string;
   } | null>(null);
+  // Marque qu'une étape en cours d'ajout vient du bouton "Réglé
+  // différemment" — sert uniquement à savoir si, une fois cette étape
+  // ajoutée, il faut proposer la suite (préparer le prochain paiement /
+  // enregistrer un autre paiement déjà effectué).
+  const encaissementDifferentEnCours = useRef(false);
+  const [apresEtapeChoix, setApresEtapeChoix] = useState(false);
+
+  const DIFFERENT_NOTE = "Réglé différemment de ce qui était prévu initialement";
+
+  const ouvrirEncaissementDifferent = (prefill: {
+    montant: number;
+    mode: string;
+    date?: string;
+    activiteId?: string | null;
+  }) => {
+    const date = prefill.date || todayStr();
+    encaissementDifferentEnCours.current = true;
+    if (prefill.activiteId) {
+      const resa = reservations.find((r) => r.id === prefill.activiteId);
+      setEtapeActiviteConfirm({
+        montant: prefill.montant,
+        mode: prefill.mode,
+        date,
+        note: DIFFERENT_NOTE,
+        candidats: resa ? [resa] : [],
+        choix: resa?.id || "autre",
+        libre: "",
+      });
+      return;
+    }
+    setEtapeMontant(String(prefill.montant));
+    setEtapeMode(prefill.mode);
+    setEtapeDate(date);
+    setEtapeNotePreset(DIFFERENT_NOTE);
+    setAddingEtape(true);
+  };
+
+  // Après avoir enregistré l'étape "réglé différemment", propose la suite
+  // s'il reste encore un montant dû — jamais pour un ajout d'étape normal.
+  const apresAjoutEncaissementDifferent = (montantAjoute: number, soldeAvant: number) => {
+    if (!encaissementDifferentEnCours.current) return;
+    encaissementDifferentEnCours.current = false;
+    if (Math.max(soldeAvant - montantAjoute, 0) > 0) setApresEtapeChoix(true);
+  };
 
   // Après avoir marqué l'acompte encaissé, si un billet d'avion attend
   // encore d'être signalé à Hossam, on le rappelle tout de suite — c'est
@@ -2203,6 +2283,7 @@ export function PaiementsStep({
     }
     if (!MODES_AVEC_ACTIVITE.includes(etapeMode)) {
       onAddPaiementEtape(montant, etapeMode, etapeDate, note, "");
+      apresAjoutEncaissementDifferent(montant, client.paiement_type === "acompte" ? resteApresAcompte : reste);
       resetEtapeForm();
       return;
     }
@@ -2232,6 +2313,7 @@ export function PaiementsStep({
       return;
     }
     onAddPaiementEtape(montant, mode, date, note, activiteNom);
+    apresAjoutEncaissementDifferent(montant, client.paiement_type === "acompte" ? resteApresAcompte : reste);
     setEtapeActiviteConfirm(null);
     resetEtapeForm();
   };
@@ -2316,7 +2398,10 @@ export function PaiementsStep({
             ⌄
           </span>
           <h3 className="text-sm font-semibold text-[#171717]">
-            Type de paiement <span className="text-xs font-normal text-neutral-400">(prévu initialement)</span>
+            Type de paiement{" "}
+            <span className="text-xs font-normal text-neutral-400">
+              (cliquez sur le déroulé pour voir le paiement prévu initialement)
+            </span>
           </h3>
         </button>
         {typeDePaiementOpen && (
@@ -2348,6 +2433,7 @@ export function PaiementsStep({
             confirm={confirm}
             toast={toast}
             isDirection={isDirection}
+            onEncaissementDifferent={ouvrirEncaissementDifferent}
           />
         )}
 
@@ -2427,6 +2513,7 @@ export function PaiementsStep({
                 confirm={confirm}
                 toast={toast}
                 isDirection={isDirection}
+                onEncaissementDifferent={ouvrirEncaissementDifferent}
               />
             </div>
           </div>
@@ -2580,6 +2667,47 @@ export function PaiementsStep({
             </div>
           );
         })()}
+
+      {apresEtapeChoix && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Il reste un montant à régler
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Que veux-tu faire pour la suite ?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setApresEtapeChoix(false);
+                  onChange({ paiement_integral_mode: "" });
+                  setTypeDePaiementOpen(true);
+                }}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Préparer le prochain paiement de ce client
+              </button>
+              <button
+                onClick={() => {
+                  setApresEtapeChoix(false);
+                  resetEtapeForm();
+                  setAddingEtape(true);
+                }}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Enregistrer un autre paiement effectué par le client
+              </button>
+              <button
+                onClick={() => setApresEtapeChoix(false)}
+                className="rounded-md px-3 py-2 text-sm text-neutral-400 hover:text-neutral-600"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {etapeActiviteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">

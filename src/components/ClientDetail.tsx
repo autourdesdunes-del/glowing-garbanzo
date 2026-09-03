@@ -917,7 +917,7 @@ export default function ClientDetail({
     }
     setGeneratingDoc(docType);
     try {
-      generateClientDocument(docType, client, reservations, resaOptions, resaTarifs);
+      generateClientDocument(docType, client, reservations, resaOptions, resaTarifs, paiementsEtapes);
     } finally {
       setGeneratingDoc(null);
     }

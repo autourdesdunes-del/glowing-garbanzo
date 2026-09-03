@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
-import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { participantsFor, isGrandEgyptianMuseum } from "@/lib/resa";
 import { addDays, todayStr } from "@/lib/dates";
 
@@ -22,6 +22,7 @@ function fmtDate(dateStr: string | null) {
 
 const MARGIN = 20;
 const PAGE_WIDTH = 210;
+const PAGE_HEIGHT = 297;
 
 // Infos légales de la société (registre du commerce égyptien + ETA, voir
 // documents fournis par Mélanie le 31/08/2026) — à corriger ici seulement
@@ -130,7 +131,8 @@ export function generateClientDocument(
   client: Client,
   reservations: Reservation[],
   resaOptions: Record<string, ReservationOption[]>,
-  resaTarifs: Record<string, ReservationTarif[]> = {}
+  resaTarifs: Record<string, ReservationTarif[]> = {},
+  paiementsEtapes: PaiementEtape[] = []
 ) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = MARGIN;
@@ -282,6 +284,66 @@ export function generateClientDocument(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   y = (doc as any).lastAutoTable.finalY + 10;
 
+  // -- Paiements : tout calculer d'abord (rien n'est encore dessiné) -------
+  // Le montant de l'acompte fait toujours partie du total, encaissé ou pas
+  // — sinon "Acompte à régler" + "Solde à payer" additionnent deux fois le
+  // même argent. Seul le statut "payé" détermine ce qui compte dans "Payé".
+  // Les règlements partiels (paiements_etapes — espèces/CB remis en main
+  // propre au fil du séjour) sont listés un par un avec leur vrai mode et
+  // leur vraie date, plutôt qu'un unique "Modes différents" qui ne dit rien
+  // de concret : mêmes montants que soldeRestantFor (SuivisView), donc la
+  // facture reste cohérente avec ce que l'équipe voit ailleurs dans le CRM.
+  const etapesClient = paiementsEtapes
+    .filter((e) => e.client_id === client.id)
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  const etapesSum = etapesClient.reduce((s, e) => s + (Number(e.montant) || 0), 0);
+  const acompteMontant = client.paiement_type === "acompte" ? Number(client.acompte_montant) || 0 : 0;
+  const soldeMontant = Math.max(totalHT - acompteMontant, 0);
+  const soldeApresEtapes = Math.max(soldeMontant - etapesSum, 0);
+  const totalPaye =
+    (client.acompte_paye ? acompteMontant : 0) + etapesSum + (client.solde_paye ? soldeApresEtapes : 0);
+  const reste = Math.max(totalHT - totalPaye, 0);
+
+  const conditions: string[] = [];
+  if (acompteMontant > 0) {
+    conditions.push(
+      `${euros(acompteMontant)} ${client.acompte_paye ? `payé (${client.acompte_mode}) le ${fmtDate(client.acompte_date_encaissement)}` : `à régler (${client.acompte_mode})`}`
+    );
+  }
+  etapesClient.forEach((e) => {
+    conditions.push(`${euros(Number(e.montant) || 0)} payé (${e.mode})${e.date ? ` le ${fmtDate(e.date)}` : ""}`);
+  });
+  // Le mode de règlement n'a de sens qu'une fois le solde effectivement
+  // encaissé — tant qu'il est "à payer", solde_mode peut contenir une valeur
+  // périmée (ex. un paiement marqué "modes différents" puis annulé sans que
+  // ce champ soit remis à zéro), donc on ne l'affiche jamais dans ce cas.
+  // Rien à ajouter si les étapes ont déjà tout couvert.
+  if (soldeApresEtapes > 0 || etapesClient.length === 0) {
+    conditions.push(
+      client.solde_paye
+        ? `${euros(soldeApresEtapes)} encaissé${client.solde_mode ? ` (${client.solde_mode})` : ""}${client.solde_date ? ` le ${fmtDate(client.solde_date)}` : ""}`
+        : `${euros(soldeApresEtapes)} à payer`
+    );
+  }
+
+  const footerText =
+    docType === "devis"
+      ? `Ce devis est indicatif et ne constitue pas une facture. Valable jusqu'au ${fmtDate(addDays(todayStr(), DEVIS_VALIDITE_JOURS))}.`
+      : "MERCI DE VOTRE CONFIANCE";
+
+  // -- Place disponible avant de dessiner quoi que ce soit -----------------
+  // Tout ce bloc (total + conditions + payé/reste + pied de page) avançait
+  // un simple compteur "y" sans jamais vérifier la hauteur de page — avec
+  // plusieurs activités ou plusieurs étapes de paiement, le bas (Payé, Reste
+  // à payer, pied de page) se retrouvait dessiné sous le bord de la page,
+  // donc invisible dans n'importe quelle visionneuse PDF. On mesure la
+  // hauteur réellement nécessaire et on saute de page si besoin, en un bloc.
+  const hauteurNecessaire = 28 + 6 + conditions.length * 5 + 4 + 7 + 5.5 + 5.5 + 12 + 8;
+  if (y + hauteurNecessaire > PAGE_HEIGHT - MARGIN) {
+    doc.addPage();
+    y = MARGIN;
+  }
+
   // -- Total HT / TVA / TTC (0 % — activités touristiques hors TVA) --------
   // Largeur mesurée dynamiquement (label le plus large + montant le plus
   // large de chaque police utilisée) plutôt qu'une constante figée : un
@@ -315,15 +377,7 @@ export function generateClientDocument(
   doc.text(totalTTCStr, rightColX - 3.5, y + 13, { align: "right" });
   y += 28;
 
-  // -- Paiements ------------------------------------------------------------
-  // Le montant de l'acompte fait toujours partie du total, encaissé ou pas
-  // — sinon "Acompte à régler" + "Solde à payer" additionnent deux fois le
-  // même argent. Seul le statut "payé" détermine ce qui compte dans "Payé".
-  const acompteMontant = client.paiement_type === "acompte" ? Number(client.acompte_montant) || 0 : 0;
-  const soldeMontant = Math.max(totalHT - acompteMontant, 0);
-  const totalPaye = (client.acompte_paye ? acompteMontant : 0) + (client.solde_paye ? soldeMontant : 0);
-  const reste = totalHT - totalPaye;
-
+  // -- Paiements : dessin -----------------------------------------------
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
   doc.setTextColor(20, 20, 20);
@@ -333,21 +387,6 @@ export function generateClientDocument(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(60, 60, 60);
-  const conditions: string[] = [];
-  if (acompteMontant > 0) {
-    conditions.push(
-      `${euros(acompteMontant)} ${client.acompte_paye ? `payé (${client.acompte_mode}) le ${fmtDate(client.acompte_date_encaissement)}` : `à régler (${client.acompte_mode})`}`
-    );
-  }
-  // Le mode de règlement n'a de sens qu'une fois le solde effectivement
-  // encaissé — tant qu'il est "à payer", solde_mode peut contenir une valeur
-  // périmée (ex. un paiement marqué "modes différents" puis annulé sans que
-  // ce champ soit remis à zéro), donc on ne l'affiche jamais dans ce cas.
-  conditions.push(
-    client.solde_paye
-      ? `${euros(soldeMontant)} encaissé${client.solde_mode ? ` (${client.solde_mode})` : ""}${client.solde_date ? ` le ${fmtDate(client.solde_date)}` : ""}`
-      : `${euros(soldeMontant)} à payer`
-  );
   conditions.forEach((c) => {
     doc.text(`•  ${c}`, MARGIN, y);
     y += 5;
@@ -371,13 +410,7 @@ export function generateClientDocument(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(140, 140, 140);
-  doc.text(
-    docType === "devis"
-      ? `Ce devis est indicatif et ne constitue pas une facture. Valable jusqu'au ${fmtDate(addDays(todayStr(), DEVIS_VALIDITE_JOURS))}.`
-      : "MERCI DE VOTRE CONFIANCE",
-    MARGIN,
-    y
-  );
+  doc.text(footerText, MARGIN, y);
 
   const filename = `${docType}-${(client.nom || "client").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`;
   doc.save(filename);

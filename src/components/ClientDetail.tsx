@@ -901,7 +901,8 @@ export default function ClientDetail({
   );
   const totalPayeHeader =
     acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + (client.solde_paye ? soldeRestantHeader : 0);
-  const paiementFullyPaid = totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader;
+  const paiementFullyPaid =
+    totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader && !(client.reprise_montant > 0);
 
   // Une activité ajoutée après un solde déjà entièrement réglé fait
   // grossir le séjour au-delà de ce qui a été figé lors de la clôture
@@ -1430,11 +1431,13 @@ export default function ClientDetail({
             <span className="text-[8px]">●</span>
             {paiementFullyPaid
               ? "Payé"
-              : totalPayeHeader > 0
-                ? `Acompte payé (${euros(totalPayeHeader)} €) reste ${euros(
-                    totalSejourHeader - totalPayeHeader
-                  )} € — en attente`
-                : "En attente"}
+              : client.reprise_montant > 0
+                ? `En attente : ${euros(client.reprise_montant)} € (nouvelle activité)`
+                : totalPayeHeader > 0
+                  ? `Acompte payé (${euros(totalPayeHeader)} €) reste ${euros(
+                      totalSejourHeader - totalPayeHeader
+                    )} € — en attente`
+                  : "En attente"}
           </span>
         </span>
       </div>

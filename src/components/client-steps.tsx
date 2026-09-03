@@ -3532,6 +3532,21 @@ export function SuiviStep({
                       {" — "}Date et heure d&apos;annulation : {fmtDateTime(r.created_at)}
                     </p>
                     <p className="text-xs text-neutral-500">Motif : {motif}</p>
+                    {activiteLiee?.annulation_type === "client" && activiteLiee.annulation_delai_raison && (
+                      <p
+                        className={`text-xs font-medium ${
+                          activiteLiee.annulation_delai_raison.includes("remboursable") &&
+                          !activiteLiee.annulation_delai_raison.includes("non remboursable")
+                            ? "text-emerald-600"
+                            : "text-orange-600"
+                        }`}
+                      >
+                        {activiteLiee.annulation_delai_raison.includes("remboursable") &&
+                        !activiteLiee.annulation_delai_raison.includes("non remboursable")
+                          ? `✅ ${activiteLiee.annulation_delai_raison} (selon la règle du catalogue)`
+                          : `⚠️ ${activiteLiee.annulation_delai_raison} — exceptionnel/partiel, vérifié avec Hossam`}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
                     <span className="font-heading text-lg font-bold text-red-600">{euros(r.montant)} €</span>
@@ -3787,6 +3802,21 @@ export function SuiviStep({
                     {" — "}Date et heure d&apos;annulation : {fmtDateTime(a.created_at)}
                   </p>
                   <p className="text-xs text-neutral-500">Motif : {motifAvoir}</p>
+                  {activiteLieeAvoir?.annulation_type === "client" && activiteLieeAvoir.annulation_delai_raison && (
+                    <p
+                      className={`text-xs font-medium ${
+                        activiteLieeAvoir.annulation_delai_raison.includes("remboursable") &&
+                        !activiteLieeAvoir.annulation_delai_raison.includes("non remboursable")
+                          ? "text-emerald-600"
+                          : "text-orange-600"
+                      }`}
+                    >
+                      {activiteLieeAvoir.annulation_delai_raison.includes("remboursable") &&
+                      !activiteLieeAvoir.annulation_delai_raison.includes("non remboursable")
+                        ? `✅ ${activiteLieeAvoir.annulation_delai_raison} (selon la règle du catalogue)`
+                        : `⚠️ ${activiteLieeAvoir.annulation_delai_raison} — exceptionnel/partiel, vérifié avec Hossam`}
+                    </p>
+                  )}
                   <p className="text-xs text-neutral-400">
                     À utiliser jusqu&apos;au {client.date_fin ? fmtDate(client.date_fin) : "—"} (fin de séjour)
                   </p>

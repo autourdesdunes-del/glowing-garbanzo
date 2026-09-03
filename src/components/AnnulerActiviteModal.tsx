@@ -124,6 +124,7 @@ export default function AnnulerActiviteModal({
       annulation_exception_hossam: exception,
       annulation_prevenir_hossam: reglement.prevenirHossam,
       annulation_type: annulationType,
+      annulation_delai_raison: reglement.raison,
     });
     setSubmitting(false);
     onClose();

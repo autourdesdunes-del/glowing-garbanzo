@@ -1326,6 +1326,7 @@ export default function SuivisView({
   const remboursementsEnAttente = remboursements
     .filter((r) => r.statut !== "Effectué")
     .sort((a, b) => (a.date_probleme || "").localeCompare(b.date_probleme || ""));
+  const totalARembourser = remboursementsEnAttente.reduce((s, r) => s + (Number(r.montant) || 0), 0);
 
   const incidentsOuverts = incidents
     .filter((i) => i.statut === "Ouvert")
@@ -2217,9 +2218,16 @@ export default function SuivisView({
       {sub === "remb" && (
         <div className="space-y-8">
           <div>
-            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-              À faire ({remboursementsEnAttente.length})
-            </h3>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-heading text-sm font-semibold text-[#171717]">
+                À faire ({remboursementsEnAttente.length})
+              </h3>
+              {remboursementsEnAttente.length > 0 && (
+                <span className="rounded-full bg-red-100 px-2.5 py-1 text-sm font-semibold text-red-700">
+                  Total à rembourser : {euros(totalARembourser)} €
+                </span>
+              )}
+            </div>
             {remboursementsEnAttente.length === 0 && (
               <div className="text-sm text-neutral-400">Rien en attente.</div>
             )}

@@ -248,6 +248,10 @@ export type Reservation = {
   // (Météo, Client ne veut plus...) : une annulation agence/gouvernement
   // est toujours remboursable sans exception Hossam à valider.
   annulation_type: "client" | "agence" | "gouvernement";
+  // Résultat du calcul de délai (24h/48h/10j selon l'activité, voir
+  // reglementAnnulation) au moment exact de l'annulation — figé pour ne
+  // jamais être recalculé plus tard avec une date qui a changé.
+  annulation_delai_raison: string;
   billet_requis: boolean;
   billet_etape: string;
   billet_demande_envoyee_le: string | null;

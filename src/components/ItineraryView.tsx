@@ -483,6 +483,7 @@ export default function ItineraryView({
                         annulation_exception_hossam: false,
                         annulation_prevenir_hossam: false,
                         annulation_type: "client",
+                        annulation_delai_raison: "",
                       });
                     }}
                     title="Reprogrammer cette activité (annule l'annulation)"

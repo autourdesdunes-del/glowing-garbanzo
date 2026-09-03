@@ -436,6 +436,11 @@ export type Client = {
   // rattacherPaypal). Une saisie manuelle de l'encaissement n'a pas
   // d'heure fiable, donc ce champ reste vide dans ce cas.
   acompte_encaisse_ts: string | null;
+  // Coché quand le client a envoyé l'acompte PayPal sans utiliser "Entre
+  // proches" — des frais sont alors déduits, donc le montant réellement
+  // reçu (acompte_montant, mis à jour au même moment) est inférieur au
+  // montant prévu. Affiché comme note sur la carte acompte une fois coché.
+  acompte_entre_proches_oublie: boolean;
   au_revoir_envoye: boolean;
   au_revoir_envoye_le: string | null;
   // Qui a envoyé le message "au revoir" — pour le rappel personnel
@@ -546,6 +551,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   acompte_paye: false,
   acompte_date_encaissement: null,
   acompte_encaisse_ts: null,
+  acompte_entre_proches_oublie: false,
   au_revoir_envoye: false,
   au_revoir_envoye_le: null,
   au_revoir_envoye_par_id: null,

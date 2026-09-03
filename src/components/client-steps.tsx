@@ -2055,7 +2055,13 @@ export function PaiementsStep({
     time: string;
     montant: string;
     montantDifferent: boolean;
+    entreProchesOublie: boolean;
   } | null>(null);
+  // Frais standards PayPal (paiement "biens et services", pas "Entre
+  // proches") : 2,9 % + 0,35 € — vérifié sur un cas réel (135€ envoyés,
+  // 130,73€ reçus).
+  const calculerMontantSansEntreProches = (montant: number) =>
+    Math.round((montant - (montant * 0.029 + 0.35)) * 100) / 100;
   const [billetHossamReminder, setBilletHossamReminder] = useState<Reservation | null>(null);
   const [copiedHossamReminder, setCopiedHossamReminder] = useState(false);
   const [addingEtape, setAddingEtape] = useState(false);
@@ -2336,6 +2342,7 @@ export function PaiementsStep({
       acompte_paye: false,
       acompte_date_encaissement: null,
       acompte_encaisse_ts: null,
+      acompte_entre_proches_oublie: false,
     });
   };
 
@@ -2352,6 +2359,7 @@ export function PaiementsStep({
       time: defaultTime,
       montant: String(client.acompte_montant),
       montantDifferent: false,
+      entreProchesOublie: false,
     });
   };
 
@@ -2364,6 +2372,7 @@ export function PaiementsStep({
       time: defaultTime,
       montant: String(client.acompte_montant),
       montantDifferent: true,
+      entreProchesOublie: false,
     });
   };
 
@@ -2502,6 +2511,11 @@ export function PaiementsStep({
                         ? ` — encaissé le ${fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts)}`
                         : ""}
                     </p>
+                    {client.acompte_paye && client.acompte_entre_proches_oublie && (
+                      <p className="mt-0.5 text-xs italic text-orange-600">
+                        &quot;Entre proches&quot; a été oublié
+                      </p>
+                    )}
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-2">
                     <EncaisseButton
@@ -2739,10 +2753,21 @@ export function PaiementsStep({
             <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
               Où ce paiement a-t-il été récolté ?
             </h2>
-            <p className="mb-3 text-sm text-neutral-600">
-              {euros(etapeActiviteConfirm.montant)} € en {etapeActiviteConfirm.mode}, le{" "}
-              {fmtDateDMY(etapeActiviteConfirm.date)}.
-            </p>
+            <div className="mb-3">
+              <Field label="Montant (€)">
+                <input
+                  type="number"
+                  value={etapeActiviteConfirm.montant}
+                  onChange={(e) =>
+                    setEtapeActiviteConfirm({ ...etapeActiviteConfirm, montant: Number(e.target.value) })
+                  }
+                  className="input w-32"
+                />
+              </Field>
+              <p className="mt-1 text-xs text-neutral-500">
+                en {etapeActiviteConfirm.mode}, le {fmtDateDMY(etapeActiviteConfirm.date)}.
+              </p>
+            </div>
             <div className="flex flex-col gap-1.5">
               {etapeActiviteConfirm.candidats.map((r) => (
                 <button
@@ -2817,11 +2842,30 @@ export function PaiementsStep({
                           className="input"
                         />
                       </Field>
+                      {client.acompte_mode === "PayPal" && (
+                        <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+                          <input
+                            type="checkbox"
+                            checked={acompteDateModal.entreProchesOublie}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setAcompteDateModal({
+                                ...acompteDateModal,
+                                entreProchesOublie: checked,
+                                montant: checked
+                                  ? String(calculerMontantSansEntreProches(Number(client.acompte_montant) || 0))
+                                  : String(client.acompte_montant),
+                              });
+                            }}
+                          />
+                          Oubli &quot;Entre proches&quot; (frais PayPal déduits)
+                        </label>
+                      )}
                       {Number(acompteDateModal.montant) !== Number(client.acompte_montant) && (
                         <p className="mt-1 text-xs text-orange-600">
-                          ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €) — ex. frais PayPal si
-                          &quot;Entre proches&quot; n&apos;a pas été utilisé. La différence sera reportée sur
-                          le solde restant dû.
+                          ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €)
+                          {acompteDateModal.entreProchesOublie ? " (frais PayPal estimés)" : ""} — la différence
+                          sera reportée sur le solde restant dû.
                         </p>
                       )}
                     </>
@@ -2854,6 +2898,7 @@ export function PaiementsStep({
                       onChange({
                         acompte_paye: true,
                         acompte_montant: Number(acompteDateModal.montant) || client.acompte_montant,
+                        acompte_entre_proches_oublie: acompteDateModal.entreProchesOublie,
                         acompte_date_encaissement: todayStr(),
                         acompte_encaisse_ts:
                           isPaypal && acompteDateModal.time
@@ -2888,10 +2933,30 @@ export function PaiementsStep({
                           className="input"
                         />
                       </Field>
+                      {client.acompte_mode === "PayPal" && (
+                        <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+                          <input
+                            type="checkbox"
+                            checked={acompteDateModal.entreProchesOublie}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setAcompteDateModal({
+                                ...acompteDateModal,
+                                entreProchesOublie: checked,
+                                montant: checked
+                                  ? String(calculerMontantSansEntreProches(Number(client.acompte_montant) || 0))
+                                  : String(client.acompte_montant),
+                              });
+                            }}
+                          />
+                          Oubli &quot;Entre proches&quot; (frais PayPal déduits)
+                        </label>
+                      )}
                       {Number(acompteDateModal.montant) !== Number(client.acompte_montant) && (
                         <p className="mt-1 text-xs text-orange-600">
-                          ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €) — la différence sera
-                          reportée sur le solde restant dû.
+                          ⚠ Différent du montant prévu ({euros(client.acompte_montant)} €)
+                          {acompteDateModal.entreProchesOublie ? " (frais PayPal estimés)" : ""} — la différence
+                          sera reportée sur le solde restant dû.
                         </p>
                       )}
                     </>
@@ -2932,6 +2997,7 @@ export function PaiementsStep({
                       onChange({
                         acompte_paye: true,
                         acompte_montant: Number(acompteDateModal.montant) || client.acompte_montant,
+                        acompte_entre_proches_oublie: acompteDateModal.entreProchesOublie,
                         acompte_date_encaissement: acompteDateModal.date,
                         acompte_encaisse_ts:
                           isPaypal && acompteDateModal.time

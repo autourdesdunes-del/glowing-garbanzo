@@ -36,6 +36,7 @@ import {
   STATUT_PAIEMENT_OPTIONS,
   packBadge,
   siteCaireBadge,
+  siteCaireEgyptLine,
   volBadge,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
@@ -688,6 +689,8 @@ function ActivityDetailModal({
   // Bloc équipe Égypte : la traduction reste "au mieux" (dictionnaire de
   // vocabulaire métier récurrent), pas un vrai moteur de traduction.
   const activiteLines: string[] = [fmtDDMM(r.date_debut || ""), translateFr(baseActivityName(r.nom_activite))];
+  const siteCaireLine = siteCaireEgyptLine(r);
+  if (siteCaireLine) activiteLines.push(siteCaireLine);
   // La "2ème île" n'est jamais listée comme option ici — elle est déjà dans
   // le titre (ex. "avec Paradise + Hula Hula"), la répéter en dessous ferait
   // doublon. Format volontairement sans "participants" (tournure française

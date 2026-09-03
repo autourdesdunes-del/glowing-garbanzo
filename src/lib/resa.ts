@@ -1354,6 +1354,21 @@ export function siteCaireBadge(r: Reservation): string {
   return `(pyramids + ${SITE_CAIRE_EN[r.site_caire] || r.site_caire})`;
 }
 
+// Même info que siteCaireBadge, mais au format attendu par le bloc équipe
+// Égypte (Title Case, "New Museum GEM" plutôt que "new museum" pour éviter
+// toute confusion avec l'ancien musée).
+const SITE_CAIRE_EGYPT: Record<string, string> = {
+  "Musée du Caire (ancien musée)": "Old Museum",
+  Saqqarah: "Saqqarah",
+  "Citadelle Mohamed Ali": "Citadel",
+  "Grand Egyptian Museum (nouveau musée)": "New Museum GEM",
+};
+
+export function siteCaireEgyptLine(r: Reservation): string {
+  if (!r.site_caire) return "";
+  return `(Pyramids + ${SITE_CAIRE_EGYPT[r.site_caire] || r.site_caire})`;
+}
+
 // Certaines activités du catalogue n'ont lieu que certains jours de la
 // semaine (ex. Louxor en mini-bus : mardi/jeudi/dimanche seulement) — un
 // jours_disponibles vide veut dire "tous les jours", jamais "aucun jour".

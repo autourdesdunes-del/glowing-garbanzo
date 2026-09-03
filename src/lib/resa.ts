@@ -394,6 +394,16 @@ export function enCoursBadge(r: Reservation): string {
   return `📍 Toujours en cours (jusqu'au ${fmtDateFr(r.date_fin)})`;
 }
 
+// Repère en un coup d'œil, dans la fiche client (section "Activités
+// réservées" uniquement — pas les autres vues), où le client se trouve
+// aujourd'hui : le jour même d'une activité (simple ou premier jour d'un
+// séjour de plusieurs jours). Jamais en double avec enCoursBadge : ce
+// dernier prend le relais dès le lendemain et jusqu'à la fin du séjour.
+export function activiteEnCoursAujourdhui(r: Reservation): boolean {
+  if (enCoursBadge(r)) return false;
+  return !!r.date_debut && r.date_debut === todayStr();
+}
+
 // Croisières au fil du Nil : seule activité dont certaines options ont lieu
 // à une date différente de l'activité elle-même (Montgolfière, Abu Simbel,
 // transfert retour) — chacune devient sa propre carte, à la bonne date.

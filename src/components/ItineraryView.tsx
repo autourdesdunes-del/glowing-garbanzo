@@ -17,6 +17,7 @@ import {
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
+  activiteEnCoursAujourdhui,
   chevalChameauBadge,
   cleanActivityTitle,
   isDeuxiemeIleOption,
@@ -199,6 +200,11 @@ export default function ItineraryView({
           {enCoursBadge(r) && (
             <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">
               {enCoursBadge(r)}
+            </span>
+          )}
+          {activiteEnCoursAujourdhui(r) && (
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+              📍 en cours
             </span>
           )}
           {volBadge(r) && (

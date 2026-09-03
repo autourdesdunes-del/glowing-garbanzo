@@ -44,6 +44,7 @@ import {
   paiementStatutKey,
   participantsFor,
   resaTotalMontant,
+  soldeInclutAcompteImpaye,
   speedboatIleTitre,
   speedboatIleType,
   SPEEDBOAT_ILES,
@@ -1541,9 +1542,19 @@ export default function ReservationCard({
           </span>
           <select
             value={statutKey}
-            onChange={(e) => {
+            onChange={async (e) => {
               const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
-              if (opt) onUpdateClient(opt.patch(r));
+              if (!opt) return;
+              if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(client)) {
+                const ok = await confirm({
+                  title: "L'acompte n'a pas encore été marqué encaissé",
+                  message: `L'acompte de ${euros(client.acompte_montant)} € (${client.acompte_mode}) est toujours "en attente". En continuant, tout le séjour — acompte compris — sera considéré comme payé partout dans le dossier. Le montant collecté couvre-t-il bien aussi cet acompte ?`,
+                  confirmLabel: "Oui, l'acompte est inclus",
+                  cancelLabel: "Non, annuler",
+                });
+                if (!ok) return;
+              }
+              onUpdateClient(opt.patch(r));
             }}
             className={`rounded-full border-0 px-2 py-1 text-xs font-medium ${badge.className}`}
           >

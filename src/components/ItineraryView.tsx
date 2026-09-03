@@ -35,11 +35,13 @@ import {
   paxLine,
   resaBreakdown,
   resaTotalMontant,
+  soldeInclutAcompteImpaye,
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import { buildPaxEnglish } from "@/components/client-steps";
 import { hotelDisplayForEgypt } from "@/lib/hotelHelp";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -131,6 +133,26 @@ export default function ItineraryView({
   onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
   assouanVerifications?: AssouanVerification[];
 }) {
+  const confirm = useConfirm();
+  // Marquer une activité "Payé - ..." déclare tout le séjour réglé (règle
+  // du solde unique) — si l'acompte est encore "en attente" à ce moment-là,
+  // il faut le signaler avant de valider, sinon un acompte jamais réellement
+  // encaissé se retrouve compté comme payé partout sans vérification.
+  const choisirStatutPaiement = async (r: Reservation, key: string) => {
+    const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key);
+    if (!opt) return;
+    if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(client)) {
+      const ok = await confirm({
+        title: "L'acompte n'a pas encore été marqué encaissé",
+        message: `L'acompte de ${euros(client.acompte_montant)} € (${client.acompte_mode}) est toujours "en attente". En continuant, tout le séjour — acompte compris — sera considéré comme payé partout dans le dossier. Le montant collecté couvre-t-il bien aussi cet acompte ?`,
+        confirmLabel: "Oui, l'acompte est inclus",
+        cancelLabel: "Non, annuler",
+      });
+      if (!ok) return;
+    }
+    onUpdateClient(opt.patch(r));
+  };
+
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
     const val = window.prompt("Pick-up réel (heure / lieu) :", "");
@@ -464,10 +486,7 @@ export default function ItineraryView({
                 <DetailRow label="Paiement">
                   <select
                     value={paiementStatutKey(client, expandedReservation)}
-                    onChange={(e) => {
-                      const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
-                      if (opt) onUpdateClient(opt.patch(expandedReservation));
-                    }}
+                    onChange={(e) => choisirStatutPaiement(expandedReservation, e.target.value)}
                     className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${expBadge.className}`}
                   >
                     {STATUT_PAIEMENT_OPTIONS.map((o) => (

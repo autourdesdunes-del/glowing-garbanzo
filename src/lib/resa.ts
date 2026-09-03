@@ -162,6 +162,16 @@ const RDV_FINALISE_LABELS: Record<string, string> = {
   "Espèces EGP": "Payé en EGP - rendez-vous paiement finalisé",
 };
 
+// Marquer le solde payé (badge vert "Payé - ...") déclare tout le séjour
+// réglé, acompte compris (règle du solde unique — voir paiementProgress) :
+// si l'acompte est encore "en attente" à ce moment-là, il faut le
+// signaler avant de continuer, sinon un acompte PayPal jamais réellement
+// encaissé se retrouve compté comme payé partout sans que personne ne
+// l'ait vérifié.
+export function soldeInclutAcompteImpaye(client: Client): boolean {
+  return client.paiement_type === "acompte" && client.acompte_valide && !client.acompte_paye;
+}
+
 // Même calcul que le récapitulatif "Paiements" de la fiche client (acompte
 // + étapes libres + avoir, plus le solde si déjà marqué payé) — factorisé
 // ici pour que paiementBadge s'appuie sur exactement la même réalité,

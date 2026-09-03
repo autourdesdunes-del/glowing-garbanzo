@@ -32,6 +32,7 @@ import {
   resaBreakdown,
   resaTotalMontant,
   reservationsActives,
+  soldeInclutAcompteImpaye,
   STATUT_PAIEMENT_OPTIONS,
   packBadge,
   volBadge,
@@ -39,6 +40,7 @@ import {
 import { localDateStr } from "@/lib/dates";
 import { buildPaxEnglish } from "@/components/client-steps";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -592,6 +594,7 @@ function ActivityDetailModal({
   onBack?: () => void;
 }) {
   const supabase = createClient();
+  const confirm = useConfirm();
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   const [photoVolUrl, setPhotoVolUrl] = useState("");
@@ -878,6 +881,15 @@ function ActivityDetailModal({
               onChange={async (e) => {
                 const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
                 if (!opt) return;
+                if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(effectiveClient)) {
+                  const ok = await confirm({
+                    title: "L'acompte n'a pas encore été marqué encaissé",
+                    message: `L'acompte de ${euros(effectiveClient.acompte_montant)} € (${effectiveClient.acompte_mode}) est toujours "en attente". En continuant, tout le séjour — acompte compris — sera considéré comme payé partout dans le dossier. Le montant collecté couvre-t-il bien aussi cet acompte ?`,
+                    confirmLabel: "Oui, l'acompte est inclus",
+                    cancelLabel: "Non, annuler",
+                  });
+                  if (!ok) return;
+                }
                 const patch = opt.patch(r);
                 setSoldeOverride((prev) => ({ ...prev, ...patch }));
                 await supabase.from("clients").update(patch).eq("id", client.id);

@@ -2541,6 +2541,29 @@ export function PaiementsStep({
         </div>
       )}
 
+      {reste > 0 &&
+        (() => {
+          const mode = client.paiement_integral_mode;
+          if (!mode) return null;
+          const modeInfo = INTEGRAL_MODES.find((m) => m.key === mode);
+          const activiteLiee =
+            mode === "activite_eur" || mode === "activite_egp"
+              ? reservations.find((r) => r.id === client.solde_activite_id)
+              : null;
+          const dateLabel = activiteLiee?.date_debut
+            ? fmtDateDMY(activiteLiee.date_debut)
+            : client.solde_date
+              ? fmtDateDMY(client.solde_date)
+              : null;
+          return (
+            <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+              ⚠️ En attente de règlement : {euros(reste)} €{dateLabel ? ` prévu le ${dateLabel}` : ""}
+              {modeInfo ? ` — ${modeInfo.label}` : ""}
+              {activiteLiee ? ` (à l'activité "${activiteLiee.nom_activite}")` : ""}
+            </div>
+          );
+        })()}
+
       {etapeActiviteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">

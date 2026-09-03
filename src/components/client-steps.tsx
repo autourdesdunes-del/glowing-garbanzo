@@ -1479,12 +1479,14 @@ function EncaisseButton({
   onAnnuler,
   marquerLabel = "Marquer encaissé",
   onDifferent,
+  differentLabel = "Réglé autrement",
 }: {
   paye: boolean;
   onMarquer: () => void;
   onAnnuler: () => void;
   marquerLabel?: string;
   onDifferent?: () => void;
+  differentLabel?: string;
 }) {
   if (paye) {
     return (
@@ -1510,7 +1512,7 @@ function EncaisseButton({
           onClick={onDifferent}
           className="whitespace-nowrap text-[10px] font-medium text-neutral-500 underline hover:text-neutral-700"
         >
-          Réglé autrement
+          {differentLabel}
         </button>
       )}
     </div>
@@ -2507,6 +2509,7 @@ export function PaiementsStep({
                       onMarquer={clickMarquerAcompteEncaisse}
                       onAnnuler={clickMarquerAcompteEncaisse}
                       onDifferent={!client.acompte_paye ? clickMontantAcompteDifferent : undefined}
+                      differentLabel="Montant de l'acompte différent ?"
                     />
                     {isDirection && (
                       <button

@@ -4,8 +4,15 @@ import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/
 import { participantsFor, isGrandEgyptianMuseum } from "@/lib/resa";
 import { addDays, todayStr } from "@/lib/dates";
 
+// La police "helvetica" standard de jsPDF n'a pas de glyphe pour l'espace
+// fine insécable (U+202F) que toLocaleString("fr-FR") insère comme séparateur
+// de milliers — elle la remplace par un espace beaucoup trop large, ce qui
+// donnait un texte visiblement "trop espacé" sur toute ligne dépassant 999.
+function frNombre(n: number, options: Intl.NumberFormatOptions) {
+  return (Number(n) || 0).toLocaleString("fr-FR", options).replace(/ /g, " ");
+}
 function euros(n: number) {
-  return `${(Number(n) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  return `${frNombre(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 }
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -80,15 +87,12 @@ function lignesPourReservation(
     }
   }
 
-  const optionsTotal = options.reduce((s, o) => s + (Number(o.prix) || 0) * (Number(o.quantite) || 1), 0);
-  if (optionsTotal > 0) {
-    lignes.push({
-      label: `Options : ${options.map((o) => o.nom).join(", ")}`,
-      quantite: 1,
-      puVente: optionsTotal,
-      montantHT: optionsTotal,
-    });
-  }
+  options.forEach((o) => {
+    const quantite = Number(o.quantite) || 1;
+    const pu = Number(o.prix) || 0;
+    if (pu <= 0) return;
+    lignes.push({ label: `Option : ${o.nom}`, quantite, puVente: pu, montantHT: quantite * pu });
+  });
 
   tarifs.forEach((t) => {
     if (Number(t.quantite) || 0) {
@@ -227,7 +231,7 @@ export function generateClientDocument(
       rowKinds.push("ligne");
       body.push([
         l.label,
-        l.quantite.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        frNombre(l.quantite, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         euros(l.puVente),
         euros(l.montantHT),
       ]);
@@ -279,7 +283,20 @@ export function generateClientDocument(
   y = (doc as any).lastAutoTable.finalY + 10;
 
   // -- Total HT / TVA / TTC (0 % — activités touristiques hors TVA) --------
-  const boxW = 72;
+  // Largeur mesurée dynamiquement (label le plus large + montant le plus
+  // large de chaque police utilisée) plutôt qu'une constante figée : un
+  // total à beaucoup de chiffres (gros groupe, séjour long) débordait sinon
+  // du cadre, aucune vérification ne l'empêchait.
+  const totalTTCStr = euros(totalHT);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const boxWNormal =
+    Math.max(doc.getTextWidth("Total HT"), doc.getTextWidth("TVA (0 %)")) +
+    Math.max(doc.getTextWidth(totalTTCStr), doc.getTextWidth("0,00 €"));
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  const boxWBold = doc.getTextWidth("Total TTC") + doc.getTextWidth(totalTTCStr);
+  const boxW = Math.max(72, boxWNormal + 10, boxWBold + 10);
   const boxX = rightColX - boxW;
   doc.setDrawColor(230, 220, 200);
   doc.setFillColor(250, 247, 240);
@@ -288,14 +305,14 @@ export function generateClientDocument(
   doc.setFontSize(9);
   doc.setTextColor(60, 60, 60);
   doc.text("Total HT", boxX + 3.5, y);
-  doc.text(euros(totalHT), rightColX - 3.5, y, { align: "right" });
+  doc.text(totalTTCStr, rightColX - 3.5, y, { align: "right" });
   doc.text("TVA (0 %)", boxX + 3.5, y + 5.5);
   doc.text("0,00 €", rightColX - 3.5, y + 5.5, { align: "right" });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(20, 20, 20);
   doc.text("Total TTC", boxX + 3.5, y + 13);
-  doc.text(euros(totalHT), rightColX - 3.5, y + 13, { align: "right" });
+  doc.text(totalTTCStr, rightColX - 3.5, y + 13, { align: "right" });
   y += 28;
 
   // -- Paiements ------------------------------------------------------------
@@ -322,8 +339,14 @@ export function generateClientDocument(
       `${euros(acompteMontant)} ${client.acompte_paye ? `payé (${client.acompte_mode}) le ${fmtDate(client.acompte_date_encaissement)}` : `à régler (${client.acompte_mode})`}`
     );
   }
+  // Le mode de règlement n'a de sens qu'une fois le solde effectivement
+  // encaissé — tant qu'il est "à payer", solde_mode peut contenir une valeur
+  // périmée (ex. un paiement marqué "modes différents" puis annulé sans que
+  // ce champ soit remis à zéro), donc on ne l'affiche jamais dans ce cas.
   conditions.push(
-    `${euros(soldeMontant)} ${client.solde_paye ? "encaissé" : "à payer"}${client.solde_date ? ` (${client.solde_mode}) le ${fmtDate(client.solde_date)}` : ` (${client.solde_mode})`}`
+    client.solde_paye
+      ? `${euros(soldeMontant)} encaissé${client.solde_mode ? ` (${client.solde_mode})` : ""}${client.solde_date ? ` le ${fmtDate(client.solde_date)}` : ""}`
+      : `${euros(soldeMontant)} à payer`
   );
   conditions.forEach((c) => {
     doc.text(`•  ${c}`, MARGIN, y);

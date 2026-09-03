@@ -490,10 +490,12 @@ function AppShellInner({
   const effectiveNavMasque = viewAs === "moi" ? navMasque : (activePermsProfile?.nav_masque ?? []);
   const effectiveSuivisVisibles =
     viewAs === "moi" ? suivisVisibles : (activePermsProfile?.suivis_visibles ?? null);
-  // Équipe Égypte (Hossam, Bodé) : seuls comptes avec un nav_masque non vide
-  // aujourd'hui — sert de signal pour afficher la traduction arabe en plus
-  // du libellé français dans toute la sidebar (onglets + sous-onglets).
-  const arabicMode = effectiveNavMasque.length > 0;
+  // Équipe Égypte (Hossam, Bodé) uniquement — sert de signal pour afficher
+  // la traduction arabe en plus du libellé français dans toute la sidebar
+  // (onglets + sous-onglets). Ne plus se baser sur "nav_masque non vide" :
+  // Sylvie/Laura/Justine ont aussi un nav_masque (['recap']) pour une tout
+  // autre raison, ce qui leur affichait l'arabe par erreur.
+  const arabicMode = ["hossam", "bodé", "bode"].includes(effectivePrenom.trim().toLowerCase());
   // "Récap du mois" vit sous Direction > Récap du mois pour Mélanie (pas en
   // onglet de premier niveau), mais reste un vrai onglet pour Hossam/Bodé.
   // On distingue via navMasque (vide) plutôt que le prénom : seule Mélanie

@@ -1523,6 +1523,7 @@ function PaiementResteFlow({
   montantACouvrir,
   confirm,
   toast,
+  isDirection = false,
 }: {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
@@ -1530,6 +1531,7 @@ function PaiementResteFlow({
   montantACouvrir: number;
   confirm: ReturnType<typeof useConfirm>;
   toast: ReturnType<typeof useToast>;
+  isDirection?: boolean;
 }) {
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
@@ -1759,13 +1761,15 @@ function PaiementResteFlow({
                   onAnnuler={() => onChange({ solde_paye: false, solde_rdv_finalise: false, solde_mode: "" })}
                   marquerLabel="Rendez-vous finalisé"
                 />
-                <button
-                  onClick={supprimerCartePaiement}
-                  title="Supprimer"
-                  className="p-1 text-red-500 hover:text-red-600"
-                >
-                  🗑
-                </button>
+                {isDirection && (
+                  <button
+                    onClick={supprimerCartePaiement}
+                    title="Supprimer"
+                    className="p-1 text-red-500 hover:text-red-600"
+                  >
+                    🗑
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1816,13 +1820,15 @@ function PaiementResteFlow({
                       onMarquer={() => marquerEncaisse(soldeMode)}
                       onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                     />
-                    <button
-                      onClick={supprimerCartePaiement}
-                      title="Supprimer"
-                      className="p-1 text-red-500 hover:text-red-600"
-                    >
-                      🗑
-                    </button>
+                    {isDirection && (
+                      <button
+                        onClick={supprimerCartePaiement}
+                        title="Supprimer"
+                        className="p-1 text-red-500 hover:text-red-600"
+                      >
+                        🗑
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -1887,13 +1893,15 @@ function PaiementResteFlow({
                     onMarquer={() => marquerEncaisse(soldeMode)}
                     onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                   />
-                  <button
-                    onClick={supprimerCartePaiement}
-                    title="Supprimer"
-                    className="p-1 text-red-500 hover:text-red-600"
-                  >
-                    🗑
-                  </button>
+                  {isDirection && (
+                    <button
+                      onClick={supprimerCartePaiement}
+                      title="Supprimer"
+                      className="p-1 text-red-500 hover:text-red-600"
+                    >
+                      🗑
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -2001,6 +2009,7 @@ export function PaiementsStep({
   // Repliable pour désencombrer une fois le type de paiement réglé — le
   // Résumé des paiements, lui, reste toujours visible (voir plus bas).
   const [typeDePaiementOpen, setTypeDePaiementOpen] = useState(true);
+  const typeDePaiementAutoReplieRef = useRef(false);
   const [etapeMontant, setEtapeMontant] = useState("");
   const [etapeMode, setEtapeMode] = useState<string>(MODES_PAIEMENT[0] || "");
   const [etapeDate, setEtapeDate] = useState(todayStr());
@@ -2145,6 +2154,16 @@ export function PaiementsStep({
     });
   }
   paiementsChronologiques.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  // Replie automatiquement "Type de paiement" dès que le résumé compte plus
+  // de 2 lignes, pour désencombrer — une seule fois (si l'employée le
+  // rouvre ensuite, on ne le referme plus tout seul dans son dos).
+  useEffect(() => {
+    if (paiementsChronologiques.length > 2 && !typeDePaiementAutoReplieRef.current) {
+      typeDePaiementAutoReplieRef.current = true;
+      setTypeDePaiementOpen(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paiementsChronologiques.length]);
 
   // Espèces/CB : l'argent est remis en main propre sur une activité — on
   // demande toujours laquelle (PayPal/virement ne passent par aucune
@@ -2315,6 +2334,7 @@ export function PaiementsStep({
             montantACouvrir={totalSejour}
             confirm={confirm}
             toast={toast}
+            isDirection={isDirection}
           />
         )}
 
@@ -2368,13 +2388,15 @@ export function PaiementsStep({
                       onMarquer={clickMarquerAcompteEncaisse}
                       onAnnuler={clickMarquerAcompteEncaisse}
                     />
-                    <button
-                      onClick={supprimerAcompte}
-                      title="Supprimer"
-                      className="p-1 text-red-500 hover:text-red-600"
-                    >
-                      🗑
-                    </button>
+                    {isDirection && (
+                      <button
+                        onClick={supprimerAcompte}
+                        title="Supprimer"
+                        className="p-1 text-red-500 hover:text-red-600"
+                      >
+                        🗑
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -2391,6 +2413,7 @@ export function PaiementsStep({
                 montantACouvrir={resteApresAcompte}
                 confirm={confirm}
                 toast={toast}
+                isDirection={isDirection}
               />
             </div>
           </div>

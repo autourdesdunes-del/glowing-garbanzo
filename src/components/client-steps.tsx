@@ -1951,12 +1951,17 @@ export function PaiementsStep({
 }) {
   const confirm = useConfirm();
   const toast = useToast();
-  const [acompteDateModal, setAcompteDateModal] = useState<{ step: "choix" | "date"; date: string } | null>(
-    null
-  );
+  const [acompteDateModal, setAcompteDateModal] = useState<{
+    step: "choix" | "date";
+    date: string;
+    time: string;
+  } | null>(null);
   const [billetHossamReminder, setBilletHossamReminder] = useState<Reservation | null>(null);
   const [copiedHossamReminder, setCopiedHossamReminder] = useState(false);
   const [addingEtape, setAddingEtape] = useState(false);
+  // Repliable pour désencombrer une fois le type de paiement réglé — le
+  // Résumé des paiements, lui, reste toujours visible (voir plus bas).
+  const [typeDePaiementOpen, setTypeDePaiementOpen] = useState(true);
   const [etapeMontant, setEtapeMontant] = useState("");
   const [etapeMode, setEtapeMode] = useState<string>(MODES_PAIEMENT[0] || "");
   const [etapeDate, setEtapeDate] = useState(todayStr());
@@ -2182,7 +2187,9 @@ export function PaiementsStep({
       onChange({ acompte_paye: false, acompte_date_encaissement: null, acompte_encaisse_ts: null });
       return;
     }
-    setAcompteDateModal({ step: "choix", date: todayStr() });
+    const now = new Date();
+    const defaultTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    setAcompteDateModal({ step: "choix", date: todayStr(), time: defaultTime });
   };
 
   const resteApresAcompte = Math.max(
@@ -2229,7 +2236,20 @@ export function PaiementsStep({
       )}
 
       <div>
-        <h3 className="mb-2 text-sm font-semibold text-[#171717]">Type de paiement</h3>
+        <button
+          type="button"
+          onClick={() => setTypeDePaiementOpen((v) => !v)}
+          className="mb-2 flex w-full items-center gap-1.5 text-left"
+        >
+          <span className={`text-neutral-400 transition-transform ${typeDePaiementOpen ? "" : "-rotate-90"}`}>
+            ⌄
+          </span>
+          <h3 className="text-sm font-semibold text-[#171717]">
+            Type de paiement <span className="text-xs font-normal text-neutral-400">(prévu initialement)</span>
+          </h3>
+        </button>
+        {typeDePaiementOpen && (
+          <>
         <select
           value={client.paiement_type}
           onChange={(e) => onChange({ paiement_type: e.target.value })}
@@ -2409,6 +2429,8 @@ export function PaiementsStep({
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {paiementsChronologiques.length > 0 && (
@@ -2517,13 +2539,29 @@ export function PaiementsStep({
                 <p className="mb-4 text-sm text-neutral-600">
                   Marquer l&apos;acompte encaissé à la date d&apos;aujourd&apos;hui ?
                 </p>
+                {client.acompte_mode === "PayPal" && (
+                  <div className="mb-4">
+                    <Field label="Heure de l'encaissement">
+                      <input
+                        type="time"
+                        value={acompteDateModal.time}
+                        onChange={(e) => setAcompteDateModal({ ...acompteDateModal, time: e.target.value })}
+                        className="input"
+                      />
+                    </Field>
+                  </div>
+                )}
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={() => {
+                      const isPaypal = client.acompte_mode === "PayPal";
                       onChange({
                         acompte_paye: true,
                         acompte_date_encaissement: todayStr(),
-                        acompte_encaisse_ts: null,
+                        acompte_encaisse_ts:
+                          isPaypal && acompteDateModal.time
+                            ? new Date(`${todayStr()}T${acompteDateModal.time}:00`).toISOString()
+                            : null,
                       });
                       setAcompteDateModal(null);
                       checkBilletHossamReminder();
@@ -2542,7 +2580,7 @@ export function PaiementsStep({
               </>
             ) : (
               <>
-                <div className="mb-4">
+                <div className="mb-4 flex gap-2">
                   <Field label="Date d'encaissement">
                     <input
                       type="date"
@@ -2551,14 +2589,28 @@ export function PaiementsStep({
                       className="input"
                     />
                   </Field>
+                  {client.acompte_mode === "PayPal" && (
+                    <Field label="Heure">
+                      <input
+                        type="time"
+                        value={acompteDateModal.time}
+                        onChange={(e) => setAcompteDateModal({ ...acompteDateModal, time: e.target.value })}
+                        className="input"
+                      />
+                    </Field>
+                  )}
                 </div>
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={() => {
+                      const isPaypal = client.acompte_mode === "PayPal";
                       onChange({
                         acompte_paye: true,
                         acompte_date_encaissement: acompteDateModal.date,
-                        acompte_encaisse_ts: null,
+                        acompte_encaisse_ts:
+                          isPaypal && acompteDateModal.time
+                            ? new Date(`${acompteDateModal.date}T${acompteDateModal.time}:00`).toISOString()
+                            : null,
                       });
                       setAcompteDateModal(null);
                       checkBilletHossamReminder();

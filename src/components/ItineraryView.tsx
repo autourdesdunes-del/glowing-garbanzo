@@ -44,8 +44,7 @@ import {
 import AddActivityWizard from "@/components/AddActivityWizard";
 import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import AjouterRemboursementAvoirModal from "@/components/AjouterRemboursementAvoirModal";
-import { buildPaxEnglish } from "@/components/client-steps";
-import { hotelEgyptLinePourActivite } from "@/lib/hotelHelp";
+import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { fmtAnnulationSuffix } from "@/lib/dates";
 
@@ -399,12 +398,19 @@ export default function ItineraryView({
   const expBreakdown = expandedReservation
     ? resaBreakdown(expandedReservation, client, expOptions, expTarifs, reservations, hotelVille)
     : [];
-  const egyptBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\nHotel : ${hotelEgyptLinePourActivite(
-    clientHotels,
-    expandedReservation?.date_debut || null,
-    client.hotel,
-    hotelVille
-  )}\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
+  const egyptBlock = expandedReservation
+    ? buildEgyptActivityBlock(
+        client,
+        expandedReservation,
+        expOptions,
+        reservations,
+        resaOptions,
+        resaTarifs,
+        paiementsEtapes,
+        clientHotels,
+        hotelVille
+      )
+    : "";
   const copyEgyptBlock = async () => {
     try {
       await navigator.clipboard.writeText(egyptBlock);

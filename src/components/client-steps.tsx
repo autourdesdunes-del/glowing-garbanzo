@@ -41,6 +41,7 @@ import {
   hossamBilletMessage,
   reservationsActives,
   resaTotalMontant,
+  soldeInclutAcompteImpaye,
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
@@ -1511,7 +1512,24 @@ function PaiementResteFlow({
     onChange({ solde_rdv_valide: true, solde_mode: mode });
   };
 
+  // Marquer le solde encaissé (RDV finalisé, ou activité désignée) déclare
+  // tout le séjour payé — y compris l'acompte, qui n'est jamais recompté
+  // séparément (règle du solde unique). Si l'acompte est resté "en attente"
+  // à ce moment-là, on prévient avant de continuer : sans ça, un acompte
+  // PayPal jamais réellement encaissé se retrouve compté comme payé partout
+  // (badges, résumé) sans que personne ne l'ait vraiment vérifié.
+  const confirmerAcompteInclus = async () => {
+    if (!soldeInclutAcompteImpaye(client)) return true;
+    return confirm({
+      title: "L'acompte n'a pas encore été marqué encaissé",
+      message: `L'acompte de ${euros(client.acompte_montant)} € (${client.acompte_mode}) est toujours "en attente". En continuant, tout le séjour — acompte compris — sera considéré comme payé partout dans le dossier. Le montant collecté couvre-t-il bien aussi cet acompte ?`,
+      confirmLabel: "Oui, l'acompte est inclus",
+      cancelLabel: "Non, annuler",
+    });
+  };
+
   const finaliserRdv = async () => {
+    if (!(await confirmerAcompteInclus())) return;
     const ok = await confirm({
       title: "Rendez-vous finalisé ?",
       message:
@@ -1532,8 +1550,9 @@ function PaiementResteFlow({
     onChange({ solde_rdv_valide: true, solde_mode: INTEGRAL_MODE_SOLDE_MODE[client.paiement_integral_mode] });
   };
 
-  const marquerEncaisse = (mode: string) => {
-    onChange({ solde_paye: true, solde_mode: mode, solde_rdv_finalise: false });
+  const marquerEncaisse = async (mode: string) => {
+    if (!(await confirmerAcompteInclus())) return;
+    onChange({ solde_paye: true, solde_mode: mode, solde_rdv_finalise: false, solde_date: todayStr() });
   };
 
   const supprimerCartePaiement = () => {
@@ -1698,7 +1717,7 @@ function PaiementResteFlow({
                 <EncaisseButton
                   paye={client.solde_paye}
                   onMarquer={finaliserRdv}
-                  onAnnuler={() => onChange({ solde_paye: false, solde_rdv_finalise: false })}
+                  onAnnuler={() => onChange({ solde_paye: false, solde_rdv_finalise: false, solde_mode: "" })}
                   marquerLabel="Rendez-vous finalisé"
                 />
                 <button
@@ -1756,7 +1775,7 @@ function PaiementResteFlow({
                     <EncaisseButton
                       paye={client.solde_paye}
                       onMarquer={() => marquerEncaisse(soldeMode)}
-                      onAnnuler={() => onChange({ solde_paye: false })}
+                      onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                     />
                     <button
                       onClick={supprimerCartePaiement}
@@ -1827,7 +1846,7 @@ function PaiementResteFlow({
                   <EncaisseButton
                     paye={client.solde_paye}
                     onMarquer={() => marquerEncaisse(soldeMode)}
-                    onAnnuler={() => onChange({ solde_paye: false })}
+                    onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                   />
                   <button
                     onClick={supprimerCartePaiement}
@@ -2066,12 +2085,19 @@ export function PaiementsStep({
   // aucun règlement réel à ajouter à la liste — une ligne "Solde — 0 €" ne
   // ferait que semer la confusion sur ce qui s'est vraiment passé.
   if (client.solde_paye && soldeRestant > 0) {
+    const soldeActivite = client.solde_activite_id
+      ? reservations.find((r) => r.id === client.solde_activite_id)
+      : null;
     paiementsChronologiques.push({
       id: "solde",
       label: `Solde — ${client.solde_mode}`,
       montant: soldeRestant,
       when: client.solde_date ? fmtDateDMY(client.solde_date) : "—",
       sortKey: client.solde_date || "",
+      activite: soldeActivite?.nom_activite,
+      note: soldeActivite
+        ? `Solde récolté à l'activité "${soldeActivite.nom_activite}"`
+        : "Solde du séjour",
     });
   }
   paiementsChronologiques.sort((a, b) => a.sortKey.localeCompare(b.sortKey));

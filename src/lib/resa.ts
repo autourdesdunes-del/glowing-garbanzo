@@ -199,17 +199,7 @@ export function paiementProgress(
   const avoirUtilise = avoirUtiliseTotal(reservations);
   const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const soldeRestant = Math.max(totalSejour - acompteEngage - etapesSum - avoirUtilise, 0);
-  // Le solde marqué payé couvre le total du séjour TEL QU'IL ÉTAIT au moment
-  // de l'encaissement (client.solde_montant, figé alors) — jamais le total
-  // recalculé maintenant, sinon une activité ajoutée après coup se
-  // retrouverait comptée payée par magie (règle du solde unique : un "payé"
-  // du passé ne peut pas s'étendre tout seul à une activité qui n'existait
-  // pas encore). On plafonne à soldeRestant pour ne jamais dépasser le
-  // besoin réel si le séjour a au contraire diminué depuis.
-  const soldePayeMontant = client.solde_paye
-    ? Math.min(Number(client.solde_montant) || soldeRestant, soldeRestant)
-    : 0;
-  const totalPaye = acomptePaye + etapesSum + avoirUtilise + soldePayeMontant;
+  const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
   return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0), soldeRestant };
 }
 
@@ -219,14 +209,25 @@ export function paiementProgress(
 // laisse penser que rien n'a été payé, alors que la quasi-totalité l'est.
 const SEUIL_PRESQUE_PAYE = 0.9;
 
-const PAYE_KEYS = new Set([
-  "paye_eur",
-  "paye_egp",
-  "paye_cb",
-  "paye_virement",
-  "paye_paypal",
-  "paye_mixte",
-]);
+// Activité ciblée par un règlement "de reprise" (nouvelle activité ajoutée
+// après un solde déjà entièrement réglé, voir client.reprise_* et le
+// pop-up dédié dans PaiementsStep) : l'activité choisie à la main si le
+// mode passe par une activité précise, sinon la prochaine activité à venir
+// pour PayPal/virement — jamais mêlée au solde d'origine, qui reste "payé"
+// partout ailleurs (règle du solde unique : ce qui était réglé avant le
+// reste réglé, seule la nouveauté suit ce nouveau paiement).
+export function repriseActiviteCible(client: Client, reservations: Reservation[]): Reservation | null {
+  if (!(Number(client.reprise_montant) > 0)) return null;
+  if (client.reprise_mode !== "PayPal" && client.reprise_mode !== "Virement bancaire" && client.reprise_activite_id) {
+    return reservations.find((r) => r.id === client.reprise_activite_id) || null;
+  }
+  const actives = reservationsActives(reservations).filter((r) => r.date_debut);
+  const prochaine = [...actives]
+    .filter((r) => (r.date_debut || "") >= todayStr())
+    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""))[0];
+  if (prochaine) return prochaine;
+  return [...actives].sort((a, b) => (b.date_debut || "").localeCompare(a.date_debut || ""))[0] || null;
+}
 
 export function paiementBadge(
   client: Client,
@@ -236,6 +237,13 @@ export function paiementBadge(
   resaTarifs?: Record<string, ReservationTarif[]>,
   etapes?: PaiementEtape[]
 ) {
+  if (reservations && repriseActiviteCible(client, reservations)?.id === r.id) {
+    return {
+      label: `⚠️ ${fmtEuros(client.reprise_montant)} € à régler — ${client.reprise_mode}`,
+      className: "bg-orange-100 text-orange-700",
+    };
+  }
+
   const key = paiementStatutKey(client, r);
   const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key)!;
 
@@ -259,19 +267,6 @@ export function paiementBadge(
     resaTarifs,
     etapes || []
   );
-
-  // Le solde avait été marqué payé (éventuellement via un RDV finalisé),
-  // mais une activité ajoutée depuis a fait grossir le total du séjour
-  // au-delà de ce qui a réellement été encaissé (règle du solde unique : un
-  // "payé" qui datait d'avant cette activité ne peut pas s'appliquer à elle
-  // par magie) — le badge "Payé" redeviendrait mensonger, il faut rouvrir un
-  // vrai statut "à régler".
-  if ((PAYE_KEYS.has(key) || (client.solde_paye && client.solde_rdv_finalise)) && reste > 0) {
-    return {
-      label: `⚠️ Nouvelle activité non réglée — ${fmtEuros(reste)} € à encaisser`,
-      className: "bg-red-100 text-red-700",
-    };
-  }
 
   // Le bouton "Rendez-vous finalisé" (étape Paiements) marque le solde payé
   // et pose ce drapeau — le badge doit alors le préciser plutôt que le
@@ -1164,13 +1159,19 @@ export function isSeascope(nom: string) {
   return (nom || "").toLowerCase().includes("seascope");
 }
 
+export function isCityTour(nom: string) {
+  return (nom || "").toLowerCase().includes("city tour");
+}
+
 // En dehors du sunset (horaire fixe), des formules "journée" fixes, et du
 // semi-privé Maison des dauphins, tous les speedboat doivent préciser
-// matin/après-midi — comme Seascope, qui utilisait jusqu'ici une case à
-// cocher générique "Matin / Après-midi" sans que le choix ne se retrouve
-// nulle part (ni dans le titre, ni utilisable pour filtrer/trier).
+// matin/après-midi — comme Seascope et les City Tour (Hurghada, El Gouna),
+// qui utilisaient jusqu'ici une case à cocher générique "Matin / Après-midi"
+// sans que le choix ne se retrouve nulle part (ni dans le titre, ni
+// utilisable pour filtrer/trier).
 export function needsMomentSpeedboat(nom: string) {
   if (isSeascope(nom)) return true;
+  if (isCityTour(nom)) return true;
   if (!isSpeedboat(nom)) return false;
   if (isSpeedboatSunset(nom)) return false;
   if (isSpeedboatSemiPriveMaisonDauphins(nom)) return false;

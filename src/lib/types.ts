@@ -435,6 +435,14 @@ export type Client = {
   paiement_integral_mode: string;
   solde_rdv_valide: boolean;
   solde_rdv_finalise: boolean;
+  // Règlement "de reprise" : activité ajoutée après que le solde ait déjà
+  // été entièrement réglé — suit son propre paiement, indépendant de
+  // solde_paye/solde_mode/solde_activite_id (voir repriseActiviteCible et
+  // le pop-up dédié dans PaiementsStep). reprise_montant à 0 = rien en
+  // attente.
+  reprise_montant: number;
+  reprise_mode: string;
+  reprise_activite_id: string | null;
   egp_taux: number;
   egp_montant: number;
   acompte_montant: number;
@@ -560,6 +568,9 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   paiement_integral_mode: "",
   solde_rdv_valide: false,
   solde_rdv_finalise: false,
+  reprise_montant: 0,
+  reprise_mode: "",
+  reprise_activite_id: null,
   egp_taux: 0,
   egp_montant: 0,
   acompte_montant: 0,

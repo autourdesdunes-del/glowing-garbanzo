@@ -1546,7 +1546,8 @@ function PaiementResteFlow({
   onChange,
   reservations,
   montantACouvrir,
-  montantACouvrirPrevu,
+  montantActiviteAttenduPrevu,
+  montantActiviteAttenduReel,
   confirm,
   toast,
   isDirection = false,
@@ -1556,10 +1557,13 @@ function PaiementResteFlow({
   onChange: (patch: Partial<Client>) => void;
   reservations: Reservation[];
   montantACouvrir: number;
-  // Ce qui était prévu avant tout ajustement d'acompte — sert uniquement à
-  // afficher l'écart ("604€ au lieu de 600€"). Égal à montantACouvrir si
-  // non fourni (aucun écart à signaler).
-  montantACouvrirPrevu?: number;
+  // Montant attendu à l'activité de collecte, avant/après ajustement de
+  // l'acompte, SANS déduire ce qui est déjà réglé — sert uniquement à
+  // signaler durablement l'écart ("604€ au lieu de 600€"), même une fois
+  // le solde complètement réglé (contrairement à montantACouvrir qui
+  // retombe à 0 dans ce cas). Égaux à montantACouvrir si non fournis.
+  montantActiviteAttenduPrevu?: number;
+  montantActiviteAttenduReel?: number;
   confirm: ReturnType<typeof useConfirm>;
   toast: ReturnType<typeof useToast>;
   isDirection?: boolean;
@@ -1570,7 +1574,8 @@ function PaiementResteFlow({
     activiteId?: string | null;
   }) => void;
 }) {
-  const montantPrevu = montantACouvrirPrevu ?? montantACouvrir;
+  const montantAttenduPrevu = montantActiviteAttenduPrevu ?? montantACouvrir;
+  const montantAttenduReel = montantActiviteAttenduReel ?? montantACouvrir;
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
 
@@ -1935,9 +1940,9 @@ function PaiementResteFlow({
                       {soldeMode}
                     </span>
                   </div>
-                  {montantPrevu !== montantACouvrir && (
+                  {montantAttenduReel !== montantAttenduPrevu && (
                     <p className="mt-1 text-xs font-medium text-red-600">
-                      {euros(montantACouvrir)} € au lieu de {euros(montantPrevu)} € → raison :{" "}
+                      {euros(montantAttenduReel)} € au lieu de {euros(montantAttenduPrevu)} € → raison :{" "}
                       {client.acompte_entre_proches_oublie
                         ? "rattrapage de l'oubli « Entre proches »"
                         : "montant de l'acompte ajusté"}
@@ -2408,15 +2413,19 @@ export function PaiementsStep({
       avoirUtilise,
     0
   );
-  // Même calcul mais avec le montant d'acompte initialement prévu (jamais
-  // modifié) — sert uniquement à détecter et afficher l'écart sur la carte
-  // du solde quand l'acompte a finalement été encaissé pour moins/plus que
-  // prévu (ex. frais PayPal). Égal à resteApresAcompte si rien n'a changé.
-  const resteApresAcomptePrevu = Math.max(
+  // Montant attendu à l'activité de collecte, SANS déduire les étapes déjà
+  // réglées — contrairement à resteApresAcompte (qui vise "combien reste-
+  // t-il à encaisser MAINTENANT" et retombe à 0 une fois tout réglé), ceci
+  // reste un repère fixe pour signaler durablement l'écart dû à l'acompte
+  // (ex. "604€ au lieu de 600€"), même après un règlement complet.
+  const montantActiviteAttenduPrevu = Math.max(
     totalSejour -
       (client.acompte_valide ? Number(client.acompte_montant_prevu ?? client.acompte_montant) || 0 : 0) -
-      etapesSum -
       avoirUtilise,
+    0
+  );
+  const montantActiviteAttenduReel = Math.max(
+    totalSejour - (client.acompte_valide ? Number(client.acompte_montant) || 0 : 0) - avoirUtilise,
     0
   );
 
@@ -2605,7 +2614,8 @@ export function PaiementsStep({
                 onChange={onChange}
                 reservations={reservations}
                 montantACouvrir={resteApresAcompte}
-                montantACouvrirPrevu={resteApresAcomptePrevu}
+                montantActiviteAttenduPrevu={montantActiviteAttenduPrevu}
+                montantActiviteAttenduReel={montantActiviteAttenduReel}
                 confirm={confirm}
                 toast={toast}
                 isDirection={isDirection}

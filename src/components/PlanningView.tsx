@@ -1675,6 +1675,11 @@ export default function PlanningView({
     const rows: Row[] = [];
     reservations.forEach((r) => {
       if (!r.date_debut) return;
+      // "Prochainement"/"Ce mois-ci"/mois choisi utilisaient rangesOverlap
+      // seul, sans exclure les annulées (contrairement à Hier/Aujourd'hui/
+      // Demain via resaActiveOn) — une activité annulée réapparaissait donc
+      // comme si de rien n'était dès qu'on changeait de filtre ou de mois.
+      if (r.statut_resa === "Annulée") return;
       const client = clients.find((c) => c.id === r.client_id);
       if (!client) return;
 

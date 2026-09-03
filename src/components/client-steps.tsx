@@ -2091,6 +2091,12 @@ export function PaiementsStep({
   // enregistrer un autre paiement déjà effectué).
   const encaissementDifferentEnCours = useRef(false);
   const [apresEtapeChoix, setApresEtapeChoix] = useState(false);
+  // Petit résiduel (≤1€, souvent des frais/arrondis) : propose de le laisser
+  // à la charge de l'agence plutôt que de relancer le client pour si peu —
+  // une seule fois par montant vu, pour ne pas re-proposer en boucle si
+  // l'employée ferme le pop-up sans répondre.
+  const [residuelAgencePropose, setResiduelAgencePropose] = useState<number | null>(null);
+  const residuelAgenceVuRef = useRef<number | null>(null);
 
   const DIFFERENT_NOTE = "Réglé différemment de ce qui était prévu initialement";
 
@@ -2127,7 +2133,11 @@ export function PaiementsStep({
   const apresAjoutEncaissementDifferent = (montantAjoute: number, soldeAvant: number) => {
     if (!encaissementDifferentEnCours.current) return;
     encaissementDifferentEnCours.current = false;
-    if (Math.max(soldeAvant - montantAjoute, 0) > 0) setApresEtapeChoix(true);
+    const restant = Math.max(soldeAvant - montantAjoute, 0);
+    // Un résiduel ≤1€ propose déjà sa propre popup (voir useEffect
+    // résiduelAgencePropose) — inutile de demander "prépare le prochain
+    // paiement" pour quelques centimes.
+    if (restant > 1) setApresEtapeChoix(true);
   };
 
   // Après avoir marqué l'acompte encaissé, si un billet d'avion attend
@@ -2383,6 +2393,23 @@ export function PaiementsStep({
       avoirUtilise,
     0
   );
+
+  useEffect(() => {
+    if (client.solde_paye) {
+      residuelAgenceVuRef.current = null;
+      return;
+    }
+    const montantPertinent = client.paiement_type === "acompte" ? resteApresAcompte : reste;
+    if (montantPertinent > 0 && montantPertinent <= 1) {
+      if (residuelAgenceVuRef.current !== montantPertinent) {
+        residuelAgenceVuRef.current = montantPertinent;
+        setResiduelAgencePropose(montantPertinent);
+      }
+    } else {
+      residuelAgenceVuRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.solde_paye, client.paiement_type, resteApresAcompte, reste]);
 
   return (
     <div className="space-y-1.5">
@@ -2741,6 +2768,45 @@ export function PaiementsStep({
                 className="rounded-md px-3 py-2 text-sm text-neutral-400 hover:text-neutral-600"
               >
                 Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {residuelAgencePropose !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Il reste {euros(residuelAgencePropose)} € — presque rien
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Ne pas comptabiliser pour le client : l&apos;agence prend en charge ces{" "}
+              {euros(residuelAgencePropose)} € restants, mais on prévient le client.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  const montant = residuelAgencePropose;
+                  setResiduelAgencePropose(null);
+                  onChange({ solde_paye: true });
+                  onAddPaiementEtape(
+                    montant,
+                    "Agence",
+                    todayStr(),
+                    "Pris en charge par l'agence (montant résiduel, client prévenu)",
+                    ""
+                  );
+                }}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Oui, mettre le dossier à jour en payé
+              </button>
+              <button
+                onClick={() => setResiduelAgencePropose(null)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Non, garder tel quel
               </button>
             </div>
           </div>

@@ -1,7 +1,13 @@
 import jsPDF from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
 import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { participantsFor, isGrandEgyptianMuseum } from "@/lib/resa";
+import {
+  participantsFor,
+  isGrandEgyptianMuseum,
+  resaTotalMontant,
+  reservationsActives,
+  avoirUtiliseTotal,
+} from "@/lib/resa";
 import { addDays, todayStr } from "@/lib/dates";
 
 // La police "helvetica" standard de jsPDF n'a pas de glyphe pour l'espace
@@ -69,7 +75,8 @@ function lignesPourReservation(
     const base =
       (Number(r.prix_groupe_base) || 0) +
       (Number(r.participants_extra1) || 0) * (Number(r.prix_groupe_extra1) || 0) +
-      (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0);
+      (Number(r.participants_extra_enfants) || 0) * (Number(r.prix_groupe_extra_enfant) || 0) +
+      (Number(r.participants_extra_bebes) || 0) * (Number(r.pu_bebe) || 0);
     lignes.push({ label: "Forfait", quantite: 1, puVente: base, montantHT: base });
   } else {
     const tranches = [
@@ -89,6 +96,10 @@ function lignesPourReservation(
   }
 
   options.forEach((o) => {
+    // Une option "comptée ailleurs" (ex. Montgolfière déjà facturée sur sa
+    // propre carte) ne doit jamais s'ajouter ici — même exclusion que
+    // resaTotalMontant, sinon elle serait facturée deux fois.
+    if (o.prix_compte_ailleurs) return;
     const quantite = Number(o.quantite) || 1;
     const pu = Number(o.prix) || 0;
     if (pu <= 0) return;
@@ -116,6 +127,27 @@ function lignesPourReservation(
   const supplements = supplementIle + supplementGEM;
   if (supplements > 0) {
     lignes.push({ label: "Suppléments (île / site)", quantite: 1, puVente: supplements, montantHT: supplements });
+  }
+
+  // Garde-fou définitif contre tout écart entre la facture et le vrai
+  // montant dû (résaTotalMontant fait référence partout ailleurs dans le
+  // CRM — fiche client, paiements...) : une activité offerte ou une
+  // réduction commerciale (reduction_montant/activite_offerte) n'était pas
+  // du tout prise en compte ici, la facture a réellement surfacturé une
+  // activité offerte à une cliente. Plutôt que de dupliquer cette règle (et
+  // risquer un nouvel oubli le jour où une autre règle de prix change),
+  // on recale la somme des lignes sur le vrai total avec une ligne visible
+  // — le jour où resaTotalMontant évolue, la facture suit automatiquement.
+  const brut = lignes.reduce((s, l) => s + l.montantHT, 0);
+  const montantReel = resaTotalMontant(r, client, options, tarifs);
+  const ecart = montantReel - brut;
+  if (Math.abs(ecart) >= 0.01) {
+    lignes.push({
+      label: ecart < 0 ? (r.activite_offerte ? "Activité offerte" : "Réduction commerciale") : "Ajustement",
+      quantite: 1,
+      puVente: ecart,
+      montantHT: ecart,
+    });
   }
 
   return lignes;
@@ -214,8 +246,12 @@ export function generateClientDocument(
   }
 
   // -- Tableau des activités -----------------------------------------------
-  const relevantResas =
-    docType === "facture" ? reservations.filter((r) => r.statut_resa === "Confirmée") : reservations;
+  // Une activité annulée ne doit jamais apparaître ni compter dans un total
+  // (devis ou facture) — reservationsActives() est la même règle utilisée
+  // partout ailleurs (fiche client, paiements).
+  const relevantResas = reservationsActives(
+    docType === "facture" ? reservations.filter((r) => r.statut_resa === "Confirmée") : reservations
+  );
 
   const rowKinds: RowKind[] = [];
   const body: (string | { content: string; colSpan: number })[][] = [];
@@ -297,11 +333,19 @@ export function generateClientDocument(
     .filter((e) => e.client_id === client.id)
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const etapesSum = etapesClient.reduce((s, e) => s + (Number(e.montant) || 0), 0);
+  // Un avoir (crédit d'un séjour précédent) dépensé sur une activité compte
+  // comme un règlement au même titre qu'un acompte ou une étape — oublié
+  // jusqu'ici, ce qui aurait affiché un "reste à payer" gonflé pour tout
+  // client ayant utilisé un avoir. Même formule que ClientDetail (en-tête).
+  const avoirUtilise = avoirUtiliseTotal(relevantResas);
   const acompteMontant = client.paiement_type === "acompte" ? Number(client.acompte_montant) || 0 : 0;
   const soldeMontant = Math.max(totalHT - acompteMontant, 0);
-  const soldeApresEtapes = Math.max(soldeMontant - etapesSum, 0);
+  const soldeApresEtapes = Math.max(soldeMontant - etapesSum - avoirUtilise, 0);
   const totalPaye =
-    (client.acompte_paye ? acompteMontant : 0) + etapesSum + (client.solde_paye ? soldeApresEtapes : 0);
+    (client.acompte_paye ? acompteMontant : 0) +
+    etapesSum +
+    avoirUtilise +
+    (client.solde_paye ? soldeApresEtapes : 0);
   const reste = Math.max(totalHT - totalPaye, 0);
 
   const conditions: string[] = [];
@@ -313,12 +357,15 @@ export function generateClientDocument(
   etapesClient.forEach((e) => {
     conditions.push(`${euros(Number(e.montant) || 0)} payé (${e.mode})${e.date ? ` le ${fmtDate(e.date)}` : ""}`);
   });
+  if (avoirUtilise > 0) {
+    conditions.push(`${euros(avoirUtilise)} réglé par avoir`);
+  }
   // Le mode de règlement n'a de sens qu'une fois le solde effectivement
   // encaissé — tant qu'il est "à payer", solde_mode peut contenir une valeur
   // périmée (ex. un paiement marqué "modes différents" puis annulé sans que
   // ce champ soit remis à zéro), donc on ne l'affiche jamais dans ce cas.
-  // Rien à ajouter si les étapes ont déjà tout couvert.
-  if (soldeApresEtapes > 0 || etapesClient.length === 0) {
+  // Rien à ajouter si les étapes/avoir ont déjà tout couvert.
+  if (soldeApresEtapes > 0 || (etapesClient.length === 0 && avoirUtilise === 0)) {
     conditions.push(
       client.solde_paye
         ? `${euros(soldeApresEtapes)} encaissé${client.solde_mode ? ` (${client.solde_mode})` : ""}${client.solde_date ? ` le ${fmtDate(client.solde_date)}` : ""}`

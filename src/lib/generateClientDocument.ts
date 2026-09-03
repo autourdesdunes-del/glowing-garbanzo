@@ -459,6 +459,22 @@ export function generateClientDocument(
   doc.setTextColor(140, 140, 140);
   doc.text(footerText, MARGIN, y);
 
+  // -- Numérotation des pages ---------------------------------------------
+  // Un séjour avec plusieurs activités (ou un solde payé en plusieurs fois)
+  // peut désormais s'étaler sur plusieurs pages depuis le correctif du bas
+  // de page invisible — sans numéro, impossible de savoir si une page manque
+  // à l'impression ou dans un e-mail.
+  const nbPages = doc.internal.pages.length - 1;
+  if (nbPages > 1) {
+    for (let i = 1; i <= nbPages; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.setTextColor(140, 140, 140);
+      doc.text(`Page ${i} / ${nbPages}`, rightColX, PAGE_HEIGHT - 10, { align: "right" });
+    }
+  }
+
   const filename = `${docType}-${(client.nom || "client").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`;
   doc.save(filename);
 }

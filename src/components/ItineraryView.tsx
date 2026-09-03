@@ -43,6 +43,7 @@ import {
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
+import AjouterRemboursementAvoirModal from "@/components/AjouterRemboursementAvoirModal";
 import { buildPaxEnglish } from "@/components/client-steps";
 import { hotelEgyptLinePourActivite } from "@/lib/hotelHelp";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -185,6 +186,7 @@ export default function ItineraryView({
   // changer ce qu'il faut, puis "Valider" ramène au résumé mis à jour.
   const [editingExpanded, setEditingExpanded] = useState(false);
   const [annulerActiviteId, setAnnulerActiviteId] = useState<string | null>(null);
+  const [rembAvoirActiviteId, setRembAvoirActiviteId] = useState<string | null>(null);
   const [egyptOpen, setEgyptOpen] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   useEffect(() => {
@@ -452,6 +454,16 @@ export default function ItineraryView({
                 )}
               </h3>
               <div className="flex shrink-0 items-center gap-1.5">
+                {expandedReservation.statut_resa === "Annulée" && (
+                  <button
+                    type="button"
+                    onClick={() => setRembAvoirActiviteId(expandedReservation.id)}
+                    title="Ajouter un remboursement ou un avoir pour cette activité"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#C9973E]/10 text-[#8B4531] hover:bg-[#C9973E]/20"
+                  >
+                    💶
+                  </button>
+                )}
                 {expandedReservation.statut_resa === "Annulée" ? (
                   <button
                     type="button"
@@ -699,6 +711,27 @@ export default function ItineraryView({
               onUpdate={(patch) => onUpdateReservation(resaAnnuler.id, patch)}
               onUpdateClient={onUpdateClient}
               onClose={() => setAnnulerActiviteId(null)}
+            />
+          );
+        })()}
+
+      {rembAvoirActiviteId &&
+        (() => {
+          const resaCible = reservations.find((r) => r.id === rembAvoirActiviteId);
+          if (!resaCible) return null;
+          const montantSuggere = resaTotalMontant(
+            resaCible,
+            client,
+            resaOptions[resaCible.id] || [],
+            resaTarifs[resaCible.id] || []
+          );
+          return (
+            <AjouterRemboursementAvoirModal
+              client={client}
+              r={resaCible}
+              montantSuggere={montantSuggere}
+              onUpdateClient={onUpdateClient}
+              onClose={() => setRembAvoirActiviteId(null)}
             />
           );
         })()}

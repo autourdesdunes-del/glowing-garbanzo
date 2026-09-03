@@ -182,18 +182,25 @@ export function paiementProgress(
   resaOptions: Record<string, ReservationOption[]>,
   resaTarifs: Record<string, ReservationTarif[]>,
   etapes: PaiementEtape[] = []
-): { totalSejour: number; totalPaye: number; reste: number } {
+): { totalSejour: number; totalPaye: number; reste: number; soldeRestant: number } {
   const totalSejour = reservationsActives(reservations).reduce(
     (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
     0
   );
   const acomptePaye =
     client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  // Un acompte validé (montant/mode fixés) suit son propre règlement même
+  // s'il n'est pas encore physiquement encaissé — jamais compté dans ce qui
+  // reste dû À LA DESTINATION, sous peine de fusionner les deux montants
+  // (vécu : acompte PayPal de 390€ non encaissé + solde de 2260€ à une
+  // activité affichés comme "2650€ en retard" sur cette seule activité).
+  const acompteEngage =
+    client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
   const avoirUtilise = avoirUtiliseTotal(reservations);
   const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
-  const soldeRestant = Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
+  const soldeRestant = Math.max(totalSejour - acompteEngage - etapesSum - avoirUtilise, 0);
   const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
-  return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0) };
+  return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0), soldeRestant };
 }
 
 // Seuil à partir duquel un séjour presque entièrement réglé (ex. Célia
@@ -227,7 +234,7 @@ export function paiementBadge(
   // réel du séjour entier.
   if (!reservations || !resaOptions || !resaTarifs) return { label: opt.label, className: opt.className };
 
-  const { totalPaye, totalSejour, reste } = paiementProgress(
+  const { totalPaye, totalSejour, reste, soldeRestant } = paiementProgress(
     client,
     reservations,
     resaOptions,
@@ -244,7 +251,7 @@ export function paiementBadge(
     r.date_debut < todayStr()
   ) {
     return {
-      label: `⚠️ ${fmtEuros(reste)} € en retard — non collecté à l'activité prévue`,
+      label: `⚠️ ${fmtEuros(soldeRestant)} € en retard — non collecté à l'activité prévue`,
       className: "bg-red-100 text-red-700",
     };
   }

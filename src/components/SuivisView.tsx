@@ -45,6 +45,11 @@ function fmtDate(dateStr: string | null) {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
+function fmtDDMM(dateStr: string | null) {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+}
 function daysBetween(laterStr: string, earlierStr: string) {
   const a = new Date(laterStr + "T00:00:00");
   const b = new Date(earlierStr + "T00:00:00");
@@ -1160,6 +1165,7 @@ export default function SuivisView({
 }) {
   const supabase = createClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [openRembModalId, setOpenRembModalId] = useState<string | null>(null);
   // Retire une carte de la liste dès validation, sans attendre le prochain
   // rafraîchissement automatique (25s, voir AppShell.tsx) — la vraie source
   // de vérité reste la table verifications, ceci est juste un affichage
@@ -2231,26 +2237,79 @@ export default function SuivisView({
             {remboursementsEnAttente.length === 0 && (
               <div className="text-sm text-neutral-400">Rien en attente.</div>
             )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {remboursementsEnAttente.map((r) => {
-                const client = clients.find((c) => c.id === r.client_id);
-                if (!client) return null;
-                const activite = reservations.find((res) => res.id === r.activite_id);
-                const key = "remb-" + r.id;
-                return (
-                  <RemboursementCard
-                    key={r.id}
-                    r={r}
-                    client={client}
-                    activite={activite}
-                    isOpen={!!expanded[key]}
-                    onToggle={() => toggleExpand(key)}
-                    onOpenClient={onOpenClient}
-                  />
-                );
-              })}
+            <div className="space-y-2">
+              {(() => {
+                const parClient = new Map<string, Remboursement[]>();
+                remboursementsEnAttente.forEach((r) => {
+                  parClient.set(r.client_id, [...(parClient.get(r.client_id) || []), r]);
+                });
+                return Array.from(parClient.entries()).map(([clientId, rembs]) => {
+                  const client = clients.find((c) => c.id === clientId);
+                  if (!client) return null;
+                  const totalClient = rembs.reduce((s, r) => s + (Number(r.montant) || 0), 0);
+                  return (
+                    <div key={clientId} className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-100 px-3 py-2">
+                        <ClientNameLink
+                          nom={client.nom}
+                          onClick={() => onOpenClient(client.id)}
+                          className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                        />
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                          Total à rembourser : {euros(totalClient)} €
+                        </span>
+                      </div>
+                      <div className="divide-y divide-neutral-100">
+                        {rembs.map((r) => {
+                          const activite = reservations.find((res) => res.id === r.activite_id);
+                          return (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => setOpenRembModalId(r.id)}
+                              className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-[#fafafa]"
+                            >
+                              <span className="text-[#171717]">
+                                Annulation {activite?.nom_activite || "activité"} {fmtDDMM(r.date_probleme)}
+                                {activite?.date_debut ? ` - prévue le ${fmtDDMM(activite.date_debut)}` : ""}
+                              </span>
+                              <span className="shrink-0 font-medium text-red-600">{euros(r.montant)} €</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
+
+          {openRembModalId &&
+            (() => {
+              const r = remboursements.find((x) => x.id === openRembModalId);
+              if (!r) return null;
+              const client = clients.find((c) => c.id === r.client_id);
+              if (!client) return null;
+              const activite = reservations.find((res) => res.id === r.activite_id);
+              return (
+                <div
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+                  onClick={() => setOpenRembModalId(null)}
+                >
+                  <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md">
+                    <RemboursementCard
+                      r={r}
+                      client={client}
+                      activite={activite}
+                      isOpen
+                      onToggle={() => setOpenRembModalId(null)}
+                      onOpenClient={onOpenClient}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
 
           <div>
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">Effectués</h3>

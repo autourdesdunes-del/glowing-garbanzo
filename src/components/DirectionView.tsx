@@ -1,11 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CatalogueItem,
   CatalogueModificationRequest,
   Client,
   CodePromo,
+  DirectionTache,
+  Remboursement,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -351,6 +353,11 @@ export default function DirectionView({
   onResolveCatalogueModificationRequest,
   transfertTaxeModificationRequests,
   onResolveTransfertTaxeModificationRequest,
+  remboursements,
+  taches,
+  onAddTache,
+  onUpdateTache,
+  onDeleteTache,
 }: {
   sub: DirectionSub;
   clients: Client[];
@@ -364,6 +371,11 @@ export default function DirectionView({
   onResolveCatalogueModificationRequest: (id: string) => void;
   transfertTaxeModificationRequests: TransfertTaxeModificationRequest[];
   onResolveTransfertTaxeModificationRequest: (id: string) => void;
+  remboursements: Remboursement[];
+  taches: DirectionTache[];
+  onAddTache: (texte: string) => void;
+  onUpdateTache: (id: string, patch: Partial<DirectionTache>) => void;
+  onDeleteTache: (id: string) => void;
 }) {
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [expandedTaxeRequestId, setExpandedTaxeRequestId] = useState<string | null>(null);
@@ -488,16 +500,22 @@ export default function DirectionView({
   );
   const clientsDuMois = clients.filter((c) => (c.date_debut || "").slice(0, 7) === currentMonth);
 
-  // -- Liste prioritaire : les deux types de demande de modification en
-  // attente, fusionnés et triés de la plus ancienne à la plus récente (la
-  // plus ancienne en attente traitée en premier).
-  type PrioriteRow =
-    | { kind: "catalogue"; data: CatalogueModificationRequest }
-    | { kind: "taxe"; data: TransfertTaxeModificationRequest };
-  const prioriteRows: PrioriteRow[] = [
-    ...modifCatalogueRows.filter((r) => r.statut !== "Traité").map((data): PrioriteRow => ({ kind: "catalogue", data })),
-    ...modifTaxeRows.filter((r) => r.statut !== "Traité").map((data): PrioriteRow => ({ kind: "taxe", data })),
+  // -- Liste prioritaire : les remboursements en attente (donnée existante)
+  // et les tâches libres que la Direction ajoute elle-même (ex. "finir le
+  // CRM") — mélangées en une seule checklist, triées de la plus ancienne à
+  // la plus récente. Les demandes catalogue/taxe restent visibles dans
+  // "Actions rapides" ci-dessous, pas ici (retiré à la demande de Mélanie).
+  type TodoRow =
+    | { kind: "remboursement"; data: Remboursement }
+    | { kind: "tache"; data: DirectionTache };
+  const remboursementsEnAttente = remboursements.filter((r) => r.statut !== "Effectué");
+  const todoRows: TodoRow[] = [
+    ...remboursementsEnAttente.map((data): TodoRow => ({ kind: "remboursement", data })),
+    ...taches.filter((t) => !t.fait).map((data): TodoRow => ({ kind: "tache", data })),
   ].sort((a, b) => a.data.created_at.localeCompare(b.data.created_at));
+  const [nouvelleTache, setNouvelleTache] = useState("");
+  const [showCatalogueDemandes, setShowCatalogueDemandes] = useState(false);
+  const [showTaxeDemandes, setShowTaxeDemandes] = useState(false);
 
   const exportPdf = () => {
     generateMonthlyReport({
@@ -553,84 +571,82 @@ export default function DirectionView({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">Liste prioritaire</h2>
-          {prioriteRows.length === 0 ? (
-            <div className="rounded-[6px] border border-[#eaeaea] bg-white px-4 py-6 text-center text-sm text-[#666666]">
-              Rien en attente — tout est traité.
-            </div>
-          ) : (
-            <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
-                    <th className="px-4 py-2.5">Date</th>
-                    <th className="px-4 py-2.5">Type</th>
-                    <th className="px-4 py-2.5">Détail</th>
-                    <th className="px-4 py-2.5" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {prioriteRows.map((row) => {
-                    const isOpen =
-                      row.kind === "catalogue"
-                        ? expandedRequestId === row.data.id
-                        : expandedTaxeRequestId === row.data.id;
-                    const toggle = () =>
-                      row.kind === "catalogue"
-                        ? setExpandedRequestId(isOpen ? null : row.data.id)
-                        : setExpandedTaxeRequestId(isOpen ? null : row.data.id);
+          <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+            {todoRows.length === 0 ? (
+              <div className="px-4 py-6 text-center text-sm text-[#666666]">Rien en attente — tout est fait.</div>
+            ) : (
+              <div className="divide-y divide-[#eaeaea]">
+                {todoRows.map((row) => {
+                  if (row.kind === "tache") {
+                    const t = row.data;
                     return (
-                      <Fragment key={row.data.id}>
-                        <tr
-                          onClick={toggle}
-                          className="cursor-pointer border-t border-[#eaeaea] hover:bg-[#fafafa]"
+                      <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={false}
+                          onChange={() => onUpdateTache(t.id, { fait: true })}
+                          className="h-4 w-4 flex-shrink-0"
+                        />
+                        <span className="flex-1 text-sm text-[#171717]">{t.texte}</span>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteTache(t.id)}
+                          className="text-xs text-neutral-400 hover:text-red-600"
                         >
-                          <td className="whitespace-nowrap px-4 py-3 font-amounts text-[#666666]">
-                            {fmtDate(row.data.created_at)}
-                          </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <span className="rounded-full bg-[#f5a623]/20 px-2 py-0.5 text-xs font-medium text-[#666666]">
-                              {row.kind === "catalogue" ? "Catalogue" : "Taxe transfert"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-[#171717]">
-                            {row.kind === "catalogue" ? (
-                              <>
-                                <strong>{row.data.demandeur_nom || "Sans nom"}</strong> —{" "}
-                                {row.data.catalogue_item_noms.join(", ") || "Activité(s) non précisée(s)"}
-                              </>
-                            ) : (
-                              <>
-                                <strong>{row.data.demandeur_nom || "Sans nom"}</strong> — {row.data.ville}
-                                {row.data.tranche_label ? ` (${row.data.tranche_label.split("\n")[0]})` : ""}
-                              </>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-right text-[#666666]">›</td>
-                        </tr>
-                        {isOpen && (
-                          <tr className="border-t border-[#eaeaea] bg-[#fafafa]">
-                            <td colSpan={4} className="space-y-2 px-4 py-3 text-sm text-[#666666]">
-                              <div>{row.data.explication}</div>
-                              <button
-                                onClick={() =>
-                                  row.kind === "catalogue"
-                                    ? onResolveCatalogueModificationRequest(row.data.id)
-                                    : onResolveTransfertTaxeModificationRequest(row.data.id)
-                                }
-                                className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-                              >
-                                Marquer traité
-                              </button>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
+                          Retirer
+                        </button>
+                      </div>
                     );
-                  })}
-                </tbody>
-              </table>
+                  }
+                  const r = row.data;
+                  const client = clients.find((c) => c.id === r.client_id);
+                  return (
+                    <div key={r.id} className="flex items-center gap-3 px-4 py-3">
+                      <span
+                        title="À traiter dans Suivis > Remboursements (photo justificative requise)"
+                        className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-[3px] border border-[#eaeaea]"
+                      />
+                      <span className="flex-1 text-sm text-[#171717]">
+                        Remboursement — <strong>{client?.nom || "Client"}</strong>{" "}
+                        <span className="text-[#666666]">
+                          ({r.raison === "Autre" ? r.raison_autre || "Autre" : r.raison})
+                        </span>
+                      </span>
+                      <span className="font-amounts flex-shrink-0 text-sm font-semibold text-[#171717]">
+                        {euros(r.montant)} €
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex items-center gap-2 border-t border-[#eaeaea] px-4 py-3">
+              <input
+                value={nouvelleTache}
+                onChange={(e) => setNouvelleTache(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && nouvelleTache.trim()) {
+                    onAddTache(nouvelleTache.trim());
+                    setNouvelleTache("");
+                  }
+                }}
+                placeholder="+ Ajouter une tâche…"
+                className="input flex-1 border-none bg-transparent px-0 text-sm focus:ring-0"
+              />
+              {nouvelleTache.trim() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAddTache(nouvelleTache.trim());
+                    setNouvelleTache("");
+                  }}
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                >
+                  Ajouter
+                </button>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -646,6 +662,7 @@ export default function DirectionView({
                     : "Rien en attente"
                 }
                 count={modifCatalogueRows.filter((r) => r.statut !== "Traité").length}
+                onClick={() => setShowCatalogueDemandes((v) => !v)}
               />
               <DirActionRow
                 icon="car"
@@ -656,9 +673,98 @@ export default function DirectionView({
                     : "Rien en attente"
                 }
                 count={modifTaxeRows.filter((r) => r.statut !== "Traité").length}
+                onClick={() => setShowTaxeDemandes((v) => !v)}
               />
             </div>
           </div>
+
+          {showCatalogueDemandes && (
+            <div className="space-y-2">
+              {modifCatalogueRows.map((r) => {
+                const isOpen = expandedRequestId === r.id;
+                return (
+                  <div key={r.id} className="rounded-md border border-neutral-200 bg-white">
+                    <div
+                      onClick={() => setExpandedRequestId(isOpen ? null : r.id)}
+                      className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
+                    >
+                      <span className="font-amounts text-neutral-500">{fmtDate(r.created_at)}</span>
+                      <span>
+                        <strong>{r.demandeur_nom || "Sans nom"}</strong> —{" "}
+                        {r.catalogue_item_noms.join(", ") || "Activité(s) non précisée(s)"}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          r.statut === "Traité"
+                            ? "bg-[#171717]/10 text-[#171717]"
+                            : "bg-[#f5a623]/20 text-[#666666]"
+                        }`}
+                      >
+                        {r.statut}
+                      </span>
+                    </div>
+                    {isOpen && (
+                      <div className="space-y-2 border-t border-neutral-100 p-3 text-sm text-neutral-600">
+                        <div>{r.explication}</div>
+                        {r.statut !== "Traité" && (
+                          <button
+                            onClick={() => onResolveCatalogueModificationRequest(r.id)}
+                            className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                          >
+                            Marquer traité
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {showTaxeDemandes && (
+            <div className="space-y-2">
+              {modifTaxeRows.map((r) => {
+                const isOpen = expandedTaxeRequestId === r.id;
+                return (
+                  <div key={r.id} className="rounded-md border border-neutral-200 bg-white">
+                    <div
+                      onClick={() => setExpandedTaxeRequestId(isOpen ? null : r.id)}
+                      className="flex cursor-pointer flex-wrap items-center gap-3 p-3 text-sm"
+                    >
+                      <span className="font-amounts text-neutral-500">{fmtDate(r.created_at)}</span>
+                      <span>
+                        <strong>{r.demandeur_nom || "Sans nom"}</strong> — {r.ville}
+                        {r.tranche_label ? ` (${r.tranche_label.split("\n")[0]})` : ""}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${
+                          r.statut === "Traité"
+                            ? "bg-[#171717]/10 text-[#171717]"
+                            : "bg-[#f5a623]/20 text-[#666666]"
+                        }`}
+                      >
+                        {r.statut}
+                      </span>
+                    </div>
+                    {isOpen && (
+                      <div className="space-y-2 border-t border-neutral-100 p-3 text-sm text-neutral-600">
+                        <div>{r.explication}</div>
+                        {r.statut !== "Traité" && (
+                          <button
+                            onClick={() => onResolveTransfertTaxeModificationRequest(r.id)}
+                            className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                          >
+                            Marquer traité
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div>
             <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">CA par année</h2>

@@ -310,6 +310,15 @@ export type Remboursement = {
   created_at: string;
 };
 
+// Tâche libre ajoutée à la main par la Direction dans la "Liste prioritaire"
+// du tableau de bord (ex. "finir le CRM") — cocher la retire de la liste.
+export type DirectionTache = {
+  id: string;
+  texte: string;
+  fait: boolean;
+  created_at: string;
+};
+
 // Crédit "à utiliser pendant le séjour" du client — se consomme au fil des
 // activités ajoutées (montant_restant) au lieu d'être versé une fois comme
 // un remboursement. Pas de date de fin propre : elle suit toujours

@@ -23,6 +23,7 @@ import {
   PlanningShift,
   Profile,
   Remboursement,
+  DirectionTache,
   RemarqueEmployee,
   KommoReponseEmploye,
   Reservation,
@@ -419,6 +420,7 @@ function AppShellInner({
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
+  const [directionTaches, setDirectionTaches] = useState<DirectionTache[]>([]);
   const [allPaiementsEtapes, setAllPaiementsEtapes] = useState<PaiementEtape[]>([]);
   const [allIncidents, setAllIncidents] = useState<Incident[]>([]);
   const [allVerifications, setAllVerifications] = useState<Verification[]>([]);
@@ -753,6 +755,11 @@ function AppShellInner({
       if ((mode === "suivis" || mode === "direction") && !suivisLoaded) {
         const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
+        const { data: taches } = await supabase
+          .from("direction_taches")
+          .select("*")
+          .order("created_at", { ascending: true });
+        setDirectionTaches((taches as DirectionTache[]) || []);
         setSuivisLoaded(true);
       }
 
@@ -1170,6 +1177,11 @@ function AppShellInner({
       if (flags.suivisLoaded) {
         const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
+        const { data: taches } = await supabase
+          .from("direction_taches")
+          .select("*")
+          .order("created_at", { ascending: true });
+        setDirectionTaches((taches as DirectionTache[]) || []);
       }
 
       if (flags.modifsLoaded) {
@@ -1496,6 +1508,31 @@ function AppShellInner({
     setAllRemboursements((prev) => prev.filter((r) => r.id !== id));
     const { error } = await supabase.from("remboursements").delete().eq("id", id);
     if (error) toast("Échec de la suppression du remboursement.");
+  };
+
+  const addDirectionTache = async (texte: string) => {
+    const { data, error } = await supabase
+      .from("direction_taches")
+      .insert({ texte })
+      .select()
+      .single();
+    if (error || !data) {
+      toast("Échec de l'ajout de la tâche.");
+      return;
+    }
+    setDirectionTaches((prev) => [...prev, data as DirectionTache]);
+  };
+
+  const updateDirectionTache = async (id: string, patch: Partial<DirectionTache>) => {
+    setDirectionTaches((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    const { error } = await supabase.from("direction_taches").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement de la tâche.");
+  };
+
+  const deleteDirectionTache = async (id: string) => {
+    setDirectionTaches((prev) => prev.filter((t) => t.id !== id));
+    const { error } = await supabase.from("direction_taches").delete().eq("id", id);
+    if (error) toast("Échec de la suppression de la tâche.");
   };
 
   const resolveCatalogueModificationRequest = async (id: string) => {
@@ -2914,7 +2951,8 @@ function AppShellInner({
                 </p>
               </div>
             </div>
-          ) : !planningLoaded || (directionSub === "remboursements" && !suivisLoaded) ? (
+          ) : !planningLoaded ||
+            ((directionSub === "remboursements" || directionSub === "dashboard") && !suivisLoaded) ? (
             <Spinner />
           ) : directionSub === "remboursements" ? (
             // Même contenu que Suivis > Remboursements — dupliqué ici
@@ -2960,6 +2998,11 @@ function AppShellInner({
               onResolveCatalogueModificationRequest={resolveCatalogueModificationRequest}
               transfertTaxeModificationRequests={transfertTaxeModificationRequests}
               onResolveTransfertTaxeModificationRequest={resolveTransfertTaxeModificationRequest}
+              remboursements={allRemboursements}
+              taches={directionTaches}
+              onAddTache={addDirectionTache}
+              onUpdateTache={updateDirectionTache}
+              onDeleteTache={deleteDirectionTache}
             />
           )}
         </div>

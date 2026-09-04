@@ -191,6 +191,10 @@ function isSpaMassage(nom: string) {
   return n.includes("spa") || n.includes("massage");
 }
 
+// Spa ouvert de 10h à 21h — dernier créneau réservable à 19h (pour laisser
+// le temps à la prestation avant la fermeture).
+const SPA_CRENEAUX = ["10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h", "19h"];
+
 const MOMENTS_SPEEDBOAT = ["Matin", "Après-midi"] as const;
 
 const MAISON_DAUPHINS_TEXT =
@@ -398,7 +402,11 @@ export default function AddActivityWizard({
   const champsRequisPersonnalises = champsRequis.filter(
     (c) =>
       !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c) &&
-      !(needsMomentSpeedboat(catalogueItem?.nom || "") && c.toLowerCase().includes("matin"))
+      !(needsMomentSpeedboat(catalogueItem?.nom || "") && c.toLowerCase().includes("matin")) &&
+      // "Créneau souhaité" spa/massage : remplacé par le menu déroulant
+      // d'horaire de l'étape "date" (voir isSpa plus bas), pas une case à
+      // cocher qui ne capture aucune vraie valeur.
+      !(isSpaMassage(catalogueItem?.nom || "") && c.toLowerCase().includes("créneau"))
   );
   const catTarifs = catalogueItem ? catalogueTarifs[catalogueItem.id] || [] : [];
   const catTransfertTarifs = catalogueItem ? transfertTarifs[catalogueItem.id] || [] : [];
@@ -526,7 +534,8 @@ export default function AddActivityWizard({
       const champsItemPersonnalises = champsItem.filter(
         (c) =>
           !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c) &&
-          !(needsMomentSpeedboat(item.nom) && c.toLowerCase().includes("matin"))
+          !(needsMomentSpeedboat(item.nom) && c.toLowerCase().includes("matin")) &&
+          !(isSpaMassage(item.nom) && c.toLowerCase().includes("créneau"))
       );
       const hasSpecifsItem =
         champsItemPersonnalises.length > 0 ||
@@ -559,7 +568,8 @@ export default function AddActivityWizard({
       const champsLinkedPersonnalises = champsLinked.filter(
         (c) =>
           !(CHAMPS_REQUIS_PRESETS as readonly string[]).includes(c) &&
-          !(needsMomentSpeedboat(linked?.nom || "") && c.toLowerCase().includes("matin"))
+          !(needsMomentSpeedboat(linked?.nom || "") && c.toLowerCase().includes("matin")) &&
+          !(isSpaMassage(linked?.nom || "") && c.toLowerCase().includes("créneau"))
       );
       const hasSpecifsLinked =
         champsLinkedPersonnalises.length > 0 ||
@@ -1331,13 +1341,20 @@ export default function AddActivityWizard({
         {isSpa && (
           <div className="mt-3">
             <Field label="Horaire souhaité *">
-              <input
-                type="time"
+              <select
                 value={r.horaire_souhaite}
                 onChange={(e) => onUpdateReservation(r.id, { horaire_souhaite: e.target.value })}
                 className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
-              />
+              >
+                <option value="">—</option>
+                {SPA_CRENEAUX.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
             </Field>
+            <p className="mt-1 text-xs text-neutral-400">
+              Spa ouvert de 10h à 21h — dernier créneau possible à 19h.
+            </p>
           </div>
         )}
 

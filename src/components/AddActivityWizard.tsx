@@ -879,7 +879,20 @@ export default function AddActivityWizard({
       if (!(r.champs_requis_coches || []).includes(c)) missing.push(c);
     });
 
-    const specifsNextStep = steps[steps.indexOf("specifs") + 1];
+    // "specifs" peut disparaître de `steps` en cours de route (ex. bascule
+    // Le Caire en mini-bus → VIP, dont le catalogue n'a plus aucun champ
+    // requis) alors qu'on est encore dessus — steps.indexOf("specifs")
+    // renvoie alors -1, et steps[0] ("choix") était pris à tort comme
+    // étape suivante. Repli sur l'étape qui suivrait logiquement dans ce
+    // cas : "date" (specifs la précédait) ou juste après "date" (specifs
+    // la suivait, cas "Vol & horaire").
+    const specifsIdx = steps.indexOf("specifs");
+    const specifsNextStep =
+      specifsIdx >= 0
+        ? steps[specifsIdx + 1]
+        : specifsApresDate
+          ? steps[steps.indexOf("date") + 1]
+          : "date";
     const goNext = () => {
       if (missing.length > 0) {
         setValidationError(true);

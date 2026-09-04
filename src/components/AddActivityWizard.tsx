@@ -206,6 +206,19 @@ const MAISON_DAUPHINS_TEXT =
 const MINI_BUS_TEXT =
   "Nous recommandons davantage la formule en mini-bus : c'est beaucoup plus confortable, avec seulement 8 à 9 personnes maximum, contre une cinquantaine de personnes pour la formule en bus. En mini-bus, l'excursion est aussi majoritairement francophone, alors qu'en bus toutes les nationalités sont mélangées. Le tarif pour la formule en mini-bus est de 85 € par personne.";
 
+// "Le Caire en mini-bus" a un champ requis catalogue "Proposer upgrade Le
+// Caire en mini-bus VIP" — au lieu de la case à cocher générique, on
+// affiche une alerte qui bascule directement l'activité sur le catalogue
+// VIP (avec Grand Egyptian Museum) en un clic (voir rendu dans "specifs").
+const CAIRE_MINIBUS_VIP_CHAMP = "Proposer upgrade Le Caire en mini-bus VIP";
+function isCaireMiniBusBase(nom?: string) {
+  return (nom || "").trim().toLowerCase() === "le caire en mini-bus";
+}
+function isCaireMiniBusVip(nom?: string) {
+  const n = (nom || "").toLowerCase();
+  return n.includes("caire en mini-bus") && n.includes("vip");
+}
+
 function isAdultsOnly(client: Client) {
   return (client.enfants || 0) === 0 && (client.bebes || 0) === 0;
 }
@@ -1039,6 +1052,64 @@ export default function AddActivityWizard({
           <div className="mt-3 space-y-2">
             {champsRequisPersonnalises.map((c) => {
               const checked = (r.champs_requis_coches || []).includes(c);
+              // Cas spécial "Le Caire en mini-bus" : au lieu d'une simple case
+              // à cocher, on pousse activement l'upgrade vers la formule VIP
+              // (avec Grand Egyptian Museum) — un bouton bascule directement
+              // l'activité sur le catalogue VIP plutôt que de se contenter de
+              // cocher "proposé".
+              if (c === CAIRE_MINIBUS_VIP_CHAMP && isCaireMiniBusBase(catalogueItem?.nom)) {
+                const itemVip = catalogue.find((a) => isCaireMiniBusVip(a.nom));
+                return (
+                  <div key={c} className="rounded-md border-2 border-red-600 bg-red-50 p-3">
+                    <p className="text-sm font-semibold text-red-700">
+                      ⚠ Pensez au nouveau musée (Grand Egyptian Museum) — indique au client de passer en
+                      formule VIP.
+                    </p>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                      {itemVip && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onUpdateReservation(r.id, {
+                              nom_activite: itemVip.nom,
+                              catalogue_item_id: itemVip.id,
+                              pu_adulte: itemVip.pu_adulte,
+                              pu_enfant: itemVip.pu_enfant,
+                              pu_bebe: itemVip.pu_bebe,
+                              pu_accompagnateur: itemVip.pu_accompagnateur,
+                              pu_enfant_3ans: itemVip.pu_enfant_3ans,
+                              tarif_mode: itemVip.tarif_mode,
+                              prix_groupe_base: itemVip.prix_groupe_base,
+                              prix_groupe_extra1: itemVip.prix_groupe_extra1,
+                              prix_groupe_extra_enfant: itemVip.prix_groupe_extra_enfant,
+                              horaire_approx: itemVip.horaire_approx,
+                              inclus: (itemVip.inclus_liste || []).join(", ") || itemVip.inclus,
+                              non_inclus: itemVip.non_inclus,
+                              a_prevoir: itemVip.a_prevoir,
+                              point_rdv: itemVip.point_rdv,
+                              photo_path: itemVip.photo_path,
+                            })
+                          }
+                          className="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+                        >
+                          Basculer en formule VIP ({itemVip.pu_adulte} € / pers.)
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onUpdateReservation(r.id, {
+                            champs_requis_coches: [...(r.champs_requis_coches || []), c],
+                          })
+                        }
+                        className="flex-1 rounded-md border border-red-600 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100"
+                      >
+                        Proposé — le client garde la formule classique
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <label
                   key={c}

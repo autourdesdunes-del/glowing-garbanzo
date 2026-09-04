@@ -52,6 +52,14 @@ export default function AnnulerActiviteModal({
   const [dateAnnulation, setDateAnnulation] = useState(todayStr());
   const [heureAnnulation, setHeureAnnulation] = useState(nowHHMM());
   const [exception, setException] = useState(false);
+  // Pré-rempli depuis le paiement du client au global (acompte encaissé ou
+  // solde payé) mais reste modifiable à la main : une activité ajoutée
+  // après un solde déjà clôturé (voir reprise_*) peut très bien n'avoir,
+  // elle, jamais été payée, même si le client a payé le reste du séjour —
+  // et inversement une activité réglée par avance reste "payée" même si le
+  // solde global ne l'est pas encore. Décide seul si un remboursement/avoir
+  // a du sens (remboursementPossible ci-dessous).
+  const [dejaPayee, setDejaPayee] = useState(clientAPayeQuelqueChose(client));
   const [remboursementChoix, setRemboursementChoix] = useState<"rembourse" | "avoir" | "">("");
   const [paypalEmail, setPaypalEmail] = useState(client.paypal_email || client.email || "");
   const [showPaypalPrompt, setShowPaypalPrompt] = useState(false);
@@ -73,10 +81,10 @@ export default function AnnulerActiviteModal({
     annulationType === "client"
       ? reglement.raison
       : ANNULATION_TYPES.find((t) => t.value === annulationType)?.label || "";
-  // Rien à rembourser si l'agence n'a jamais reçu d'argent pour ce séjour
-  // (acompte pas encore encaissé, solde pas payé) ou si l'activité est
+  // Rien à rembourser si cette activité n'a jamais été payée (voir
+  // dejaPayee, modifiable à la main juste en-dessous) ou si l'activité est
   // gratuite — même si la règle d'annulation dirait "remboursable".
-  const remboursementPossible = remboursable && montant > 0 && clientAPayeQuelqueChose(client);
+  const remboursementPossible = remboursable && montant > 0 && dejaPayee;
   const raisonFinale = raison === "Autre" ? raisonAutre.trim() : raison;
 
   // Le remboursement se fait par défaut via PayPal (demande explicite) —
@@ -132,7 +140,7 @@ export default function AnnulerActiviteModal({
       annulation_prevenir_hossam: reglement.prevenirHossam,
       annulation_type: annulationType,
       annulation_delai_raison: reglement.raison,
-      annulation_paye_avant: clientAPayeQuelqueChose(client),
+      annulation_paye_avant: dejaPayee,
     });
     setSubmitting(false);
     onClose();
@@ -207,6 +215,36 @@ export default function AnnulerActiviteModal({
               onChange={(e) => setHeureAnnulation(e.target.value)}
               className="input text-sm"
             />
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <label className="mb-1 block text-xs font-medium text-neutral-500">
+            Cette activité avait-elle déjà été payée ?
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setDejaPayee(true)}
+              className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium ${
+                dejaPayee
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
+              }`}
+            >
+              Oui, déjà payée
+            </button>
+            <button
+              type="button"
+              onClick={() => setDejaPayee(false)}
+              className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium ${
+                !dejaPayee
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
+              }`}
+            >
+              Non, pas encore
+            </button>
           </div>
         </div>
 
@@ -306,7 +344,7 @@ export default function AnnulerActiviteModal({
               </>
             ) : (
               <p className="text-xs text-neutral-400">
-                Aucun paiement reçu pour ce séjour (acompte non encaissé, solde non payé) — rien à rembourser.
+                Marquée &quot;pas encore payée&quot; ci-dessus — rien à rembourser.
               </p>
             )}
           </div>

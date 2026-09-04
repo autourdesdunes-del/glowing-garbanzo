@@ -198,10 +198,32 @@ export default function ItineraryView({
     ? reservations
     : reservations.filter((r) => r.statut_resa !== "Annulée");
 
+  // Badge de paiement d'une activité annulée — distinct du badge de solde
+  // global (voir commentaire sur annulation_paye_avant dans types.ts) :
+  // reflète ce qui a été réellement réglé sur CETTE activité avant qu'elle
+  // ne soit annulée, complété par ce qui a été décidé au remboursement.
+  const badgeAnnulation = (r: Reservation): { label: string; className: string } => {
+    if (!r.annulation_paye_avant) {
+      return { label: "Non payée", className: "bg-neutral-100 text-neutral-500" };
+    }
+    if (r.annulation_remb_avoir === "rembourse") {
+      return { label: "Payée — remboursée", className: "bg-[#0F5C56]/10 text-[#0F5C56]" };
+    }
+    if (r.annulation_remb_avoir === "avoir") {
+      return { label: "Payée — avoir créé", className: "bg-orange-100 text-orange-700" };
+    }
+    return { label: "Payée, non remboursée", className: "bg-red-100 text-red-700" };
+  };
+
   const renderCard = (r: Reservation, day?: string) => {
 
     const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
-    const badge = paiementBadge(client, r, reservations, resaOptions, resaTarifs, paiementsEtapes);
+    // Le badge de paiement global (solde/acompte) n'a pas de sens pour une
+    // activité annulée — il resterait "Payé" même sur une activité jamais
+    // réglée (ex. ajoutée après coup, annulée avant d'être payée sur
+    // place). On affiche plutôt ce qui a été tranché à l'annulation.
+    const badge =
+      r.statut_resa === "Annulée" ? badgeAnnulation(r) : paiementBadge(client, r, reservations, resaOptions, resaTarifs, paiementsEtapes);
     const paiementWarning = activitePaiementWarning(
       client,
       r,
@@ -393,7 +415,9 @@ export default function ItineraryView({
     ? resaTotalMontant(expandedReservation, client, expOptions, expTarifs)
     : 0;
   const expBadge = expandedReservation
-    ? paiementBadge(client, expandedReservation, reservations, resaOptions, resaTarifs, paiementsEtapes)
+    ? expandedReservation.statut_resa === "Annulée"
+      ? badgeAnnulation(expandedReservation)
+      : paiementBadge(client, expandedReservation, reservations, resaOptions, resaTarifs, paiementsEtapes)
     : null;
   const expBreakdown = expandedReservation
     ? resaBreakdown(expandedReservation, client, expOptions, expTarifs, reservations, hotelVille)
@@ -576,17 +600,27 @@ export default function ItineraryView({
               </button>
               {expBadge && (
                 <DetailRow label="Paiement">
-                  <select
-                    value={paiementStatutKey(client, expandedReservation)}
-                    onChange={(e) => choisirStatutPaiement(expandedReservation, e.target.value)}
-                    className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${expBadge.className}`}
-                  >
-                    {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                      <option key={o.key} value={o.key}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
+                  {expandedReservation.statut_resa === "Annulée" ? (
+                    // Pas un <select> ici — le statut de paiement d'une
+                    // activité annulée est tranché une fois pour toutes à
+                    // l'annulation (annulation_paye_avant), pas éditable
+                    // au fil de l'eau comme le solde d'une activité active.
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${expBadge.className}`}>
+                      {expBadge.label}
+                    </span>
+                  ) : (
+                    <select
+                      value={paiementStatutKey(client, expandedReservation)}
+                      onChange={(e) => choisirStatutPaiement(expandedReservation, e.target.value)}
+                      className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${expBadge.className}`}
+                    >
+                      {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                        <option key={o.key} value={o.key}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </DetailRow>
               )}
               <button

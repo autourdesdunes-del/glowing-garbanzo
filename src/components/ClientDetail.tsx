@@ -36,6 +36,7 @@ import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
 import { DuplicateMatch, findDuplicateClients, normText } from "@/lib/duplicates";
 import { resaTotalMontant, avoirUtiliseTotal, findMomentConflict, reservationsActives } from "@/lib/resa";
+import { todayStr } from "@/lib/dates";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import {
   ActivitesStep,
@@ -466,7 +467,14 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
-  const avoirDisponible = avoirs.reduce((s, a) => s + (Number(a.montant_restant) || 0), 0);
+  // Un avoir suit toujours la date de fin de séjour du client (pas de date
+  // propre, voir le type Avoir) — au-delà, il ne doit plus pouvoir être
+  // proposé ni utilisé, sinon la mention "à utiliser pendant le séjour"
+  // reste purement décorative.
+  const avoirExpire = !!client.date_fin && todayStr() > client.date_fin;
+  const avoirDisponible = avoirExpire
+    ? 0
+    : avoirs.reduce((s, a) => s + (Number(a.montant_restant) || 0), 0);
 
   const useAvoir = async (montant: number) => {
     const reservationId = avoirPromptReservationId;

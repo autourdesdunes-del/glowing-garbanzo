@@ -4123,9 +4123,15 @@ export function SuiviStep({
                         : `⚠️ ${activiteLieeAvoir.annulation_delai_raison} — exceptionnel/partiel, vérifié avec Hossam`}
                     </p>
                   )}
-                  <p className="text-xs text-neutral-400">
-                    À utiliser jusqu&apos;au {client.date_fin ? fmtDate(client.date_fin) : "—"} (fin de séjour)
-                  </p>
+                  {client.date_fin && todayStr() > client.date_fin && Number(a.montant_restant) > 0 ? (
+                    <p className="text-xs font-medium text-red-600">
+                      ⚠️ Expiré depuis le {fmtDate(client.date_fin)} (fin de séjour) — ne peut plus être utilisé
+                    </p>
+                  ) : (
+                    <p className="text-xs text-neutral-400">
+                      À utiliser jusqu&apos;au {client.date_fin ? fmtDate(client.date_fin) : "—"} (fin de séjour)
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <span className="font-heading text-lg font-bold text-orange-600">

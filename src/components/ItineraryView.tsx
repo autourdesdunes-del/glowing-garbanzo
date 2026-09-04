@@ -527,13 +527,60 @@ export default function ItineraryView({
                   <button
                     type="button"
                     onClick={async () => {
+                      const aTraiter = expandedReservation.annulation_remb_avoir;
                       const ok = await confirm({
                         title: "Reprogrammer cette activité ?",
-                        message:
-                          "L'activité redevient active (statut Confirmée) et l'annulation est effacée. Un remboursement ou avoir déjà créé pour cette annulation n'est PAS annulé automatiquement — à retirer toi-même dans Suivi si besoin.",
+                        message: aTraiter
+                          ? `L'activité redevient active (statut Confirmée) et l'annulation est effacée. Un ${
+                              aTraiter === "avoir" ? "avoir" : "remboursement"
+                            } a été créé pour cette annulation — la prochaine étape te proposera de le supprimer.`
+                          : "L'activité redevient active (statut Confirmée) et l'annulation est effacée.",
                         confirmLabel: "Reprogrammer",
                       });
                       if (!ok) return;
+
+                      // Un remboursement/avoir déjà créé pour cette annulation
+                      // n'est pas retiré automatiquement (risque de double
+                      // avantage si le client est remboursé/crédité ET que
+                      // l'activité redevient active) — on demande explicitement
+                      // avant de le supprimer, plutôt que de le faire taire ou
+                      // de laisser l'équipe l'oublier.
+                      if (aTraiter) {
+                        const supabase = createClient();
+                        const table = aTraiter === "avoir" ? "avoirs" : "remboursements";
+                        const { data: lies } = await supabase
+                          .from(table)
+                          .select("id, montant, montant_restant")
+                          .eq("activite_id", expandedReservation.id);
+                        if (lies && lies.length > 0) {
+                          const dejaConsomme =
+                            aTraiter === "avoir"
+                              ? lies.reduce(
+                                  (s, l) => s + (Number(l.montant) || 0) - (Number(l.montant_restant) || 0),
+                                  0
+                                )
+                              : 0;
+                          const supprimer = await confirm({
+                            title: aTraiter === "avoir" ? "Supprimer l'avoir lié ?" : "Supprimer le remboursement lié ?",
+                            message:
+                              dejaConsomme > 0
+                                ? `Cette activité redevient active. ${dejaConsomme} € de cet avoir ont déjà été utilisés sur d'autres activités — les supprimer laissera ce montant compté comme payé sans trace d'origine. Le supprimer quand même ?`
+                                : `Cette activité redevient active. Faut-il aussi supprimer ${
+                                    aTraiter === "avoir" ? "l'avoir" : "le remboursement"
+                                  } créé pour son annulation, pour éviter un double avantage au client ?`,
+                            confirmLabel: aTraiter === "avoir" ? "Supprimer l'avoir" : "Supprimer le remboursement",
+                            cancelLabel: "Garder tel quel",
+                            danger: true,
+                          });
+                          if (supprimer) {
+                            await supabase
+                              .from(table)
+                              .delete()
+                              .in("id", lies.map((l) => l.id));
+                          }
+                        }
+                      }
+
                       onUpdateReservation(expandedReservation.id, {
                         statut_resa: "Confirmée",
                         annulation_raison: "",

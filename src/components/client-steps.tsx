@@ -2330,7 +2330,29 @@ export function PaiementsStep({
     candidats: Reservation[];
     choix: string;
     libre: string;
+    // Espèces EGP : le montant de référence (montant) reste toujours en €
+    // (comme partout ailleurs dans le CRM), mais on permet de saisir
+    // directement la somme en livres égyptiennes réellement remise —
+    // rate sert à convertir entre les deux (voir egpModal, même principe).
+    rate: number;
   } | null>(null);
+  // Si le taux n'était pas déjà connu (client.egp_taux vide) à l'ouverture
+  // de la modale, on va chercher le taux du jour plutôt que de laisser 0 —
+  // sinon la conversion €/EGP serait impossible (division par zéro).
+  useEffect(() => {
+    if (!etapeActiviteConfirm || etapeActiviteConfirm.mode !== "Espèces EGP" || etapeActiviteConfirm.rate > 0) {
+      return;
+    }
+    let cancelled = false;
+    getEurToEgpRate().then((rate) => {
+      if (!cancelled && rate) {
+        setEtapeActiviteConfirm((prev) => (prev ? { ...prev, rate } : prev));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [etapeActiviteConfirm]);
   // Marque qu'une étape en cours d'ajout vient du bouton "Réglé
   // différemment" — sert uniquement à savoir si, une fois cette étape
   // ajoutée, il faut proposer la suite (préparer le prochain paiement /
@@ -2372,6 +2394,7 @@ export function PaiementsStep({
         candidats: resa ? [resa] : [],
         choix: resa?.id || "autre",
         libre: "",
+        rate: client.egp_taux || 0,
       });
       return;
     }
@@ -2602,6 +2625,7 @@ export function PaiementsStep({
       candidats,
       choix: candidats[0]?.id || "autre",
       libre: "",
+      rate: client.egp_taux || 0,
     });
   };
 
@@ -3203,17 +3227,57 @@ export function PaiementsStep({
               Où ce paiement a-t-il été récolté ?
             </h2>
             <div className="mb-3">
-              <Field label="Montant (€)">
-                <input
-                  type="number"
-                  value={etapeActiviteConfirm.montant}
-                  onChange={(e) =>
-                    setEtapeActiviteConfirm({ ...etapeActiviteConfirm, montant: Number(e.target.value) })
-                  }
-                  className="input w-32"
-                />
-              </Field>
-              <p className="mt-1 text-xs text-neutral-500">en {etapeActiviteConfirm.mode}.</p>
+              {etapeActiviteConfirm.mode === "Espèces EGP" ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Taux (1€ =)">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={etapeActiviteConfirm.rate}
+                      onChange={(e) =>
+                        setEtapeActiviteConfirm({ ...etapeActiviteConfirm, rate: Number(e.target.value) })
+                      }
+                      className="input"
+                    />
+                  </Field>
+                  <Field label="Montant (EGP)">
+                    <input
+                      type="number"
+                      value={
+                        etapeActiviteConfirm.rate > 0
+                          ? Math.round(etapeActiviteConfirm.montant * etapeActiviteConfirm.rate)
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const montantEgp = Number(e.target.value);
+                        setEtapeActiviteConfirm({
+                          ...etapeActiviteConfirm,
+                          montant:
+                            etapeActiviteConfirm.rate > 0 ? montantEgp / etapeActiviteConfirm.rate : etapeActiviteConfirm.montant,
+                        });
+                      }}
+                      className="input"
+                    />
+                  </Field>
+                  <p className="col-span-2 text-xs text-neutral-500">
+                    Soit {euros(etapeActiviteConfirm.montant)} € au taux du jour.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <Field label="Montant (€)">
+                    <input
+                      type="number"
+                      value={etapeActiviteConfirm.montant}
+                      onChange={(e) =>
+                        setEtapeActiviteConfirm({ ...etapeActiviteConfirm, montant: Number(e.target.value) })
+                      }
+                      className="input w-32"
+                    />
+                  </Field>
+                  <p className="mt-1 text-xs text-neutral-500">en {etapeActiviteConfirm.mode}.</p>
+                </>
+              )}
             </div>
             <div className="mb-3">
               <Field label="Date du paiement">

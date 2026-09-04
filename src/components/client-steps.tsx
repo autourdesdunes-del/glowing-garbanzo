@@ -4050,6 +4050,9 @@ export function SuiviStep({
                     {" — "}Date et heure d&apos;annulation : {fmtDateTime(a.created_at)}
                   </p>
                   <p className="text-xs text-neutral-500">Motif : {motifAvoir}</p>
+                  {a.utilise_sur && (
+                    <p className="text-xs font-medium text-[#0F5C56]">Utilisé sur : {a.utilise_sur}</p>
+                  )}
                   {activiteLieeAvoir?.annulation_type === "client" && activiteLieeAvoir.annulation_delai_raison && (
                     <p
                       className={`text-xs font-medium ${

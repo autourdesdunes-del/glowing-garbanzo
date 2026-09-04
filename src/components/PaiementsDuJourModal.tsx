@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Client,
   PaiementEtape,
@@ -8,6 +9,7 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
+import { todayStr } from "@/lib/dates";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -40,7 +42,11 @@ type Ligne = {
   libelle: string;
   montant: number;
   paye: boolean;
-  onTogglePaye: () => void;
+  // Marquer payé demande la date réelle du paiement (pas toujours
+  // aujourd'hui — on rattrape parfois un règlement d'un jour précédent) ;
+  // annuler n'a pas besoin de date.
+  onMarquerPaye: (date: string) => void;
+  onAnnulerPaye: () => void;
 };
 
 export function computePaiementsDuJour(
@@ -74,8 +80,8 @@ export function computePaiementsDuJour(
           : "RDV solde",
         montant,
         paye: !!c.solde_paye,
-        onTogglePaye: () =>
-          onUpdateClient(c.id, c.solde_paye ? { solde_paye: false, solde_date: null } : { solde_paye: true, solde_date: todayStr }),
+        onMarquerPaye: (date) => onUpdateClient(c.id, { solde_paye: true, solde_date: date }),
+        onAnnulerPaye: () => onUpdateClient(c.id, { solde_paye: false, solde_date: null }),
       };
       (c.solde_paye ? encaisses : aPayer).push(ligne);
     }
@@ -97,6 +103,8 @@ export default function PaiementsDuJourModal({
   onOpenClient: (id: string) => void;
   onClose: () => void;
 }) {
+  const [dateModal, setDateModal] = useState<{ ligne: Ligne; date: string } | null>(null);
+
   const Row = ({ ligne }: { ligne: Ligne }) => (
     <div className="flex items-center justify-between gap-3 border-b border-neutral-100 py-2.5 last:border-0">
       <div className="min-w-0 flex-1">
@@ -110,7 +118,9 @@ export default function PaiementsDuJourModal({
       </div>
       <span className="font-amounts flex-shrink-0 text-sm text-[#171717]">{euros(ligne.montant)} €</span>
       <button
-        onClick={ligne.onTogglePaye}
+        onClick={() =>
+          ligne.paye ? ligne.onAnnulerPaye() : setDateModal({ ligne, date: todayStr() })
+        }
         className={`flex-shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium ${
           ligne.paye
             ? "border-neutral-300 text-neutral-600 hover:border-red-400 hover:text-red-600"
@@ -161,6 +171,46 @@ export default function PaiementsDuJourModal({
           </div>
         )}
       </div>
+
+      {dateModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h3 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Quand le client a-t-il payé ?
+            </h3>
+            <p className="mb-4 text-sm text-neutral-600">
+              Renseigne la date où l&apos;argent a réellement été remis — pas forcément
+              aujourd&apos;hui si tu rattrapes un paiement déjà reçu.
+            </p>
+            <input
+              type="date"
+              value={dateModal.date}
+              onChange={(e) => setDateModal({ ...dateModal, date: e.target.value })}
+              className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  dateModal.ligne.onMarquerPaye(dateModal.date || todayStr());
+                  setDateModal(null);
+                }}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Valider
+              </button>
+              <button
+                onClick={() => setDateModal(null)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

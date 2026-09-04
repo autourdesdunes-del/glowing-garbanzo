@@ -1717,6 +1717,11 @@ function PaiementResteFlow({
   const montantAttenduReel = montantActiviteAttenduReel ?? montantACouvrir;
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
+  // "Marquer encaissé" demande la date où le client a réellement payé —
+  // souvent pas le jour où l'employée clique (elle rattrape parfois un
+  // paiement de plusieurs jours plus tôt) — plutôt que de figer todayStr()
+  // en silence.
+  const [encaisseDateModal, setEncaisseDateModal] = useState<{ mode: string; date: string } | null>(null);
 
   const assigneSelectValue = (ASSIGNE_A_OPTIONS as readonly string[]).includes(client.solde_assigne_a)
     ? client.solde_assigne_a
@@ -1773,13 +1778,13 @@ function PaiementResteFlow({
     onChange({ solde_rdv_valide: true, solde_mode: INTEGRAL_MODE_SOLDE_MODE[client.paiement_integral_mode] });
   };
 
-  const marquerEncaisse = async (mode: string) => {
+  const marquerEncaisse = async (mode: string, date: string) => {
     if (!(await confirmerAcompteInclus())) return;
     onChange({
       solde_paye: true,
       solde_mode: mode,
       solde_rdv_finalise: false,
-      solde_date: todayStr(),
+      solde_date: date,
       solde_montant: totalSejour,
     });
   };
@@ -2019,7 +2024,7 @@ function PaiementResteFlow({
                   <div className="flex flex-shrink-0 items-center gap-2">
                     <EncaisseButton
                       paye={client.solde_paye}
-                      onMarquer={() => marquerEncaisse(soldeMode)}
+                      onMarquer={() => setEncaisseDateModal({ mode: soldeMode, date: todayStr() })}
                       onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                       onDifferent={() =>
                         onEncaissementDifferent({
@@ -2105,7 +2110,7 @@ function PaiementResteFlow({
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <EncaisseButton
                     paye={client.solde_paye}
-                    onMarquer={() => marquerEncaisse(soldeMode)}
+                    onMarquer={() => setEncaisseDateModal({ mode: soldeMode, date: todayStr() })}
                     onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                     onDifferent={() =>
                       onEncaissementDifferent({
@@ -2130,6 +2135,43 @@ function PaiementResteFlow({
             </div>
           );
         })()}
+
+      {encaisseDateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Quand le client a-t-il payé ?
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Renseigne la date où l&apos;argent a réellement été remis — pas forcément
+              aujourd&apos;hui si tu rattrapes un paiement déjà reçu.
+            </p>
+            <input
+              type="date"
+              value={encaisseDateModal.date}
+              onChange={(e) => setEncaisseDateModal({ ...encaisseDateModal, date: e.target.value })}
+              className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  marquerEncaisse(encaisseDateModal.mode, encaisseDateModal.date || todayStr());
+                  setEncaisseDateModal(null);
+                }}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Valider
+              </button>
+              <button
+                onClick={() => setEncaisseDateModal(null)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {egpModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">

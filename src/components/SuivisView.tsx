@@ -2308,6 +2308,11 @@ export default function SuivisView({
                   const client = clients.find((c) => c.id === clientId);
                   if (!client) return null;
                   const totalClient = rembs.reduce((s, r) => s + (Number(r.montant) || 0), 0);
+                  // L'adresse PayPal du remboursement lui-même (r.paypal_email) prime sur
+                  // celle du client — elle peut différer d'un remboursement à l'autre, ou
+                  // avoir été saisie directement sur ce remboursement sans mettre à jour la
+                  // fiche client.
+                  const paypalAAfficher = rembs.find((r) => r.mode === "PayPal" && r.paypal_email)?.paypal_email || client.paypal_email;
                   return (
                     <div key={clientId} className="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
                       <div className="border-b border-neutral-100 px-3 py-2">
@@ -2318,8 +2323,8 @@ export default function SuivisView({
                               onClick={() => onOpenClient(client.id)}
                               className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                             />
-                            {client.paypal_email && (
-                              <span className="text-xs text-neutral-400">— {client.paypal_email}</span>
+                            {paypalAAfficher && (
+                              <span className="text-xs text-neutral-400">— {paypalAAfficher}</span>
                             )}
                           </span>
                           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">

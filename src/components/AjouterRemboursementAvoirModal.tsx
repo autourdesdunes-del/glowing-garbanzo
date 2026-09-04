@@ -24,29 +24,44 @@ export default function AjouterRemboursementAvoirModal({
   onClose: () => void;
 }) {
   const toast = useToast();
-  const [type, setType] = useState<"remboursement" | "avoir">("remboursement");
+  const [type, setType] = useState<"remboursement" | "avoir" | "split">("remboursement");
   const [montant, setMontant] = useState(montantSuggere);
+  // Pour le partage : part du montant total transformée en avoir, le reste
+  // reste un remboursement cash (ex. 50€ dus, 25€ pris en avoir sur une
+  // nouvelle activité, 25€ restent à rembourser).
+  const [montantAvoirSplit, setMontantAvoirSplit] = useState(0);
+  const [utiliseSur, setUtiliseSur] = useState("");
   const [mode, setMode] = useState<string>("PayPal");
   const [paypalEmail, setPaypalEmail] = useState(client.paypal_email || client.email || "");
   const [submitting, setSubmitting] = useState(false);
+
+  const montantRemboursementSplit = Math.max(montant - montantAvoirSplit, 0);
 
   const confirmer = async () => {
     if (!montant || montant <= 0) {
       toast("Indique un montant.");
       return;
     }
+    if (type === "split" && (montantAvoirSplit <= 0 || montantAvoirSplit >= montant)) {
+      toast("La part en avoir doit être supérieure à 0 et inférieure au montant total.");
+      return;
+    }
     setSubmitting(true);
     const supabase = createClient();
-    const details = `Activité annulée : ${r.nom_activite || "sans nom"}${
-      r.annulation_raison ? ` — ${r.annulation_raison}` : ""
-    }`;
+    const activiteLabel = `${r.nom_activite || "sans nom"}${r.annulation_raison ? ` — ${r.annulation_raison}` : ""}`;
+    const details = `Activité annulée : ${activiteLabel}`;
 
-    if (type === "remboursement") {
+    if (type === "remboursement" || type === "split") {
+      const montantRemb = type === "split" ? montantRemboursementSplit : montant;
+      const detailsRemb =
+        type === "split"
+          ? `Remboursement initial de ${montant} € (${activiteLabel}), dont ${montantAvoirSplit} € utilisés en avoir — reste ${montantRemboursementSplit} € à rembourser.`
+          : details;
       const { error } = await supabase.from("remboursements").insert({
         client_id: client.id,
-        montant,
+        montant: montantRemb,
         raison: "Annulation",
-        details,
+        details: detailsRemb,
         mode,
         paypal_email: mode === "PayPal" ? paypalEmail.trim() : "",
         activite_id: r.id,
@@ -60,14 +75,17 @@ export default function AjouterRemboursementAvoirModal({
       if (mode === "PayPal" && paypalEmail.trim() && paypalEmail.trim() !== client.paypal_email) {
         onUpdateClient?.({ paypal_email: paypalEmail.trim() });
       }
-    } else {
+    }
+    if (type === "avoir" || type === "split") {
+      const montantAvoir = type === "split" ? montantAvoirSplit : montant;
       const { error } = await supabase.from("avoirs").insert({
         client_id: client.id,
-        montant,
-        montant_restant: montant,
+        montant: montantAvoir,
+        montant_restant: montantAvoir,
         raison: "Annulation",
         activite_id: r.id,
         date_probleme: r.annulation_date || null,
+        utilise_sur: utiliseSur.trim(),
       });
       if (error) {
         toast("Échec de la création de l'avoir.");
@@ -76,7 +94,13 @@ export default function AjouterRemboursementAvoirModal({
       }
     }
     setSubmitting(false);
-    toast(type === "remboursement" ? "Remboursement ajouté — modifiable dans Suivi." : "Avoir ajouté — modifiable dans Suivi.");
+    toast(
+      type === "remboursement"
+        ? "Remboursement ajouté — modifiable dans Suivi."
+        : type === "avoir"
+          ? "Avoir ajouté — modifiable dans Suivi."
+          : "Remboursement et avoir ajoutés — modifiables dans Suivi."
+    );
     onClose();
   };
 
@@ -118,10 +142,23 @@ export default function AjouterRemboursementAvoirModal({
           >
             Avoir
           </button>
+          <button
+            type="button"
+            onClick={() => setType("split")}
+            className={`flex-1 rounded-md border px-3 py-1.5 text-sm font-medium ${
+              type === "split"
+                ? "border-[#171717] bg-[#171717] text-white"
+                : "border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
+            }`}
+          >
+            Les deux
+          </button>
         </div>
 
         <label className="mt-3 block">
-          <span className="mb-1 block text-xs font-medium text-neutral-500">Montant (€)</span>
+          <span className="mb-1 block text-xs font-medium text-neutral-500">
+            {type === "split" ? "Montant total dû (€)" : "Montant (€)"}
+          </span>
           <input
             type="number"
             value={montant}
@@ -130,10 +167,42 @@ export default function AjouterRemboursementAvoirModal({
           />
         </label>
 
-        {type === "remboursement" && (
+        {type === "split" && (
+          <div className="mt-3 rounded-md border border-neutral-200 bg-[#fafafa] p-3">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-neutral-500">Dont utilisé en avoir (€)</span>
+              <input
+                type="number"
+                value={montantAvoirSplit}
+                onChange={(e) => setMontantAvoirSplit(Number(e.target.value))}
+                className="input"
+              />
+            </label>
+            <p className="mt-2 text-xs text-neutral-500">
+              → Avoir de <strong>{montantAvoirSplit || 0} €</strong>, reste{" "}
+              <strong>{montantRemboursementSplit} €</strong> à rembourser en cash.
+            </p>
+          </div>
+        )}
+
+        {(type === "avoir" || type === "split") && (
+          <label className="mt-3 block">
+            <span className="mb-1 block text-xs font-medium text-neutral-500">
+              Avoir utilisé sur (facultatif, si déjà su)
+            </span>
+            <input
+              value={utiliseSur}
+              onChange={(e) => setUtiliseSur(e.target.value)}
+              placeholder="Ex. : 25 € sur le transfert hôtel Sheraton"
+              className="input text-sm"
+            />
+          </label>
+        )}
+
+        {(type === "remboursement" || type === "split") && (
           <>
             <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-medium text-neutral-500">Mode</span>
+              <span className="mb-1 block text-xs font-medium text-neutral-500">Mode (pour la part remboursée en cash)</span>
               <select value={mode} onChange={(e) => setMode(e.target.value)} className="input text-sm">
                 {MODES_PAIEMENT.map((m) => (
                   <option key={m}>{m}</option>
@@ -172,7 +241,13 @@ export default function AjouterRemboursementAvoirModal({
           disabled={submitting}
           className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? "…" : type === "remboursement" ? "Ajouter le remboursement" : "Ajouter l'avoir"}
+          {submitting
+            ? "…"
+            : type === "remboursement"
+              ? "Ajouter le remboursement"
+              : type === "avoir"
+                ? "Ajouter l'avoir"
+                : "Ajouter le remboursement + l'avoir"}
         </button>
       </div>
     </div>

@@ -1405,8 +1405,10 @@ export function ActivitesStep({
   onAssouanVerification,
   assouanVerifications,
   paiementsEtapes = [],
+  avoirs = [],
 }: StepProps & {
   reservations: Reservation[];
+  avoirs?: Avoir[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onAddReservation: (opts?: { skipAvoirPrompt?: boolean }) => Promise<string | null>;
@@ -1550,6 +1552,7 @@ export function ActivitesStep({
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
         paiementsEtapes={paiementsEtapes}
+        avoirs={avoirs}
         expandedId={expandedId}
         onToggleExpand={setExpandedId}
         onSetPickup={(id, pickup_reel) => onUpdateReservation(id, { pickup_reel })}
@@ -4091,6 +4094,19 @@ export function SuiviStep({
                     className="input"
                   />
                 </Field>
+                <div className="col-span-2">
+                  <Field label="Utilisé sur (facultatif)">
+                    <input
+                      value={a.utilise_sur}
+                      onChange={(e) => onUpdateAvoir(a.id, { utilise_sur: e.target.value })}
+                      placeholder="Ex. : 25 € sur le transfert hôtel Sheraton"
+                      className="input"
+                    />
+                  </Field>
+                  <p className="mt-1 text-xs text-neutral-400">
+                    Affiché sur la carte de l&apos;activité annulée qui a généré cet avoir.
+                  </p>
+                </div>
               </div>
               </div>
               </div>

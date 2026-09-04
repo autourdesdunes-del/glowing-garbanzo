@@ -100,6 +100,7 @@ export default function RemboursementSummaryCard({
           {" — "}Date et heure d&apos;annulation : {fmtDateTime(r.created_at)}
         </p>
         <p className="text-xs text-neutral-500">Motif : {motif}</p>
+        {r.details && <p className="text-xs text-neutral-500">Détails : {r.details}</p>}
         {activiteLiee?.annulation_type === "client" && activiteLiee.annulation_delai_raison && (
           <p className={`text-xs font-medium ${delaiOk ? "text-emerald-600" : "text-orange-600"}`}>
             {delaiOk

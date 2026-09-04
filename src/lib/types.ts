@@ -337,6 +337,13 @@ export type Avoir = {
   raison_autre: string;
   activite_id: string | null;
   date_probleme: string | null;
+  // Note libre, facultative : où cet avoir (ou une partie) a été utilisé —
+  // ex. "25 € sur le transfert hôtel Sheraton". Purement manuel, à
+  // renseigner par l'employé quand il le sait ; rien ne le déduit
+  // automatiquement (l'avoir peut aussi être consommé via le bouton
+  // "Utiliser l'avoir" sur une nouvelle activité, sans lien formel entre
+  // les deux enregistrements).
+  utilise_sur: string;
   created_at: string;
 };
 

@@ -1411,6 +1411,7 @@ export default function ClientDetail({
           onAssouanVerification={handleAssouanVerification}
           assouanVerifications={assouanVerifications}
           paiementsEtapes={paiementsEtapes}
+          avoirs={avoirs}
         />
       </Section>
 

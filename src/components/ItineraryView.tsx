@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   AssouanVerification,
+  Avoir,
   BusEscalation,
   CatalogueItem,
   CatalogueOption,
@@ -73,6 +74,7 @@ export default function ItineraryView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  avoirs = [],
   expandedId,
   onToggleExpand,
   onSetPickup,
@@ -105,6 +107,7 @@ export default function ItineraryView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  avoirs?: Avoir[];
   expandedId: string | null;
   onToggleExpand: (id: string | null) => void;
   onSetPickup: (id: string, pickup: string) => void;
@@ -352,6 +355,15 @@ export default function ItineraryView({
               Avoir de {euros(r.avoir_utilise)} € utilisé sur cette activité
             </span>
           )}
+          {(() => {
+            const avoirGenere = avoirs.find((a) => a.activite_id === r.id);
+            if (!avoirGenere || !avoirGenere.utilise_sur) return null;
+            return (
+              <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
+                Avoir généré ({euros(avoirGenere.montant)} €) — utilisé sur : {avoirGenere.utilise_sur}
+              </span>
+            );
+          })()}
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
           <span>

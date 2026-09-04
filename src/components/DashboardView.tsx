@@ -14,7 +14,7 @@ import {
   ReservationTarif,
   UserShift,
 } from "@/lib/types";
-import { cleanActivityTitle, missingChampsFor, paxSummary, resaTotalMontant } from "@/lib/resa";
+import { cleanActivityTitle, missingChampsFor, paxSummary, resaTotalMontant, reservationsActives } from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
@@ -478,7 +478,7 @@ export default function DashboardView({
     .filter((c) => c.prochain_appel_date === todayStr)
     .sort((a, b) => a.prochain_appel_heure.localeCompare(b.prochain_appel_heure));
 
-  const pickupsMissingTomorrow = reservations.filter(
+  const pickupsMissingTomorrow = reservationsActives(reservations).filter(
     (r) => r.date_debut === tomorrowStr && !r.pickup_reel
   );
 

@@ -1482,7 +1482,7 @@ export default function SuivisView({
   // J-1, et doit toujours être confirmé avant 18h la veille — jamais plus
   // tôt, jamais plus tard. Idem pour demander le numéro de chambre.
   const pickupsJ1 = reservations
-    .filter((r) => r.date_debut === tomorrowStr)
+    .filter((r) => r.date_debut === tomorrowStr && r.statut_resa !== "Annulée")
     .map((r) => ({ r, client: clients.find((c) => c.id === r.client_id) }))
     .filter((x): x is { r: Reservation; client: Client } => !!x.client)
     .sort((a, b) => (a.r.moment || "").localeCompare(b.r.moment || ""));

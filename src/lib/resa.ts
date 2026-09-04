@@ -121,19 +121,44 @@ export const STATUT_PAIEMENT_OPTIONS: {
     key: "activite_cb",
     label: "Paiement à l'activité - CB",
     className: "bg-orange-100 text-orange-700",
-    patch: (r) => ({ solde_paye: false, solde_mode: "Carte bleue", solde_activite_id: r.id }),
+    // Même reset que "attente"/"attente_paypal" ci-dessus — sans lui, un
+    // client passé par un statut RDV avant restait détecté "RDV paiement"
+    // (Suivis, Dashboard) pour toujours, même une fois basculé sur
+    // "à l'activité" (vécu sur Joël Marin).
+    patch: (r) => ({
+      solde_paye: false,
+      solde_mode: "Carte bleue",
+      solde_activite_id: r.id,
+      solde_rdv_heure: "",
+      solde_rdv_lieu: "",
+      solde_rdv_valide: false,
+    }),
   },
   {
     key: "activite_eur",
     label: "Paiement à l'activité - en €",
     className: "bg-orange-100 text-orange-700",
-    patch: (r) => ({ solde_paye: false, solde_mode: "Espèces EUR", solde_activite_id: r.id }),
+    patch: (r) => ({
+      solde_paye: false,
+      solde_mode: "Espèces EUR",
+      solde_activite_id: r.id,
+      solde_rdv_heure: "",
+      solde_rdv_lieu: "",
+      solde_rdv_valide: false,
+    }),
   },
   {
     key: "activite_egp",
     label: "Paiement à l'activité - en EGP",
     className: "bg-orange-100 text-orange-700",
-    patch: (r) => ({ solde_paye: false, solde_mode: "Espèces EGP", solde_activite_id: r.id }),
+    patch: (r) => ({
+      solde_paye: false,
+      solde_mode: "Espèces EGP",
+      solde_activite_id: r.id,
+      solde_rdv_heure: "",
+      solde_rdv_lieu: "",
+      solde_rdv_valide: false,
+    }),
   },
 ];
 

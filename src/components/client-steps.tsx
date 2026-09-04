@@ -1823,16 +1823,31 @@ function PaiementResteFlow({
       const rate = (await getEurToEgpRate()) || client.egp_taux || 0;
       setEgpModal({ r, rate });
     } else {
-      onChange({ solde_activite_id: r.id, solde_mode: "Espèces EUR", solde_rdv_valide: true });
+      onChange({
+        solde_activite_id: r.id,
+        solde_mode: "Espèces EUR",
+        solde_rdv_valide: true,
+        // Un ancien mode "RDV" laissait ces champs remplis — sans ce reset,
+        // le client restait détecté comme "RDV paiement" (Suivis, Dashboard)
+        // pour toujours, même une fois passé sur "paiement à l'activité"
+        // (vécu sur Joël Marin : mode "à l'activité" mais toujours listé en
+        // RDV paiement à cause d'un solde_rdv_heure/lieu jamais effacé).
+        solde_rdv_heure: "",
+        solde_rdv_lieu: "",
+      });
     }
   };
 
   const selectActiviteMode = (key: string) => {
-    onChange({ paiement_integral_mode: key });
+    // Ne change le mode que si une activité a bien pu être assignée — sinon
+    // le mode affiché ("à l'activité") ne correspond à aucune activité
+    // réelle (solde_activite_id resterait vide), ce qui a déjà produit un
+    // état incohérent en prod.
     if (sortedByDate.length === 0) {
       toast("Aucune activité datée pour l'instant.");
       return;
     }
+    onChange({ paiement_integral_mode: key });
     confirmActivite(sortedByDate[0], key);
   };
 
@@ -1847,14 +1862,26 @@ function PaiementResteFlow({
             type="button"
             onClick={() => {
               if (client.paiement_integral_mode === m.key) {
-                onChange({ paiement_integral_mode: "" });
+                onChange({
+                  paiement_integral_mode: "",
+                  solde_rdv_heure: "",
+                  solde_rdv_lieu: "",
+                  solde_rdv_valide: false,
+                  solde_activite_id: null,
+                });
                 setShowActivityPicker(false);
                 return;
               }
               if (m.key === "activite_eur" || m.key === "activite_egp") {
                 selectActiviteMode(m.key);
               } else {
-                onChange({ paiement_integral_mode: m.key });
+                onChange({
+                  paiement_integral_mode: m.key,
+                  solde_rdv_heure: "",
+                  solde_rdv_lieu: "",
+                  solde_rdv_valide: false,
+                  solde_activite_id: null,
+                });
               }
             }}
             className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
@@ -3052,7 +3079,13 @@ export function PaiementsStep({
               <button
                 onClick={() => {
                   setApresEtapeChoix(false);
-                  onChange({ paiement_integral_mode: "" });
+                  onChange({
+                    paiement_integral_mode: "",
+                    solde_rdv_heure: "",
+                    solde_rdv_lieu: "",
+                    solde_rdv_valide: false,
+                    solde_activite_id: null,
+                  });
                   setTypeDePaiementOpen(true);
                 }}
                 className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"

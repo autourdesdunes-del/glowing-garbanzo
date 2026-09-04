@@ -2311,6 +2311,7 @@ export function PaiementsStep({
   const [addingEtape, setAddingEtape] = useState(false);
   // Repliable pour désencombrer une fois le type de paiement réglé — le
   // Résumé des paiements, lui, reste toujours visible (voir plus bas).
+  const [repriseDateModal, setRepriseDateModal] = useState<string | null>(null);
   const [typeDePaiementOpen, setTypeDePaiementOpen] = useState(true);
   const typeDePaiementAutoReplieRef = useRef(false);
   const [etapeMontant, setEtapeMontant] = useState("");
@@ -2423,12 +2424,12 @@ export function PaiementsStep({
   // forcément montée au moment où l'activité est ajoutée depuis "Activités",
   // le déclencheur doit donc vivre au niveau du composant toujours monté.
   // Ici on ne gère que la résolution, une fois le règlement choisi.
-  const marquerRepriseReglee = () => {
+  const marquerRepriseReglee = (date: string) => {
     const activiteLiee = reservations.find((r) => r.id === client.reprise_activite_id);
     onAddPaiementEtape(
       client.reprise_montant,
       client.reprise_mode,
-      todayStr(),
+      date,
       "Activité réservée ultérieurement — nouveau règlement du solde",
       activiteLiee?.nom_activite || ""
     );
@@ -3057,7 +3058,7 @@ export function PaiementsStep({
                 {activiteLiee ? ` (à l'activité "${activiteLiee.nom_activite}")` : ""}
               </span>
               <button
-                onClick={marquerRepriseReglee}
+                onClick={() => setRepriseDateModal(todayStr())}
                 className="shrink-0 rounded-md bg-white px-2 py-1 font-medium text-red-700 underline hover:no-underline"
               >
                 Marquer réglé
@@ -3065,6 +3066,43 @@ export function PaiementsStep({
             </div>
           );
         })()}
+
+      {repriseDateModal !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Quand le client a-t-il payé ?
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Renseigne la date où l&apos;argent a réellement été remis — pas forcément
+              aujourd&apos;hui si tu rattrapes un paiement déjà reçu.
+            </p>
+            <input
+              type="date"
+              value={repriseDateModal}
+              onChange={(e) => setRepriseDateModal(e.target.value || todayStr())}
+              className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            />
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  marquerRepriseReglee(repriseDateModal);
+                  setRepriseDateModal(null);
+                }}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Valider
+              </button>
+              <button
+                onClick={() => setRepriseDateModal(null)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {apresEtapeChoix && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -3169,9 +3207,19 @@ export function PaiementsStep({
                   className="input w-32"
                 />
               </Field>
-              <p className="mt-1 text-xs text-neutral-500">
-                en {etapeActiviteConfirm.mode}, le {fmtDateDMY(etapeActiviteConfirm.date)}.
-              </p>
+              <p className="mt-1 text-xs text-neutral-500">en {etapeActiviteConfirm.mode}.</p>
+            </div>
+            <div className="mb-3">
+              <Field label="Date du paiement">
+                <input
+                  type="date"
+                  value={etapeActiviteConfirm.date}
+                  onChange={(e) =>
+                    setEtapeActiviteConfirm({ ...etapeActiviteConfirm, date: e.target.value || todayStr() })
+                  }
+                  className="input"
+                />
+              </Field>
             </div>
             <div className="flex flex-col gap-1.5">
               {etapeActiviteConfirm.candidats.map((r) => (
@@ -4130,7 +4178,7 @@ export function SuiviStep({
                 <div className="col-span-2">
                   <Field label="Utilisé sur (facultatif)">
                     <input
-                      value={a.utilise_sur}
+                      value={a.utilise_sur ?? ""}
                       onChange={(e) => onUpdateAvoir(a.id, { utilise_sur: e.target.value })}
                       placeholder="Ex. : 25 € sur le transfert hôtel Sheraton"
                       className="input"

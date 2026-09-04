@@ -191,10 +191,6 @@ function isSpaMassage(nom: string) {
   return n.includes("spa") || n.includes("massage");
 }
 
-// Spa ouvert de 10h à 21h — dernier créneau réservable à 19h (pour laisser
-// le temps à la prestation avant la fermeture).
-const SPA_CRENEAUX = ["10h", "11h", "12h", "13h", "14h", "15h", "16h", "17h", "18h", "19h"];
-
 const MOMENTS_SPEEDBOAT = ["Matin", "Après-midi"] as const;
 
 const MAISON_DAUPHINS_TEXT =
@@ -1341,16 +1337,14 @@ export default function AddActivityWizard({
         {isSpa && (
           <div className="mt-3">
             <Field label="Horaire souhaité *">
-              <select
+              <input
+                type="time"
+                min="10:00"
+                max="19:00"
                 value={r.horaire_souhaite}
                 onChange={(e) => onUpdateReservation(r.id, { horaire_souhaite: e.target.value })}
                 className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
-              >
-                <option value="">—</option>
-                {SPA_CRENEAUX.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
+              />
             </Field>
             <p className="mt-1 text-xs text-neutral-400">
               Spa ouvert de 10h à 21h — dernier créneau possible à 19h.

@@ -14,12 +14,18 @@ export default function MarquerRembourseModal({
   clientNom,
   montantTotal,
   nbRemboursements,
+  infosManquantes,
   onConfirm,
   onClose,
 }: {
   clientNom: string;
   montantTotal: number;
   nbRemboursements: number;
+  // Ex. "adresse PayPal manquante" / "RIB manquant" — calculé par l'appelant
+  // à partir du mode de chaque remboursement concerné. Sans ce contrôle, on
+  // pouvait marquer "Effectué" un remboursement PayPal sans email ni un
+  // virement sans RIB, sans jamais savoir où l'argent avait été envoyé.
+  infosManquantes?: string;
   onConfirm: (photoPath: string) => Promise<void>;
   onClose: () => void;
 }) {
@@ -53,6 +59,12 @@ export default function MarquerRembourseModal({
             : `${euros(montantTotal)} €`}
         </p>
 
+        {infosManquantes && (
+          <p className="mt-3 rounded-md bg-orange-50 px-2.5 py-1.5 text-xs text-orange-700">
+            ⚠️ {infosManquantes} — à compléter avant de confirmer.
+          </p>
+        )}
+
         <div className="mt-3">
           <PreuveRemboursementUpload path={photoPath} onChange={setPhotoPath} />
           {!photoPath && (
@@ -62,7 +74,7 @@ export default function MarquerRembourseModal({
 
         <button
           onClick={confirmer}
-          disabled={submitting || !photoPath}
+          disabled={submitting || !photoPath || !!infosManquantes}
           className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? "…" : "Confirmer le remboursement effectué"}

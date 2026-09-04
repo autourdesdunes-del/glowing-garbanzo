@@ -577,7 +577,7 @@ function ActivityDetailModal({
     client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
   const etapesSumClient = clientEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const montantRdv = Math.max(
-    totalSejourClient - acompteClient - etapesSumClient - avoirUtiliseTotal(clientReservations),
+    totalSejourClient - acompteClient - etapesSumClient - avoirUtiliseTotal(reservationsActives(clientReservations)),
     0
   );
   const paiementWarning = activitePaiementWarning(

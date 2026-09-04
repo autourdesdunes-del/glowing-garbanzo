@@ -15,12 +15,18 @@ export default function AjouterRemboursementAvoirModal({
   r,
   montantSuggere,
   onUpdateClient,
+  onUpdateReservation,
   onClose,
 }: {
   client: Client;
   r: Reservation;
   montantSuggere: number;
   onUpdateClient?: (patch: Partial<Client>) => void;
+  // Marque annulation_remb_avoir sur l'activité une fois traité — sinon le
+  // bouton "Ajouter un remboursement ou un avoir" reste cliquable
+  // indéfiniment et peut créer un doublon (vécu : deux avoirs pour la même
+  // annulation, comptés en double dans le total à traiter).
+  onUpdateReservation: (patch: Partial<Reservation>) => void;
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -93,6 +99,7 @@ export default function AjouterRemboursementAvoirModal({
         return;
       }
     }
+    onUpdateReservation({ annulation_remb_avoir: type === "avoir" ? "avoir" : "rembourse" });
     setSubmitting(false);
     toast(
       type === "remboursement"

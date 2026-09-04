@@ -74,6 +74,13 @@ export default function RemboursementSummaryCard({
     !!activiteLiee?.annulation_delai_raison &&
     activiteLiee.annulation_delai_raison.includes("remboursable") &&
     !activiteLiee.annulation_delai_raison.includes("non remboursable");
+  // Aucun seuil d'urgence n'existait avant sur les remboursements "en
+  // attente" (contrairement aux messages clients, seuil 48h) — un dossier
+  // pouvait dormir des semaines sans qu'aucun signal visuel ne l'indique.
+  const joursEnAttente =
+    r.statut !== "Effectué"
+      ? Math.floor((Date.now() - new Date(r.created_at).getTime()) / 86400000)
+      : 0;
 
   const Wrapper = onClick ? "button" : "div";
 
@@ -97,18 +104,22 @@ export default function RemboursementSummaryCard({
         )}
         <p className="text-xs text-neutral-500">
           Date prévue de l&apos;activité : {activiteLiee?.date_debut ? fmtDate(activiteLiee.date_debut) : "—"}
-          {" — "}Date et heure d&apos;annulation :{" "}
-          {activiteLiee?.annulation_date
-            ? `${fmtDate(activiteLiee.annulation_date)}${
-                activiteLiee.annulation_heure ? ` à ${activiteLiee.annulation_heure}` : ""
-              }`
-            : // Repli sur la date de création du remboursement seulement si
-              // l'activité liée n'a pas sa propre date d'annulation connue —
-              // sinon ça affichait le jour où le remboursement a été SAISI
-              // dans le CRM, pas le jour où l'activité a vraiment été
-              // annulée (vécu sur Rosemarie LONG : "4 sept." au lieu du
-              // vrai "28/08 à 9h").
-              fmtDateTime(r.created_at)}
+          {" — "}
+          {activiteLiee?.annulation_date ? (
+            <>
+              Date et heure d&apos;annulation : {fmtDate(activiteLiee.annulation_date)}
+              {activiteLiee.annulation_heure ? ` à ${activiteLiee.annulation_heure}` : ""}
+            </>
+          ) : (
+            // Pas d'activité liée (ou sans date d'annulation connue) — on ne
+            // peut afficher que la date de SAISIE du remboursement dans le
+            // CRM, pas la vraie date d'annulation. Le libellé le dit
+            // explicitement pour ne pas induire en erreur (vécu sur
+            // Rosemarie LONG : la date de saisie affichée comme si c'était
+            // la date d'annulation réelle, "4 sept." au lieu du vrai
+            // "28/08 à 9h").
+            <>Remboursement saisi le : {fmtDateTime(r.created_at)}</>
+          )}
         </p>
         <p className="text-xs text-neutral-500">Motif : {motif}</p>
         {r.details && <p className="text-xs text-neutral-500">Détails : {r.details}</p>}
@@ -138,6 +149,11 @@ export default function RemboursementSummaryCard({
         >
           {r.statut}
         </span>
+        {joursEnAttente >= 7 && (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">
+            ⚠️ {joursEnAttente}j
+          </span>
+        )}
         {actions && <div className="flex gap-1">{actions}</div>}
       </div>
     </Wrapper>

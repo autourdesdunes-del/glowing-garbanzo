@@ -221,7 +221,10 @@ export function paiementProgress(
   // activité affichés comme "2650€ en retard" sur cette seule activité).
   const acompteEngage =
     client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
-  const avoirUtilise = avoirUtiliseTotal(reservations);
+  // reservationsActives(), pas reservations brut : sinon un avoir utilisé
+  // sur une activité ensuite annulée reste compté dans le total payé alors
+  // que l'activité qu'il finançait n'existe plus dans totalSejour.
+  const avoirUtilise = avoirUtiliseTotal(reservationsActives(reservations));
   const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const soldeRestant = Math.max(totalSejour - acompteEngage - etapesSum - avoirUtilise, 0);
   const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
@@ -422,7 +425,10 @@ export function activitePaiementWarning(
   // deuxième "solde" par activité. Les étapes de paiement libres (acompte
   // → solde) réduisent ce même montant restant, pour la même raison.
   const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
-  const amount = Math.max(totalSejour - acompte - etapesSum - avoirUtiliseTotal(reservations), 0);
+  const amount = Math.max(
+    totalSejour - acompte - etapesSum - avoirUtiliseTotal(reservationsActives(reservations)),
+    0
+  );
   return { amount, devise: "€" };
 }
 

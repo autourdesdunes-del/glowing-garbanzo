@@ -499,16 +499,30 @@ export default function ItineraryView({
                 )}
               </h3>
               <div className="flex shrink-0 items-center gap-1.5">
-                {expandedReservation.statut_resa === "Annulée" && (
-                  <button
-                    type="button"
-                    onClick={() => setRembAvoirActiviteId(expandedReservation.id)}
-                    title="Ajouter un remboursement ou un avoir pour cette activité"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#C9973E]/10 text-[#8B4531] hover:bg-[#C9973E]/20"
-                  >
-                    💶
-                  </button>
-                )}
+                {expandedReservation.statut_resa === "Annulée" &&
+                  (expandedReservation.annulation_remb_avoir ? (
+                    // Un remboursement/avoir a déjà été créé pour cette
+                    // annulation — rouvrir la modale créerait un doublon
+                    // (déjà arrivé : deux avoirs pour la même activité,
+                    // comptés en double dans le total à traiter).
+                    <span
+                      title={`Déjà traité : ${
+                        expandedReservation.annulation_remb_avoir === "rembourse" ? "remboursement" : "avoir"
+                      } créé pour cette annulation — à retirer dans Suivi avant d'en recréer un.`}
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-neutral-400"
+                    >
+                      💶
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setRembAvoirActiviteId(expandedReservation.id)}
+                      title="Ajouter un remboursement ou un avoir pour cette activité"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-[#C9973E]/10 text-[#8B4531] hover:bg-[#C9973E]/20"
+                    >
+                      💶
+                    </button>
+                  ))}
                 {expandedReservation.statut_resa === "Annulée" ? (
                   <button
                     type="button"
@@ -787,6 +801,7 @@ export default function ItineraryView({
               r={resaCible}
               montantSuggere={montantSuggere}
               onUpdateClient={onUpdateClient}
+              onUpdateReservation={(patch) => onUpdateReservation(resaCible.id, patch)}
               onClose={() => setRembAvoirActiviteId(null)}
             />
           );

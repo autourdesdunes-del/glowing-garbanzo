@@ -421,12 +421,18 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
+  // Garde anti double-clic : sans elle, un clic rapide (ou une connexion
+  // lente) créait deux avoirs vides (0€/0€) au lieu d'un seul.
+  const addingAvoirRef = useRef(false);
   const addAvoir = async () => {
+    if (addingAvoirRef.current) return;
+    addingAvoirRef.current = true;
     const { data, error } = await supabase
       .from("avoirs")
       .insert({ client_id: client.id })
       .select()
       .single();
+    addingAvoirRef.current = false;
     if (!error && data) {
       setAvoirs((prev) => [...prev, data as Avoir]);
     } else {
@@ -441,8 +447,16 @@ export default function ClientDetail({
   };
 
   const deleteAvoir = async (id: string) => {
+    const a = avoirs.find((x) => x.id === id);
+    // Une fois supprimé, plus aucune trace (raison, activité d'origine) ne
+    // permet de retrouver pourquoi ce montant compte comme "payé" — utile à
+    // savoir avant de retirer un avoir déjà (partiellement) consommé.
+    const dejaConsomme = a ? Number(a.montant) - Number(a.montant_restant) : 0;
     const ok = await confirm({
-      message: "Retirer cet avoir ? Cette action est irréversible.",
+      message:
+        dejaConsomme > 0
+          ? `Retirer cet avoir ? ${euros(dejaConsomme)} € en ont déjà été utilisés — ce montant restera compté comme payé sur les activités concernées, mais toute trace de l'avoir d'origine (raison, activité) disparaîtra. Cette action est irréversible.`
+          : "Retirer cet avoir ? Cette action est irréversible.",
       confirmLabel: "Retirer",
       danger: true,
     });
@@ -893,7 +907,7 @@ export default function ClientDetail({
 
   const acomptePayeMontant =
     client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  const avoirUtiliseHeader = avoirUtiliseTotal(reservations);
+  const avoirUtiliseHeader = avoirUtiliseTotal(reservationsActives(reservations));
   const etapesSumHeader = paiementsEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const soldeRestantHeader = Math.max(
     totalSejourHeader - acomptePayeMontant - etapesSumHeader - avoirUtiliseHeader,
@@ -1487,6 +1501,7 @@ export default function ClientDetail({
           onAddAvoir={addAvoir}
           onUpdateAvoir={updateAvoir}
           onDeleteAvoir={deleteAvoir}
+          isDirection={canSeeMargins}
           incidents={incidents}
           onResolveIncident={(id, statut) => {
             setIncidents((prev) => prev.map((i) => (i.id === id ? { ...i, statut } : i)));

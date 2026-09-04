@@ -2434,11 +2434,22 @@ export default function SuivisView({
               const client = clients.find((c) => c.id === cibles[0].client_id);
               if (!client) return null;
               const montantTotal = cibles.reduce((s, r) => s + (Number(r.montant) || 0), 0);
+              const manqueInfo = cibles.find(
+                (r) =>
+                  (r.mode === "PayPal" && !r.paypal_email) ||
+                  (r.mode === "Virement bancaire" && !r.rib_photo_path)
+              );
+              const infosManquantes = manqueInfo
+                ? manqueInfo.mode === "PayPal"
+                  ? "Adresse PayPal manquante"
+                  : "RIB manquant"
+                : undefined;
               return (
                 <MarquerRembourseModal
                   clientNom={client.nom || "Sans nom"}
                   montantTotal={montantTotal}
                   nbRemboursements={cibles.length}
+                  infosManquantes={infosManquantes}
                   onClose={() => setMarquerRembourseIds(null)}
                   onConfirm={async (photoPath) => {
                     const nowIso = new Date().toISOString();

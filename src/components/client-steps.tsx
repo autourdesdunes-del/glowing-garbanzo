@@ -53,7 +53,8 @@ import {
   villeTransfertInfo,
 } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
-import { todayStr } from "@/lib/dates";
+import { todayStr, localDateStr } from "@/lib/dates";
+import MarquerRembourseModal from "@/components/MarquerRembourseModal";
 import ItineraryView from "@/components/ItineraryView";
 import AddPackModal from "@/components/AddPackModal";
 import { Field, PropertyRow } from "@/components/Field";
@@ -3634,6 +3635,7 @@ export function SuiviStep({
   onAddAvoir,
   onUpdateAvoir,
   onDeleteAvoir,
+  isDirection = false,
   incidents,
   onResolveIncident,
 }: StepProps & {
@@ -3642,6 +3644,7 @@ export function SuiviStep({
   onAddAvoir: () => void;
   onUpdateAvoir: (id: string, patch: Partial<Avoir>) => void;
   onDeleteAvoir: (id: string) => void;
+  isDirection?: boolean;
   incidents: Incident[];
   onResolveIncident: (id: string, statut: "Ouvert" | "Résolu") => void;
 }) {
@@ -3652,6 +3655,7 @@ export function SuiviStep({
   const [verifications, setVerifications] = useState<Verification[]>([]);
   const [verifNom, setVerifNom] = useState("");
   const [expandedRembId, setExpandedRembId] = useState<string | null>(null);
+  const [marquerRembourseId, setMarquerRembourseId] = useState<string | null>(null);
   const [expandedAvoirId, setExpandedAvoirId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
 
@@ -3823,18 +3827,20 @@ export function SuiviStep({
                       >
                         ✎
                       </span>
-                      <span
-                        role="button"
-                        tabIndex={0}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteRemboursement(r.id);
-                        }}
-                        title="Supprimer"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-red-500 hover:bg-red-50"
-                      >
-                        🗑
-                      </span>
+                      {isDirection && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteRemboursement(r.id);
+                          }}
+                          title="Supprimer"
+                          className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-red-500 hover:bg-red-50"
+                        >
+                          🗑
+                        </span>
+                      )}
                     </>
                   }
                 />
@@ -3871,18 +3877,31 @@ export function SuiviStep({
                       />
                     </Field>
                     <Field label="Statut">
-                      <select
-                        value={r.statut}
-                        onChange={(e) =>
-                          updateRemboursement(r.id, {
-                            statut: e.target.value as Remboursement["statut"],
-                          })
-                        }
-                        className="input"
-                      >
-                        <option>En attente</option>
-                        <option>Effectué</option>
-                      </select>
+                      {r.statut === "Effectué" ? (
+                        <div className="flex items-center gap-2">
+                          <span className="input flex-1 bg-neutral-100 text-neutral-600">Effectué</span>
+                          <button
+                            type="button"
+                            onClick={() => updateRemboursement(r.id, { statut: "En attente" })}
+                            className="text-xs text-neutral-500 hover:underline"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        // Même passage obligé que Suivis > Remboursements
+                        // (photo justificative + infos de paiement complètes)
+                        // — un simple menu déroulant permettait avant de
+                        // marquer "Effectué" sans aucune preuve ni email
+                        // PayPal/RIB renseigné.
+                        <button
+                          type="button"
+                          onClick={() => setMarquerRembourseId(r.id)}
+                          className="input w-full text-left text-[#8B4531] hover:bg-[#fafafa]"
+                        >
+                          En attente — marquer effectué…
+                        </button>
+                      )}
                     </Field>
                   </div>
 
@@ -4015,6 +4034,37 @@ export function SuiviStep({
         </div>
       </div>
 
+      {marquerRembourseId &&
+        (() => {
+          const cible = remboursements.find((r) => r.id === marquerRembourseId);
+          if (!cible) return null;
+          const infosManquantes =
+            cible.mode === "PayPal" && !cible.paypal_email
+              ? "Adresse PayPal manquante"
+              : cible.mode === "Virement bancaire" && !cible.rib_photo_path
+                ? "RIB manquant"
+                : undefined;
+          return (
+            <MarquerRembourseModal
+              clientNom={client.nom || "Sans nom"}
+              montantTotal={cible.montant}
+              nbRemboursements={1}
+              infosManquantes={infosManquantes}
+              onClose={() => setMarquerRembourseId(null)}
+              onConfirm={async (photoPath) => {
+                const nowIso = new Date().toISOString();
+                updateRemboursement(cible.id, {
+                  statut: "Effectué",
+                  date_remboursement: localDateStr(new Date()),
+                  date_remboursement_ts: nowIso,
+                  preuve_photo_path: photoPath,
+                });
+                setMarquerRembourseId(null);
+              }}
+            />
+          );
+        })()}
+
       <div>
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#171717]">
@@ -4134,8 +4184,17 @@ export function SuiviStep({
                     type="number"
                     value={a.montant}
                     onChange={(e) => {
-                      const montant = Number(e.target.value) || 0;
+                      const saisi = Number(e.target.value) || 0;
                       const consomme = a.montant - a.montant_restant;
+                      // Ne jamais descendre sous ce qui a déjà été
+                      // consommé — sinon l'avoir affiche "0€ restant" alors
+                      // que le vrai montant utilisé (sur des réservations
+                      // existantes) était plus grand, une incohérence
+                      // silencieuse entre l'avoir et les activités.
+                      if (saisi < consomme) {
+                        toast(`Déjà ${euros(consomme)} € utilisés sur cet avoir — impossible de descendre en dessous.`);
+                      }
+                      const montant = Math.max(saisi, consomme);
                       onUpdateAvoir(a.id, { montant, montant_restant: Math.max(montant - consomme, 0) });
                     }}
                     className="input"

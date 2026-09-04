@@ -97,7 +97,18 @@ export default function RemboursementSummaryCard({
         )}
         <p className="text-xs text-neutral-500">
           Date prévue de l&apos;activité : {activiteLiee?.date_debut ? fmtDate(activiteLiee.date_debut) : "—"}
-          {" — "}Date et heure d&apos;annulation : {fmtDateTime(r.created_at)}
+          {" — "}Date et heure d&apos;annulation :{" "}
+          {activiteLiee?.annulation_date
+            ? `${fmtDate(activiteLiee.annulation_date)}${
+                activiteLiee.annulation_heure ? ` à ${activiteLiee.annulation_heure}` : ""
+              }`
+            : // Repli sur la date de création du remboursement seulement si
+              // l'activité liée n'a pas sa propre date d'annulation connue —
+              // sinon ça affichait le jour où le remboursement a été SAISI
+              // dans le CRM, pas le jour où l'activité a vraiment été
+              // annulée (vécu sur Rosemarie LONG : "4 sept." au lieu du
+              // vrai "28/08 à 9h").
+              fmtDateTime(r.created_at)}
         </p>
         <p className="text-xs text-neutral-500">Motif : {motif}</p>
         {r.details && <p className="text-xs text-neutral-500">Détails : {r.details}</p>}

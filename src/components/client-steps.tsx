@@ -2355,10 +2355,14 @@ export function PaiementsStep({
     date?: string;
     activiteId?: string | null;
   }) => {
-    const date = prefill.date || todayStr();
     encaissementDifferentEnCours.current = true;
     if (prefill.activiteId) {
       const resa = reservations.find((r) => r.id === prefill.activiteId);
+      // Ce règlement rattrape presque toujours un écart déjà survenu (ex.
+      // l'écart "170,78 € prévu le 29-08-2026" affiché juste au-dessus) —
+      // par défaut la date de l'activité elle-même, pas le jour où
+      // l'employée pense enfin à l'enregistrer dans le CRM. Reste modifiable.
+      const date = prefill.date || resa?.date_debut || todayStr();
       setEtapeActiviteConfirm({
         montant: prefill.montant,
         mode: prefill.mode,
@@ -2370,6 +2374,7 @@ export function PaiementsStep({
       });
       return;
     }
+    const date = prefill.date || todayStr();
     setEtapeMontant(String(prefill.montant));
     setEtapeMode(prefill.mode);
     setEtapeDate(date);
@@ -3058,7 +3063,7 @@ export function PaiementsStep({
                 {activiteLiee ? ` (à l'activité "${activiteLiee.nom_activite}")` : ""}
               </span>
               <button
-                onClick={() => setRepriseDateModal(todayStr())}
+                onClick={() => setRepriseDateModal(activiteLiee?.date_debut || todayStr())}
                 className="shrink-0 rounded-md bg-white px-2 py-1 font-medium text-red-700 underline hover:no-underline"
               >
                 Marquer réglé

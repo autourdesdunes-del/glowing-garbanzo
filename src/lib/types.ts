@@ -6,6 +6,11 @@ export type ActivityLogEntry = {
   action: "insert" | "update" | "delete";
   actor_email: string | null;
   created_at: string;
+  // Phrase lisible ("a ajouté l'activité « Louxor en mini-bus »") construite
+  // par le trigger SQL à partir de l'ancienne/nouvelle ligne — vide pour les
+  // cas non couverts, l'affichage retombe alors sur le libellé générique
+  // action + table (voir actionLabel/tableLabel dans client-steps.tsx).
+  description: string | null;
 };
 
 export type CatalogueItem = {

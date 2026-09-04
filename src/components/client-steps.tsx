@@ -3473,6 +3473,7 @@ function tableLabel(table: string) {
       clients: "la fiche client",
       reservations: "une activité",
       paiements: "un acompte",
+      paiements_etapes: "un paiement",
       remboursements: "un remboursement",
     }[table] || table
   );
@@ -4123,7 +4124,7 @@ export function SuiviStep({
                       <span className="font-medium text-[#171717]">
                         {entry.actor_email ? entry.actor_email.split("@")[0] : "quelqu'un"}
                       </span>{" "}
-                      {actionLabel(entry.action)} {tableLabel(entry.table_name)}
+                      {entry.description || `${actionLabel(entry.action)} ${tableLabel(entry.table_name)}`}
                     </p>
                     <p className="text-[10px] text-neutral-400">{fmtDateTime(entry.created_at)}</p>
                   </div>

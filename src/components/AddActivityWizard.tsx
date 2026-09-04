@@ -191,6 +191,11 @@ function isSpaMassage(nom: string) {
   return n.includes("spa") || n.includes("massage");
 }
 
+// Spa ouvert de 10h à 21h — dernier créneau réservable à 19h (pour laisser
+// le temps à la prestation avant la fermeture). Minutes libres par pas de 5.
+const SPA_HEURES = ["10", "11", "12", "13", "14", "15", "16", "17", "18", "19"];
+const SPA_MINUTES = ["00", "05", "10", "15", "20", "25", "30", "35", "40", "45", "50", "55"];
+
 const MOMENTS_SPEEDBOAT = ["Matin", "Après-midi"] as const;
 
 const MAISON_DAUPHINS_TEXT =
@@ -1337,14 +1342,49 @@ export default function AddActivityWizard({
         {isSpa && (
           <div className="mt-3">
             <Field label="Horaire souhaité *">
-              <input
-                type="time"
-                min="10:00"
-                max="19:00"
-                value={r.horaire_souhaite}
-                onChange={(e) => onUpdateReservation(r.id, { horaire_souhaite: e.target.value })}
-                className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
-              />
+              {(() => {
+                // Deux menus séparés (heure bornée 10-19, minute libre) plutôt
+                // qu'un <input type="time"> : le sélecteur natif du
+                // navigateur n'empêche pas réellement de choisir en dehors de
+                // min/max (ça ne fait qu'invalider le champ silencieusement),
+                // ce qui laissait passer n'importe quelle heure.
+                const [hActuelle, mActuelle] = r.horaire_souhaite ? r.horaire_souhaite.split(":") : ["", ""];
+                const setHoraire = (h: string, m: string) => {
+                  if (!h || !m) {
+                    onUpdateReservation(r.id, { horaire_souhaite: "" });
+                    return;
+                  }
+                  onUpdateReservation(r.id, { horaire_souhaite: `${h}:${m}` });
+                };
+                return (
+                  <div className="flex gap-2">
+                    <select
+                      value={hActuelle}
+                      onChange={(e) => setHoraire(e.target.value, mActuelle || "00")}
+                      className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
+                    >
+                      <option value="">Heure</option>
+                      {SPA_HEURES.map((h) => (
+                        <option key={h} value={h}>
+                          {h}h
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={mActuelle}
+                      onChange={(e) => setHoraire(hActuelle || "10", e.target.value)}
+                      className={`input ${missingHoraire && validationError ? "border-red-300 focus:border-red-400" : ""}`}
+                    >
+                      <option value="">Minutes</option>
+                      {SPA_MINUTES.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
             </Field>
             <p className="mt-1 text-xs text-neutral-400">
               Spa ouvert de 10h à 21h — dernier créneau possible à 19h.

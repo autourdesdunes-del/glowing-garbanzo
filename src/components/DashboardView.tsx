@@ -782,6 +782,7 @@ export default function DashboardView({
             clients={clients}
             onDeleteClient={onDeleteClient}
             onOpenClient={onOpenClient}
+            defaultStatut="Client confirmé"
           />
           <button
             onClick={() => setPickClientForActivityOpen(true)}

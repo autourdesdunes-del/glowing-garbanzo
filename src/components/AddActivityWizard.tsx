@@ -231,6 +231,11 @@ export default function AddActivityWizard({
   } | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
+  // Petite note libre affichée en badge à côté du titre de l'activité,
+  // partout où elle apparaît (Itinéraire, Réservations, Suivis...) — champ
+  // déjà existant (info_importante), jamais éditable depuis ce pop-up avant
+  // ce bouton.
+  const [showInfoImportanteInput, setShowInfoImportanteInput] = useState(false);
   // Deux relances Hossam distinctes pour "Le Caire en avion" : une première
   // fois quand la date est saisie (pour vérifier la dispo avant de
   // continuer), une seconde au moment de finaliser l'activité (filet de
@@ -500,11 +505,21 @@ export default function AddActivityWizard({
 
   if (step === "choix") {
     const rechercheNette = deaccent(catalogueSearch.trim());
-    const catalogueFiltre = rechercheNette
-      ? catalogue
-          .filter((a) => deaccent(a.nom).includes(rechercheNette))
-          .sort((a, b) => a.nom.localeCompare(b.nom))
-      : [];
+    // Mot par mot plutôt qu'une seule sous-chaîne : "transfert assouan" doit
+    // retrouver "Transfert privatif Assouan..." même si l'ordre ou les mots
+    // exacts diffèrent (ex. "le caire mini bus" doit quand même retrouver
+    // "Le Caire en mini-bus") — chaque mot tapé doit juste apparaître
+    // quelque part dans le nom, peu importe l'ordre.
+    const motsRecherche = rechercheNette.split(/\s+/).filter(Boolean);
+    const catalogueFiltre =
+      motsRecherche.length > 0
+        ? catalogue
+            .filter((a) => {
+              const nomNormalise = deaccent(a.nom);
+              return motsRecherche.every((m) => nomNormalise.includes(m));
+            })
+            .sort((a, b) => a.nom.localeCompare(b.nom))
+        : [];
     const groupesCatalogue = catalogueToutVoir ? construireRubriquesCatalogue(catalogue) : [];
 
     // Regroupe les vérifications qui suivent l'avertissement Caire (sens du
@@ -2469,7 +2484,7 @@ export default function AddActivityWizard({
         {options.length === 0 && catOptions.length === 0 && (
           <p className="mb-2 text-sm text-neutral-400">Aucune option pour cette activité.</p>
         )}
-        <div>
+        <div className="flex flex-wrap items-start gap-2">
           <button
             type="button"
             onClick={() => onAddOption(r.id)}
@@ -2477,7 +2492,40 @@ export default function AddActivityWizard({
           >
             + Ajouter une option
           </button>
+          {!r.info_importante.trim() && !showInfoImportanteInput && (
+            <button
+              type="button"
+              onClick={() => setShowInfoImportanteInput(true)}
+              title="Ajouter une info affichée en badge à côté du titre de l'activité"
+              className="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              + Ajouter une info
+            </button>
+          )}
         </div>
+
+        {(r.info_importante.trim() || showInfoImportanteInput) && (
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              autoFocus={showInfoImportanteInput && !r.info_importante.trim()}
+              value={r.info_importante}
+              onChange={(e) => onUpdateReservation(r.id, { info_importante: e.target.value })}
+              placeholder="Info affichée en badge à côté du titre (ex. « Anniversaire », « Allergie fruits de mer »)"
+              className="input flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                onUpdateReservation(r.id, { info_importante: "" });
+                setShowInfoImportanteInput(false);
+              }}
+              title="Retirer cette info"
+              className="shrink-0 text-xs text-red-600 hover:underline"
+            >
+              Retirer
+            </button>
+          </div>
+        )}
 
         {optionsEnAttenteDeDate.length > 0 && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">

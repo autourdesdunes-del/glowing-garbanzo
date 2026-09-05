@@ -2838,7 +2838,12 @@ export function PaiementsStep({
               // ce qui avait été convenu au départ (voir commentaire sur le
               // champ dans types.ts). Le changement lui-même est tracé dans
               // l'historique du dossier (voir migration 0117).
-              paiement_type_prevu: client.paiement_type_prevu || value,
+              //
+              // Priorité : paiement_type_prevu déjà connu > paiement_type
+              // actuel (avant ce changement, pour les dossiers déjà en cours
+              // au moment de la migration 0117) > la nouvelle valeur en tout
+              // dernier recours (vraiment le tout premier choix jamais fait).
+              paiement_type_prevu: client.paiement_type_prevu || client.paiement_type || value,
             });
           }}
           className="input"

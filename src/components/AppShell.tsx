@@ -1384,9 +1384,16 @@ function AppShellInner({
     }
 
     if (type === "acompte") {
+      // Le paiement PayPal connaît déjà le montant brut envoyé (montant) et
+      // net reçu après frais (montant_net) — on retrouve directement ici ce
+      // que le flux manuel ("Montant réellement reçu" + case "Oubli Entre
+      // proches") doit sinon calculer à la main : montant_prevu = ce qui
+      // était envoyé, acompte_montant = ce qui est réellement arrivé.
       await updateClientById(clientId, {
         paiement_type: "acompte",
         acompte_montant: paiement.montant_net,
+        acompte_montant_prevu: paiement.montant,
+        acompte_entre_proches_oublie: !paiement.entre_proches,
         acompte_mode: "PayPal",
         acompte_valide: true,
         acompte_paye: true,
@@ -1406,12 +1413,18 @@ function AppShellInner({
         solde_rdv_valide: true,
       });
     } else {
+      // Pas de champ dédié "montant prévu"/"entre proches oublié" pour une
+      // étape (contrairement à l'acompte) — l'info reste au moins visible
+      // dans la note plutôt que de disparaître silencieusement.
+      const note = paiement.entre_proches
+        ? "Paiement PayPal rattaché"
+        : `Paiement PayPal rattaché — frais PayPal prélevés (${paiement.montant} € envoyés, ${paiement.montant_net} € reçus)`;
       const { error: errEtape } = await supabase.from("paiements_etapes").insert({
         client_id: clientId,
         montant: paiement.montant_net,
         mode: "PayPal",
         date: paiement.paypal_recu_le.slice(0, 10),
-        note: "Paiement PayPal rattaché",
+        note,
         activite_nom: "",
         montant_egp: 0,
       });

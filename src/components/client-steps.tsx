@@ -1201,7 +1201,7 @@ export function ActivitesStep({
   // "Ajouter cette activité" au bout du wizard) — jamais sur "Annuler", ni
   // en direct pendant qu'on la configure (voir checkRepriseApresAjout).
   onActivityFinished?: () => void;
-  onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
+  onBusEscalation: (nomActivite: string, reservationId: string | null) => Promise<void>;
   busEscalations: BusEscalation[];
   onJourEscalation: (
     nomActivite: string,

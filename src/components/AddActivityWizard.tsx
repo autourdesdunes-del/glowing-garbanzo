@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
+  BusEscalation,
   CatalogueItem,
   CatalogueOption,
   CatalogueTarif,
@@ -155,7 +157,12 @@ export default function AddActivityWizard({
   hotelHorsHurghada?: boolean;
   hotelVille?: string;
   taxesRef?: TransfertTaxe[];
-  onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
+  // reservationId est désormais null au moment de la demande — l'activité
+  // n'est plus créée avant que la Direction/Sylvie ait tranché (voir
+  // isDiscouragedBusActivity/isFamilySafariBedouin plus bas) : on ne veut
+  // plus qu'une escalade "en attente" reste sans conséquence pendant que
+  // l'activité tourne déjà normalement dans le dossier.
+  onBusEscalation: (nomActivite: string, reservationId: string | null) => Promise<void>;
   onJourEscalation: (
     nomActivite: string,
     reservationId: string,
@@ -198,6 +205,17 @@ export default function AddActivityWizard({
     item: CatalogueItem;
     kind: "bus" | "safari";
   } | null>(null);
+  // Bloque réellement l'ajout de l'activité tant que la Direction/Sylvie n'a
+  // pas tranché — avant, l'activité était créée tout de suite et l'escalade
+  // ne servait qu'à signaler, sans jamais rien empêcher (vécu : des
+  // escalades qui restaient "en attente" indéfiniment sans que ça ne change
+  // rien pour le client, l'activité étant déjà en place).
+  const [pendingBusStatus, setPendingBusStatus] = useState<{
+    nomActivite: string;
+    statut: "en_attente" | "refusee";
+    message: string;
+  } | null>(null);
+  const [checkingBusEscalation, setCheckingBusEscalation] = useState(false);
   const [pendingSensTransfert, setPendingSensTransfert] = useState<CatalogueItem | null>(null);
   const [pendingTitreLibre, setPendingTitreLibre] = useState<CatalogueItem | null>(null);
   const [pendingCaireAeroport, setPendingCaireAeroport] = useState<CatalogueItem | null>(null);
@@ -500,16 +518,50 @@ export default function AddActivityWizard({
       }
     };
 
+    // Regarde l'escalade la plus récente pour ce couple client/activité :
+    // "en attente" ou "refusée" bloque l'ajout (voir pendingBusStatus),
+    // "validée" laisse passer directement, rien du tout affiche l'alerte de
+    // redirection habituelle.
+    const checkBusEscalation = async (nomActivite: string): Promise<BusEscalation | null> => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("bus_escalations")
+        .select("*")
+        .eq("client_id", client.id)
+        .eq("nom_activite", nomActivite)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      return ((data as BusEscalation[]) || [])[0] || null;
+    };
+
     const activiteBouton = (a: CatalogueItem) => (
       <button
         key={a.id}
         type="button"
-        disabled={creating}
-        onClick={() => {
-          if (isDiscouragedBusActivity(a.nom)) {
-            setPendingRedirect({ item: a, kind: "bus" });
-          } else if (isFamilySafariBedouin(a.nom) && isAdultsOnly(client)) {
-            setPendingRedirect({ item: a, kind: "safari" });
+        disabled={creating || checkingBusEscalation}
+        onClick={async () => {
+          const kind: "bus" | "safari" | null = isDiscouragedBusActivity(a.nom)
+            ? "bus"
+            : isFamilySafariBedouin(a.nom) && isAdultsOnly(client)
+              ? "safari"
+              : null;
+          if (kind) {
+            setCheckingBusEscalation(true);
+            const latest = await checkBusEscalation(a.nom);
+            setCheckingBusEscalation(false);
+            if (latest?.statut === "en_attente") {
+              setPendingBusStatus({ nomActivite: a.nom, statut: "en_attente", message: "" });
+            } else if (latest?.statut === "refusee") {
+              setPendingBusStatus({
+                nomActivite: a.nom,
+                statut: "refusee",
+                message: latest.resolu_message,
+              });
+            } else if (latest?.statut === "validee") {
+              proceedAfterCaireCheck(a);
+            } else {
+              setPendingRedirect({ item: a, kind });
+            }
           } else if (isCaireAeroportTransfert(a.nom)) {
             setPendingCaireAeroport(a);
           } else if (isPlongee(a.nom)) {
@@ -526,6 +578,32 @@ export default function AddActivityWizard({
 
     return wrap(
       <>
+        {pendingBusStatus && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-lg border-2 border-red-600 bg-white p-5 shadow-xl">
+              <h2 className="font-heading text-base font-semibold text-red-600">
+                {pendingBusStatus.nomActivite}
+              </h2>
+              <p className="mt-2 text-sm text-[#171717]">
+                {pendingBusStatus.statut === "en_attente"
+                  ? "Une demande a déjà été envoyée à la Direction/Sylvie pour cette activité et ce client — impossible de l'ajouter tant qu'elle n'a pas été validée. Tu seras prévenu(e) dès que c'est traité."
+                  : "La Direction/Sylvie a refusé cette demande pour cette activité et ce client — impossible de l'ajouter telle quelle. Rediscute-en directement avec elle si la situation a changé."}
+              </p>
+              {pendingBusStatus.message && (
+                <p className="mt-2 rounded-md bg-neutral-50 p-3 text-sm text-[#171717]">
+                  « {pendingBusStatus.message} »
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => setPendingBusStatus(null)}
+                className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        )}
         {pendingRedirect && (
           <ActivityRedirectAlert
             nomActivite={pendingRedirect.item.nom}
@@ -537,15 +615,15 @@ export default function AddActivityWizard({
             copyText={pendingRedirect.kind === "bus" ? MINI_BUS_TEXT : SAFARI_ADULTS_TEXT}
             proceedLabel={
               pendingRedirect.kind === "bus"
-                ? "Les clients ne souhaitent pas la formule en mini-bus"
-                : "Les clients préfèrent quand même le Grand Safari Bédouin"
+                ? "Les clients ne souhaitent pas la formule en mini-bus (envoyer à valider)"
+                : "Les clients préfèrent quand même le Grand Safari Bédouin (envoyer à valider)"
             }
             onCancel={() => setPendingRedirect(null)}
             onProceedAnyway={async () => {
               const { item } = pendingRedirect;
               setPendingRedirect(null);
-              const newId = await startFromCatalogue(item);
-              if (newId) await onBusEscalation(item.nom, newId);
+              await onBusEscalation(item.nom, null);
+              setPendingBusStatus({ nomActivite: item.nom, statut: "en_attente", message: "" });
             }}
           />
         )}

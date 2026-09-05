@@ -214,7 +214,7 @@ export default function QuickAddClient({
     if (clientId) onUpdateClient(clientId, fields);
   };
 
-  const handleBusEscalation = async (nomActivite: string, reservationId: string) => {
+  const handleBusEscalation = async (nomActivite: string, reservationId: string | null) => {
     if (!clientId) return;
     const {
       data: { user },

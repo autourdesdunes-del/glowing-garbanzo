@@ -219,8 +219,12 @@ export default function ClientDetail({
   // Le client insiste pour la formule bus (au lieu du mini-bus recommandé) —
   // on trace qui a validé cette décision pour que la Direction/Sylvie
   // puisse vérifier avec la conversation que c'est bien une demande du
-  // client, pas un raccourci pris par l'employée.
-  const handleBusEscalation = async (nomActivite: string, reservationId: string) => {
+  // client, pas un raccourci pris par l'employée. reservationId est
+  // toujours null ici désormais : l'activité n'est plus créée avant que la
+  // demande soit tranchée (AddActivityWizard bloque l'ajout tant que
+  // "en_attente"/"refusée") — sinon l'escalade ne changeait jamais rien de
+  // concret, l'activité tournant déjà normalement dans le dossier.
+  const handleBusEscalation = async (nomActivite: string, reservationId: string | null) => {
     const {
       data: { user },
     } = await supabase.auth.getUser();

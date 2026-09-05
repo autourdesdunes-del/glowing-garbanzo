@@ -85,7 +85,7 @@ export default function GuidedActivityModal({
   taxesRef: TransfertTaxe[];
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
-  onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
+  onBusEscalation: (nomActivite: string, reservationId: string | null) => Promise<void>;
   busEscalations: BusEscalation[];
   onJourEscalation: (
     nomActivite: string,

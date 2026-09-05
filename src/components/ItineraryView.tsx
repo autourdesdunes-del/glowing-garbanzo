@@ -132,7 +132,7 @@ export default function ItineraryView({
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
   busEscalations?: BusEscalation[];
-  onBusEscalation: (nomActivite: string, reservationId: string) => Promise<void>;
+  onBusEscalation: (nomActivite: string, reservationId: string | null) => Promise<void>;
   onJourEscalation: (
     nomActivite: string,
     reservationId: string,

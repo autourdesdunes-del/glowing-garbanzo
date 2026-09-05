@@ -182,3 +182,19 @@ export function baseTitleFor(catalogueItem: CatalogueItem, ileSelectionnee: stri
 export function titleWithSuffix(base: string, suffix: string) {
   return suffix ? `${base} — ${suffix}` : base;
 }
+
+// Villes proposées pour l'activité générique "Billets d'avion" (vols
+// achetés au cas par cas par l'agence, hors trajet fixe Hurghada ↔ Le
+// Caire) — "Autre" ouvre un champ libre pour les cas non listés.
+export const VILLES_BILLET_AVION = ["Le Caire", "Louxor", "Assouan", "Hurghada", "Autre"] as const;
+
+export function isBilletsAvionGenerique(nom?: string) {
+  return (nom || "").trim().toLowerCase() === "billets d'avion";
+}
+
+// "Billets d'avion (Hurghada → Le Caire)" — le titre affiché intègre les
+// villes choisies pour que l'activité se distingue au premier coup d'œil
+// dans l'itinéraire, sans avoir à ouvrir le détail.
+export function billetAvionTitle(base: string, villeDepart: string, villeArrivee: string) {
+  return villeDepart && villeArrivee ? `${base} (${villeDepart} → ${villeArrivee})` : base;
+}

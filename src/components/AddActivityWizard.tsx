@@ -71,11 +71,13 @@ import PlongeeGuideAlert from "@/components/PlongeeGuideAlert";
 import CroisiereOptionDateModal from "@/components/CroisiereOptionDateModal";
 import {
   baseTitleFor,
+  billetAvionTitle,
   CAIRE_MINIBUS_VIP_CHAMP,
   construireRubriquesCatalogue,
   deaccent,
   euros,
   isAdultsOnly,
+  isBilletsAvionGenerique,
   isCaireMiniBusBase,
   isCaireMiniBusVip,
   isSpaMassage,
@@ -87,6 +89,7 @@ import {
   SPA_HEURES,
   SPA_MINUTES,
   titleWithSuffix,
+  VILLES_BILLET_AVION,
 } from "@/lib/addActivityWizardHelpers";
 
 type Step =
@@ -783,15 +786,18 @@ export default function AddActivityWizard({
     ) {
       missing.push("Conducteurs & passagers");
     }
-    // Contrairement aux autres champs requis, le vol du client peut se
-    // remplir plus tard (le client ne l'a pas toujours donné dès la
-    // réservation) — on ne bloque pas "Suivant" ici, seulement "Valider"
-    // plus tard sur la fiche (voir ReservationCard).
     if (
       champsRequis.includes("Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)") &&
       !r.site_caire
     ) {
       missing.push("Site visité");
+    }
+    // Un transfert aéroport sans numéro de vol ni horaire ne peut pas être
+    // organisé côté équipe Égypte — impossible de continuer la résa tant
+    // que les deux ne sont pas remplis (demande explicite de Mélanie,
+    // contrairement à la pointure/site visité qui restent différables).
+    if (champsRequis.includes("Vol & horaire") && (!r.numero_vol.trim() || !r.horaire_vol.trim())) {
+      missing.push("Vol & horaire");
     }
     champsRequisPersonnalises.forEach((c) => {
       if (!(r.champs_requis_coches || []).includes(c)) missing.push(c);
@@ -932,24 +938,28 @@ export default function AddActivityWizard({
           )}
           {champsRequis.includes("Vol & horaire") && (
             <>
-              <Field label="Numéro de vol du client">
+              <Field label="Numéro de vol du client *">
                 <input
                   value={r.numero_vol}
                   onChange={(e) => onUpdateReservation(r.id, { numero_vol: e.target.value })}
-                  className="input"
+                  className={`input ${
+                    validationError && !r.numero_vol.trim() ? "border-red-300 focus:border-red-400" : ""
+                  }`}
                 />
               </Field>
               <Field
                 label={
-                  senseTransfertAeroport(r.nom_activite) === "hotel_aeroport"
+                  (senseTransfertAeroport(r.nom_activite) === "hotel_aeroport"
                     ? "Horaire de départ"
-                    : "Horaire d'arrivée"
+                    : "Horaire d'arrivée") + " *"
                 }
               >
                 <input
                   value={r.horaire_vol}
                   onChange={(e) => onUpdateReservation(r.id, { horaire_vol: e.target.value })}
-                  className="input"
+                  className={`input ${
+                    validationError && !r.horaire_vol.trim() ? "border-red-300 focus:border-red-400" : ""
+                  }`}
                 />
               </Field>
               <div className="col-span-2">
@@ -959,9 +969,8 @@ export default function AddActivityWizard({
                 />
               </div>
               <p className="col-span-2 text-xs text-neutral-400">
-                Tu peux passer cette étape si le client ne t&apos;a pas encore donné ces infos —
-                l&apos;activité restera en attente tant qu&apos;elles ne sont pas remplies, avec un
-                rappel au moment de la valider.
+                Obligatoires pour organiser le transfert côté équipe Égypte — impossible de
+                continuer sans ces deux informations.
               </p>
             </>
           )}
@@ -1100,9 +1109,12 @@ export default function AddActivityWizard({
   if (step === "date") {
     const isSpa = isSpaMassage(r.nom_activite);
     const billetInterneGenerique = needsBilletInterneGenerique(catalogueItem?.nom || r.nom_activite);
+    const isBilletAvionGenerique = isBilletsAvionGenerique(catalogueItem?.nom || r.nom_activite);
     const dureeJours = dureeJoursActivite(catalogueItem?.nom || r.nom_activite);
     const missingDate = !r.date_debut;
     const missingHoraire = isSpa && !r.horaire_souhaite;
+    const missingVilles =
+      isBilletAvionGenerique && (!r.billet_ville_depart.trim() || !r.billet_ville_arrivee.trim());
     const joursDisponibles = catalogueItem?.jours_disponibles || [];
     const jourMismatch = joursDisponiblesMismatch(r.date_debut, joursDisponibles);
     const nextStep = steps[steps.indexOf("date") + 1];
@@ -1128,7 +1140,7 @@ export default function AddActivityWizard({
     };
 
     const goNext = () => {
-      if (missingDate || missingHoraire) {
+      if (missingDate || missingHoraire || missingVilles) {
         setValidationError(true);
         return;
       }
@@ -1183,6 +1195,69 @@ export default function AddActivityWizard({
         {validationError && missingDate && (
           <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
             ⚠ Impossible de continuer — la date de l&apos;activité est obligatoire.
+          </div>
+        )}
+
+        {isBilletAvionGenerique && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {(
+              [
+                ["Ville de départ", "billet_ville_depart"],
+                ["Ville d'arrivée", "billet_ville_arrivee"],
+              ] as const
+            ).map(([label, field]) => {
+              const value = r[field];
+              const isAutre = !!value && !(VILLES_BILLET_AVION as readonly string[]).slice(0, 4).includes(value);
+              const selectValue = isAutre ? "Autre" : value;
+              return (
+                <Field key={field} label={`${label} *`}>
+                  <select
+                    value={selectValue}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const nextValue = v === "Autre" ? "" : v;
+                      const depart = field === "billet_ville_depart" ? nextValue : r.billet_ville_depart;
+                      const arrivee = field === "billet_ville_arrivee" ? nextValue : r.billet_ville_arrivee;
+                      onUpdateReservation(r.id, {
+                        [field]: nextValue,
+                        nom_activite: billetAvionTitle(catalogueItem?.nom || "Billets d'avion", depart, arrivee),
+                      });
+                    }}
+                    className={`input ${
+                      validationError && !value.trim() ? "border-red-300 focus:border-red-400" : ""
+                    }`}
+                  >
+                    <option value="">—</option>
+                    {VILLES_BILLET_AVION.map((v) => (
+                      <option key={v}>{v}</option>
+                    ))}
+                  </select>
+                  {isAutre && (
+                    <input
+                      value={value}
+                      onChange={(e) => {
+                        const nextValue = e.target.value;
+                        const depart = field === "billet_ville_depart" ? nextValue : r.billet_ville_depart;
+                        const arrivee = field === "billet_ville_arrivee" ? nextValue : r.billet_ville_arrivee;
+                        onUpdateReservation(r.id, {
+                          [field]: nextValue,
+                          nom_activite: billetAvionTitle(catalogueItem?.nom || "Billets d'avion", depart, arrivee),
+                        });
+                      }}
+                      placeholder="Préciser la ville"
+                      className="input mt-1.5"
+                    />
+                  )}
+                </Field>
+              );
+            })}
+          </div>
+        )}
+
+        {validationError && missingVilles && (
+          <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">
+            ⚠ Impossible de continuer — la ville de départ et la ville d&apos;arrivée sont
+            obligatoires.
           </div>
         )}
 

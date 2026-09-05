@@ -839,6 +839,7 @@ export default function ItineraryView({
             <AnnulerActiviteModal
               r={resaAnnuler}
               client={client}
+              reservations={reservations}
               options={resaOptions[resaAnnuler.id] || []}
               tarifs={resaTarifs[resaAnnuler.id] || []}
               catalogueItem={catalogue.find((c) => c.id === resaAnnuler.catalogue_item_id)}

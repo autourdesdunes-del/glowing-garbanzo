@@ -1663,9 +1663,14 @@ export function PaiementsStep({
     });
   }
   etapesTriees.forEach((e) => {
+    // Un règlement (solde/reprise) annulé avant d'avoir été encaissé — voir
+    // AnnulerActiviteModal — est tracé ici avec un montant à 0 (rien n'a
+    // réellement été reçu, ne doit pas fausser etapesSum/soldeRestant
+    // ci-dessus) ; le montant réel concerné reste lisible dans la note.
+    const estAnnulation = e.mode === "Annulation";
     paiementsChronologiques.push({
       id: `etape-${e.id}`,
-      label: `Étape — ${e.mode || "—"}`,
+      label: estAnnulation ? "Annulation de règlement" : `Étape — ${e.mode || "—"}`,
       montant: Number(e.montant) || 0,
       montantEgp: e.mode === "Espèces EGP" ? Number(e.montant_egp) || 0 : 0,
       when: e.date ? fmtDateDMY(e.date) : "—",
@@ -2184,7 +2189,8 @@ export function PaiementsStep({
               <div key={ligne.id} className="rounded-md bg-[#fafafa] px-2.5 py-1.5 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[#171717]">
-                    {ligne.label} — {euros(ligne.montant)} €
+                    {ligne.label}
+                    {ligne.montant !== 0 ? ` — ${euros(ligne.montant)} €` : ""}
                     {ligne.montantEgp ? (
                       <span className="text-neutral-400"> (≈ {euros(ligne.montantEgp)} EGP)</span>
                     ) : (

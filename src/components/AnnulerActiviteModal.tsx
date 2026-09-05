@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { clientAPayeQuelqueChose, isMontgolfiereActivity, reglementAnnulation, resaTotalMontant } from "@/lib/resa";
-import { ANNULATION_TYPES, RAISONS_ANNULATION } from "@/lib/constants";
+import { ANNULATION_TYPES, RAISONS_ANNULATION, MODES_PAIEMENT } from "@/lib/constants";
 import { nowHHMM, todayStr } from "@/lib/dates";
+import { fmtDateDMY } from "@/lib/contactStepFormat";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
 import PaypalEmailPromptModal from "@/components/PaypalEmailPromptModal";
@@ -23,6 +24,7 @@ function euros(n: number) {
 export default function AnnulerActiviteModal({
   r,
   client,
+  reservations,
   options,
   tarifs,
   catalogueItem,
@@ -32,6 +34,7 @@ export default function AnnulerActiviteModal({
 }: {
   r: Reservation;
   client: Client;
+  reservations: Reservation[];
   options: ReservationOption[];
   tarifs: ReservationTarif[];
   catalogueItem: CatalogueItem | undefined;
@@ -92,6 +95,29 @@ export default function AnnulerActiviteModal({
   // confirmer silencieusement une erreur de saisie.
   const montantSansPaiement = !dejaPayee && montant > 0;
 
+  // Le solde (unique par séjour) ou un règlement de reprise (activité
+  // ajoutée après coup, voir reprise_*) peuvent être rattachés pile à
+  // l'activité qu'on est en train d'annuler — si ce règlement n'a pas
+  // encore été encaissé, l'annuler sans rien faire laisserait le dossier
+  // avec un paiement "prévu" sur une activité qui n'existe plus. Toujours
+  // demandé explicitement plutôt que déplacé/effacé en silence.
+  const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
+  const repriseIci = !soldeIci && client.reprise_activite_id === r.id && Number(client.reprise_montant) > 0;
+  const reglementIci: { type: "solde" | "reprise"; montant: number; mode: string } | null = soldeIci
+    ? { type: "solde", montant: Number(client.solde_montant) || 0, mode: client.solde_mode }
+    : repriseIci
+      ? { type: "reprise", montant: Number(client.reprise_montant) || 0, mode: client.reprise_mode }
+      : null;
+  const [reglementChoix, setReglementChoix] = useState<"annuler" | "deplacer" | "autre_moyen" | "">("");
+  const [reglementCibleId, setReglementCibleId] = useState("");
+  const [reglementMontant, setReglementMontant] = useState(reglementIci?.montant || 0);
+  const [reglementModeAutre, setReglementModeAutre] = useState("PayPal");
+  const autresActivites = reservations.filter((rr) => rr.id !== r.id && rr.statut_resa !== "Annulée");
+  // Bloque la confirmation tant que la question n'a pas été tranchée (et,
+  // pour "déplacer", tant qu'une activité cible n'a pas été choisie).
+  const reglementIncomplet =
+    !!reglementIci && (!reglementChoix || (reglementChoix === "deplacer" && !reglementCibleId));
+
   // Le remboursement se fait par défaut via PayPal (demande explicite) —
   // dès que c'est remboursable, "Rembourser" est présélectionné, mais
   // l'adresse PayPal n'est demandée qu'au moment de confirmer l'annulation,
@@ -135,6 +161,46 @@ export default function AnnulerActiviteModal({
       if (error) toast("Échec de la création de l'avoir.");
     }
 
+    if (reglementIci && reglementChoix === "annuler") {
+      const { error } = await supabase.from("paiements_etapes").insert({
+        client_id: client.id,
+        montant: 0,
+        mode: "Annulation",
+        date: dateAnnulation || todayStr(),
+        activite_nom: r.nom_activite,
+        note: `Annulation paiement du ${fmtDateDMY(r.date_debut)} à ${r.nom_activite || "cette activité"} — montant : ${euros(
+          reglementIci.montant
+        )} € — raison : client a annulé l'activité le ${fmtDateDMY(dateAnnulation)} — conséquence : paiement annulé`,
+      });
+      if (error) toast("Échec de l'enregistrement de l'annulation du paiement.");
+      onUpdateClient?.(
+        reglementIci.type === "solde"
+          ? {
+              paiement_integral_mode: "",
+              solde_activite_id: null,
+              solde_rdv_heure: "",
+              solde_rdv_lieu: "",
+              solde_rdv_valide: false,
+              solde_rdv_finalise: false,
+              solde_mode: "Espèces EUR",
+              solde_montant: 0,
+            }
+          : { reprise_montant: 0, reprise_activite_id: null, reprise_mode: "" }
+      );
+    } else if (reglementIci && reglementChoix === "deplacer") {
+      onUpdateClient?.(
+        reglementIci.type === "solde"
+          ? { solde_activite_id: reglementCibleId, solde_montant: reglementMontant }
+          : { reprise_activite_id: reglementCibleId, reprise_montant: reglementMontant }
+      );
+    } else if (reglementIci && reglementChoix === "autre_moyen") {
+      onUpdateClient?.(
+        reglementIci.type === "solde"
+          ? { solde_activite_id: null, solde_mode: reglementModeAutre, solde_montant: reglementMontant }
+          : { reprise_activite_id: null, reprise_mode: reglementModeAutre, reprise_montant: reglementMontant }
+      );
+    }
+
     onUpdate({
       statut_resa: "Annulée",
       annulation_raison: raisonFinale,
@@ -158,6 +224,10 @@ export default function AnnulerActiviteModal({
     }
     if (montantSansPaiement) {
       toast("Rien n'a été encaissé pour cette activité — repassez le montant à 0 € avant de confirmer.");
+      return;
+    }
+    if (reglementIncomplet) {
+      toast("Indiquez ce qu'il advient du règlement prévu sur cette activité avant de confirmer.");
       return;
     }
     if (remboursementPossible && !remboursementChoix) {
@@ -372,9 +442,100 @@ export default function AnnulerActiviteModal({
           </div>
         )}
 
+        {reglementIci && (
+          <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3">
+            <p className="text-sm font-medium text-amber-800">
+              ⚠ Le {reglementIci.type === "solde" ? "solde du séjour" : "règlement complémentaire"} de ce client (
+              {euros(reglementIci.montant)} €{reglementIci.mode ? `, ${reglementIci.mode}` : ""}) était prévu sur
+              cette activité. Que faire de ce règlement ?
+            </p>
+            <div className="mt-2 flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => setReglementChoix("annuler")}
+                className={`rounded-md border px-2 py-1.5 text-left text-xs font-medium ${
+                  reglementChoix === "annuler"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 bg-white text-neutral-600 hover:bg-[#fafafa]"
+                }`}
+              >
+                Annuler ce paiement — rien n&apos;est prévu ailleurs, dossier à reprogrammer
+              </button>
+              <button
+                type="button"
+                onClick={() => setReglementChoix("deplacer")}
+                className={`rounded-md border px-2 py-1.5 text-left text-xs font-medium ${
+                  reglementChoix === "deplacer"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 bg-white text-neutral-600 hover:bg-[#fafafa]"
+                }`}
+              >
+                Le déplacer vers une autre activité
+              </button>
+              <button
+                type="button"
+                onClick={() => setReglementChoix("autre_moyen")}
+                className={`rounded-md border px-2 py-1.5 text-left text-xs font-medium ${
+                  reglementChoix === "autre_moyen"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 bg-white text-neutral-600 hover:bg-[#fafafa]"
+                }`}
+              >
+                Le faire régler autrement (PayPal / virement, sans passer par une activité)
+              </button>
+            </div>
+
+            {reglementChoix === "deplacer" && (
+              <div className="mt-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Activité de destination</label>
+                <select
+                  value={reglementCibleId}
+                  onChange={(e) => setReglementCibleId(e.target.value)}
+                  className="input text-sm"
+                >
+                  <option value="">— Choisir —</option>
+                  {autresActivites.map((rr) => (
+                    <option key={rr.id} value={rr.id}>
+                      {rr.nom_activite || "Activité"}
+                      {rr.date_debut ? ` (${fmtDateDMY(rr.date_debut)})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {reglementChoix === "autre_moyen" && (
+              <div className="mt-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Nouveau moyen de paiement</label>
+                <select
+                  value={reglementModeAutre}
+                  onChange={(e) => setReglementModeAutre(e.target.value)}
+                  className="input text-sm"
+                >
+                  {MODES_PAIEMENT.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {(reglementChoix === "deplacer" || reglementChoix === "autre_moyen") && (
+              <div className="mt-2">
+                <label className="mb-1 block text-xs font-medium text-neutral-500">Montant (€)</label>
+                <input
+                  type="number"
+                  value={reglementMontant}
+                  onChange={(e) => setReglementMontant(Number(e.target.value) || 0)}
+                  className="input max-w-[160px]"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         <button
           onClick={confirmer}
-          disabled={submitting || montantSansPaiement}
+          disabled={submitting || montantSansPaiement || reglementIncomplet}
           className="mt-4 w-full rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? "…" : "Confirmer l'annulation"}

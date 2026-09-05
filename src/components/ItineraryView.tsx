@@ -47,6 +47,7 @@ import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import AjouterRemboursementAvoirModal from "@/components/AjouterRemboursementAvoirModal";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
+import { useToast } from "@/components/ToastProvider";
 import { fmtAnnulationSuffix } from "@/lib/dates";
 
 function euros(n: number) {
@@ -142,6 +143,7 @@ export default function ItineraryView({
   assouanVerifications?: AssouanVerification[];
 }) {
   const confirm = useConfirm();
+  const toast = useToast();
   // Séjour multi-hôtels (circuit) : chargé ici pour que le bloc équipe
   // Égypte de l'activité ouverte affiche seulement l'hôtel où le client se
   // trouve ce jour-là, pas les trois à la fois (voir hotelEgyptLinePourActivite).
@@ -355,15 +357,20 @@ export default function ItineraryView({
               Avoir de {euros(r.avoir_utilise)} € utilisé sur cette activité
             </span>
           )}
-          {(() => {
-            const avoirGenere = avoirs.find((a) => a.activite_id === r.id);
-            if (!avoirGenere || !avoirGenere.utilise_sur) return null;
-            return (
-              <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
+          {avoirs
+            // Une transformation partielle de remboursement en avoir peut
+            // en créer plusieurs sur la même activité (ex. 10€ puis encore
+            // 10€ du reliquat) — .find() n'en affichait qu'un seul, faisant
+            // disparaître les suivants sans trace.
+            .filter((a) => a.activite_id === r.id && a.utilise_sur)
+            .map((avoirGenere) => (
+              <span
+                key={avoirGenere.id}
+                className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]"
+              >
                 Avoir généré ({euros(avoirGenere.montant)} €) — utilisé sur : {avoirGenere.utilise_sur}
               </span>
-            );
-          })()}
+            ))}
         </div>
         <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-500">
           <span>
@@ -544,40 +551,66 @@ export default function ItineraryView({
                       // avantage si le client est remboursé/crédité ET que
                       // l'activité redevient active) — on demande explicitement
                       // avant de le supprimer, plutôt que de le faire taire ou
-                      // de laisser l'équipe l'oublier.
-                      if (aTraiter) {
-                        const supabase = createClient();
-                        const table = aTraiter === "avoir" ? "avoirs" : "remboursements";
-                        const { data: lies } = await supabase
-                          .from(table)
-                          .select("id, montant, montant_restant")
-                          .eq("activite_id", expandedReservation.id);
-                        if (lies && lies.length > 0) {
-                          const dejaConsomme =
-                            aTraiter === "avoir"
-                              ? lies.reduce(
-                                  (s, l) => s + (Number(l.montant) || 0) - (Number(l.montant_restant) || 0),
-                                  0
-                                )
-                              : 0;
-                          const supprimer = await confirm({
-                            title: aTraiter === "avoir" ? "Supprimer l'avoir lié ?" : "Supprimer le remboursement lié ?",
-                            message:
-                              dejaConsomme > 0
-                                ? `Cette activité redevient active. ${dejaConsomme} € de cet avoir ont déjà été utilisés sur d'autres activités — les supprimer laissera ce montant compté comme payé sans trace d'origine. Le supprimer quand même ?`
-                                : `Cette activité redevient active. Faut-il aussi supprimer ${
-                                    aTraiter === "avoir" ? "l'avoir" : "le remboursement"
-                                  } créé pour son annulation, pour éviter un double avantage au client ?`,
-                            confirmLabel: aTraiter === "avoir" ? "Supprimer l'avoir" : "Supprimer le remboursement",
-                            cancelLabel: "Garder tel quel",
-                            danger: true,
-                          });
-                          if (supprimer) {
-                            await supabase
-                              .from(table)
-                              .delete()
-                              .in("id", lies.map((l) => l.id));
-                          }
+                      // de laisser l'équipe l'oublier. On vérifie TOUJOURS les
+                      // deux tables (pas seulement celle indiquée par
+                      // annulation_remb_avoir) : une transformation partielle
+                      // de remboursement en avoir (SuiviStep) laisse le flag
+                      // sur "rembourse" alors qu'un avoir existe désormais
+                      // aussi pour cette même activité.
+                      const supabase = createClient();
+                      const [{ data: avoirsLies, error: errAvoirs }, { data: rembsLies, error: errRembs }] =
+                        await Promise.all([
+                          supabase
+                            .from("avoirs")
+                            .select("id, montant, montant_restant")
+                            .eq("activite_id", expandedReservation.id),
+                          supabase
+                            .from("remboursements")
+                            .select("id, montant, statut")
+                            .eq("activite_id", expandedReservation.id),
+                        ]);
+                      if (errAvoirs || errRembs) {
+                        toast("Impossible de vérifier les remboursements/avoirs liés — reprogrammation annulée par précaution.");
+                        return;
+                      }
+
+                      if (avoirsLies && avoirsLies.length > 0) {
+                        const dejaConsomme = avoirsLies.reduce(
+                          (s, l) => s + (Number(l.montant) || 0) - (Number(l.montant_restant) || 0),
+                          0
+                        );
+                        const supprimer = await confirm({
+                          title: "Supprimer le ou les avoirs liés ?",
+                          message:
+                            dejaConsomme > 0
+                              ? `Cette activité redevient active. ${dejaConsomme} € d'avoir(s) lié(s) ont déjà été utilisés sur d'autres activités — les supprimer laissera ce montant compté comme payé sans trace d'origine. Les supprimer quand même ?`
+                              : "Cette activité redevient active. Faut-il aussi supprimer le ou les avoirs créés pour son annulation, pour éviter un double avantage au client ?",
+                          confirmLabel: "Supprimer",
+                          cancelLabel: "Garder tel quel",
+                          danger: true,
+                        });
+                        if (supprimer) {
+                          await supabase
+                            .from("avoirs")
+                            .delete()
+                            .in("id", avoirsLies.map((l) => l.id));
+                        }
+                      }
+
+                      if (rembsLies && rembsLies.length > 0) {
+                        const supprimer = await confirm({
+                          title: "Supprimer le ou les remboursements liés ?",
+                          message:
+                            "Cette activité redevient active. Faut-il aussi supprimer le ou les remboursements créés pour son annulation, pour éviter un double avantage au client ?",
+                          confirmLabel: "Supprimer",
+                          cancelLabel: "Garder tel quel",
+                          danger: true,
+                        });
+                        if (supprimer) {
+                          await supabase
+                            .from("remboursements")
+                            .delete()
+                            .in("id", rembsLies.map((l) => l.id));
                         }
                       }
 

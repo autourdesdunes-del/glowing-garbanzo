@@ -4044,13 +4044,35 @@ export function SuiviStep({
                       {r.statut === "Effectué" ? (
                         <div className="flex items-center gap-2">
                           <span className="input flex-1 bg-neutral-100 text-neutral-600">Effectué</span>
-                          <button
-                            type="button"
-                            onClick={() => updateRemboursement(r.id, { statut: "En attente" })}
-                            className="text-xs text-neutral-500 hover:underline"
-                          >
-                            Annuler
-                          </button>
+                          {isDirection && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                // Repasser "En attente" annule d'un clic la
+                                // preuve photo + date/heure d'un remboursement
+                                // déjà vérifié — même garde-fou (Direction +
+                                // confirmation) que la suppression, sinon
+                                // n'importe qui pouvait effacer la trace d'un
+                                // remboursement effectué sans laisser de trace.
+                                const ok = await confirm({
+                                  message:
+                                    "Repasser ce remboursement en attente ? La preuve photo et la date/heure enregistrées seront effacées.",
+                                  confirmLabel: "Repasser en attente",
+                                  danger: true,
+                                });
+                                if (!ok) return;
+                                updateRemboursement(r.id, {
+                                  statut: "En attente",
+                                  date_remboursement: null,
+                                  date_remboursement_ts: null,
+                                  preuve_photo_path: null,
+                                });
+                              }}
+                              className="text-xs text-neutral-500 hover:underline"
+                            >
+                              Annuler
+                            </button>
+                          )}
                         </div>
                       ) : (
                         // Même passage obligé que Suivis > Remboursements

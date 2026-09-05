@@ -86,6 +86,11 @@ export default function AnnulerActiviteModal({
   // gratuite — même si la règle d'annulation dirait "remboursable".
   const remboursementPossible = remboursable && montant > 0 && dejaPayee;
   const raisonFinale = raison === "Autre" ? raisonAutre.trim() : raison;
+  // Rien n'a été encaissé pour cette activité (dejaPayee = "Non, pas
+  // encore") : un montant à rembourser non nul serait de l'argent que
+  // l'agence n'a jamais reçu — bloque explicitement plutôt que de laisser
+  // confirmer silencieusement une erreur de saisie.
+  const montantSansPaiement = !dejaPayee && montant > 0;
 
   // Le remboursement se fait par défaut via PayPal (demande explicite) —
   // dès que c'est remboursable, "Rembourser" est présélectionné, mais
@@ -149,6 +154,10 @@ export default function AnnulerActiviteModal({
   const confirmer = () => {
     if (raison === "Autre" && !raisonAutre.trim()) {
       toast("Précisez la raison de l'annulation.");
+      return;
+    }
+    if (montantSansPaiement) {
+      toast("Rien n'a été encaissé pour cette activité — repassez le montant à 0 € avant de confirmer.");
       return;
     }
     if (remboursementPossible && !remboursementChoix) {
@@ -225,7 +234,10 @@ export default function AnnulerActiviteModal({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setDejaPayee(true)}
+              onClick={() => {
+                setDejaPayee(true);
+                if (montant === 0) setMontant(montantTotal);
+              }}
               className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium ${
                 dejaPayee
                   ? "border-[#171717] bg-[#171717] text-white"
@@ -236,7 +248,10 @@ export default function AnnulerActiviteModal({
             </button>
             <button
               type="button"
-              onClick={() => setDejaPayee(false)}
+              onClick={() => {
+                setDejaPayee(false);
+                setMontant(0);
+              }}
               className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium ${
                 !dejaPayee
                   ? "border-[#171717] bg-[#171717] text-white"
@@ -297,8 +312,15 @@ export default function AnnulerActiviteModal({
               type="number"
               value={montant}
               onChange={(e) => setMontant(Number(e.target.value) || 0)}
-              className="input mb-2 max-w-[160px]"
+              className={`input mb-2 max-w-[160px] ${montantSansPaiement ? "border-red-300 focus:border-red-400" : ""}`}
             />
+            {montantSansPaiement && (
+              <p className="mb-2 text-xs text-red-600">
+                ⚠ Rien n&apos;a été encaissé pour cette activité (&quot;Non, pas encore&quot; ci-dessus) — impossible
+                de rembourser un montant. Repassez le montant à 0 € ou corrigez la réponse ci-dessus si l&apos;activité
+                a en fait déjà été payée.
+              </p>
+            )}
             {remboursementPossible ? (
               <>
                 <div className="flex gap-2">
@@ -352,7 +374,7 @@ export default function AnnulerActiviteModal({
 
         <button
           onClick={confirmer}
-          disabled={submitting}
+          disabled={submitting || montantSansPaiement}
           className="mt-4 w-full rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? "…" : "Confirmer l'annulation"}

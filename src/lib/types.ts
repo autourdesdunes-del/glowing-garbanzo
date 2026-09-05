@@ -361,6 +361,10 @@ export type PaiementEtape = {
   // Activité où l'argent a été remis en main propre (espèces/CB) — vide
   // pour PayPal/virement, qui ne passent jamais par une activité précise.
   activite_nom: string;
+  // Montant réellement remis en livres égyptiennes quand mode = "Espèces
+  // EGP" (montant ci-dessus reste toujours l'équivalent €) — 0 sinon, utile
+  // pour vérifier la caisse Égypte sans recalculer à partir d'un taux.
+  montant_egp: number;
   created_at: string;
 };
 
@@ -480,6 +484,10 @@ export type Client = {
   reprise_activite_id: string | null;
   egp_taux: number;
   egp_montant: number;
+  // Pendant équivalent EGP de l'acompte, seulement rempli quand
+  // acompte_mode est "Espèces EGP" — egp_taux/egp_montant ci-dessus ne
+  // concernent que le solde (voir egpModal dans PaiementResteFlow).
+  acompte_egp_montant: number;
   acompte_montant: number;
   acompte_mode: string;
   acompte_valide: boolean;
@@ -610,6 +618,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   reprise_activite_id: null,
   egp_taux: 0,
   egp_montant: 0,
+  acompte_egp_montant: 0,
   acompte_montant: 0,
   acompte_mode: "PayPal",
   acompte_valide: false,

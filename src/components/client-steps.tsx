@@ -58,6 +58,7 @@ import MarquerRembourseModal from "@/components/MarquerRembourseModal";
 import ItineraryView from "@/components/ItineraryView";
 import AddPackModal from "@/components/AddPackModal";
 import { Field, PropertyRow } from "@/components/Field";
+import MontantEgpField from "@/components/MontantEgpField";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import RibScreenshotUpload from "@/components/RibScreenshotUpload";
@@ -1809,20 +1810,14 @@ function PaiementResteFlow({
     .filter((r) => r.date_debut)
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
 
-  const confirmActivite = async (r: Reservation, key: string) => {
-    const ok = await confirm({
-      message: `Souhaitez-vous confirmer le paiement à "${r.nom_activite || "Activité sans nom"}" le ${fmtDateDMY(r.date_debut)} ?`,
-      confirmLabel: "Oui, je confirme",
-      cancelLabel: "Non, je sélectionne une activité",
-    });
-    if (!ok) {
-      setShowActivityPicker(true);
-      return;
-    }
+  // Assigne directement l'activité choisie — un clic dans la liste (qu'elle
+  // soit la seule datée ou choisie parmi plusieurs) est déjà un choix
+  // délibéré, inutile de redemander confirmation juste après (ça faisait
+  // perdre un clic à chaque fois que ce n'était pas la 1ère activité datée).
+  const assignerActivite = (r: Reservation, key: string) => {
     setShowActivityPicker(false);
     if (key === "activite_egp") {
-      const rate = (await getEurToEgpRate()) || client.egp_taux || 0;
-      setEgpModal({ r, rate });
+      getEurToEgpRate().then((rate) => setEgpModal({ r, rate: rate || client.egp_taux || 0 }));
     } else {
       onChange({
         solde_activite_id: r.id,
@@ -1849,7 +1844,15 @@ function PaiementResteFlow({
       return;
     }
     onChange({ paiement_integral_mode: key });
-    confirmActivite(sortedByDate[0], key);
+    // Une seule activité datée : rien à choisir, on l'assigne directement.
+    // Plusieurs : on montre la liste tout de suite (pas de confirmation
+    // intermédiaire sur la 1ère activité avant de pouvoir en choisir une
+    // autre).
+    if (sortedByDate.length === 1) {
+      assignerActivite(sortedByDate[0], key);
+    } else {
+      setShowActivityPicker(true);
+    }
   };
 
   return (
@@ -2103,7 +2106,7 @@ function PaiementResteFlow({
                     <button
                       key={r.id}
                       type="button"
-                      onClick={() => confirmActivite(r, client.paiement_integral_mode)}
+                      onClick={() => assignerActivite(r, client.paiement_integral_mode)}
                       className="flex w-full items-center justify-between rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:border-[#171717]"
                     >
                       <span className="text-[#171717]">{r.nom_activite || "Activité sans nom"}</span>
@@ -2216,30 +2219,13 @@ function PaiementResteFlow({
               <strong>{Math.round(montantACouvrir * egpModal.rate).toLocaleString("fr-FR")} EGP</strong>.
               Souhaitez-vous confirmer ?
             </p>
-            <div className="mb-4 grid grid-cols-2 gap-3">
-              <Field label="Taux (1€ =)">
-                <input
-                  type="number"
-                  step="0.01"
-                  value={egpModal.rate}
-                  onChange={(e) => setEgpModal({ ...egpModal, rate: Number(e.target.value) })}
-                  className="input"
-                />
-              </Field>
-              <Field label="Montant total (EGP)">
-                <input
-                  type="number"
-                  value={Math.round(montantACouvrir * egpModal.rate)}
-                  onChange={(e) => {
-                    const montant = Number(e.target.value);
-                    setEgpModal({
-                      ...egpModal,
-                      rate: montantACouvrir > 0 ? montant / montantACouvrir : egpModal.rate,
-                    });
-                  }}
-                  className="input"
-                />
-              </Field>
+            <div className="mb-4">
+              <MontantEgpField
+                rate={egpModal.rate}
+                onRateChange={(rate) => setEgpModal({ ...egpModal, rate })}
+                montantEur={montantACouvrir}
+                lockedMontantEur
+              />
             </div>
             <div className="flex justify-end gap-2">
               <button
@@ -2288,7 +2274,14 @@ export function PaiementsStep({
   resaTarifs: Record<string, ReservationTarif[]>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   paiementsEtapes?: PaiementEtape[];
-  onAddPaiementEtape?: (montant: number, mode: string, date: string, note: string, activiteNom: string) => void;
+  onAddPaiementEtape?: (
+    montant: number,
+    mode: string,
+    date: string,
+    note: string,
+    activiteNom: string,
+    montantEgp?: number
+  ) => void;
   onDeletePaiementEtape?: (id: string) => void;
   isDirection?: boolean;
 }) {
@@ -2320,6 +2313,32 @@ export function PaiementsStep({
   const [etapeDate, setEtapeDate] = useState(todayStr());
   const [etapeNotePreset, setEtapeNotePreset] = useState("");
   const [etapeNoteLibre, setEtapeNoteLibre] = useState("");
+  // Taux EGP pour le formulaire "+ Ajouter une étape" — permet de saisir le
+  // montant réellement remis en livres égyptiennes plutôt que de forcer à
+  // convertir de tête avant de taper dans un champ resté étiqueté "(€)".
+  const [etapeEgpRate, setEtapeEgpRate] = useState(client.egp_taux || 0);
+  useEffect(() => {
+    if (etapeMode !== "Espèces EGP" || etapeEgpRate > 0) return;
+    let cancelled = false;
+    getEurToEgpRate().then((rate) => {
+      if (!cancelled && rate) setEtapeEgpRate(rate);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [etapeMode, etapeEgpRate]);
+  // Même principe pour l'acompte réglé en espèces EGP.
+  const [acompteEgpRate, setAcompteEgpRate] = useState(client.egp_taux || 0);
+  useEffect(() => {
+    if (client.acompte_mode !== "Espèces EGP" || acompteEgpRate > 0) return;
+    let cancelled = false;
+    getEurToEgpRate().then((rate) => {
+      if (!cancelled && rate) setAcompteEgpRate(rate);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [client.acompte_mode, acompteEgpRate]);
   // Remis en main propre (espèces/CB) : on demande toujours où, jamais pour
   // PayPal/virement qui ne passent par aucune activité précise.
   const [etapeActiviteConfirm, setEtapeActiviteConfirm] = useState<{
@@ -2520,6 +2539,7 @@ export function PaiementsStep({
     id: string;
     label: string;
     montant: number;
+    montantEgp?: number;
     when: string;
     sortKey: string;
     etapeId?: string;
@@ -2532,6 +2552,7 @@ export function PaiementsStep({
       id: "acompte",
       label: `Acompte — ${client.acompte_mode}`,
       montant: Number(client.acompte_montant) || 0,
+      montantEgp: client.acompte_mode === "Espèces EGP" ? Number(client.acompte_egp_montant) || 0 : 0,
       when: fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts) || "—",
       sortKey: client.acompte_date_encaissement || "",
       note: "Acompte prévu pour valider la réservation",
@@ -2542,6 +2563,7 @@ export function PaiementsStep({
       id: `etape-${e.id}`,
       label: `Étape — ${e.mode || "—"}`,
       montant: Number(e.montant) || 0,
+      montantEgp: e.mode === "Espèces EGP" ? Number(e.montant_egp) || 0 : 0,
       when: e.date ? fmtDateDMY(e.date) : "—",
       sortKey: e.date || "",
       etapeId: e.id,
@@ -2561,6 +2583,7 @@ export function PaiementsStep({
       id: "solde",
       label: `Solde — ${client.solde_mode}`,
       montant: soldeRestant,
+      montantEgp: client.solde_mode === "Espèces EGP" ? Number(client.egp_montant) || 0 : 0,
       when: client.solde_date ? fmtDateDMY(client.solde_date) : "—",
       sortKey: client.solde_date || "",
       activite: soldeActivite?.nom_activite,
@@ -2588,8 +2611,11 @@ export function PaiementsStep({
 
   const resetEtapeForm = () => {
     setEtapeMontant("");
+    setEtapeMode(MODES_PAIEMENT[0] || "");
+    setEtapeDate(todayStr());
     setEtapeNotePreset("");
     setEtapeNoteLibre("");
+    setEtapeEgpRate(client.egp_taux || 0);
     setAddingEtape(false);
   };
 
@@ -2625,13 +2651,13 @@ export function PaiementsStep({
       candidats,
       choix: candidats[0]?.id || "autre",
       libre: "",
-      rate: client.egp_taux || 0,
+      rate: etapeEgpRate || client.egp_taux || 0,
     });
   };
 
   const confirmerEtapeActivite = () => {
     if (!etapeActiviteConfirm) return;
-    const { montant, mode, date, note, candidats, choix, libre } = etapeActiviteConfirm;
+    const { montant, mode, date, note, candidats, choix, libre, rate } = etapeActiviteConfirm;
     const activiteNom =
       choix === "autre"
         ? libre.trim()
@@ -2641,7 +2667,8 @@ export function PaiementsStep({
       return;
     }
     const noteFinale = encaissementDifferentEnCours.current ? noteEncaissementDifferent(montant) : note;
-    onAddPaiementEtape(montant, mode, date, noteFinale, activiteNom);
+    const montantEgp = mode === "Espèces EGP" && rate > 0 ? Math.round(montant * rate) : 0;
+    onAddPaiementEtape(montant, mode, date, noteFinale, activiteNom, montantEgp);
     apresAjoutEncaissementDifferent(montant, client.paiement_type === "acompte" ? resteApresAcompte : reste);
     setEtapeActiviteConfirm(null);
     resetEtapeForm();
@@ -2839,14 +2866,16 @@ export function PaiementsStep({
                 <>
                   <p className="mb-2 text-sm font-medium text-neutral-700">Acompte</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="Montant de l'acompte (€)">
-                      <input
-                        type="number"
-                        value={client.acompte_montant}
-                        onChange={(e) => onChange({ acompte_montant: Number(e.target.value) })}
-                        className="input"
-                      />
-                    </Field>
+                    {client.acompte_mode !== "Espèces EGP" && (
+                      <Field label="Montant de l'acompte (€)">
+                        <input
+                          type="number"
+                          value={client.acompte_montant}
+                          onChange={(e) => onChange({ acompte_montant: Number(e.target.value) })}
+                          className="input"
+                        />
+                      </Field>
+                    )}
                     <Field label="Mode de paiement">
                       <select
                         value={client.acompte_mode}
@@ -2859,6 +2888,19 @@ export function PaiementsStep({
                       </select>
                     </Field>
                   </div>
+                  {client.acompte_mode === "Espèces EGP" && (
+                    <MontantEgpField
+                      rate={acompteEgpRate}
+                      onRateChange={setAcompteEgpRate}
+                      montantEur={Number(client.acompte_montant) || 0}
+                      onMontantEurChange={(v) =>
+                        onChange({
+                          acompte_montant: v,
+                          acompte_egp_montant: acompteEgpRate > 0 ? Math.round(v * acompteEgpRate) : 0,
+                        })
+                      }
+                    />
+                  )}
                   <button
                     onClick={validerAcompte}
                     className="mt-3 rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
@@ -2938,14 +2980,16 @@ export function PaiementsStep({
           {addingEtape && (
             <div className="mt-2 flex flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2.5">
               <div className="flex flex-wrap items-end gap-2">
-                <Field label="Montant (€)">
-                  <input
-                    type="number"
-                    value={etapeMontant}
-                    onChange={(e) => setEtapeMontant(e.target.value)}
-                    className="input w-28"
-                  />
-                </Field>
+                {etapeMode !== "Espèces EGP" && (
+                  <Field label="Montant (€)">
+                    <input
+                      type="number"
+                      value={etapeMontant}
+                      onChange={(e) => setEtapeMontant(e.target.value)}
+                      className="input w-28"
+                    />
+                  </Field>
+                )}
                 <Field label="Mode">
                   <select value={etapeMode} onChange={(e) => setEtapeMode(e.target.value)} className="input">
                     {MODES_PAIEMENT.map((m) => (
@@ -2962,6 +3006,14 @@ export function PaiementsStep({
                   />
                 </Field>
               </div>
+              {etapeMode === "Espèces EGP" && (
+                <MontantEgpField
+                  rate={etapeEgpRate}
+                  onRateChange={setEtapeEgpRate}
+                  montantEur={Number(etapeMontant) || 0}
+                  onMontantEurChange={(v) => setEtapeMontant(String(Math.round(v * 100) / 100))}
+                />
+              )}
               <Field label="Pourquoi ce paiement ?">
                 <div className="flex flex-wrap gap-1.5">
                   {NOTES_ETAPE_PAIEMENT_PRESETS.map((preset) => (
@@ -3013,6 +3065,11 @@ export function PaiementsStep({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[#171717]">
                     {ligne.label} — {euros(ligne.montant)} €
+                    {ligne.montantEgp ? (
+                      <span className="text-neutral-400"> (≈ {euros(ligne.montantEgp)} EGP)</span>
+                    ) : (
+                      ""
+                    )}
                   </span>
                   <div className="flex flex-col items-end gap-0.5 text-xs text-neutral-500">
                     <span className="flex items-center gap-2">
@@ -3228,41 +3285,12 @@ export function PaiementsStep({
             </h2>
             <div className="mb-3">
               {etapeActiviteConfirm.mode === "Espèces EGP" ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Taux (1€ =)">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={etapeActiviteConfirm.rate}
-                      onChange={(e) =>
-                        setEtapeActiviteConfirm({ ...etapeActiviteConfirm, rate: Number(e.target.value) })
-                      }
-                      className="input"
-                    />
-                  </Field>
-                  <Field label="Montant (EGP)">
-                    <input
-                      type="number"
-                      value={
-                        etapeActiviteConfirm.rate > 0
-                          ? Math.round(etapeActiviteConfirm.montant * etapeActiviteConfirm.rate)
-                          : ""
-                      }
-                      onChange={(e) => {
-                        const montantEgp = Number(e.target.value);
-                        setEtapeActiviteConfirm({
-                          ...etapeActiviteConfirm,
-                          montant:
-                            etapeActiviteConfirm.rate > 0 ? montantEgp / etapeActiviteConfirm.rate : etapeActiviteConfirm.montant,
-                        });
-                      }}
-                      className="input"
-                    />
-                  </Field>
-                  <p className="col-span-2 text-xs text-neutral-500">
-                    Soit {euros(etapeActiviteConfirm.montant)} € au taux du jour.
-                  </p>
-                </div>
+                <MontantEgpField
+                  rate={etapeActiviteConfirm.rate}
+                  onRateChange={(rate) => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, rate })}
+                  montantEur={etapeActiviteConfirm.montant}
+                  onMontantEurChange={(montant) => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, montant })}
+                />
               ) : (
                 <>
                   <Field label="Montant (€)">
@@ -3357,14 +3385,25 @@ export function PaiementsStep({
                 <div className="mb-4">
                   {acompteDateModal.montantDifferent ? (
                     <>
-                      <Field label="Montant réellement reçu (€)">
-                        <input
-                          type="number"
-                          value={acompteDateModal.montant}
-                          onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
-                          className="input"
+                      {client.acompte_mode === "Espèces EGP" ? (
+                        <MontantEgpField
+                          rate={acompteEgpRate}
+                          onRateChange={setAcompteEgpRate}
+                          montantEur={Number(acompteDateModal.montant) || 0}
+                          onMontantEurChange={(v) =>
+                            setAcompteDateModal({ ...acompteDateModal, montant: String(v) })
+                          }
                         />
-                      </Field>
+                      ) : (
+                        <Field label="Montant réellement reçu (€)">
+                          <input
+                            type="number"
+                            value={acompteDateModal.montant}
+                            onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
+                            className="input"
+                          />
+                        </Field>
+                      )}
                       {client.acompte_mode === "PayPal" && (
                         <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
                           <input
@@ -3418,9 +3457,14 @@ export function PaiementsStep({
                   <button
                     onClick={() => {
                       const isPaypal = client.acompte_mode === "PayPal";
+                      const montantFinal = Number(acompteDateModal.montant) || client.acompte_montant;
                       onChange({
                         acompte_paye: true,
-                        acompte_montant: Number(acompteDateModal.montant) || client.acompte_montant,
+                        acompte_montant: montantFinal,
+                        acompte_egp_montant:
+                          client.acompte_mode === "Espèces EGP" && acompteEgpRate > 0
+                            ? Math.round(montantFinal * acompteEgpRate)
+                            : client.acompte_egp_montant,
                         acompte_entre_proches_oublie: acompteDateModal.entreProchesOublie,
                         acompte_date_encaissement: todayStr(),
                         acompte_encaisse_ts:
@@ -3448,14 +3492,25 @@ export function PaiementsStep({
                 <div className="mb-4">
                   {acompteDateModal.montantDifferent ? (
                     <>
-                      <Field label="Montant réellement reçu (€)">
-                        <input
-                          type="number"
-                          value={acompteDateModal.montant}
-                          onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
-                          className="input"
+                      {client.acompte_mode === "Espèces EGP" ? (
+                        <MontantEgpField
+                          rate={acompteEgpRate}
+                          onRateChange={setAcompteEgpRate}
+                          montantEur={Number(acompteDateModal.montant) || 0}
+                          onMontantEurChange={(v) =>
+                            setAcompteDateModal({ ...acompteDateModal, montant: String(v) })
+                          }
                         />
-                      </Field>
+                      ) : (
+                        <Field label="Montant réellement reçu (€)">
+                          <input
+                            type="number"
+                            value={acompteDateModal.montant}
+                            onChange={(e) => setAcompteDateModal({ ...acompteDateModal, montant: e.target.value })}
+                            className="input"
+                          />
+                        </Field>
+                      )}
                       {client.acompte_mode === "PayPal" && (
                         <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
                           <input
@@ -3517,9 +3572,14 @@ export function PaiementsStep({
                   <button
                     onClick={() => {
                       const isPaypal = client.acompte_mode === "PayPal";
+                      const montantFinal = Number(acompteDateModal.montant) || client.acompte_montant;
                       onChange({
                         acompte_paye: true,
-                        acompte_montant: Number(acompteDateModal.montant) || client.acompte_montant,
+                        acompte_montant: montantFinal,
+                        acompte_egp_montant:
+                          client.acompte_mode === "Espèces EGP" && acompteEgpRate > 0
+                            ? Math.round(montantFinal * acompteEgpRate)
+                            : client.acompte_egp_montant,
                         acompte_entre_proches_oublie: acompteDateModal.entreProchesOublie,
                         acompte_date_encaissement: acompteDateModal.date,
                         acompte_encaisse_ts:

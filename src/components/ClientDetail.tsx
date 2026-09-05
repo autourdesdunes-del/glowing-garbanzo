@@ -396,11 +396,20 @@ export default function ClientDetail({
     mode: string,
     date: string,
     note: string,
-    activiteNom: string
+    activiteNom: string,
+    montantEgp = 0
   ) => {
     const { data, error } = await supabase
       .from("paiements_etapes")
-      .insert({ client_id: client.id, montant, mode, date: date || null, note, activite_nom: activiteNom })
+      .insert({
+        client_id: client.id,
+        montant,
+        mode,
+        date: date || null,
+        note,
+        activite_nom: activiteNom,
+        montant_egp: montantEgp,
+      })
       .select()
       .single();
     if (!error && data) {

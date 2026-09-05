@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CatalogueItem,
   CatalogueModificationRequest,
   Client,
-  CodePromo,
   DirectionTache,
   Remboursement,
   Reservation,
@@ -14,12 +13,13 @@ import {
   TransfertTaxeModificationRequest,
 } from "@/lib/types";
 import { resaTotalMontant } from "@/lib/resa";
+import { downloadCsv } from "@/lib/csv";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 import { todayStr } from "@/lib/dates";
 import { generateMonthlyReport } from "@/lib/generateMonthlyReport";
-import { createClient } from "@/lib/supabase/client";
-import { useToast } from "@/components/ToastProvider";
 import RecapMoisView from "@/components/RecapMoisView";
+import CodesPromoManager from "@/components/direction/CodesPromoManager";
+import { DirActionRow, DirMetric } from "@/components/direction/DirectionUI";
 
 const MOIS_FR = [
   "janvier",
@@ -52,146 +52,6 @@ function fmtDate(dateStr: string) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-// Même langage visuel que le Tableau de bord d'accueil (DashboardView.tsx)
-// — répété ici plutôt que partagé, ces deux fichiers ne s'importent pas
-// l'un l'autre et le jeu d'icônes utile à la Direction est un sous-ensemble
-// différent de celui de l'accueil.
-function IconSvg({ path, className = "h-5 w-5" }: { path: React.ReactNode; className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className={className}>
-      {path}
-    </svg>
-  );
-}
-const DIRECTION_ICONS: Record<string, React.ReactNode> = {
-  clipboard: (
-    <>
-      <rect x="5" y="3.5" width="10" height="14" rx="1.5" />
-      <path d="M8 3.5V3a2 2 0 0 1 4 0v.5" />
-      <path d="M7.5 9h5M7.5 12h5" strokeLinecap="round" />
-    </>
-  ),
-  car: (
-    <>
-      <path d="M3 12.5 4.3 8a1.5 1.5 0 0 1 1.4-1h8.6a1.5 1.5 0 0 1 1.4 1l1.3 4.5" strokeLinejoin="round" />
-      <rect x="2.5" y="12.5" width="15" height="3.5" rx="1.2" />
-      <circle cx="6" cy="16.3" r="1.2" />
-      <circle cx="14" cy="16.3" r="1.2" />
-    </>
-  ),
-  wallet: (
-    <>
-      <rect x="2.5" y="5.5" width="15" height="10" rx="2" />
-      <path d="M2.5 8.5h15" />
-      <circle cx="14.5" cy="11.5" r="1" fill="currentColor" stroke="none" />
-    </>
-  ),
-  users: (
-    <>
-      <circle cx="7.5" cy="6.5" r="2.5" />
-      <path d="M2.5 16c0-2.5 2.2-4.2 5-4.2s5 1.7 5 4.2" strokeLinecap="round" />
-      <circle cx="14" cy="6.5" r="2" />
-      <path d="M13 11.9c1.9.3 4.5 1.6 4.5 4.1" strokeLinecap="round" />
-    </>
-  ),
-  target: (
-    <>
-      <circle cx="10" cy="10" r="7" />
-      <circle cx="10" cy="10" r="3.5" />
-      <circle cx="10" cy="10" r="0.8" fill="currentColor" stroke="none" />
-    </>
-  ),
-  check: (
-    <>
-      <circle cx="10" cy="10" r="7.2" />
-      <path d="M6.8 10.2l2.1 2.1 4.3-4.6" strokeLinecap="round" strokeLinejoin="round" />
-    </>
-  ),
-};
-function DirIcon({ name, className }: { name: keyof typeof DIRECTION_ICONS; className?: string }) {
-  return <IconSvg path={DIRECTION_ICONS[name]} className={className} />;
-}
-
-// Typographique, pas de carte — même traitement que Metric côté accueil.
-function DirMetric({
-  label,
-  value,
-  sub,
-  first,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  first?: boolean;
-}) {
-  return (
-    <div className={`flex-1 px-5 ${first ? "pl-0" : "border-l border-[#eaeaea]"}`}>
-      <p className="text-[11px] font-medium text-[#666666]">{label}</p>
-      <p className="mt-1.5 text-[28px] font-bold leading-none text-[#171717]">{value}</p>
-      {sub && <p className="mt-1.5 text-xs text-[#666666]">{sub}</p>}
-    </div>
-  );
-}
-
-function DirActionRow({
-  icon,
-  title,
-  sub,
-  count,
-  onClick,
-}: {
-  icon: keyof typeof DIRECTION_ICONS;
-  title: string;
-  sub: string;
-  count?: number;
-  onClick?: () => void;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      className={`flex items-center gap-3 px-4 py-3.5 transition ${
-        onClick ? "cursor-pointer hover:bg-[#fafafa]" : ""
-      }`}
-    >
-      <DirIcon name={icon} className="h-4.5 w-4.5 flex-shrink-0 text-[#666666]" />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-[#171717]">{title}</p>
-        <p className="text-xs text-[#666666]">{sub}</p>
-      </div>
-      {!!count && (
-        <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-semibold text-white">
-          🔔 {count}
-        </span>
-      )}
-      {onClick && (
-        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[6px] text-[#666666]">
-          ›
-        </span>
-      )}
-    </div>
-  );
-}
-
-function downloadCsv(filename: string, rows: (string | number)[][]) {
-  const csv = rows
-    .map((row) =>
-      row
-        .map((cell) => {
-          const s = String(cell);
-          return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-        })
-        .join(";")
-    )
-    .join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 // Sous-menu de gauche pour l'onglet Direction — même pattern que
 // SUIVIS_SUBS/PLANNING_SUBS (cf. SuivisView.tsx) : le libellé est affiché
 // tel quel dans la barre latérale d'AppShell.tsx, la clé pilote quel bloc
@@ -219,123 +79,6 @@ function DirectionSubPlaceholder({ label }: { label: string }) {
     <div className="mx-auto max-w-3xl p-6">
       <h2 className="font-heading text-lg font-semibold text-[#171717]">{label}</h2>
       <p className="mt-3 text-sm text-neutral-500">Bientôt disponible.</p>
-    </div>
-  );
-}
-
-// Codes de réduction que la Direction ajoute ici — consultables en lecture
-// seule par l'équipe dans HELP > Codes promo, pour vérifier qu'un code
-// donné par un client est valide.
-function CodesPromoManager() {
-  const supabase = useMemo(() => createClient(), []);
-  const toast = useToast();
-  const [codes, setCodes] = useState<CodePromo[]>([]);
-  const [nouveauCode, setNouveauCode] = useState("");
-  const [nouvelleDescription, setNouvelleDescription] = useState("");
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("codes_promo").select("*").order("created_at", { ascending: false });
-      setCodes((data as CodePromo[]) || []);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const ajouterCode = async () => {
-    const code = nouveauCode.trim();
-    if (!code) return;
-    const { data, error } = await supabase
-      .from("codes_promo")
-      .insert({ code, description: nouvelleDescription.trim() })
-      .select()
-      .single();
-    if (error) {
-      toast("Échec de l'ajout du code.");
-      return;
-    }
-    setCodes((prev) => [data as CodePromo, ...prev]);
-    setNouveauCode("");
-    setNouvelleDescription("");
-  };
-
-  const toggleActif = async (c: CodePromo) => {
-    setCodes((prev) => prev.map((x) => (x.id === c.id ? { ...x, actif: !x.actif } : x)));
-    const { error } = await supabase.from("codes_promo").update({ actif: !c.actif }).eq("id", c.id);
-    if (error) toast("Échec de l'enregistrement.");
-  };
-
-  const supprimerCode = async (id: string) => {
-    setCodes((prev) => prev.filter((c) => c.id !== id));
-    const { error } = await supabase.from("codes_promo").delete().eq("id", id);
-    if (error) toast("Échec de la suppression.");
-  };
-
-  return (
-    <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div>
-        <h2 className="font-heading text-lg font-semibold text-[#171717]">Codes promo</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Visibles par l&apos;équipe en lecture seule dans HELP &gt; Codes promo.
-        </p>
-      </div>
-
-      <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            value={nouveauCode}
-            onChange={(e) => setNouveauCode(e.target.value)}
-            placeholder="Code (ex. MIL10)"
-            className="input sm:w-48"
-          />
-          <input
-            value={nouvelleDescription}
-            onChange={(e) => setNouvelleDescription(e.target.value)}
-            placeholder="Description (ex. -10% fidélité)"
-            className="input flex-1"
-          />
-        </div>
-        <button
-          type="button"
-          disabled={!nouveauCode.trim()}
-          onClick={ajouterCode}
-          className="mt-2 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          Ajouter le code
-        </button>
-      </div>
-
-      {codes.length === 0 ? (
-        <p className="text-sm text-neutral-400">Aucun code pour l&apos;instant.</p>
-      ) : (
-        <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-          {codes.map((c) => (
-            <div key={c.id} className="flex items-center justify-between gap-3 px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold text-[#171717]">{c.code}</p>
-                {c.description && <p className="text-xs text-[#666666]">{c.description}</p>}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleActif(c)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                    c.actif ? "bg-[#0F5C56]/10 text-[#0F5C56]" : "bg-neutral-100 text-neutral-500"
-                  }`}
-                >
-                  {c.actif ? "Actif" : "Inactif"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => supprimerCode(c.id)}
-                  className="text-xs text-red-600 hover:underline"
-                >
-                  Supprimer
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

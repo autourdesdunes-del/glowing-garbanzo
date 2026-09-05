@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Plusieurs sessions Claude Code tournent en parallèle sur ce dossier
+
+Mélanie ouvre régulièrement plusieurs fenêtres Claude Code sur ce même repo en même temps. Deux incidents concrets ont déjà eu lieu à cause de ça :
+- Le tableau de bord Direction a été **entièrement refait deux fois à 21h d'intervalle** par deux sessions différentes, chacune ignorant que l'autre avait déjà fait le travail (voir `git log --oneline -- src/components/DirectionView.tsx`, deux commits "Refonte du tableau de bord Direction..." consécutifs).
+- Des fichiers partagés (`client-steps.tsx`, `AppShell.tsx`, `types.ts`...) sont fréquemment modifiés simultanément par plusieurs sessions.
+
+**Avant de commencer une fonctionnalité qui touche plusieurs fichiers ou qui ressemble à une refonte** (pas un petit fix ciblé), fais :
+```bash
+git log --oneline -20
+git log --oneline -10 -- <fichier(s) que tu prévois de toucher>
+git status --short
+```
+— pour repérer si un travail équivalent ou en cours existe déjà (titre de commit très récent qui ressemble à ce qu'on t'a demandé, ou fichier déjà modifié et non commité par une autre session). En cas de doute, dis-le à l'utilisateur avant de te lancer plutôt que de refaire le travail à l'aveugle.
+
+**Avant de commiter**, si `git status` montre des fichiers modifiés que tu n'as pas toi-même édités cette session, n'ajoute jamais tout avec `git add -A`/`git add .` : isole tes propres hunks (`git diff <fichier> | grep "^@@"` pour repérer tes blocs, puis `git add <fichier>` seulement si le diff est entièrement à toi, sinon extraire un `.diff` partiel et `git apply --cached`). Ne jamais écraser le travail en cours d'une autre session.
+
 ## What this directory actually is
 
 This is **not** a scaffolded application yet — there is no `package.json`, no build/lint/test tooling, and no git repository. It contains two handoff documents from a prior long working session:

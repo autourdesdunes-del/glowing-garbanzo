@@ -41,93 +41,26 @@ import {
   siteCaireBadge,
   volBadge,
 } from "@/lib/resa";
-import { localDateStr, fmtAnnulationSuffix } from "@/lib/dates";
+import { fmtAnnulationSuffix } from "@/lib/dates";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { baseActivityName, buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
-
-function euros(n: number) {
-  return (Number(n) || 0).toLocaleString("fr-FR");
-}
-function fmtDate(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
-function fmtDateLong(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-}
-function toStr(d: Date) {
-  return localDateStr(d);
-}
-// Traduction du bloc équipe Égypte (translateFr, PAYMENT_MODE_EN, etc.) et
-// baseActivityName : voir @/lib/egyptBlock, partagé avec la fiche client
-// pour ne jamais avoir deux versions qui dérivent l'une de l'autre.
-function dateRangeIncludes(r: Reservation, dateStr: string) {
-  if (!r.date_debut) return false;
-  const end = r.date_fin || r.date_debut;
-  return dateStr >= r.date_debut && dateStr <= end;
-}
-function resaActiveOn(r: Reservation, dateStr: string) {
-  if (r.statut_resa === "Annulée") return false;
-  return dateRangeIncludes(r, dateStr);
-}
-function rangesOverlap(rStart: string | null, rEnd: string | null, fStart: string, fEnd: string) {
-  if (!rStart) return false;
-  const end = rEnd || rStart;
-  return rStart <= fEnd && end >= fStart;
-}
-
-const FILTERS = [
-  { key: "hier", label: "Hier" },
-  { key: "aujourdhui", label: "Aujourd'hui" },
-  { key: "demain", label: "Demain" },
-  { key: "prochainement", label: "Prochainement" },
-  { key: "mois", label: "Ce mois-ci" },
-  { key: "mois_choisi", label: "Choisir un mois" },
-] as const;
-
-const WEEKDAY_LABELS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
-
-function monthStartOf(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return localDateStr(new Date(d.getFullYear(), d.getMonth(), 1));
-}
-function addMonths(dateStr: string, n: number) {
-  const d = new Date(dateStr + "T00:00:00");
-  return localDateStr(new Date(d.getFullYear(), d.getMonth() + n, 1));
-}
-function monthEndOf(monthStartStr: string) {
-  const d = new Date(monthStartStr + "T00:00:00");
-  return localDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-}
-function monthLabel(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-// Grille complète semaine par semaine (lundi → dimanche), en débordant sur
-// le mois précédent/suivant pour ne jamais avoir de semaine incomplète.
-function buildMonthGrid(monthStartStr: string): string[] {
-  const d = new Date(monthStartStr + "T00:00:00");
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  const firstOfMonth = new Date(year, month, 1);
-  const lastOfMonth = new Date(year, month + 1, 0);
-  const startOffset = (firstOfMonth.getDay() + 6) % 7;
-  const gridStart = new Date(firstOfMonth);
-  gridStart.setDate(gridStart.getDate() - startOffset);
-  const endOffset = 6 - ((lastOfMonth.getDay() + 6) % 7);
-  const gridEnd = new Date(lastOfMonth);
-  gridEnd.setDate(gridEnd.getDate() + endOffset);
-  const days: string[] = [];
-  const cur = new Date(gridStart);
-  while (cur <= gridEnd) {
-    days.push(toStr(cur));
-    cur.setDate(cur.getDate() + 1);
-  }
-  return days;
-}
+import {
+  addMonths,
+  buildMonthGrid,
+  dateRangeIncludes,
+  euros,
+  FILTERS,
+  fmtDate,
+  fmtDateLong,
+  monthEndOf,
+  monthLabel,
+  monthStartOf,
+  rangesOverlap,
+  resaActiveOn,
+  toStr,
+  WEEKDAY_LABELS,
+} from "@/lib/planningViewFormat";
 
 type Row = { client: Client; r: Reservation };
 

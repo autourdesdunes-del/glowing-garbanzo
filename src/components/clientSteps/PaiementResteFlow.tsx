@@ -483,7 +483,9 @@ export function PaiementResteFlow({
                   <div className="flex flex-shrink-0 items-center gap-2">
                     <EncaisseButton
                       paye={client.solde_paye}
-                      onMarquer={() => setEncaisseDateModal({ mode: soldeMode, date: todayStr() })}
+                      onMarquer={() =>
+                        setEncaisseDateModal({ mode: soldeMode, date: client.solde_date || todayStr() })
+                      }
                       onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                       onDifferent={() =>
                         onEncaissementDifferent({
@@ -569,7 +571,12 @@ export function PaiementResteFlow({
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <EncaisseButton
                     paye={client.solde_paye}
-                    onMarquer={() => setEncaisseDateModal({ mode: soldeMode, date: todayStr() })}
+                    onMarquer={() =>
+                      setEncaisseDateModal({
+                        mode: soldeMode,
+                        date: chosenResa.date_debut || todayStr(),
+                      })
+                    }
                     onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                     onDifferent={() =>
                       onEncaissementDifferent({

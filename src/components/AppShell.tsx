@@ -1100,9 +1100,14 @@ function AppShellInner({
       if (!error && data) {
         setClients((prev) => [data as Client, ...prev]);
         setSelectedId(data.id);
-        // Un "nouveau client" atterrit direct dans Clients, un "nouveau
-        // prospect" dans Prospects — chacun là où il doit apparaître.
-        setMode(quick?.statut === "Client confirmé" ? "team" : "prospects");
+        // Ne pas changer de mode ici : QuickAddClient (le pop-up "+ Nouveau
+        // client"/"+ Nouveau prospect") continue son propre pas-à-pas
+        // (Activités, Paiements) juste après la création du nom, quelle que
+        // soit la vue depuis laquelle il a été ouvert (Dashboard, Prospects,
+        // Vue équipe). Changer de mode ici démontait le pop-up en plein
+        // milieu du pas-à-pas dès qu'il était ouvert depuis le Dashboard
+        // (mode "dashboard" → "team"), l'utilisatrice se retrouvait projetée
+        // sur la fiche complète au lieu de continuer le pop-up.
         // Si un résumé de prospect était déjà ouvert, on bascule sur le
         // nouveau plutôt que de laisser l'ancien affiché en arrière-plan.
         setProspectSummaryId((cur) => (cur ? data.id : cur));

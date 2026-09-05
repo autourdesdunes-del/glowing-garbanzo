@@ -3699,15 +3699,17 @@ export function SuiviStep({
   onAddAvoir,
   onUpdateAvoir,
   onDeleteAvoir,
+  onUpdateReservation,
   isDirection = false,
   incidents,
   onResolveIncident,
 }: StepProps & {
   reservations: Reservation[];
   avoirs: Avoir[];
-  onAddAvoir: () => void;
+  onAddAvoir: (patch?: Partial<Avoir>) => Promise<boolean>;
   onUpdateAvoir: (id: string, patch: Partial<Avoir>) => void;
   onDeleteAvoir: (id: string) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   isDirection?: boolean;
   incidents: Incident[];
   onResolveIncident: (id: string, statut: "Ouvert" | "Résolu") => void;
@@ -3722,6 +3724,8 @@ export function SuiviStep({
   const [marquerRembourseId, setMarquerRembourseId] = useState<string | null>(null);
   const [expandedAvoirId, setExpandedAvoirId] = useState<string | null>(null);
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
+  const [transformerRembId, setTransformerRembId] = useState<string | null>(null);
+  const [montantTransforme, setMontantTransforme] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -3779,6 +3783,42 @@ export function SuiviStep({
     setRemboursements((prev) => prev.filter((r) => r.id !== id));
     const { error } = await supabase.from("remboursements").delete().eq("id", id);
     if (error) toast("Échec de la suppression.");
+  };
+
+  // Convertit tout ou partie d'un remboursement "En attente" en avoir —
+  // reprend raison/activité/date pour ne rien perdre du contexte. Si le
+  // montant transformé couvre tout le remboursement, celui-ci disparaît
+  // (remplacé par l'avoir) ; sinon son montant est réduit d'autant.
+  const transformerRembEnAvoir = async (r: Remboursement, montant: number) => {
+    if (montant <= 0 || montant > r.montant) {
+      toast("Montant invalide.");
+      return;
+    }
+    const ok = await onAddAvoir({
+      montant,
+      montant_restant: montant,
+      raison: r.raison,
+      raison_autre: r.raison_autre,
+      activite_id: r.activite_id,
+      date_probleme: r.date_probleme,
+    });
+    if (!ok) return;
+    if (montant >= r.montant) {
+      setRemboursements((prev) => prev.filter((x) => x.id !== r.id));
+      await supabase.from("remboursements").delete().eq("id", r.id);
+      // Le remboursement disparaît entièrement au profit de l'avoir — sinon
+      // "Reprogrammer cette activité" continue de chercher un remboursement
+      // (annulation_remb_avoir resté sur "rembourse") alors que la table est
+      // maintenant vide, et ne proposerait jamais de supprimer l'avoir créé
+      // à sa place.
+      if (r.activite_id) {
+        onUpdateReservation(r.activite_id, { annulation_remb_avoir: "avoir" });
+      }
+    } else {
+      updateRemboursement(r.id, { montant: r.montant - montant });
+    }
+    setTransformerRembId(null);
+    toast(`${euros(montant)} € transformés en avoir.`);
   };
 
   const addVerification = async () => {
@@ -3969,6 +4009,48 @@ export function SuiviStep({
                     </Field>
                   </div>
 
+                  {r.statut !== "Effectué" && (
+                    <div className="rounded-md bg-[#fafafa] p-3">
+                      {transformerRembId === r.id ? (
+                        <div className="flex items-end gap-2">
+                          <Field label="Montant à transformer en avoir (€)">
+                            <input
+                              type="number"
+                              value={montantTransforme}
+                              onChange={(e) => setMontantTransforme(Number(e.target.value))}
+                              className="input"
+                            />
+                          </Field>
+                          <button
+                            type="button"
+                            onClick={() => transformerRembEnAvoir(r, montantTransforme)}
+                            className="rounded-md bg-[#0F5C56] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                          >
+                            Confirmer
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTransformerRembId(null)}
+                            className="text-sm text-neutral-500 hover:underline"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMontantTransforme(r.montant);
+                            setTransformerRembId(r.id);
+                          }}
+                          className="text-sm font-medium text-[#8B4531] hover:underline"
+                        >
+                          ↔ Transformer (tout ou partie) en avoir
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Raison">
                       <select
@@ -4135,7 +4217,7 @@ export function SuiviStep({
             Avoirs <span className="font-normal text-neutral-500">— à utiliser pendant le séjour</span>
           </h3>
           <button
-            onClick={onAddAvoir}
+            onClick={() => onAddAvoir()}
             className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
             + Ajouter un avoir
@@ -4201,6 +4283,26 @@ export function SuiviStep({
                   <span className="font-heading text-lg font-bold text-orange-600">
                     {euros(a.montant_restant)} € <span className="text-xs font-normal text-neutral-400">/ {euros(a.montant)} €</span>
                   </span>
+                  {Number(a.montant_restant) <= 0 && Number(a.montant) > 0 ? (
+                    <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
+                      Entièrement utilisé
+                    </span>
+                  ) : Number(a.montant_restant) < Number(a.montant) ? (
+                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700">
+                      Partiellement utilisé
+                    </span>
+                  ) : client.date_fin && todayStr() > client.date_fin ? (
+                    // Sinon un avoir jamais consommé mais déjà expiré
+                    // s'affichait "Disponible" en vert juste à côté de
+                    // l'avertissement rouge "Expiré" — contradiction pure.
+                    <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">
+                      Expiré
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                      Disponible
+                    </span>
+                  )}
                   <div className="flex gap-1">
                     <span
                       role="button"
@@ -4250,25 +4352,38 @@ export function SuiviStep({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Montant de l'avoir (€)">
-                  <input
-                    type="number"
-                    value={a.montant}
-                    onChange={(e) => {
-                      const saisi = Number(e.target.value) || 0;
-                      const consomme = a.montant - a.montant_restant;
-                      // Ne jamais descendre sous ce qui a déjà été
-                      // consommé — sinon l'avoir affiche "0€ restant" alors
-                      // que le vrai montant utilisé (sur des réservations
-                      // existantes) était plus grand, une incohérence
-                      // silencieuse entre l'avoir et les activités.
-                      if (saisi < consomme) {
-                        toast(`Déjà ${euros(consomme)} € utilisés sur cet avoir — impossible de descendre en dessous.`);
-                      }
-                      const montant = Math.max(saisi, consomme);
-                      onUpdateAvoir(a.id, { montant, montant_restant: Math.max(montant - consomme, 0) });
-                    }}
-                    className="input"
-                  />
+                  {(() => {
+                    const consomme = a.montant - a.montant_restant;
+                    if (consomme > 0) {
+                      // Un avoir déjà utilisé (même partiellement) ne se
+                      // modifie plus — sinon on peut discrètement changer le
+                      // montant d'origine d'un avoir déjà consommé sur une
+                      // ou plusieurs activités, rendant son historique
+                      // incohérent. Pour un vrai changement, en créer un
+                      // nouveau.
+                      return (
+                        <>
+                          <span className="input block bg-neutral-100 text-neutral-500">
+                            {euros(a.montant)} €
+                          </span>
+                          <p className="mt-1 text-xs text-neutral-400">
+                            Déjà {euros(consomme)} € utilisés — montant verrouillé. Crée un nouvel avoir si besoin.
+                          </p>
+                        </>
+                      );
+                    }
+                    return (
+                      <input
+                        type="number"
+                        value={a.montant}
+                        onChange={(e) => {
+                          const montant = Math.max(Number(e.target.value) || 0, 0);
+                          onUpdateAvoir(a.id, { montant, montant_restant: montant });
+                        }}
+                        className="input"
+                      />
+                    );
+                  })()}
                 </Field>
                 <Field label="Raison">
                   <select

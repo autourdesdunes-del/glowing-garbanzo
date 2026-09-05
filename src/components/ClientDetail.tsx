@@ -425,19 +425,24 @@ export default function ClientDetail({
   // Garde anti double-clic : sans elle, un clic rapide (ou une connexion
   // lente) créait deux avoirs vides (0€/0€) au lieu d'un seul.
   const addingAvoirRef = useRef(false);
-  const addAvoir = async () => {
-    if (addingAvoirRef.current) return;
+  // `patch` permet de pré-remplir l'avoir à la création (ex. transformer un
+  // remboursement en avoir depuis Suivi, en reprenant montant/raison/
+  // activité) sans passer par un avoir vide à compléter à la main ensuite.
+  const addAvoir = async (patch?: Partial<Avoir>): Promise<boolean> => {
+    if (addingAvoirRef.current) return false;
     addingAvoirRef.current = true;
     const { data, error } = await supabase
       .from("avoirs")
-      .insert({ client_id: client.id })
+      .insert({ client_id: client.id, ...patch })
       .select()
       .single();
     addingAvoirRef.current = false;
     if (!error && data) {
       setAvoirs((prev) => [...prev, data as Avoir]);
+      return true;
     } else {
       toast("Impossible d'ajouter l'avoir.");
+      return false;
     }
   };
 
@@ -476,23 +481,55 @@ export default function ClientDetail({
     ? 0
     : avoirs.reduce((s, a) => s + (Number(a.montant_restant) || 0), 0);
 
+  // Garde anti double-dépense : sans elle, deux consommations d'avoir
+  // lancées à quelques secondes d'intervalle (deux activités ajoutées vite,
+  // ou deux membres de l'équipe sur la même fiche) partent chacune du même
+  // `avoirs` en mémoire et peuvent chacune décompter le même solde restant —
+  // le crédit réel n'est débité qu'une fois en base mais appliqué deux fois
+  // aux réservations.
+  const usingAvoirRef = useRef(false);
   const useAvoir = async (montant: number) => {
     const reservationId = avoirPromptReservationId;
     setAvoirPromptReservationId(null);
-    if (!reservationId) return;
+    if (!reservationId || usingAvoirRef.current) return;
+    usingAvoirRef.current = true;
+    // On relit les avoirs depuis la base plutôt que de faire confiance à
+    // `avoirs` en mémoire, pour réduire (sans l'éliminer complètement) la
+    // fenêtre où un autre onglet/utilisateur aurait déjà entamé le même
+    // avoir entre l'ouverture du prompt et cette confirmation.
+    const { data: avoirsFrais } = await supabase
+      .from("avoirs")
+      .select("*")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: true });
+    const avoirsSource = (avoirsFrais as Avoir[]) || avoirs;
+    // Avant ce correctif, "Utilisé sur" restait vide tant que personne ne le
+    // remplissait à la main : un avoir consommé via ce prompt (le cas
+    // courant, à l'ajout d'une nouvelle activité) ne laissait aucune trace
+    // lisible de où il était parti — seule la fraction montant_restant/
+    // montant en témoignait, à calculer soi-même. On l'écrit maintenant
+    // automatiquement, avec le nom de l'activité si déjà connu à cet instant.
+    const resaCible = reservations.find((r) => r.id === reservationId);
+    const label = `${euros(montant)} € sur ${
+      resaCible?.nom_activite || "une activité"
+    } ajoutée le ${fmtDate(todayStr())}`;
     let restant = montant;
-    for (const a of avoirs) {
+    for (const a of avoirsSource) {
       if (restant <= 0) break;
       const pris = Math.min(restant, Number(a.montant_restant) || 0);
       if (pris <= 0) continue;
       restant -= pris;
-      await updateAvoir(a.id, { montant_restant: (Number(a.montant_restant) || 0) - pris });
+      await updateAvoir(a.id, {
+        montant_restant: (Number(a.montant_restant) || 0) - pris,
+        utilise_sur: a.utilise_sur ? `${a.utilise_sur} ; ${label}` : label,
+      });
     }
     // Le montant appliqué se rattache à cette activité précise, pour
     // s'afficher sur sa carte ("avoir de X € utilisé sur cette activité"),
     // même si le solde qu'il réduit reste unique pour tout le séjour.
     await updateReservation(reservationId, { avoir_utilise: montant });
     setAvoirAppliedNotice(montant);
+    usingAvoirRef.current = false;
   };
 
   useEffect(() => {
@@ -1509,6 +1546,7 @@ export default function ClientDetail({
           onAddAvoir={addAvoir}
           onUpdateAvoir={updateAvoir}
           onDeleteAvoir={deleteAvoir}
+          onUpdateReservation={updateReservation}
           isDirection={canSeeMargins}
           incidents={incidents}
           onResolveIncident={(id, statut) => {

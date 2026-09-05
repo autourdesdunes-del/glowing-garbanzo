@@ -32,7 +32,7 @@ import {
   TransfertTaxeModificationRequest,
   Verification,
 } from "@/lib/types";
-import { resaTotalMontant, sharedActivityAlerts, SharedActivityAlert } from "@/lib/resa";
+import { reservationsActives, resaTotalMontant, sharedActivityAlerts, SharedActivityAlert } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 import { deaccent } from "@/lib/deaccent";
 import { CLIENT_STATUTS, PROSPECT_STATUTS, STATUT_COLORS } from "@/lib/constants";
@@ -1325,11 +1325,65 @@ function AppShellInner({
   };
 
   // Rattache un paiement PayPal reçu (via IPN, voir /api/paypal/ipn) au
-  // client concerné — remplit directement l'acompte du dossier plutôt que
-  // de laisser l'employée ressaisir montant/mode/date à la main.
-  const rattacherPaypalPaiement = async (paiementId: string, clientId: string) => {
+  // client concerné. Un paiement PayPal reçu en cours de dossier n'est pas
+  // toujours l'acompte — ça peut aussi être un paiement intermédiaire en
+  // cours de séjour, ou le solde : c'est l'employée qui juge et choisit le
+  // type au moment de rattacher (voir le sélecteur dans PaypalPaiementRappel
+  // et Suivis > Paiements PayPal).
+  //
+  // Les types "acompte" et "solde" écrasent des champs déjà potentiellement
+  // renseignés sur le client — un clic sur le mauvais client dans la liste
+  // de recherche (nom en doublon, mauvaise personne) effacerait
+  // silencieusement des informations déjà en place, sans rien à annuler. On
+  // ne demande confirmation QUE quand ce serait vraiment le cas — un
+  // nouveau client sans rien dessus (le cas le plus fréquent) se rattache
+  // toujours directement. Le type "étape" n'écrase jamais rien (simple
+  // ajout d'un règlement), donc jamais de confirmation pour lui.
+  const rattacherPaypalPaiement = async (
+    paiementId: string,
+    clientId: string,
+    type: "acompte" | "etape" | "solde"
+  ) => {
     const paiement = paypalPaiements.find((p) => p.id === paiementId);
     if (!paiement) return;
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) return;
+
+    if (type === "acompte") {
+      const ecraseraitQuelqueChose =
+        client.acompte_paye ||
+        client.acompte_valide ||
+        Number(client.acompte_montant) > 0 ||
+        (!!client.paiement_type && client.paiement_type !== "acompte");
+      if (ecraseraitQuelqueChose) {
+        const ok = await confirm({
+          title: "Ce client a déjà des informations de paiement",
+          message: `${client.nom || "Ce client"} a déjà ${
+            client.paiement_type ? `un type de paiement "${client.paiement_type === "integral" ? "Paiement intégral" : "Paiement acompte"}"` : "des informations d'acompte"
+          }${
+            Number(client.acompte_montant) > 0
+              ? ` et un acompte de ${client.acompte_montant} € (${client.acompte_mode}${client.acompte_paye ? ", payé" : ", en attente"})`
+              : ""
+          } enregistré. Rattacher ce paiement PayPal de ${paiement.montant_net} € en acompte va écraser ces informations. Continuer ?`,
+          confirmLabel: "Oui, écraser et rattacher",
+          cancelLabel: "Annuler",
+        });
+        if (!ok) return;
+      }
+    } else if (type === "solde") {
+      if (client.solde_paye || Number(client.solde_montant) > 0) {
+        const ok = await confirm({
+          title: "Le solde de ce client est déjà renseigné",
+          message: `${client.nom || "Ce client"} a déjà un solde ${
+            client.solde_paye ? `marqué payé (${client.solde_montant} €, ${client.solde_mode})` : `de ${client.solde_montant} € en attente`
+          }. Rattacher ce paiement PayPal de ${paiement.montant_net} € en solde va écraser ces informations. Continuer ?`,
+          confirmLabel: "Oui, écraser et rattacher",
+          cancelLabel: "Annuler",
+        });
+        if (!ok) return;
+      }
+    }
+
     const rattacheAt = new Date().toISOString();
     setPaypalPaiements((prev) =>
       prev.map((p) =>
@@ -1346,15 +1400,41 @@ function AppShellInner({
       toast("Échec du rattachement du paiement PayPal.");
       return;
     }
-    await updateClientById(clientId, {
-      paiement_type: "acompte",
-      acompte_montant: paiement.montant_net,
-      acompte_mode: "PayPal",
-      acompte_valide: true,
-      acompte_paye: true,
-      acompte_date_encaissement: paiement.paypal_recu_le.slice(0, 10),
-      acompte_encaisse_ts: paiement.paypal_recu_le,
-    });
+
+    if (type === "acompte") {
+      await updateClientById(clientId, {
+        paiement_type: "acompte",
+        acompte_montant: paiement.montant_net,
+        acompte_mode: "PayPal",
+        acompte_valide: true,
+        acompte_paye: true,
+        acompte_date_encaissement: paiement.paypal_recu_le.slice(0, 10),
+        acompte_encaisse_ts: paiement.paypal_recu_le,
+      });
+    } else if (type === "solde") {
+      const totalSejour = reservationsActives(allReservations.filter((r) => r.client_id === clientId)).reduce(
+        (sum, r) => sum + resaTotalMontant(r, client, allResaOptions[r.id] || [], allResaTarifs[r.id] || []),
+        0
+      );
+      await updateClientById(clientId, {
+        solde_paye: true,
+        solde_mode: "PayPal",
+        solde_montant: totalSejour,
+        solde_date: paiement.paypal_recu_le.slice(0, 10),
+        solde_rdv_valide: true,
+      });
+    } else {
+      const { error: errEtape } = await supabase.from("paiements_etapes").insert({
+        client_id: clientId,
+        montant: paiement.montant_net,
+        mode: "PayPal",
+        date: paiement.paypal_recu_le.slice(0, 10),
+        note: "Paiement PayPal rattaché",
+        activite_nom: "",
+        montant_egp: 0,
+      });
+      if (errEtape) toast("Le paiement a été rattaché mais l'étape n'a pas pu être enregistrée.");
+    }
   };
 
   const updateReservationById = async (id: string, patch: Partial<Reservation>) => {

@@ -816,15 +816,26 @@ function PaypalPaiementRow({
 }: {
   paiement: PaypalPaiement;
   clients: Client[];
-  onRattacher: (clientId: string) => void;
+  onRattacher: (clientId: string, type: "acompte" | "etape" | "solde") => void;
 }) {
   const [query, setQuery] = useState("");
+  // Un paiement PayPal en cours de dossier n'est pas toujours l'acompte —
+  // ça peut être un règlement en cours de séjour ou le solde ; l'employée
+  // tranche une fois le client identifié.
+  const [clientChoisi, setClientChoisi] = useState<Client | null>(null);
   const matches =
     query.trim().length >= 2
       ? clients
           .filter((c) => deaccent((c.nom || "").toLowerCase()).includes(deaccent(query.trim().toLowerCase())))
           .slice(0, 6)
       : [];
+
+  const rattacher = (type: "acompte" | "etape" | "solde") => {
+    if (!clientChoisi) return;
+    onRattacher(clientChoisi.id, type);
+    setQuery("");
+    setClientChoisi(null);
+  };
 
   return (
     <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
@@ -846,31 +857,62 @@ function PaypalPaiementRow({
           )}
         </div>
       </div>
-      <div className="mt-2">
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Rattacher à un client…"
-          className="input text-sm"
-        />
-        {matches.length > 0 && (
-          <div className="mt-1.5 divide-y divide-neutral-100 overflow-hidden rounded-md border border-neutral-200">
-            {matches.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => {
-                  onRattacher(c.id);
-                  setQuery("");
-                }}
-                className="block w-full px-3 py-1.5 text-left text-sm hover:bg-[#fafafa]"
-              >
-                {c.nom || "Sans nom"}
-              </button>
-            ))}
+      {!clientChoisi ? (
+        <div className="mt-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rattacher à un client…"
+            className="input text-sm"
+          />
+          {matches.length > 0 && (
+            <div className="mt-1.5 divide-y divide-neutral-100 overflow-hidden rounded-md border border-neutral-200">
+              {matches.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setClientChoisi(c)}
+                  className="block w-full px-3 py-1.5 text-left text-sm hover:bg-[#fafafa]"
+                >
+                  {c.nom || "Sans nom"}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mt-2">
+          <p className="text-xs text-neutral-500">
+            Pour <strong>{clientChoisi.nom || "Sans nom"}</strong>, ce paiement correspond à :
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <button
+              onClick={() => rattacher("acompte")}
+              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa]"
+            >
+              L&apos;acompte
+            </button>
+            <button
+              onClick={() => rattacher("etape")}
+              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa]"
+            >
+              Un paiement en cours de séjour
+            </button>
+            <button
+              onClick={() => rattacher("solde")}
+              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa]"
+            >
+              Le solde
+            </button>
+            <button
+              onClick={() => setClientChoisi(null)}
+              className="px-1 text-xs text-neutral-400 hover:underline"
+            >
+              ‹ Autre client
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1043,7 +1085,7 @@ export default function SuivisView({
   incidents: Incident[];
   verifications: Verification[];
   paypalPaiements: PaypalPaiement[];
-  onRattacherPaiement: (paiementId: string, clientId: string) => void;
+  onRattacherPaiement: (paiementId: string, clientId: string, type: "acompte" | "etape" | "solde") => void;
   profiles: Profile[];
   currentUserId: string;
   planningShifts: PlanningShift[];
@@ -2666,7 +2708,7 @@ export default function SuivisView({
                       key={p.id}
                       paiement={p}
                       clients={clients}
-                      onRattacher={(clientId) => onRattacherPaiement(p.id, clientId)}
+                      onRattacher={(clientId, type) => onRattacherPaiement(p.id, clientId, type)}
                     />
                   ))}
               </div>

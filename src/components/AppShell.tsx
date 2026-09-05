@@ -1331,14 +1331,14 @@ function AppShellInner({
   // type au moment de rattacher (voir le sélecteur dans PaypalPaiementRappel
   // et Suivis > Paiements PayPal).
   //
-  // Les types "acompte" et "solde" écrasent des champs déjà potentiellement
-  // renseignés sur le client — un clic sur le mauvais client dans la liste
-  // de recherche (nom en doublon, mauvaise personne) effacerait
-  // silencieusement des informations déjà en place, sans rien à annuler. On
-  // ne demande confirmation QUE quand ce serait vraiment le cas — un
-  // nouveau client sans rien dessus (le cas le plus fréquent) se rattache
-  // toujours directement. Le type "étape" n'écrase jamais rien (simple
-  // ajout d'un règlement), donc jamais de confirmation pour lui.
+  // Règle stricte : un paiement rattaché ne doit JAMAIS écraser un acompte
+  // ou un solde déjà en place — pas même avec confirmation (un clic sur le
+  // mauvais client dans la liste de recherche effacerait silencieusement
+  // les vraies informations, sans rien à annuler). Si l'acompte/le solde
+  // est déjà renseigné, "acompte"/"solde" est refusé : l'UI ne propose déjà
+  // que "étape" dans ce cas (voir PaypalPaiementRappel/PaypalPaiementRow),
+  // ce blocage est la sécurité côté fonction si jamais appelé quand même.
+  // "étape" n'écrase jamais rien (simple ajout d'un règlement).
   const rattacherPaypalPaiement = async (
     paiementId: string,
     clientId: string,
@@ -1350,37 +1350,19 @@ function AppShellInner({
     if (!client) return;
 
     if (type === "acompte") {
-      const ecraseraitQuelqueChose =
+      const acompteDejaPris =
         client.acompte_paye ||
         client.acompte_valide ||
         Number(client.acompte_montant) > 0 ||
         (!!client.paiement_type && client.paiement_type !== "acompte");
-      if (ecraseraitQuelqueChose) {
-        const ok = await confirm({
-          title: "Ce client a déjà des informations de paiement",
-          message: `${client.nom || "Ce client"} a déjà ${
-            client.paiement_type ? `un type de paiement "${client.paiement_type === "integral" ? "Paiement intégral" : "Paiement acompte"}"` : "des informations d'acompte"
-          }${
-            Number(client.acompte_montant) > 0
-              ? ` et un acompte de ${client.acompte_montant} € (${client.acompte_mode}${client.acompte_paye ? ", payé" : ", en attente"})`
-              : ""
-          } enregistré. Rattacher ce paiement PayPal de ${paiement.montant_net} € en acompte va écraser ces informations. Continuer ?`,
-          confirmLabel: "Oui, écraser et rattacher",
-          cancelLabel: "Annuler",
-        });
-        if (!ok) return;
+      if (acompteDejaPris) {
+        toast("Cet acompte est déjà renseigné — impossible de l'écraser. Rattache ce paiement comme étape ou solde.");
+        return;
       }
     } else if (type === "solde") {
       if (client.solde_paye || Number(client.solde_montant) > 0) {
-        const ok = await confirm({
-          title: "Le solde de ce client est déjà renseigné",
-          message: `${client.nom || "Ce client"} a déjà un solde ${
-            client.solde_paye ? `marqué payé (${client.solde_montant} €, ${client.solde_mode})` : `de ${client.solde_montant} € en attente`
-          }. Rattacher ce paiement PayPal de ${paiement.montant_net} € en solde va écraser ces informations. Continuer ?`,
-          confirmLabel: "Oui, écraser et rattacher",
-          cancelLabel: "Annuler",
-        });
-        if (!ok) return;
+        toast("Le solde est déjà renseigné — impossible de l'écraser. Rattache ce paiement comme étape.");
+        return;
       }
     }
 

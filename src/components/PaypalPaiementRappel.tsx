@@ -75,6 +75,18 @@ export default function PaypalPaiementRappel({
           .slice(0, 6)
       : [];
 
+  // Un acompte/solde déjà renseigné ne doit jamais être écrasé — désactivé
+  // ici plutôt que de laisser cliquer pour échouer (voir garde-fou côté
+  // rattacherPaypalPaiement dans AppShell).
+  const acompteDejaPris =
+    !!clientChoisi &&
+    (clientChoisi.acompte_paye ||
+      clientChoisi.acompte_valide ||
+      Number(clientChoisi.acompte_montant) > 0 ||
+      (!!clientChoisi.paiement_type && clientChoisi.paiement_type !== "acompte"));
+  const soldeDejaPris =
+    !!clientChoisi && (clientChoisi.solde_paye || Number(clientChoisi.solde_montant) > 0);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
@@ -116,9 +128,11 @@ export default function PaypalPaiementRappel({
             <div className="mt-2 flex flex-col gap-1.5">
               <button
                 onClick={() => rattacher("acompte")}
-                className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm hover:bg-[#fafafa]"
+                disabled={acompteDejaPris}
+                title={acompteDejaPris ? "Un acompte est déjà renseigné — ne peut pas être écrasé" : undefined}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm hover:bg-[#fafafa] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
               >
-                L&apos;acompte
+                L&apos;acompte{acompteDejaPris ? " — déjà renseigné" : ""}
               </button>
               <button
                 onClick={() => rattacher("etape")}
@@ -128,9 +142,11 @@ export default function PaypalPaiementRappel({
               </button>
               <button
                 onClick={() => rattacher("solde")}
-                className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm hover:bg-[#fafafa]"
+                disabled={soldeDejaPris}
+                title={soldeDejaPris ? "Le solde est déjà renseigné — ne peut pas être écrasé" : undefined}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-left text-sm hover:bg-[#fafafa] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
               >
-                Le solde
+                Le solde{soldeDejaPris ? " — déjà renseigné" : ""}
               </button>
             </div>
             <button

@@ -837,6 +837,18 @@ function PaypalPaiementRow({
     setClientChoisi(null);
   };
 
+  // Un acompte/solde déjà renseigné ne doit jamais être écrasé — désactivé
+  // ici plutôt que de laisser cliquer pour échouer (voir garde-fou côté
+  // rattacherPaypalPaiement dans AppShell).
+  const acompteDejaPris =
+    !!clientChoisi &&
+    (clientChoisi.acompte_paye ||
+      clientChoisi.acompte_valide ||
+      Number(clientChoisi.acompte_montant) > 0 ||
+      (!!clientChoisi.paiement_type && clientChoisi.paiement_type !== "acompte"));
+  const soldeDejaPris =
+    !!clientChoisi && (clientChoisi.solde_paye || Number(clientChoisi.solde_montant) > 0);
+
   return (
     <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -888,9 +900,11 @@ function PaypalPaiementRow({
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <button
               onClick={() => rattacher("acompte")}
-              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa]"
+              disabled={acompteDejaPris}
+              title={acompteDejaPris ? "Un acompte est déjà renseigné — ne peut pas être écrasé" : undefined}
+              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             >
-              L&apos;acompte
+              L&apos;acompte{acompteDejaPris ? " — déjà renseigné" : ""}
             </button>
             <button
               onClick={() => rattacher("etape")}
@@ -900,9 +914,11 @@ function PaypalPaiementRow({
             </button>
             <button
               onClick={() => rattacher("solde")}
-              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa]"
+              disabled={soldeDejaPris}
+              title={soldeDejaPris ? "Le solde est déjà renseigné — ne peut pas être écrasé" : undefined}
+              className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             >
-              Le solde
+              Le solde{soldeDejaPris ? " — déjà renseigné" : ""}
             </button>
             <button
               onClick={() => setClientChoisi(null)}

@@ -38,65 +38,21 @@ import { BILLET_ETAPES, VILLES_VOL } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import BilletAvionUpload from "@/components/BilletAvionUpload";
 import MarquerRembourseModal from "@/components/MarquerRembourseModal";
-import RemboursementSummaryCard from "@/components/RemboursementSummaryCard";
-
-function euros(n: number) {
-  return (Number(n) || 0).toLocaleString("fr-FR");
-}
-function fmtDate(dateStr: string | null) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
-function fmtDDMM(dateStr: string | null) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
-}
-function daysBetween(laterStr: string, earlierStr: string) {
-  const a = new Date(laterStr + "T00:00:00");
-  const b = new Date(earlierStr + "T00:00:00");
-  return Math.round((a.getTime() - b.getTime()) / 86400000);
-}
-function VoirRibLink({ path }: { path: string }) {
-  const [loading, setLoading] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async (e) => {
-        e.stopPropagation();
-        setLoading(true);
-        const supabase = createClient();
-        const { data } = await supabase.storage.from("rib-screenshots").createSignedUrl(path, 3600);
-        setLoading(false);
-        if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-      }}
-      className="text-xs font-medium text-[#171717] underline hover:no-underline"
-    >
-      {loading ? "Ouverture…" : "Voir le RIB"}
-    </button>
-  );
-}
-
-function VoirPreuveRemboursementLink({ path }: { path: string }) {
-  const [loading, setLoading] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async (e) => {
-        e.stopPropagation();
-        setLoading(true);
-        const supabase = createClient();
-        const { data } = await supabase.storage.from("remboursement-preuves").createSignedUrl(path, 3600);
-        setLoading(false);
-        if (data?.signedUrl) window.open(data.signedUrl, "_blank");
-      }}
-      className="text-xs font-medium text-[#171717] underline hover:no-underline"
-    >
-      {loading ? "Ouverture…" : "voir la photo"}
-    </button>
-  );
-}
+import RemboursementSummaryCard, { VoirPreuveRemboursementLink } from "@/components/RemboursementSummaryCard";
+import { AvisStatutSelector, ClientNameLink, DateRangeBadge, VoirRibLink } from "@/components/suivis/SuivisPrimitives";
+import {
+  auRevoirMessage,
+  avisMessage,
+  daysBetween,
+  euros,
+  fmtDate,
+  fmtDateTime,
+  fmtDDMM,
+  fmtDayColumn,
+  fmtMonthLabel,
+  pickupClientMessage,
+  pickupMissingTeamMessage,
+} from "@/lib/suivisFormat";
 
 function BilletEtapeTracker({
   etape,
@@ -327,26 +283,6 @@ function AttenteRow({
   );
 }
 
-function fmtDayColumn(dateStr: string) {
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
-}
-function fmtMonthLabel(ym: string) {
-  const d = new Date(ym + "-01T00:00:00");
-  const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-function firstNameOf(nom: string) {
-  return nom.trim().split(/\s+/)[0] || "";
-}
-function auRevoirMessage(nom: string) {
-  const prenom = firstNameOf(nom) || "—";
-  return `Bonjour ${prenom} \n\nNous espérons que votre retour s'est bien passé.\n\nNous vous remercions d'avoir fait confiance à Autour des Dunes pour l'organisation de vos activités.\n\nCe sera avec grand plaisir que nous vous accueillerons à nouveau prochainement.\n\nL'équipe Autour des Dunes ☀️`;
-}
-function avisMessage(nom: string) {
-  const prenom = firstNameOf(nom) || "—";
-  return `Bonjour ${prenom} \n\nJ'espère que vous allez bien ☺️\n\nJe me permets de vous envoyer un message pour savoir si vous seriez d'accord pour nous laisser un avis et partager avec nos voyageurs votre expérience à nos côtés \n\nCela prend quelques petites secondes mais cela nous aide beaucoup pour nous faire connaître comme nous sommes une jeune agence \n\nJe vous laisse le lien juste ici : \n\n➡️ Google : https://g.co/kgs/jUu71x\n\n➡️ Trip Advisor : https://www.tripadvisor.fr/Attraction_Review-g297549-d26856860-Reviews-Autour_des_Dunes-Hurghada_Red_Sea_and_Sinai.html\n\nEn vous remerciant par avance 🙏`;
-}
 // Bloc copié-collé pour Hossam — le nom complet doit être recopié tel quel
 // (comme au passeport) pour éviter toute faute transmise au prestataire.
 // Deux niveaux : "important" doit sauter aux yeux tout de suite (ça touche
@@ -381,66 +317,6 @@ export const SUIVIS_SUBS = [
 export type SuivisSub = (typeof SUIVIS_SUBS)[number]["key"] | "remb";
 
 const APPEL_PLATEFORMES = ["Instagram", "WhatsApp", "Mobile", "Google Meet", "Zoom"];
-
-// Remplace le bouton "→ Fiche client" : le prénom/nom lui-même amène à la
-// fiche, en un clic au lieu de deux.
-function ClientNameLink({
-  nom,
-  onClick,
-  className,
-}: {
-  nom: string;
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      className={className ?? "font-semibold text-[#171717] hover:underline"}
-    >
-      {nom || "Sans nom"}
-    </button>
-  );
-}
-
-const AVIS_STATUT_STYLES: Record<Client["avis_statut"], string> = {
-  "À demander": "border-[#4A7FD6]/40 bg-[#4A7FD6]/10 text-[#3861A8]",
-  "À ne pas demander": "border-[#D6544A]/40 bg-[#D6544A]/10 text-[#B23F36]",
-  "Déjà publié": "border-[#3E8F5C]/40 bg-[#3E8F5C]/10 text-[#2C6B44]",
-};
-
-function AvisStatutSelector({
-  value,
-  onChange,
-}: {
-  value: Client["avis_statut"];
-  onChange: (v: Client["avis_statut"]) => void;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as Client["avis_statut"])}
-      className={`ml-auto shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-medium outline-none ${AVIS_STATUT_STYLES[value]}`}
-    >
-      <option value="À demander">À demander</option>
-      <option value="À ne pas demander">À ne pas demander</option>
-      <option value="Déjà publié">Déjà publié</option>
-    </select>
-  );
-}
-
-function DateRangeBadge({ debut, fin }: { debut: string | null; fin: string | null }) {
-  return (
-    <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F2E6D2] px-2 py-0.5 text-[11px] text-[#8B4531]">
-      <span>{debut ? fmtDate(debut) : "?"}</span>
-      <span className="text-[#C9973E]">→</span>
-      <span>{fin ? fmtDate(fin) : "?"}</span>
-    </span>
-  );
-}
 
 function RdvPaiementModal({
   c,
@@ -710,45 +586,6 @@ function ActiviteEnAttenteDetailModal({
   );
 }
 
-// Détail d'horaire à citer dans les messages pick-up : l'heure précise si
-// elle a été choisie, sinon le moment (sauf quand hideMoment dit que ça ne
-// veut rien dire pour cette activité, ex. speedboat sunset déjà dans le nom).
-function horaireDetail(r: Reservation) {
-  if (r.horaire_souhaite) return r.horaire_souhaite;
-  if (r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite)) return r.moment;
-  return "";
-}
-
-function pickupMissingTeamMessage(r: Reservation, client: Client) {
-  const detail = horaireDetail(r);
-  return `Missing pick-up — ${client.nom || "No name"} — ${r.nom_activite || "No activity name"}${
-    detail ? ` (${detail})` : ""
-  }`;
-}
-
-function pickupClientMessage(
-  r: Reservation,
-  client: Client,
-  montantRestant: number,
-  catalogue: CatalogueItem[]
-) {
-  const prenom = firstNameOf(client.nom) || "—";
-  const catalogueItem = r.catalogue_item_id
-    ? catalogue.find((a) => a.id === r.catalogue_item_id)
-    : null;
-  // Ce qu'il faut prévoir vient du catalogue (liste structurée), pas du
-  // champ libre de la réservation — c'est la vraie liste tenue à jour par
-  // activité, alors que la copie sur la réservation peut être vide/périmée.
-  const aPrevoirListe = catalogueItem?.a_prevoir_liste?.length
-    ? catalogueItem.a_prevoir_liste.join(", ")
-    : catalogueItem?.a_prevoir || r.a_prevoir || "le nécessaire pour l'activité";
-  const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
-  const paiementLigne = soldeIci
-    ? `\n\nComme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros demain, auprès de notre représentant sur place.`
-    : "";
-  return `Bonjour ${prenom},\n\nPour votre activité ${r.nom_activite || "—"} demain, le chauffeur viendra vous récupérer à ${r.pickup_reel}, devant la réception de votre hôtel, côté extérieur.\n\nÀ prévoir avec vous pour l'activité : ${aPrevoirListe}.${paiementLigne}\n\nVous retrouverez le programme complet de votre journée de demain sur votre page client. ☀️`;
-}
-
 // Même style de carte que la fiche client (ReservationCard, vue repliée) —
 // pour reconnaître une activité au premier coup d'œil, y compris quand il y
 // en a 50 dans la journée.
@@ -965,11 +802,6 @@ function AppelRow({
       </div>
     </div>
   );
-}
-
-function fmtDateTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 // Une ligne de paiement PayPal reçu (via IPN) mais pas encore rattachée à

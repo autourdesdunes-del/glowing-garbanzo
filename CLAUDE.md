@@ -18,6 +18,14 @@ git status --short
 
 **Avant de commiter**, si `git status` montre des fichiers modifiés que tu n'as pas toi-même édités cette session, n'ajoute jamais tout avec `git add -A`/`git add .` : isole tes propres hunks (`git diff <fichier> | grep "^@@"` pour repérer tes blocs, puis `git add <fichier>` seulement si le diff est entièrement à toi, sinon extraire un `.diff` partiel et `git apply --cached`). Ne jamais écraser le travail en cours d'une autre session.
 
+### Compte de test QA (vérification en direct dans le navigateur)
+
+Un compte de test partagé existe pour se connecter à l'app déployée et vérifier une fonctionnalité en vrai avant de dire "c'est fait" (email `claude-test-avoir-...@example.com`, rôle `direction`) — les identifiants exacts sont dans la mémoire persistante du projet (`project_qa_test_account.md`), pas ici, pour ne pas committer un mot de passe dans le dépôt.
+
+Mélanie a explicitement autorisé le partage de ce compte entre plusieurs sessions Claude Code, à une condition stricte : **ne jamais réinitialiser son mot de passe en premier réflexe.** Un reset invalide le mot de passe pour toute autre session qui l'utiliserait au même moment — c'est exactement la collision constatée le 2026-09-05 (une session a changé le mot de passe pendant qu'une autre était connectée, provoquant un faux 401 qui ressemblait à un bug produit).
+
+Si la connexion échoue ou qu'une écriture renvoie 401 juste après une connexion réussie : **arrête-toi, préviens Mélanie qu'une collision est probable, ne relance pas silencieusement un nouveau mot de passe.** Si elle confirme qu'il faut le régénérer, fais-le une seule fois puis mets à jour immédiatement `project_qa_test_account.md` avec le nouveau mot de passe, pour que les sessions suivantes restent synchronisées sur la même valeur.
+
 ## What this directory actually is
 
 This is **not** a scaffolded application yet — there is no `package.json`, no build/lint/test tooling, and no git repository. It contains two handoff documents from a prior long working session:

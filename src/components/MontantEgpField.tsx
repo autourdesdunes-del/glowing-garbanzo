@@ -53,7 +53,10 @@ export default function MontantEgpField({
             if (lockedMontantEur) {
               if (montantEur > 0) onRateChange(montantEgp / montantEur);
             } else if (rate > 0) {
-              onMontantEurChange?.(montantEgp / rate);
+              // Arrondi aux centimes ici, une bonne fois pour toutes — sans
+              // ça chaque appelant devait penser à le faire lui-même (vécu :
+              // l'acompte affichait "16,892 €" au lieu de "16,89 €").
+              onMontantEurChange?.(Math.round((montantEgp / rate) * 100) / 100);
             }
           }}
           className="input"

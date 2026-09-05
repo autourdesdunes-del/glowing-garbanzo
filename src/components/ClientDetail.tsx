@@ -11,6 +11,7 @@ import {
   CatalogueTarif,
   CatalogueTransfertTarif,
   Client,
+  ClientHotel,
   HotelReference,
   Incident,
   PaiementEtape,
@@ -304,6 +305,7 @@ export default function ClientDetail({
   const [avoirPromptReservationId, setAvoirPromptReservationId] = useState<string | null>(null);
   const [avoirAppliedNotice, setAvoirAppliedNotice] = useState<number | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
   const [paiementsEtapes, setPaiementsEtapes] = useState<PaiementEtape[]>([]);
   const [showIncidentsModal, setShowIncidentsModal] = useState(false);
   const [showDevisPaiementModal, setShowDevisPaiementModal] = useState(false);
@@ -333,6 +335,21 @@ export default function ClientDetail({
         .eq("client_id", client.id)
         .order("created_at", { ascending: true });
       setIncidents((data as Incident[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  // Circuit multi-hôtels — pour que "Hôtel" ne reste pas signalé manquant
+  // en haut de la fiche (badge) une fois un circuit renseigné, cf.
+  // infosManquantesAuto.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("client_hotels")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("ordre", { ascending: true });
+      setClientHotels((data as ClientHotel[]) || []);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
@@ -911,7 +928,7 @@ export default function ClientDetail({
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
-  const autoInfosManquantes = infosManquantesAuto(client, reservations, hotelsRef);
+  const autoInfosManquantes = infosManquantesAuto(client, reservations, hotelsRef, clientHotels);
   const manuelInfosManquantes = client.infos_manquantes.filter(
     (s) => s !== "Complet" && !autoInfosManquantes.includes(s)
   );

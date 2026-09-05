@@ -1,4 +1,4 @@
-import { Client, HotelReference, Reservation } from "@/lib/types";
+import { Client, ClientHotel, HotelReference, Reservation } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/dates";
 import { matchHotel } from "@/lib/hotelHelp";
 import { senseTransfertAeroport } from "@/lib/resa";
@@ -26,10 +26,14 @@ export const INFO_MANQUANTE_AUTO_VOL_TRANSFERT = "Flight ticket info";
 export function infosManquantesAuto(
   client: Client,
   reservations: Reservation[],
-  hotelsRef: HotelReference[] = []
+  hotelsRef: HotelReference[] = [],
+  // Circuit multi-hôtels (table client_hotels) — quand il existe, le champ
+  // client.hotel (simple, un seul hôtel) reste vide par design, il ne faut
+  // donc pas le signaler comme manquant tant qu'un circuit est renseigné.
+  clientHotels: ClientHotel[] = []
 ): string[] {
   const result: string[] = [];
-  if (!client.hotel.trim()) result.push(INFO_MANQUANTE_AUTO_HOTEL);
+  if (!client.hotel.trim() && clientHotels.length === 0) result.push(INFO_MANQUANTE_AUTO_HOTEL);
   // Le numéro de chambre n'est quasiment jamais connu avant l'arrivée —
   // le signaler dès la création du dossier créerait une fausse alerte
   // permanente. Ne compte comme vraiment manquant qu'à la veille ou le
@@ -95,13 +99,15 @@ const MANUEL_RESOLU: Record<string, (client: Client) => boolean> = {
 export function infosManquantesToutes(
   client: Client,
   reservations: Reservation[],
-  hotelsRef: HotelReference[] = []
+  hotelsRef: HotelReference[] = [],
+  clientHotels: ClientHotel[] = []
 ): string[] {
   const manuelles = client.infos_manquantes.filter((s) => {
     if (s === "Complet") return false;
+    if (s === INFO_MANQUANTE_AUTO_HOTEL && clientHotels.length > 0) return false;
     const estResolu = MANUEL_RESOLU[s];
     return !estResolu || !estResolu(client);
   });
-  const auto = infosManquantesAuto(client, reservations, hotelsRef);
+  const auto = infosManquantesAuto(client, reservations, hotelsRef, clientHotels);
   return Array.from(new Set([...auto, ...manuelles]));
 }

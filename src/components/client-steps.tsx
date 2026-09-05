@@ -231,7 +231,7 @@ export function ContactStep({
   // Déduites des vraies données (hôtel/chambre/téléphone/acompte/billet/
   // passeport) plutôt que cochées à la main — toujours à jour, jamais
   // oubliées ni laissées cochées une fois l'info complétée.
-  const autoTags = infosManquantesAuto(client, reservations, hotelsRef);
+  const autoTags = infosManquantesAuto(client, reservations, hotelsRef, clientHotels);
   const manualTagsAffichees = client.infos_manquantes.filter((s) => !autoTags.includes(s));
 
   const toggleInfoManquante = (opt: string) => {
@@ -426,41 +426,45 @@ export function ContactStep({
                 </>
               ) : (
                 <>
-                  <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
-                    <input
-                      value={client.hotel}
-                      onChange={(e) => onChange({ hotel: e.target.value })}
-                      placeholder="Hôtel"
-                      className="input-flat w-full font-medium"
-                    />
-                  </PropertyRow>
-                  {clientHotels.length === 0 && client.hotel.trim() && !hotelMatch && (
-                    <div className="pl-[26px] text-xs text-orange-600">
-                      ⚠ Cet hôtel n&apos;est pas répertorié — il faut l&apos;ajouter pour continuer.{" "}
+                  {clientHotels.length === 0 && (
+                    <>
+                      <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
+                        <input
+                          value={client.hotel}
+                          onChange={(e) => onChange({ hotel: e.target.value })}
+                          placeholder="Hôtel"
+                          className="input-flat w-full font-medium"
+                        />
+                      </PropertyRow>
+                      {client.hotel.trim() && !hotelMatch && (
+                        <div className="pl-[26px] text-xs text-orange-600">
+                          ⚠ Cet hôtel n&apos;est pas répertorié — il faut l&apos;ajouter pour continuer.{" "}
+                          <button
+                            type="button"
+                            onClick={() => setAjouterHotelZoneOpen(true)}
+                            className="underline hover:no-underline"
+                          >
+                            L&apos;ajouter
+                          </button>
+                        </div>
+                      )}
+                      <PropertyRow label="N° chambre(s)">
+                        <input
+                          value={client.chambre}
+                          onChange={(e) => onChange({ chambre: e.target.value })}
+                          placeholder="N° chambre(s)"
+                          className="input-flat w-full"
+                        />
+                      </PropertyRow>
                       <button
                         type="button"
-                        onClick={() => setAjouterHotelZoneOpen(true)}
-                        className="underline hover:no-underline"
+                        onClick={() => onChange({ type_hebergement: "airbnb" })}
+                        className="pl-[26px] text-left text-xs text-neutral-400 hover:text-neutral-600"
                       >
-                        L&apos;ajouter
+                        › changer vers un airbnb
                       </button>
-                    </div>
+                    </>
                   )}
-                  <PropertyRow label="N° chambre(s)">
-                    <input
-                      value={client.chambre}
-                      onChange={(e) => onChange({ chambre: e.target.value })}
-                      placeholder="N° chambre(s)"
-                      className="input-flat w-full"
-                    />
-                  </PropertyRow>
-                  <button
-                    type="button"
-                    onClick={() => onChange({ type_hebergement: "airbnb" })}
-                    className="pl-[26px] text-left text-xs text-neutral-400 hover:text-neutral-600"
-                  >
-                    › changer vers un airbnb
-                  </button>
 
                   <div className="border-t border-neutral-100 pt-2">
                     {clientHotels.length === 0 && !showCircuit ? (
@@ -582,6 +586,12 @@ export function ContactStep({
                         >
                           + Ajouter un hôtel
                         </button>
+                        {clientHotels.some((h) => !h.date_arrivee || !h.date_depart) && (
+                          <p className="text-xs text-orange-600">
+                            ⚠ Renseigne les dates d&apos;arrivée et de départ de chaque hôtel pour
+                            continuer.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -592,9 +602,9 @@ export function ContactStep({
               type="button"
               disabled={
                 client.type_hebergement !== "airbnb" &&
-                clientHotels.length === 0 &&
-                !!client.hotel.trim() &&
-                !hotelMatch
+                (clientHotels.length === 0
+                  ? !!client.hotel.trim() && !hotelMatch
+                  : clientHotels.some((h) => !h.date_arrivee || !h.date_depart))
               }
               onClick={() => setHotelModalOpen(false)}
               className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"

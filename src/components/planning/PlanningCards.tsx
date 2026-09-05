@@ -36,6 +36,8 @@ import { euros, fmtDate } from "@/lib/planningViewFormat";
 // des modales de détail — extraites de PlanningView.tsx pour l'alléger,
 // sans changement de comportement.
 
+export type Row = { client: Client; r: Reservation };
+
 export function ReservationSummaryCard({
   client,
   r,

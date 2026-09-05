@@ -2829,19 +2829,30 @@ export function PaiementsStep({
           <>
         <select
           value={client.paiement_type}
-          onChange={(e) => onChange({ paiement_type: e.target.value })}
-          disabled={!!client.paiement_type && !isDirection}
-          className="input disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
+          onChange={(e) => {
+            const value = e.target.value;
+            onChange({
+              paiement_type: value,
+              // Le tout premier choix jamais fait reste figé pour toujours,
+              // même si paiement_type change ensuite — pour ne jamais perdre
+              // ce qui avait été convenu au départ (voir commentaire sur le
+              // champ dans types.ts). Le changement lui-même est tracé dans
+              // l'historique du dossier (voir migration 0117).
+              paiement_type_prevu: client.paiement_type_prevu || value,
+            });
+          }}
+          className="input"
         >
           <option value="">Choisir…</option>
           <option value="integral">Paiement intégral en une seule fois</option>
           <option value="acompte">Paiement acompte + règlement à l&apos;arrivée</option>
         </select>
-        {!!client.paiement_type && !isDirection && (
-          <p className="mt-1 text-xs text-neutral-500">
-            🔒 Choix figé une fois défini — seule la Direction peut le modifier. Pour enregistrer un
-            paiement : clique &quot;Marquer encaissé&quot; sur l&apos;acompte ou le solde concerné, ou
-            utilise &quot;+ Ajouter une étape&quot;.
+        {client.paiement_type_prevu && client.paiement_type_prevu !== client.paiement_type && (
+          <p className="mt-1 text-xs font-medium text-red-600">
+            Initialement prévu :{" "}
+            {client.paiement_type_prevu === "integral"
+              ? "Paiement intégral en une seule fois"
+              : "Paiement acompte + règlement à l'arrivée"}
           </p>
         )}
 

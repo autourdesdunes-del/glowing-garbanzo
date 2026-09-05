@@ -471,6 +471,13 @@ export type Client = {
   solde_rdv_lieu: string;
   solde_assigne_a: string;
   paiement_type: string;
+  // Premier choix jamais fait pour ce dossier — figé dès la première fois
+  // où paiement_type est renseigné, jamais réécrit ensuite. Sert à toujours
+  // pouvoir voir ce qui avait été convenu au départ même si paiement_type
+  // change en cours de route (déverrouillé pour tout le monde, voir
+  // PaiementsStep) — le changement lui-même est aussi tracé dans
+  // l'historique du dossier (activity_log).
+  paiement_type_prevu: string;
   paiement_integral_mode: string;
   solde_rdv_valide: boolean;
   solde_rdv_finalise: boolean;
@@ -610,6 +617,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   solde_rdv_lieu: "",
   solde_assigne_a: "",
   paiement_type: "",
+  paiement_type_prevu: "",
   paiement_integral_mode: "",
   solde_rdv_valide: false,
   solde_rdv_finalise: false,

@@ -75,6 +75,15 @@ import {
 } from "@/lib/contactStepFormat";
 import { AgeChips, parseAges, PropIcon, SearchableSelect } from "@/components/clientSteps/ContactStepPrimitives";
 import { EncaisseButton, INTEGRAL_MODES, PaiementResteFlow } from "@/components/clientSteps/PaiementResteFlow";
+import {
+  ACTION_ICONS,
+  ACTION_STYLES,
+  actionLabel,
+  ANNULATION_TYPE_PAR,
+  fmtDate,
+  fmtDateTime,
+  tableLabel,
+} from "@/lib/suiviStepFormat";
 
 export function extractAges(text: string | null | undefined): string[] {
   return (text || "").match(/\d+/g) || [];
@@ -2794,54 +2803,6 @@ export function PaiementsStep({
   );
 }
 
-function fmtDate(dateStr: string | null) {
-  if (!dateStr) return "—";
-  const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-}
-
-function fmtDateTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function actionLabel(action: string) {
-  return { insert: "a créé", update: "a modifié", delete: "a supprimé" }[action] || action;
-}
-
-function tableLabel(table: string) {
-  return (
-    {
-      clients: "la fiche client",
-      reservations: "une activité",
-      paiements: "un acompte",
-      paiements_etapes: "un paiement",
-      remboursements: "un remboursement",
-    }[table] || table
-  );
-}
-
-const ANNULATION_TYPE_PAR: Record<string, string> = {
-  client: "par le client",
-  agence: "par l'agence",
-  gouvernement: "par le gouvernement",
-};
-
-const ACTION_STYLES: Record<string, string> = {
-  insert: "bg-green-100 text-green-700",
-  update: "bg-blue-100 text-blue-700",
-  delete: "bg-red-100 text-red-700",
-};
-const ACTION_ICONS: Record<string, string> = {
-  insert: "+",
-  update: "✎",
-  delete: "✕",
-};
 
 export function SuiviStep({
   client,

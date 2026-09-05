@@ -349,6 +349,27 @@ export function paiementBadge(
   return { label: opt.label, className: opt.className };
 }
 
+// Badge de paiement d'une activité annulée — distinct du badge de solde
+// global (paiementBadge) : reflète ce qui a été réellement réglé sur CETTE
+// activité avant qu'elle ne soit annulée, complété par ce qui a été décidé
+// au remboursement. Partagé entre la fiche client (ItineraryView) et la vue
+// Réservations globale (PlanningView) pour qu'une activité annulée ne
+// s'affiche jamais avec le badge de paiement "en direct" (trompeur — une
+// activité annulée et déjà remboursée ne doit jamais pouvoir se remarquer
+// "Payé" par erreur).
+export function badgeAnnulation(r: Reservation): { label: string; className: string } {
+  if (!r.annulation_paye_avant) {
+    return { label: "Non payée", className: "bg-neutral-100 text-neutral-500" };
+  }
+  if (r.annulation_remb_avoir === "rembourse") {
+    return { label: "Payée — remboursée", className: "bg-[#0F5C56]/10 text-[#0F5C56]" };
+  }
+  if (r.annulation_remb_avoir === "avoir") {
+    return { label: "Payée — avoir créé", className: "bg-orange-100 text-orange-700" };
+  }
+  return { label: "Payée, non remboursée", className: "bg-red-100 text-red-700" };
+}
+
 // Un avoir utilisé se rattache toujours à l'activité qui en a bénéficié
 // (reservation.avoir_utilise, affiché sur sa carte) — le total consommé sur
 // le séjour est simplement la somme de ce champ sur toutes les activités.

@@ -17,6 +17,7 @@ import {
   acompteWaitingWarning,
   activitePaiementWarning,
   avoirUtiliseTotal,
+  badgeAnnulation,
   chevalChameauBadge,
   cleanActivityTitle,
   fmtEncaisseLe,
@@ -25,6 +26,7 @@ import {
   optionsBadge,
   enCoursBadge,
   reductionBadge,
+  taxeTransfertManquante,
   paiementBadge,
   paiementStatutKey,
   participantsFor,
@@ -39,7 +41,7 @@ import {
   siteCaireBadge,
   volBadge,
 } from "@/lib/resa";
-import { localDateStr } from "@/lib/dates";
+import { localDateStr, fmtAnnulationSuffix } from "@/lib/dates";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { baseActivityName, buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -136,6 +138,7 @@ function ReservationSummaryCard({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  hotelsRef = [],
   onClick,
   onOpenClient,
   size = "full",
@@ -146,10 +149,15 @@ function ReservationSummaryCard({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  hotelsRef?: HotelReference[];
   onClick: () => void;
   onOpenClient: (clientId: string) => void;
   size?: "full" | "medium" | "compact";
 }) {
+  const hotelHorsHurghada = (() => {
+    const m = matchHotel(client.hotel, hotelsRef);
+    return !!m && !m.sur_hurghada;
+  })();
   const options = resaOptions[r.id] || [];
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
   const { nbAd, nbEnf } = participantsFor(r, client);
@@ -241,6 +249,16 @@ function ReservationSummaryCard({
           {chevalChameauBadge(r, client) && (
             <span className="whitespace-nowrap rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
               {chevalChameauBadge(r, client)}
+            </span>
+          )}
+          {taxeTransfertManquante(r, hotelHorsHurghada) && (
+            <span className="whitespace-nowrap rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+              ⚠ Taxe manquante
+            </span>
+          )}
+          {r.avoir_utilise > 0 && (
+            <span className="whitespace-nowrap rounded-full bg-[#C9973E]/20 px-1.5 py-0.5 text-[10px] font-medium text-[#8B4531]">
+              Avoir {euros(r.avoir_utilise)} €
             </span>
           )}
         </div>
@@ -420,6 +438,16 @@ function ReservationSummaryCard({
             {chevalChameauBadge(r, client)}
           </span>
         )}
+        {taxeTransfertManquante(r, hotelHorsHurghada) && (
+          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+            ⚠ Taxe de transfert manquante
+          </span>
+        )}
+        {r.avoir_utilise > 0 && (
+          <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+            Avoir de {euros(r.avoir_utilise)} € utilisé
+          </span>
+        )}
         {paiementWarning && (
           <span className="text-xs font-medium text-red-600">
             ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
@@ -546,7 +574,15 @@ function ActivityDetailModal({
   // uniquement — jamais du tableau global toutes activités confondues.
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
-  const badge = paiementBadge(effectiveClient, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
+  // Le badge de paiement "en direct" (solde/acompte) n'a pas de sens pour une
+  // activité annulée — elle resterait potentiellement affichée "Payé" alors
+  // qu'elle a été remboursée. Ce modal est atteignable depuis le tiroir
+  // "activités annulées" du calendrier, contrairement au reste de cette vue
+  // qui exclut déjà les annulées.
+  const badge =
+    r.statut_resa === "Annulée"
+      ? badgeAnnulation(r)
+      : paiementBadge(effectiveClient, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
   // Le solde peut être en attente de règlement sur une AUTRE activité déjà
   // identifiée (solde_activite_id pointe ailleurs) — dans ce cas on
   // renseigne où et quand, plutôt que de ne rien dire du tout.
@@ -660,9 +696,16 @@ function ActivityDetailModal({
           )}
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="font-heading text-lg font-semibold text-[#171717]">
+              <h3
+                className={`font-heading text-lg font-semibold ${
+                  r.statut_resa === "Annulée" ? "text-red-600" : "text-[#171717]"
+                }`}
+              >
                 {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
                 {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
+                {r.statut_resa === "Annulée"
+                  ? ` ${fmtAnnulationSuffix(r.annulation_date, r.annulation_heure)}`
+                  : ""}
             </h3>
             {r.info_importante.trim() && (
               <span
@@ -718,11 +761,26 @@ function ActivityDetailModal({
                 {chevalChameauBadge(r, client)}
               </span>
             )}
+            {taxeTransfertManquante(r, !!hotelMatch && !hotelMatch.sur_hurghada) && (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                ⚠ Taxe de transfert manquante
+              </span>
+            )}
+            {r.avoir_utilise > 0 && (
+              <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+                Avoir de {euros(r.avoir_utilise)} € utilisé
+              </span>
+            )}
           </div>
           <button type="button" onClick={onClose} className="shrink-0 text-neutral-400 hover:text-[#171717]">
             ✕
           </button>
         </div>
+        {r.statut_resa === "Annulée" && r.annulation_raison && (
+          <p className="mt-1 text-xs font-medium text-red-600">
+            Annulée — {r.annulation_raison}
+          </p>
+        )}
         {(paiementWarning || acompteWarning) && (
           <div className="mt-1 flex flex-wrap gap-2">
             {acompteWarning && (
@@ -779,32 +837,42 @@ function ActivityDetailModal({
           )}
           <DetailRow label="PAX">{paxLine(r, client)}</DetailRow>
           <DetailRow label="Paiement">
-            <select
-              value={paiementStatutKey(effectiveClient, r)}
-              onChange={async (e) => {
-                const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
-                if (!opt) return;
-                if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(effectiveClient)) {
-                  const ok = await confirm({
-                    title: "L'acompte n'a pas encore été marqué encaissé",
-                    message: `L'acompte de ${euros(effectiveClient.acompte_montant)} € (${effectiveClient.acompte_mode}) est toujours "en attente". En continuant, tout le séjour — acompte compris — sera considéré comme payé partout dans le dossier. Le montant collecté couvre-t-il bien aussi cet acompte ?`,
-                    confirmLabel: "Oui, l'acompte est inclus",
-                    cancelLabel: "Non, annuler",
-                  });
-                  if (!ok) return;
-                }
-                const patch = opt.patch(r);
-                setSoldeOverride((prev) => ({ ...prev, ...patch }));
-                await supabase.from("clients").update(patch).eq("id", client.id);
-              }}
-              className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${badge.className}`}
-            >
-              {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            {r.statut_resa === "Annulée" ? (
+              // Le menu déroulant "en direct" reste caché sur une activité
+              // annulée — sinon on peut la remarquer "Payé" par erreur alors
+              // que le vrai statut à retenir est celui décidé à l'annulation
+              // (remboursée / avoir créé / non remboursée).
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
+                {badge.label}
+              </span>
+            ) : (
+              <select
+                value={paiementStatutKey(effectiveClient, r)}
+                onChange={async (e) => {
+                  const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
+                  if (!opt) return;
+                  if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(effectiveClient)) {
+                    const ok = await confirm({
+                      title: "L'acompte n'a pas encore été marqué encaissé",
+                      message: `L'acompte de ${euros(effectiveClient.acompte_montant)} € (${effectiveClient.acompte_mode}) est toujours "en attente". En continuant, tout le séjour — acompte compris — sera considéré comme payé partout dans le dossier. Le montant collecté couvre-t-il bien aussi cet acompte ?`,
+                      confirmLabel: "Oui, l'acompte est inclus",
+                      cancelLabel: "Non, annuler",
+                    });
+                    if (!ok) return;
+                  }
+                  const patch = opt.patch(r);
+                  setSoldeOverride((prev) => ({ ...prev, ...patch }));
+                  await supabase.from("clients").update(patch).eq("id", client.id);
+                }}
+                className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${badge.className}`}
+              >
+                {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            )}
           </DetailRow>
           <DetailRow label="Total">{euros(total)} €</DetailRow>
         </div>
@@ -1007,6 +1075,7 @@ function CalendarMonthView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  hotelsRef = [],
   onOpenActivity,
   onOpenClient,
 }: {
@@ -1015,6 +1084,7 @@ function CalendarMonthView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  hotelsRef?: HotelReference[];
   onOpenActivity: (row: Row) => void;
   onOpenClient: (clientId: string) => void;
 }) {
@@ -1178,6 +1248,7 @@ function CalendarMonthView({
                   resaOptions={resaOptions}
                   resaTarifs={resaTarifs}
                   paiementsEtapes={paiementsEtapes}
+                  hotelsRef={hotelsRef}
                   onClick={() => onOpenActivity(row)}
                   onOpenClient={onOpenClient}
                 />
@@ -1223,7 +1294,10 @@ function CalendarMonthView({
                             {row.client.nom || "Sans nom"}
                           </button>
                           {row.r.annulation_raison && (
-                            <p className="mt-0.5 text-xs text-neutral-500">{row.r.annulation_raison}</p>
+                            <p className="mt-0.5 text-xs text-neutral-500">
+                              {row.r.annulation_raison}{" "}
+                              {fmtAnnulationSuffix(row.r.annulation_date, row.r.annulation_heure)}
+                            </p>
                           )}
                         </div>
                       ))}
@@ -1248,6 +1322,7 @@ function ByActivityView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  hotelsRef = [],
   catalogue,
   onOpenActivity,
   onOpenClient,
@@ -1257,6 +1332,7 @@ function ByActivityView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  hotelsRef?: HotelReference[];
   catalogue: CatalogueItem[];
   onOpenActivity: (row: Row) => void;
   onOpenClient: (clientId: string) => void;
@@ -1289,6 +1365,11 @@ function ByActivityView({
     const byCategory = new Map<string, { label: string; byDate: Map<string, Row[]> }>();
     reservations.forEach((r) => {
       if (!r.date_debut) return;
+      // Sans ce filtre, une activité annulée gonflait quand même le compteur
+      // "X à venir" et apparaissait comme une carte normale — alors que
+      // toutes les autres vues de ce fichier (liste principale, calendrier)
+      // excluent déjà les annulées.
+      if (r.statut_resa === "Annulée") return;
       if (monthFilter === "a_venir") {
         if (r.date_debut < todayStr) return;
       } else if (r.date_debut < monthFilter || r.date_debut > monthEnd) {
@@ -1385,6 +1466,7 @@ function ByActivityView({
                             resaOptions={resaOptions}
                             resaTarifs={resaTarifs}
                             paiementsEtapes={paiementsEtapes}
+                            hotelsRef={hotelsRef}
                             onClick={() => onOpenActivity(row)}
                             onOpenClient={onOpenClient}
                             size="compact"
@@ -1544,6 +1626,7 @@ export default function PlanningView({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           paiementsEtapes={paiementsEtapes}
+          hotelsRef={hotelsRef}
           onOpenActivity={setActiveActivity}
           onOpenClient={onOpenClient}
         />
@@ -1554,6 +1637,7 @@ export default function PlanningView({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           paiementsEtapes={paiementsEtapes}
+          hotelsRef={hotelsRef}
           catalogue={catalogue}
           onOpenActivity={setActiveActivity}
           onOpenClient={onOpenClient}
@@ -1618,6 +1702,7 @@ export default function PlanningView({
                     resaOptions={resaOptions}
                     resaTarifs={resaTarifs}
                     paiementsEtapes={paiementsEtapes}
+                    hotelsRef={hotelsRef}
                     onClick={() => setActiveActivity(row)}
                     onOpenClient={onOpenClient}
                     size="medium"

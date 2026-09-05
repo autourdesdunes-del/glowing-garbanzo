@@ -504,18 +504,20 @@ export default function AddActivityWizard({
   );
 
   if (step === "choix") {
-    const rechercheNette = deaccent(catalogueSearch.trim());
+    const rechercheNette = deaccent(catalogueSearch.trim()).toLowerCase();
     // Mot par mot plutôt qu'une seule sous-chaîne : "transfert assouan" doit
     // retrouver "Transfert privatif Assouan..." même si l'ordre ou les mots
     // exacts diffèrent (ex. "le caire mini bus" doit quand même retrouver
     // "Le Caire en mini-bus") — chaque mot tapé doit juste apparaître
-    // quelque part dans le nom, peu importe l'ordre.
+    // quelque part dans le nom, peu importe l'ordre. toLowerCase() est
+    // indispensable : deaccent() ne fait qu'enlever les accents, les noms du
+    // catalogue sont en Majuscules et la recherche tapée est en minuscules.
     const motsRecherche = rechercheNette.split(/\s+/).filter(Boolean);
     const catalogueFiltre =
       motsRecherche.length > 0
         ? catalogue
             .filter((a) => {
-              const nomNormalise = deaccent(a.nom);
+              const nomNormalise = deaccent(a.nom).toLowerCase();
               return motsRecherche.every((m) => nomNormalise.includes(m));
             })
             .sort((a, b) => a.nom.localeCompare(b.nom))

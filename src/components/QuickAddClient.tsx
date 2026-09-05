@@ -31,6 +31,7 @@ type StepId =
   | "canal"
   | "canal_autre"
   | "pseudo"
+  | "canal_secondaire"
   | "relation"
   | "relation_autre"
   | "telephone"
@@ -62,6 +63,7 @@ function buildSteps(a: Partial<Client>): StepId[] {
   const steps: StepId[] = ["nom", "statut", "canal"];
   if (a.canal === "Autre") steps.push("canal_autre");
   if (a.canal === "Instagram" || a.canal === "TikTok") steps.push("pseudo");
+  steps.push("canal_secondaire");
   steps.push("relation");
   if (a.relation_grace_a === "Autre") steps.push("relation_autre");
   steps.push("telephone", "email", "passeport", "infos_manquantes");
@@ -79,6 +81,7 @@ const CONTACT_STEPS: StepId[] = [
   "canal",
   "canal_autre",
   "pseudo",
+  "canal_secondaire",
   "relation",
   "relation_autre",
   "telephone",
@@ -650,6 +653,66 @@ export default function QuickAddClient({
                     />
                   </Field>
                 </>
+              )}
+
+              {step === "canal_secondaire" && (
+                <Field label="Second canal (optionnel)">
+                  {answers.canal_secondaire ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <select
+                          autoFocus
+                          value={answers.canal_secondaire}
+                          onChange={(e) => patch({ canal_secondaire: e.target.value })}
+                          className="input flex-1"
+                        >
+                          {CANAUX.filter((c) => c !== answers.canal).map((c) => (
+                            <option key={c}>{c}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            patch({
+                              canal_secondaire: "",
+                              canal_secondaire_autre: "",
+                              pseudo_contact_secondaire: "",
+                            })
+                          }
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Retirer
+                        </button>
+                      </div>
+                      {answers.canal_secondaire === "Autre" && (
+                        <input
+                          value={answers.canal_secondaire_autre || ""}
+                          onChange={(e) => patch({ canal_secondaire_autre: e.target.value })}
+                          placeholder="Préciser le canal"
+                          className="input"
+                        />
+                      )}
+                      {(answers.canal_secondaire === "Instagram" || answers.canal_secondaire === "TikTok") && (
+                        <input
+                          value={answers.pseudo_contact_secondaire || ""}
+                          onChange={(e) => patch({ pseudo_contact_secondaire: e.target.value })}
+                          placeholder={`Pseudo ${answers.canal_secondaire}`}
+                          className="input"
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        patch({ canal_secondaire: CANAUX.find((c) => c !== answers.canal) || CANAUX[0] })
+                      }
+                      className="text-sm text-[#171717] hover:underline"
+                    >
+                      + Ajouter un second canal
+                    </button>
+                  )}
+                </Field>
               )}
 
               {step === "relation" && (

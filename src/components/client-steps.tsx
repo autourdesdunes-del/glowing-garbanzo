@@ -928,6 +928,16 @@ export function ContactStep({
                       />
                     </PropertyRow>
                   )}
+                  {(client.canal_secondaire === "Instagram" || client.canal_secondaire === "TikTok") && (
+                    <PropertyRow label={`Pseudo ${client.canal_secondaire}`}>
+                      <input
+                        value={client.pseudo_contact_secondaire}
+                        onChange={(e) => onChange({ pseudo_contact_secondaire: e.target.value })}
+                        placeholder="pseudo"
+                        className="input-flat w-full"
+                      />
+                    </PropertyRow>
+                  )}
                 </>
               ) : (
                 <button

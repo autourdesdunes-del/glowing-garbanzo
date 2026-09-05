@@ -425,6 +425,10 @@ export type Client = {
   // fois (ex. WhatsApp + Email, WhatsApp + Instagram). Vide si un seul canal.
   canal_secondaire: string;
   canal_secondaire_autre: string;
+  // Pseudo Instagram/TikTok du second canal — distinct de pseudo_contact
+  // (celui du canal principal), pour ne jamais écraser l'un par l'autre
+  // quand les deux canaux sont Instagram/TikTok.
+  pseudo_contact_secondaire: string;
   pseudo_contact: string;
   // Deuxième pseudo Instagram/TikTok, jamais obligatoire.
   pseudo_contact_2: string;
@@ -579,6 +583,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   canal_autre: "",
   canal_secondaire: "",
   canal_secondaire_autre: "",
+  pseudo_contact_secondaire: "",
   pseudo_contact: "",
   pseudo_contact_2: "",
   relation_grace_a: "Instagram",

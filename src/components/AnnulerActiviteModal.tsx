@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { clientAPayeQuelqueChose, isMontgolfiereActivity, reglementAnnulation, resaTotalMontant } from "@/lib/resa";
+import { CatalogueItem, Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import {
+  clientAPayeQuelqueChose,
+  isMontgolfiereActivity,
+  reglementAnnulation,
+  resaTotalMontant,
+  soldeRestantSejour,
+} from "@/lib/resa";
 import { ANNULATION_TYPES, RAISONS_ANNULATION, MODES_PAIEMENT } from "@/lib/constants";
 import { nowHHMM, todayStr } from "@/lib/dates";
 import { fmtDateDMY } from "@/lib/contactStepFormat";
@@ -25,6 +31,9 @@ export default function AnnulerActiviteModal({
   r,
   client,
   reservations,
+  resaOptions,
+  resaTarifs,
+  paiementsEtapes,
   options,
   tarifs,
   catalogueItem,
@@ -36,6 +45,13 @@ export default function AnnulerActiviteModal({
   r: Reservation;
   client: Client;
   reservations: Reservation[];
+  // Nécessaires uniquement pour calculer le vrai reste à payer du séjour
+  // (voir soldeRestantSejour) quand le solde est rattaché à cette activité
+  // — client.solde_montant seul ne suffit pas, il reste à 0 tant que le
+  // solde n'a jamais été marqué payé.
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes: PaiementEtape[];
   options: ReservationOption[];
   tarifs: ReservationTarif[];
   catalogueItem: CatalogueItem | undefined;
@@ -122,8 +138,15 @@ export default function AnnulerActiviteModal({
   // demandé explicitement plutôt que déplacé/effacé en silence.
   const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
   const repriseIci = !soldeIci && client.reprise_activite_id === r.id && Number(client.reprise_montant) > 0;
+  // client.solde_montant reste à 0 tant que le solde n'a jamais été marqué
+  // payé (voir soldeRestantSejour) — le vrai montant en attente est calculé
+  // à la volée, jamais lu directement sur ce champ.
   const reglementIci: { type: "solde" | "reprise"; montant: number; mode: string } | null = soldeIci
-    ? { type: "solde", montant: Number(client.solde_montant) || 0, mode: client.solde_mode }
+    ? {
+        type: "solde",
+        montant: soldeRestantSejour(client, reservations, resaOptions, resaTarifs, paiementsEtapes),
+        mode: client.solde_mode,
+      }
     : repriseIci
       ? { type: "reprise", montant: Number(client.reprise_montant) || 0, mode: client.reprise_mode }
       : null;

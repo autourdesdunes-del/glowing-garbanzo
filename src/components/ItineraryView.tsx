@@ -848,6 +848,9 @@ export default function ItineraryView({
               r={resaAnnuler}
               client={client}
               reservations={reservations}
+              resaOptions={resaOptions}
+              resaTarifs={resaTarifs}
+              paiementsEtapes={paiementsEtapes}
               options={resaOptions[resaAnnuler.id] || []}
               tarifs={resaTarifs[resaAnnuler.id] || []}
               catalogueItem={catalogue.find((c) => c.id === resaAnnuler.catalogue_item_id)}

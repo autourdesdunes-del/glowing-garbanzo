@@ -1461,6 +1461,28 @@ export function sharedActivityAlerts(
   return alerts.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Le solde n'est jamais saisi à la main : c'est toujours le reste du
+// séjour une fois l'acompte, les étapes de paiement libres et un éventuel
+// avoir consommé déduits (même formule que PaiementsStep) — extrait ici
+// pour être réutilisable ailleurs (ex. AnnulerActiviteModal) sans dupliquer
+// le calcul avec un risque de désynchronisation.
+export function soldeRestantSejour(
+  client: Client,
+  reservations: Reservation[],
+  resaOptions: Record<string, ReservationOption[]>,
+  resaTarifs: Record<string, ReservationTarif[]>,
+  paiementsEtapes: PaiementEtape[]
+) {
+  const totalSejour = reservationsActives(reservations).reduce(
+    (sum, r) => sum + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
+    0
+  );
+  const acomptePaye = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  const avoirUtilise = reservations.reduce((s, r) => s + (Number(r.avoir_utilise) || 0), 0);
+  const etapesSum = paiementsEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
+  return Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
+}
+
 export function resaTotalMontant(
   r: Reservation,
   client: Client,

@@ -47,6 +47,7 @@ import {
 import AddActivityWizard from "@/components/AddActivityWizard";
 import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import AnnulerMontgolfiereModal from "@/components/AnnulerMontgolfiereModal";
+import RetirerParticipantsModal from "@/components/RetirerParticipantsModal";
 import AjouterRemboursementAvoirModal from "@/components/AjouterRemboursementAvoirModal";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -204,6 +205,7 @@ export default function ItineraryView({
   const [annulerActiviteId, setAnnulerActiviteId] = useState<string | null>(null);
   const [rembAvoirActiviteId, setRembAvoirActiviteId] = useState<string | null>(null);
   const [montgolfiereActiviteId, setMontgolfiereActiviteId] = useState<string | null>(null);
+  const [retirerParticipantsActiviteId, setRetirerParticipantsActiviteId] = useState<string | null>(null);
   const [egyptOpen, setEgyptOpen] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   useEffect(() => {
@@ -258,6 +260,14 @@ export default function ItineraryView({
           {r.montgolfiere_annulee && (
             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700">
               🎈 Montgolfière annulée
+            </span>
+          )}
+          {r.participants_retires > 0 && (
+            <span
+              title={r.participants_retires_motif || undefined}
+              className="rounded-full bg-neutral-200 px-2 py-0.5 text-[11px] font-medium text-neutral-700"
+            >
+              −{r.participants_retires} participant{r.participants_retires > 1 ? "s" : ""}
             </span>
           )}
           {momentBadge(r) && (
@@ -499,6 +509,15 @@ export default function ItineraryView({
                     🎈 Montgolfière annulée
                   </span>
                 )}
+                {expandedReservation.participants_retires > 0 && (
+                  <span
+                    title={expandedReservation.participants_retires_motif || undefined}
+                    className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-700"
+                  >
+                    −{expandedReservation.participants_retires} participant
+                    {expandedReservation.participants_retires > 1 ? "s" : ""}
+                  </span>
+                )}
                 {reductionBadge(expandedReservation) && (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                     {reductionBadge(expandedReservation)}
@@ -657,6 +676,16 @@ export default function ItineraryView({
                       🎈
                     </button>
                   )}
+                {expandedReservation.statut_resa !== "Annulée" && (
+                  <button
+                    type="button"
+                    onClick={() => setRetirerParticipantsActiviteId(expandedReservation.id)}
+                    title="Retirer une partie des participants (le reste garde l'activité)"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                  >
+                    👤−
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -897,6 +926,24 @@ export default function ItineraryView({
               client={client}
               onUpdate={(patch) => onUpdateReservation(resaMontgolfiere.id, patch)}
               onClose={() => setMontgolfiereActiviteId(null)}
+            />
+          );
+        })()}
+
+      {retirerParticipantsActiviteId &&
+        (() => {
+          const resaCible = reservations.find((r) => r.id === retirerParticipantsActiviteId);
+          if (!resaCible) return null;
+          return (
+            <RetirerParticipantsModal
+              r={resaCible}
+              client={client}
+              options={resaOptions[resaCible.id] || []}
+              tarifs={resaTarifs[resaCible.id] || []}
+              onUpdate={(patch) => onUpdateReservation(resaCible.id, patch)}
+              onUpdateOption={(optId, patch) => onUpdateOption(resaCible.id, optId, patch)}
+              onUpdateClient={onUpdateClient}
+              onClose={() => setRetirerParticipantsActiviteId(null)}
             />
           );
         })()}

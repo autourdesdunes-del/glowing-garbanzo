@@ -118,6 +118,11 @@ export function ReservationSummaryCard({
               🎈 Montgolfière annulée
             </span>
           )}
+          {r.participants_retires > 0 && (
+            <span className="whitespace-nowrap rounded-full bg-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700">
+              −{r.participants_retires} participant{r.participants_retires > 1 ? "s" : ""}
+            </span>
+          )}
           {acompteWarning && (
             <span className="whitespace-nowrap text-[10px] font-medium text-yellow-700">
               ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
@@ -308,6 +313,11 @@ export function ReservationSummaryCard({
         {r.montgolfiere_annulee && (
           <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
             🎈 Montgolfière annulée
+          </span>
+        )}
+        {r.participants_retires > 0 && (
+          <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-700">
+            −{r.participants_retires} participant{r.participants_retires > 1 ? "s" : ""}
           </span>
         )}
         {acompteWarning && (

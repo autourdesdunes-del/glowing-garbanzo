@@ -268,6 +268,11 @@ export function ActivityDetailModal({
                 🎈 Montgolfière annulée
               </span>
             )}
+            {r.participants_retires > 0 && (
+              <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-700">
+                −{r.participants_retires} participant{r.participants_retires > 1 ? "s" : ""}
+              </span>
+            )}
             {momentBadge(r) && (
               <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
                 {momentBadge(r)}

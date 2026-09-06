@@ -274,6 +274,14 @@ export type Reservation = {
   // statut_resa "Annulée", qui annule toute l'activité.
   montgolfiere_annulee: boolean;
   montgolfiere_annulee_date: string | null;
+  // Annulation partielle des PARTICIPANTS d'une activité (ex. famille de 4
+  // au quad, 2 annulent, 2 y vont quand même) — voir
+  // RetirerParticipantsModal. participants_adultes/enfants ci-dessus
+  // reflètent déjà le nombre restant (participants_mode passe à "custom") ;
+  // ces deux champs ne servent qu'à garder une trace de ce qui a été retiré
+  // pour l'affichage (badge, motif), jamais utilisés dans les calculs.
+  participants_retires: number;
+  participants_retires_motif: string;
   billet_requis: boolean;
   billet_etape: string;
   billet_demande_envoyee_le: string | null;

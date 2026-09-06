@@ -14,6 +14,7 @@ import {
   CatalogueTarif,
   CatalogueTransfertTarif,
   Client,
+  ClientHotel,
   EMPTY_CLIENT,
   Incident,
   JourEscalation,
@@ -287,6 +288,11 @@ function AppShellInner({
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
   const [directionTaches, setDirectionTaches] = useState<DirectionTache[]>([]);
   const [allPaiementsEtapes, setAllPaiementsEtapes] = useState<PaiementEtape[]>([]);
+  // Tous les circuits multi-hôtels, groupés par client — permet au
+  // Dashboard de ne pas signaler "Hôtel manquant" à tort pour un client qui
+  // a bien un circuit renseigné (voir infosManquantesAuto/DashboardView) :
+  // avant ça, seule la fiche client individuelle avait cette info.
+  const [allClientHotels, setAllClientHotels] = useState<Record<string, ClientHotel[]>>({});
   const [allIncidents, setAllIncidents] = useState<Incident[]>([]);
   const [allVerifications, setAllVerifications] = useState<Verification[]>([]);
   const [paypalPaiements, setPaypalPaiements] = useState<PaypalPaiement[]>([]);
@@ -613,6 +619,12 @@ function AppShellInner({
         }
         const { data: etapes } = await supabase.from("paiements_etapes").select("*");
         setAllPaiementsEtapes((etapes as PaiementEtape[]) || []);
+        const { data: hotels } = await supabase.from("client_hotels").select("*");
+        const groupedHotels: Record<string, ClientHotel[]> = {};
+        ((hotels as ClientHotel[]) || []).forEach((h) => {
+          groupedHotels[h.client_id] = [...(groupedHotels[h.client_id] || []), h];
+        });
+        setAllClientHotels(groupedHotels);
 
         setPlanningLoaded(true);
       }
@@ -1037,6 +1049,12 @@ function AppShellInner({
         }
         const { data: etapes } = await supabase.from("paiements_etapes").select("*");
         setAllPaiementsEtapes((etapes as PaiementEtape[]) || []);
+        const { data: hotels } = await supabase.from("client_hotels").select("*");
+        const groupedHotels: Record<string, ClientHotel[]> = {};
+        ((hotels as ClientHotel[]) || []).forEach((h) => {
+          groupedHotels[h.client_id] = [...(groupedHotels[h.client_id] || []), h];
+        });
+        setAllClientHotels(groupedHotels);
       }
 
       if (flags.suivisLoaded) {
@@ -2483,6 +2501,7 @@ function AppShellInner({
               teamProfiles={teamProfiles}
               displayFirstName={effectivePrenom}
               paiementsEtapes={allPaiementsEtapes}
+              clientHotels={allClientHotels}
             />
           )}
         </div>

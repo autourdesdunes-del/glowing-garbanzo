@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CatalogueItem,
   Client,
+  ClientHotel,
   Incident,
   PaiementEtape,
   PlanningShift,
@@ -63,6 +64,7 @@ export default function DashboardView({
   teamProfiles,
   displayFirstName,
   paiementsEtapes,
+  clientHotels,
 }: {
   userEmail: string;
   // Simulation "Aperçu vu par" (AppShell) : affiche le shift du jour de
@@ -111,6 +113,11 @@ export default function DashboardView({
   // casser si jamais non fourni : on retombe alors sur l'ancien calcul.
   displayFirstName?: string;
   paiementsEtapes: PaiementEtape[];
+  // Circuits multi-hôtels groupés par client (AppShell) — sans ça,
+  // infosManquantesToutes signalait "Hôtel manquant" à tort pour tout
+  // client ayant un circuit renseigné (seule la fiche individuelle avait
+  // cette info jusqu'ici, voir client_hotels/ClientHotel).
+  clientHotels?: Record<string, ClientHotel[]>;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
@@ -272,7 +279,7 @@ export default function DashboardView({
       c.date_debut &&
       c.date_debut >= todayStr &&
       c.date_debut <= in14Days &&
-      infosManquantesToutes(c, reservations).length > 0
+      infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0
   );
   // File prioritaire : un dossier incomplet n'y reste que si l'arrivée est
   // proche (3 jours) — au-delà, il y a encore le temps de le compléter sans
@@ -285,7 +292,7 @@ export default function DashboardView({
       c.date_debut &&
       c.date_debut >= todayStr &&
       c.date_debut <= in3Days &&
-      infosManquantesToutes(c, reservations).length > 0
+      infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0
   );
 
   // Billet d'avion pas encore reçu (étape avant "reçu — à envoyer au
@@ -368,7 +375,7 @@ export default function DashboardView({
   const incompleteRows = incompleteUpcoming.map((c) => ({
     key: c.id,
     name: c.nom || "Sans nom",
-    reason: `Manque : ${infosManquantesToutes(c, reservations).join(", ")}`,
+    reason: `Manque : ${infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).join(", ")}`,
     actionLabel: "Compléter la fiche",
     onAction: () => {
       setIncompleteModalOpen(false);
@@ -417,7 +424,7 @@ export default function DashboardView({
   // Affiche directement pourquoi le dossier est incomplet (une pastille par
   // info manquante) plutôt qu'un motif générique "Dossier incomplet".
   incompleteUrgent.forEach((c) => {
-    infosManquantesToutes(c, reservations).forEach((motif) => addToQueue(c, motif));
+    infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).forEach((motif) => addToQueue(c, motif));
   });
   staleProspects.forEach((c) => addToQueue(c, "À relancer"));
   rdvToday.forEach((c) => addToQueue(c, "RDV paiement"));

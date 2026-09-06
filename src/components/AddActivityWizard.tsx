@@ -2289,7 +2289,8 @@ export default function AddActivityWizard({
       ? OPTIONS_PRESETS.filter((p) => !["Parachute", "2ème île", "Privatif"].includes(p))
       : OPTIONS_PRESETS;
     const { nbAd: nbAdOptions, nbEnf: nbEnfOptions } = participantsFor(r, client);
-    const isQuantitePersonne = (nom: string) => nom === "Parachute" || nom === "Montgolfière" || nom === "Abu Simbel";
+    const isQuantitePersonne = (nom: string) =>
+      nom === "Parachute" || nom === "Montgolfière" || nom === "Abu Simbel" || nom === "Privatif";
 
     const carteLieePour = (nomOption: string) =>
       reservations.find((rr) => rr.parent_reservation_id === r.id && rr.nom_activite === nomOption);

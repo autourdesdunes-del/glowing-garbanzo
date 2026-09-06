@@ -405,7 +405,7 @@ export function ContactStep({
           className="flex w-full items-center justify-between gap-2 text-left text-sm text-[#171717] hover:underline"
         >
           <span>{whatsappSummary(client)}</span>
-          {client.email && client.canal !== "Email" && (
+          {client.email && client.canal !== "Email" && client.canal_secondaire !== "Email" && (
             <span className="text-[#666666]">Email : {client.email}</span>
           )}
         </button>

@@ -198,7 +198,9 @@ export default function DashboardView({
     (c) => c.date_debut && c.date_fin && c.date_debut <= todayStr && todayStr <= c.date_fin
   );
 
-  const rdvToday = clients.filter((c) => !c.solde_activite_id && c.solde_date === todayStr);
+  const rdvToday = clients.filter(
+    (c) => !c.solde_activite_id && c.solde_date === todayStr && !c.solde_paye
+  );
   const { encaisses: paiementsEncaisses, aPayer: paiementsAPayer } = useMemo(
     () =>
       computePaiementsDuJour(

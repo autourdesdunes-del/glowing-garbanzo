@@ -235,15 +235,20 @@ export default function AnnulerActiviteModal({
           : { reprise_montant: 0, reprise_activite_id: null, reprise_mode: "" }
       );
     } else if (reglementIci && reglementChoix === "deplacer") {
+      // Le solde n'est jamais un montant saisi à la main (toujours recalculé
+      // depuis le séjour, voir soldeRestantSejour) — seul reprise_montant est
+      // un champ légitimement modifiable ici. Écrire solde_montant à la main
+      // casserait le garde-fou "solde déjà pris" utilisé ailleurs (rappel de
+      // rattachement PayPal, voir PaypalPaiementRappel.tsx).
       onUpdateClient?.(
         reglementIci.type === "solde"
-          ? { solde_activite_id: reglementCibleId, solde_montant: reglementMontant }
+          ? { solde_activite_id: reglementCibleId }
           : { reprise_activite_id: reglementCibleId, reprise_montant: reglementMontant }
       );
     } else if (reglementIci && reglementChoix === "autre_moyen") {
       onUpdateClient?.(
         reglementIci.type === "solde"
-          ? { solde_activite_id: null, solde_mode: reglementModeAutre, solde_montant: reglementMontant }
+          ? { solde_activite_id: null, solde_mode: reglementModeAutre }
           : { reprise_activite_id: null, reprise_mode: reglementModeAutre, reprise_montant: reglementMontant }
       );
     }
@@ -566,17 +571,23 @@ export default function AnnulerActiviteModal({
               </div>
             )}
 
-            {(reglementChoix === "deplacer" || reglementChoix === "autre_moyen") && (
-              <div className="mt-2">
-                <label className="mb-1 block text-xs font-medium text-neutral-500">Montant (€)</label>
-                <input
-                  type="number"
-                  value={reglementMontant}
-                  onChange={(e) => setReglementMontant(Number(e.target.value) || 0)}
-                  className="input max-w-[160px]"
-                />
-              </div>
-            )}
+            {(reglementChoix === "deplacer" || reglementChoix === "autre_moyen") &&
+              (reglementIci.type === "reprise" ? (
+                <div className="mt-2">
+                  <label className="mb-1 block text-xs font-medium text-neutral-500">Montant (€)</label>
+                  <input
+                    type="number"
+                    value={reglementMontant}
+                    onChange={(e) => setReglementMontant(Number(e.target.value) || 0)}
+                    className="input max-w-[160px]"
+                  />
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-neutral-400">
+                  Le solde n&apos;est jamais saisi à la main — {euros(reglementIci.montant)} € reste calculé
+                  automatiquement depuis le total du séjour.
+                </p>
+              ))}
           </div>
         )}
 

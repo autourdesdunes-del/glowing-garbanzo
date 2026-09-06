@@ -150,8 +150,22 @@ export function PaiementResteFlow({
   // "Marquer encaissé" demande la date où le client a réellement payé —
   // souvent pas le jour où l'employée clique (elle rattrape parfois un
   // paiement de plusieurs jours plus tôt) — plutôt que de figer todayStr()
-  // en silence.
-  const [encaisseDateModal, setEncaisseDateModal] = useState<{ mode: string; date: string } | null>(null);
+  // en silence. montant/montantDifferent/entreProchesOublie reproduisent
+  // exactement "Montant de l'acompte différent ?" côté solde (voir
+  // clickMontantAcompteDifferent dans client-steps.tsx) — un solde réglé en
+  // PayPal peut lui aussi perdre des frais.
+  const [encaisseDateModal, setEncaisseDateModal] = useState<{
+    mode: string;
+    date: string;
+    montant: string;
+    montantDifferent: boolean;
+    entreProchesOublie: boolean;
+  } | null>(null);
+  // Frais standards PayPal (paiement "biens et services", pas "Entre
+  // proches") : 2,9 % + 0,35 € — même formule que côté acompte
+  // (calculerMontantSansEntreProches dans client-steps.tsx).
+  const calculerMontantSansEntreProches = (montant: number) =>
+    Math.round((montant - (montant * 0.029 + 0.35)) * 100) / 100;
 
   const assigneSelectValue = (ASSIGNE_A_OPTIONS as readonly string[]).includes(client.solde_assigne_a)
     ? client.solde_assigne_a
@@ -208,14 +222,24 @@ export function PaiementResteFlow({
     onChange({ solde_rdv_valide: true, solde_mode: INTEGRAL_MODE_SOLDE_MODE[client.paiement_integral_mode] });
   };
 
-  const marquerEncaisse = async (mode: string, date: string) => {
+  const marquerEncaisse = async (
+    mode: string,
+    date: string,
+    montantRecu: number,
+    entreProchesOublie: boolean
+  ) => {
     if (!(await confirmerAcompteInclus())) return;
     onChange({
       solde_paye: true,
       solde_mode: mode,
       solde_rdv_finalise: false,
       solde_date: date,
+      // solde_montant reste le total du séjour (sert à détecter une
+      // activité ajoutée après coup) — solde_montant_recu garde la trace du
+      // montant réellement encaissé quand il diffère.
       solde_montant: totalSejour,
+      solde_montant_recu: montantRecu,
+      solde_entre_proches_oublie: entreProchesOublie,
     });
   };
 
@@ -479,12 +503,25 @@ export function PaiementResteFlow({
                       prevu={montantAttenduPrevu}
                       entreProchesOublie={client.acompte_entre_proches_oublie}
                     />
+                    {client.solde_montant_recu > 0 && (
+                      <EcartAcompteLine
+                        reel={client.solde_montant_recu}
+                        prevu={montantACouvrir}
+                        entreProchesOublie={client.solde_entre_proches_oublie}
+                      />
+                    )}
                   </div>
                   <div className="flex flex-shrink-0 items-center gap-2">
                     <EncaisseButton
                       paye={client.solde_paye}
                       onMarquer={() =>
-                        setEncaisseDateModal({ mode: soldeMode, date: client.solde_date || todayStr() })
+                        setEncaisseDateModal({
+                          mode: soldeMode,
+                          date: client.solde_date || todayStr(),
+                          montant: String(montantACouvrir),
+                          montantDifferent: false,
+                          entreProchesOublie: false,
+                        })
                       }
                       onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
                       onDifferent={() =>
@@ -575,6 +612,9 @@ export function PaiementResteFlow({
                       setEncaisseDateModal({
                         mode: soldeMode,
                         date: chosenResa.date_debut || todayStr(),
+                        montant: String(montantACouvrir),
+                        montantDifferent: false,
+                        entreProchesOublie: false,
                       })
                     }
                     onAnnuler={() => onChange({ solde_paye: false, solde_mode: "" })}
@@ -618,10 +658,63 @@ export function PaiementResteFlow({
               onChange={(e) => setEncaisseDateModal({ ...encaisseDateModal, date: e.target.value })}
               className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
             />
+            <div className="mb-4">
+              {encaisseDateModal.montantDifferent ? (
+                <>
+                  <Field label="Montant réellement reçu (€)">
+                    <input
+                      type="number"
+                      value={encaisseDateModal.montant}
+                      onChange={(e) => setEncaisseDateModal({ ...encaisseDateModal, montant: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                  {encaisseDateModal.mode === "PayPal" && (
+                    <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+                      <input
+                        type="checkbox"
+                        checked={encaisseDateModal.entreProchesOublie}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setEncaisseDateModal({
+                            ...encaisseDateModal,
+                            entreProchesOublie: checked,
+                            montant: checked
+                              ? String(calculerMontantSansEntreProches(montantACouvrir))
+                              : String(montantACouvrir),
+                          });
+                        }}
+                      />
+                      Oubli &quot;Entre proches&quot; (frais PayPal déduits)
+                    </label>
+                  )}
+                  {Number(encaisseDateModal.montant) !== montantACouvrir && (
+                    <p className="mt-1 text-xs text-orange-600">
+                      ⚠ Différent du montant attendu ({euros(montantACouvrir)} €)
+                      {encaisseDateModal.entreProchesOublie ? " (frais PayPal estimés)" : ""}.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setEncaisseDateModal({ ...encaisseDateModal, montantDifferent: true })}
+                  className="text-xs font-medium text-neutral-500 underline hover:text-neutral-700"
+                >
+                  Montant différent ?
+                </button>
+              )}
+            </div>
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => {
-                  marquerEncaisse(encaisseDateModal.mode, encaisseDateModal.date || todayStr());
+                  const montantFinal = Number(encaisseDateModal.montant) || montantACouvrir;
+                  marquerEncaisse(
+                    encaisseDateModal.mode,
+                    encaisseDateModal.date || todayStr(),
+                    montantFinal,
+                    encaisseDateModal.entreProchesOublie
+                  );
                   setEncaisseDateModal(null);
                 }}
                 className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"

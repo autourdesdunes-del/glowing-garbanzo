@@ -1718,9 +1718,15 @@ export function PaiementsStep({
       when: client.solde_date ? fmtDateDMY(client.solde_date) : "—",
       sortKey: client.solde_date || "",
       activite: soldeActivite?.nom_activite,
-      note: soldeActivite
-        ? `Solde récolté à l'activité "${soldeActivite.nom_activite}"`
-        : "Solde du séjour",
+      note:
+        (soldeActivite
+          ? `Solde récolté à l'activité "${soldeActivite.nom_activite}"`
+          : "Solde du séjour") +
+        (client.solde_montant_recu > 0 && client.solde_montant_recu !== soldeRestant
+          ? ` — ${euros(client.solde_montant_recu)} € réellement reçus (${
+              client.solde_entre_proches_oublie ? "oubli « Entre proches »" : "montant ajusté"
+            })`
+          : ""),
     });
   }
   paiementsChronologiques.sort((a, b) => a.sortKey.localeCompare(b.sortKey));

@@ -482,6 +482,13 @@ export type Client = {
   info_manquante_autre: string;
   commentaires: string;
   solde_montant: number;
+  // Montant réellement reçu pour le solde, quand il diffère de ce qui était
+  // attendu (frais PayPal notamment) — même principe que
+  // acompte_montant/acompte_montant_prevu, mais sans toucher solde_montant
+  // (qui reste toujours le total du séjour au moment du règlement, utilisé
+  // pour détecter une activité ajoutée après coup). 0 = jamais renseigné.
+  solde_montant_recu: number;
+  solde_entre_proches_oublie: boolean;
   solde_mode: string;
   solde_date: string | null;
   solde_paye: boolean;
@@ -629,6 +636,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   info_manquante_autre: "",
   commentaires: "",
   solde_montant: 0,
+  solde_montant_recu: 0,
+  solde_entre_proches_oublie: false,
   solde_mode: "Espèces EUR",
   solde_date: null,
   solde_paye: false,

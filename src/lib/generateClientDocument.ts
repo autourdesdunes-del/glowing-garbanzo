@@ -330,7 +330,11 @@ export function generateClientDocument(
   // de concret : mêmes montants que soldeRestantFor (SuivisView), donc la
   // facture reste cohérente avec ce que l'équipe voit ailleurs dans le CRM.
   const etapesClient = paiementsEtapes
-    .filter((e) => e.client_id === client.id)
+    // mode "Annulation" = trace interne d'un règlement jamais encaissé (voir
+    // AnnulerActiviteModal, montant toujours 0) — ne doit jamais apparaître
+    // sur un document envoyé au client ("0 € payé (Annulation)" n'aurait
+    // aucun sens côté client).
+    .filter((e) => e.client_id === client.id && e.mode !== "Annulation")
     .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const etapesSum = etapesClient.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   // Un avoir (crédit d'un séjour précédent) dépensé sur une activité compte

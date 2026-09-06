@@ -79,7 +79,15 @@ export default function HebergementSection({
   };
 
   const deleteHotelStep = async (id: string) => {
-    setClientHotels((prev) => prev.filter((h) => h.id !== id));
+    setClientHotels((prev) => {
+      const next = prev.filter((h) => h.id !== id);
+      // En repassant à 0 hôtel, on revient à l'affichage "simple hôtel" au
+      // lieu de laisser la section Circuit vide affichée en double avec
+      // le champ Hôtel classique (showCircuit ne se réinitialisait jamais
+      // tout seul).
+      if (next.length === 0) setShowCircuit(false);
+      return next;
+    });
     await supabase.from("client_hotels").delete().eq("id", id);
   };
 

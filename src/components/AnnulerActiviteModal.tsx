@@ -140,11 +140,21 @@ export default function AnnulerActiviteModal({
   const repriseIci = !soldeIci && client.reprise_activite_id === r.id && Number(client.reprise_montant) > 0;
   // client.solde_montant reste à 0 tant que le solde n'a jamais été marqué
   // payé (voir soldeRestantSejour) — le vrai montant en attente est calculé
-  // à la volée, jamais lu directement sur ce champ.
+  // à la volée, jamais lu directement sur ce champ. Exclut r du total : une
+  // fois cette annulation confirmée, r passe à "Annulée" et sort du total
+  // séjour partout ailleurs dans l'app (reservationsActives) — inclure son
+  // prix ici aurait gonflé le montant affiché par rapport à ce qui restera
+  // réellement dû juste après.
   const reglementIci: { type: "solde" | "reprise"; montant: number; mode: string } | null = soldeIci
     ? {
         type: "solde",
-        montant: soldeRestantSejour(client, reservations, resaOptions, resaTarifs, paiementsEtapes),
+        montant: soldeRestantSejour(
+          client,
+          reservations.filter((rr) => rr.id !== r.id),
+          resaOptions,
+          resaTarifs,
+          paiementsEtapes
+        ),
         mode: client.solde_mode,
       }
     : repriseIci

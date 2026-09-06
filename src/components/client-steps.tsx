@@ -818,6 +818,8 @@ export function ActivitesStep({
   paiementsEtapes = [],
   avoirs = [],
   onAddPaiementEtape,
+  autoExpandReservationId,
+  onAutoExpandHandled,
 }: StepProps & {
   reservations: Reservation[];
   avoirs?: Avoir[];
@@ -879,8 +881,20 @@ export function ActivitesStep({
   onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
   assouanVerifications: AssouanVerification[];
   paiementsEtapes?: PaiementEtape[];
+  // Ouvre directement une activité précise (depuis "Historique des
+  // modifications" dans Suivi) au lieu de laisser l'employée la rechercher
+  // à la main dans la liste.
+  autoExpandReservationId?: string | null;
+  onAutoExpandHandled?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (autoExpandReservationId) {
+      setExpandedId(autoExpandReservationId);
+      onAutoExpandHandled?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoExpandReservationId]);
   const [addingNew, setAddingNewState] = useState(false);
   const [addingPack, setAddingPack] = useState(false);
   const setAddingNew = (v: boolean) => {
@@ -2491,6 +2505,7 @@ export function SuiviStep({
   onUpdateAvoir,
   onDeleteAvoir,
   onUpdateReservation,
+  onOpenReservation,
   isDirection = false,
   incidents,
   onResolveIncident,
@@ -2501,6 +2516,10 @@ export function SuiviStep({
   onUpdateAvoir: (id: string, patch: Partial<Avoir>) => void;
   onDeleteAvoir: (id: string) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  // Depuis une ligne "Historique des modifications" concernant une activité
+  // — ouvre directement cette activité dans Activités au lieu de laisser
+  // l'employée la rechercher à la main.
+  onOpenReservation?: (id: string) => void;
   isDirection?: boolean;
   incidents: Incident[];
   onResolveIncident: (id: string, statut: "Ouvert" | "Résolu") => void;
@@ -3330,7 +3349,23 @@ export function SuiviStep({
                       </span>{" "}
                       {entry.description || `${actionLabel(entry.action)} ${tableLabel(entry.table_name)}`}
                     </p>
-                    <p className="text-[10px] text-neutral-400">{fmtDateTime(entry.created_at)}</p>
+                    <p className="text-[10px] text-neutral-400">
+                      {fmtDateTime(entry.created_at)}
+                      {entry.table_name === "reservations" && entry.action !== "delete" && onOpenReservation && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const details = (e.currentTarget as HTMLElement).closest("details");
+                            if (details) details.open = false;
+                            onOpenReservation(entry.record_id);
+                          }}
+                          className="ml-2 font-medium text-[#8B4531] hover:underline"
+                        >
+                          Voir l&apos;activité
+                        </button>
+                      )}
+                    </p>
                   </div>
                 </div>
               ))

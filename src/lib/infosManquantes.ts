@@ -41,9 +41,15 @@ export function infosManquantesAuto(
   // seulement pour un hôtel à Hurghada/région (voir VILLES_CHAMBRE_NON_REQUISE).
   const hotelMatch = matchHotel(client.hotel, hotelsRef);
   const chambreRequisePourCetteVille = !hotelMatch || !VILLES_CHAMBRE_NON_REQUISE.includes(hotelMatch.ville);
+  // Pour un Airbnb, le numéro de chambre n'existe pas — c'est le numéro
+  // d'appartement (airbnb_appartement) qui joue ce rôle. Sans ce cas
+  // particulier, "Room number" restait signalé manquant indéfiniment dès
+  // qu'un client passait en Airbnb, même une fois l'appartement renseigné.
+  const numeroLogementRempli =
+    client.type_hebergement === "airbnb" ? !!client.airbnb_appartement.trim() : !!client.chambre.trim();
   if (
     chambreRequisePourCetteVille &&
-    !client.chambre.trim() &&
+    !numeroLogementRempli &&
     client.date_debut &&
     client.date_debut <= addDays(todayStr(), 1)
   ) {
@@ -87,7 +93,8 @@ export function infosManquantesAuto(
 // fois rempli).
 const MANUEL_RESOLU: Record<string, (client: Client) => boolean> = {
   [INFO_MANQUANTE_AUTO_HOTEL]: (c) => !!c.hotel.trim(),
-  [INFO_MANQUANTE_AUTO_CHAMBRE]: (c) => !!c.chambre.trim(),
+  [INFO_MANQUANTE_AUTO_CHAMBRE]: (c) =>
+    c.type_hebergement === "airbnb" ? !!c.airbnb_appartement.trim() : !!c.chambre.trim(),
   [INFO_MANQUANTE_AUTO_WHATSAPP]: (c) => !!c.telephone.trim(),
   [INFO_MANQUANTE_AUTO_ACOMPTE]: (c) => c.paiement_type === "integral" || c.acompte_paye,
   [INFO_MANQUANTE_AUTO_PASSEPORT]: (c) => c.passeport_photos.length > 0,

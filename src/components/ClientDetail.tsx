@@ -1005,6 +1005,20 @@ export default function ClientDetail({
     });
   };
 
+  // Depuis "Historique des modifications" (Suivi) : ouvre directement
+  // l'activité concernée dans Activités, plutôt que de laisser l'employée
+  // la rechercher à la main dans la liste.
+  const [autoExpandReservationId, setAutoExpandReservationId] = useState<string | null>(null);
+  const jumpToActivite = (reservationId: string) => {
+    setOpen((prev) => ({ ...CLOSED_SECTIONS, Activités: true }));
+    setAutoExpandReservationId(reservationId);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document.getElementById("section-Activités")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    });
+  };
+
   // Classe directement un hôtel pas encore répertorié (pop-up ContactStep >
   // AjouterHotelZoneModal) sans renvoyer l'employée vers HELP — la fiche en
   // cours profite tout de suite de la détection de taxe de transfert, et
@@ -1457,6 +1471,8 @@ export default function ClientDetail({
           paiementsEtapes={paiementsEtapes}
           avoirs={avoirs}
           onAddPaiementEtape={addPaiementEtape}
+          autoExpandReservationId={autoExpandReservationId}
+          onAutoExpandHandled={() => setAutoExpandReservationId(null)}
         />
       </Section>
 
@@ -1533,6 +1549,7 @@ export default function ClientDetail({
           onUpdateAvoir={updateAvoir}
           onDeleteAvoir={deleteAvoir}
           onUpdateReservation={updateReservation}
+          onOpenReservation={jumpToActivite}
           isDirection={canSeeMargins}
           incidents={incidents}
           onResolveIncident={(id, statut) => {

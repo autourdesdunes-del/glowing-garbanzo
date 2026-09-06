@@ -21,7 +21,13 @@ export function fmtDateCourte(d: string | null) {
 
 export function hebergementSummary(client: Client) {
   if (client.type_hebergement === "airbnb") {
-    return client.hotel.trim() ? `Airbnb — ${client.hotel}` : "Airbnb — non renseigné";
+    if (!client.hotel.trim()) return "Airbnb — non renseigné";
+    // Le numéro d'appartement était bien enregistré (champ airbnb_appartement,
+    // saisi dans le popup) mais jamais réaffiché sur la carte résumée —
+    // seul le nom du logement apparaissait, ce qui donnait l'impression que
+    // la saisie avait été perdue.
+    const detail = [client.airbnb_building, client.airbnb_appartement].filter((v) => v.trim()).join(" - ");
+    return detail ? `Airbnb — ${client.hotel} - ${detail}` : `Airbnb — ${client.hotel}`;
   }
   if (!client.hotel.trim()) return "Non renseigné";
   return client.chambre.trim() ? `${client.hotel} - ${client.chambre}` : client.hotel;

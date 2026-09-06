@@ -371,7 +371,12 @@ export default function SuivisView({
   );
 
   const billetsAllRows = reservations
-    .filter((r) => r.billet_requis && (!r.billet_date || r.billet_date >= todayStr))
+    // Une activité annulée après coup gardait billet_requis à true et
+    // continuait d'apparaître ici indéfiniment — Hossam pouvait agir sur un
+    // billet qui n'a plus lieu d'être acheté.
+    .filter(
+      (r) => r.statut_resa !== "Annulée" && r.billet_requis && (!r.billet_date || r.billet_date >= todayStr)
+    )
     .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
   const billetsMonthKeys = Array.from(
     new Set(billetsAllRows.map((r) => (r.billet_date || "").slice(0, 7)).filter(Boolean))
@@ -416,7 +421,11 @@ export default function SuivisView({
   // plus proche parmi ses réservations, pas depuis client.date_debut.
   const firstActivityDateByClient = new Map<string, string>();
   reservations.forEach((r) => {
-    if (!r.date_debut) return;
+    // Une activité annulée ne compte plus comme la "première activité" —
+    // sinon le rappel "numéro de chambre" se déclenchait à J-1 d'une
+    // activité qui n'a plus lieu, au lieu de la vraie première activité qui
+    // reste.
+    if (!r.date_debut || r.statut_resa === "Annulée") return;
     const current = firstActivityDateByClient.get(r.client_id);
     if (!current || r.date_debut < current) firstActivityDateByClient.set(r.client_id, r.date_debut);
   });

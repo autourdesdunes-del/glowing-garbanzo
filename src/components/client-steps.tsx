@@ -36,9 +36,9 @@ import {
   cleanActivityTitle,
   fmtEncaisseLe,
   hossamBilletMessage,
+  paiementProgress,
   paxSummary,
   reservationsActives,
-  resaTotalMontant,
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
@@ -1232,23 +1232,26 @@ export function PaiementsStep({
     if (pending) setBilletHossamReminder(pending);
   };
 
-  const totalSejour = reservationsActives(reservations).reduce(
-    (sum, r) => sum + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
-    0
+  // Même calcul que paiementBadge/Dashboard/Suivis (paiementProgress dans
+  // resa.ts) — une version locale recalculée à part avait dérivé : elle ne
+  // clampait pas "reste" à 0 (pouvait passer négatif), comptait l'acompte
+  // seulement une fois réellement encaissé au lieu de dès qu'il est validé
+  // (contradiction visible avec resteApresAcompte ci-dessous, qui lui utilise
+  // déjà acompte_valide), et sommait avoir_utilise sur des réservations
+  // annulées.
+  const { totalSejour, totalPaye, reste, soldeRestant } = paiementProgress(
+    client,
+    reservations,
+    resaOptions,
+    resaTarifs,
+    paiementsEtapes
   );
-  const acomptePaye = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  const avoirsUtilises = reservations.filter((r) => Number(r.avoir_utilise) > 0);
+  const avoirsUtilises = reservationsActives(reservations).filter((r) => Number(r.avoir_utilise) > 0);
   const avoirUtilise = avoirsUtilises.reduce((s, r) => s + (Number(r.avoir_utilise) || 0), 0);
   // Étapes de paiement libres entre l'acompte et le solde (ex. plusieurs
   // PayPal, puis espèces, puis CB) — voir migration 0094.
   const etapesTriees = [...paiementsEtapes].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
   const etapesSum = etapesTriees.reduce((s, e) => s + (Number(e.montant) || 0), 0);
-  // Le solde n'est plus un montant saisi à la main : c'est toujours le reste
-  // du séjour une fois l'acompte, les étapes libres et un éventuel avoir
-  // consommé déduits.
-  const soldeRestant = Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
-  const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
-  const reste = totalSejour - totalPaye;
 
   // Le pop-up qui propose le règlement (montant/mode/activité) est déclenché
   // plus haut, dans ClientDetail — cette étape "Paiements" n'est pas

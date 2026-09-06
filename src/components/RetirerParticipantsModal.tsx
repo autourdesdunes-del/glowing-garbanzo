@@ -64,7 +64,17 @@ export default function RetirerParticipantsModal({
     participants_accompagnateurs: nbAcc,
     participants_enfants_3ans: nbEnf3,
   };
-  const nouveauTotal = resaTotalMontant(rSimule, client, options, tarifs);
+  // Si "ajuster automatiquement" est choisi, les options sont elles aussi
+  // réduites au moment de confirmer (voir doConfirm) — sans en tenir compte
+  // ici, le total prévisualisé (et donc le remboursement suggéré)
+  // ignorerait cette baisse, et le vrai total après confirmation serait
+  // plus bas que ce qui a été annoncé à l'employée.
+  const ratioParticipants = nbAd + nbEnf > 0 ? (nouveauxAd + nouveauxEnf) / (nbAd + nbEnf) : 1;
+  const optionsSimulees =
+    ajusterOptions === "auto"
+      ? options.map((o) => ({ ...o, quantite: Math.max(Math.round((Number(o.quantite) || 0) * ratioParticipants), 0) }))
+      : options;
+  const nouveauTotal = resaTotalMontant(rSimule, client, optionsSimulees, tarifs);
   const difference = Math.max(ancienTotal - nouveauTotal, 0);
   const nbPartent = adultesPartent + enfantsPartent;
   const [montant, setMontant] = useState(0);
@@ -104,9 +114,8 @@ export default function RetirerParticipantsModal({
     const motifFinal = motif === "Autre" ? motifAutre.trim() : motif;
 
     if (ajusterOptions === "auto" && options.length > 0) {
-      const ratio = nbAd + nbEnf > 0 ? (nouveauxAd + nouveauxEnf) / (nbAd + nbEnf) : 1;
       options.forEach((o) => {
-        const nouvelleQuantite = Math.max(Math.round((Number(o.quantite) || 0) * ratio), 0);
+        const nouvelleQuantite = Math.max(Math.round((Number(o.quantite) || 0) * ratioParticipants), 0);
         if (nouvelleQuantite !== o.quantite) onUpdateOption(o.id, { quantite: nouvelleQuantite });
       });
     }

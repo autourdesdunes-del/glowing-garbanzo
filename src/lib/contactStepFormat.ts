@@ -75,6 +75,13 @@ export function contactViaSummary(client: Client) {
     secondaire = client.pseudo_contact_secondaire
       ? `${client.canal_secondaire} — @${client.pseudo_contact_secondaire}`
       : client.canal_secondaire;
+  } else if (client.canal_secondaire === "Email") {
+    // Contrairement au pseudo Instagram/TikTok, l'email n'a pas de champ
+    // dédié au canal secondaire : `email` est déjà collecté indépendamment
+    // du canal (modale "What's app / Email") et ne peut pas être déjà pris
+    // par le canal principal ici, puisque le second canal ne peut pas être
+    // identique au principal.
+    secondaire = client.email ? `Email — ${client.email}` : "Email";
   } else {
     secondaire = client.canal_secondaire;
   }

@@ -107,6 +107,11 @@ export function ReservationSummaryCard({
               ⚠ {r.info_importante}
             </span>
           )}
+          {r.montgolfiere_annulee && (
+            <span className="whitespace-nowrap rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-700">
+              🎈 Montgolfière annulée
+            </span>
+          )}
           {acompteWarning && (
             <span className="whitespace-nowrap text-[10px] font-medium text-yellow-700">
               ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
@@ -292,6 +297,11 @@ export function ReservationSummaryCard({
             className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
           >
             ⚠ {r.info_importante}
+          </span>
+        )}
+        {r.montgolfiere_annulee && (
+          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+            🎈 Montgolfière annulée
           </span>
         )}
         {acompteWarning && (

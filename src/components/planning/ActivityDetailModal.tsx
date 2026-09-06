@@ -263,6 +263,11 @@ export function ActivityDetailModal({
                 ⚠ {r.info_importante}
               </span>
             )}
+            {r.montgolfiere_annulee && (
+              <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                🎈 Montgolfière annulée
+              </span>
+            )}
             {momentBadge(r) && (
               <span className="rounded-full bg-[#C9973E]/20 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
                 {momentBadge(r)}

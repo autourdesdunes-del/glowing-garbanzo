@@ -267,6 +267,13 @@ export type Reservation = {
   // payée peut être annulée sans remboursement accordé (non remboursable,
   // ou exception refusée) — les deux ensemble donnent "payé, non remboursé".
   annulation_paye_avant: boolean;
+  // Annulation partielle : uniquement le vol en montgolfière d'une
+  // excursion combinée (ex. "Louxor 1 jour visites & 1 jour Montgolfière")
+  // annulé par le gouvernement — l'activité reste "Confirmée" (visites,
+  // transferts... inchangés), voir AnnulerMontgolfiereModal. Distinct de
+  // statut_resa "Annulée", qui annule toute l'activité.
+  montgolfiere_annulee: boolean;
+  montgolfiere_annulee_date: string | null;
   billet_requis: boolean;
   billet_etape: string;
   billet_demande_envoyee_le: string | null;

@@ -24,6 +24,7 @@ import {
   badgeAnnulation,
   chevalChameauBadge,
   cleanActivityTitle,
+  isMontgolfiereActivity,
   isDeuxiemeIleOption,
   momentBadge,
   optionsBadge,
@@ -45,6 +46,7 @@ import {
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
 import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
+import AnnulerMontgolfiereModal from "@/components/AnnulerMontgolfiereModal";
 import AjouterRemboursementAvoirModal from "@/components/AjouterRemboursementAvoirModal";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -201,6 +203,7 @@ export default function ItineraryView({
   const [editingExpanded, setEditingExpanded] = useState(false);
   const [annulerActiviteId, setAnnulerActiviteId] = useState<string | null>(null);
   const [rembAvoirActiviteId, setRembAvoirActiviteId] = useState<string | null>(null);
+  const [montgolfiereActiviteId, setMontgolfiereActiviteId] = useState<string | null>(null);
   const [egyptOpen, setEgyptOpen] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   useEffect(() => {
@@ -250,6 +253,11 @@ export default function ItineraryView({
               className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700"
             >
               ⚠ {r.info_importante}
+            </span>
+          )}
+          {r.montgolfiere_annulee && (
+            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-medium text-orange-700">
+              🎈 Montgolfière annulée
             </span>
           )}
           {momentBadge(r) && (
@@ -486,6 +494,11 @@ export default function ItineraryView({
                     ⚠ {expandedReservation.info_importante}
                   </span>
                 )}
+                {expandedReservation.montgolfiere_annulee && (
+                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                    🎈 Montgolfière annulée
+                  </span>
+                )}
                 {reductionBadge(expandedReservation) && (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                     {reductionBadge(expandedReservation)}
@@ -632,6 +645,18 @@ export default function ItineraryView({
                     🚫
                   </button>
                 )}
+                {isMontgolfiereActivity(expandedReservation.nom_activite) &&
+                  !expandedReservation.montgolfiere_annulee &&
+                  expandedReservation.statut_resa !== "Annulée" && (
+                    <button
+                      type="button"
+                      onClick={() => setMontgolfiereActiviteId(expandedReservation.id)}
+                      title="Montgolfière annulée par le gouvernement (le reste de l'activité n'est pas annulé)"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-50 text-orange-600 hover:bg-orange-100"
+                    >
+                      🎈
+                    </button>
+                  )}
                 <button
                   type="button"
                   onClick={() => {
@@ -858,6 +883,20 @@ export default function ItineraryView({
               onUpdateClient={onUpdateClient}
               onAddPaiementEtape={onAddPaiementEtape}
               onClose={() => setAnnulerActiviteId(null)}
+            />
+          );
+        })()}
+
+      {montgolfiereActiviteId &&
+        (() => {
+          const resaMontgolfiere = reservations.find((r) => r.id === montgolfiereActiviteId);
+          if (!resaMontgolfiere) return null;
+          return (
+            <AnnulerMontgolfiereModal
+              r={resaMontgolfiere}
+              client={client}
+              onUpdate={(patch) => onUpdateReservation(resaMontgolfiere.id, patch)}
+              onClose={() => setMontgolfiereActiviteId(null)}
             />
           );
         })()}

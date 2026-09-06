@@ -65,10 +65,19 @@ export function canalLabel(canal: string, client: Client) {
 export function contactViaSummary(client: Client) {
   const principal = canalLabel(client.canal, client);
   if (!client.canal_secondaire) return principal;
-  const secondaire =
-    client.canal_secondaire === "Autre"
-      ? client.canal_secondaire_autre || "Autre"
+  let secondaire: string;
+  if (client.canal_secondaire === "Autre") {
+    secondaire = client.canal_secondaire_autre || "Autre";
+  } else if (client.canal_secondaire === "Instagram" || client.canal_secondaire === "TikTok") {
+    // Le pseudo du canal secondaire est stocké dans un champ dédié
+    // (pseudo_contact_secondaire) car pseudo_contact appartient au canal
+    // principal — canalLabel() ne peut donc pas être réutilisée telle quelle.
+    secondaire = client.pseudo_contact_secondaire
+      ? `${client.canal_secondaire} — @${client.pseudo_contact_secondaire}`
       : client.canal_secondaire;
+  } else {
+    secondaire = client.canal_secondaire;
+  }
   return `${principal} + ${secondaire}`;
 }
 

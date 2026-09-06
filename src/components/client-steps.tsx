@@ -560,7 +560,9 @@ export function ContactStep({
                       </select>
                       <button
                         type="button"
-                        onClick={() => onChange({ canal_secondaire: "", canal_secondaire_autre: "" })}
+                        onClick={() =>
+                          onChange({ canal_secondaire: "", canal_secondaire_autre: "", pseudo_contact_secondaire: "" })
+                        }
                         className="text-xs text-red-600 hover:underline"
                       >
                         Retirer

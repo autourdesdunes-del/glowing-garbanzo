@@ -31,7 +31,6 @@ import {
   RAISONS_REMBOURSEMENT,
   RELATIONS,
   STATUTS,
-  ZONES_HOTEL,
 } from "@/lib/constants";
 import {
   cleanActivityTitle,
@@ -43,13 +42,7 @@ import {
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
-import {
-  matchHotel,
-  matchTransfertTaxe,
-  hotelDisplayForEgypt,
-  hotelsEgyptLines,
-  villeTransfertInfo,
-} from "@/lib/hotelHelp";
+import { matchHotel, hotelDisplayForEgypt, hotelsEgyptLines } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr, localDateStr } from "@/lib/dates";
 import MarquerRembourseModal from "@/components/MarquerRembourseModal";
@@ -62,17 +55,9 @@ import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import RibScreenshotUpload from "@/components/RibScreenshotUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
-import AjouterHotelZoneModal from "@/components/AjouterHotelZoneModal";
 import RemboursementSummaryCard from "@/components/RemboursementSummaryCard";
-import {
-  contactViaSummary,
-  datesSummary,
-  euros,
-  fmtDateCourte,
-  fmtDateDMY,
-  hebergementSummary,
-  whatsappSummary,
-} from "@/lib/contactStepFormat";
+import HebergementSection from "@/components/clientSteps/HebergementSection";
+import { contactViaSummary, datesSummary, euros, fmtDateDMY, whatsappSummary } from "@/lib/contactStepFormat";
 import { AgeChips, parseAges, PropIcon, SearchableSelect } from "@/components/clientSteps/ContactStepPrimitives";
 import { EncaisseButton, INTEGRAL_MODES, PaiementResteFlow } from "@/components/clientSteps/PaiementResteFlow";
 import {
@@ -143,21 +128,20 @@ export function ContactStep({
 }) {
   const supabase = createClient();
   const toast = useToast();
-  const confirm = useConfirm();
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [infoManquanteOpen, setInfoManquanteOpen] = useState(false);
+  // Câblé à HebergementSection via onClientHotelsChange ci-dessous —
+  // gardé ici aussi pour infosManquantesAuto et le bloc équipe Égypte
+  // (hotelLines), qui en ont besoin en dehors de ce composant.
   const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
-  const [showCircuit, setShowCircuit] = useState(false);
   const [paxModalOpen, setPaxModalOpen] = useState(false);
-  const [hotelModalOpen, setHotelModalOpen] = useState(false);
   const [datesModalOpen, setDatesModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [egypteOpen, setEgypteOpen] = useState(false);
-  const [ajouterHotelZoneOpen, setAjouterHotelZoneOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -177,49 +161,6 @@ export function ContactStep({
     onClientHotelsChange?.(clientHotels);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientHotels]);
-
-  const addHotelStep = async () => {
-    const { data, error } = await supabase
-      .from("client_hotels")
-      .insert({ client_id: client.id, ordre: clientHotels.length })
-      .select()
-      .single();
-    if (!error && data) {
-      setClientHotels((prev) => [...prev, data as ClientHotel]);
-      setShowCircuit(true);
-    } else {
-      toast("Impossible d'ajouter cet hôtel.");
-    }
-  };
-
-  const updateHotelStep = async (id: string, patch: Partial<ClientHotel>) => {
-    setClientHotels((prev) => prev.map((h) => (h.id === id ? { ...h, ...patch } : h)));
-    const { error } = await supabase.from("client_hotels").update(patch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement.");
-  };
-
-  const deleteHotelStep = async (id: string) => {
-    const ok = await confirm({
-      message: "Retirer cet hôtel du circuit ?",
-      confirmLabel: "Retirer",
-      danger: true,
-    });
-    if (!ok) return;
-    setClientHotels((prev) => prev.filter((h) => h.id !== id));
-    const { error } = await supabase.from("client_hotels").delete().eq("id", id);
-    if (error) toast("Échec de la suppression.");
-  };
-
-  const moveHotelStep = (id: string, dir: -1 | 1) => {
-    const idx = clientHotels.findIndex((h) => h.id === id);
-    const swapIdx = idx + dir;
-    if (idx < 0 || swapIdx < 0 || swapIdx >= clientHotels.length) return;
-    const next = [...clientHotels];
-    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
-    const reordered = next.map((h, i) => ({ ...h, ordre: i }));
-    setClientHotels(reordered);
-    reordered.forEach((h) => supabase.from("client_hotels").update({ ordre: h.ordre }).eq("id", h.id));
-  };
 
   useEffect(() => {
     (async () => {
@@ -273,12 +214,9 @@ export function ContactStep({
     setNewInfoLabel("");
   };
 
+  // Utilisé uniquement pour le bloc équipe Égypte ci-dessous (hotelLines) —
+  // le reste de l'affichage/validation de l'hôtel vit dans HebergementSection.
   const hotelMatch = matchHotel(client.hotel, hotelsRef);
-  // La taxe dépend de la tranche adultes/enfants (voir HELP > Taxes de
-  // transfert) — jamais une seule ligne "ville → montant" comme avant.
-  const taxeResultat = hotelMatch
-    ? matchTransfertTaxe(taxesRef, hotelMatch.ville, client.adultes, client.enfants)
-    : null;
 
   const nbAutresInfos = 4;
 
@@ -305,328 +243,15 @@ export function ContactStep({
 
   return (
     <div className="space-y-1.5">
-      <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />} shaded>
-        {clientHotels.length > 0 ? (
-          <button type="button" onClick={() => setHotelModalOpen(true)} className="w-full space-y-2 text-left">
-            {clientHotels.map((h) => {
-              const info = villeTransfertInfo(h.ville, taxesRef, client.adultes, client.enfants, ZONES_HOTEL);
-              return (
-                <div key={h.id} className="text-sm">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-semibold text-[#171717]">{h.ville || "Destination —"}</span>
-                    <span className="text-[10px] text-neutral-400">
-                      {fmtDateCourte(h.date_arrivee)} → {fmtDateCourte(h.date_depart)}
-                    </span>
-                  </div>
-                  <div className="text-[#171717]">
-                    {h.nom || "Hôtel —"}
-                    {h.chambre.trim() ? ` - ${h.chambre}` : ""}
-                  </div>
-                  {info.kind === "hurghada" && (
-                    <span className="text-xs text-emerald-600">✓ Pas de taxe de transfert.</span>
-                  )}
-                  {info.kind === "taxe" && (
-                    <span className="text-xs text-orange-600">
-                      ⚠ Taxe de transfert possible
-                      {info.taxe.type === "montant" ? ` (${euros(info.taxe.montant)} €)` : ""}
-                      {info.taxe.type === "a_demander" ? ` (${info.taxe.note})` : ""}.
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setHotelModalOpen(true)}
-            className="text-left text-sm font-semibold text-[#171717] hover:underline"
-          >
-            {hebergementSummary(client)}
-          </button>
-        )}
-      </PropertyRow>
-
-      {clientHotels.length === 0 && client.type_hebergement !== "airbnb" && client.hotel.trim() && (
-        <div className="-mt-1 pl-[180px] text-xs">
-          {hotelMatch ? (
-            hotelMatch.sur_hurghada ? (
-              <span className="text-emerald-600">
-                ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
-              </span>
-            ) : (
-              <span className="text-orange-600">
-                ⚠ Cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut comporter une
-                taxe de transfert
-                {taxeResultat?.type === "montant" ? ` (${euros(taxeResultat.montant)} €)` : ""}
-                {taxeResultat?.type === "a_demander" ? ` (${taxeResultat.note})` : ""}.{" "}
-                <button type="button" onClick={onOpenHelp} className="underline hover:no-underline">
-                  Vérifier le montant
-                </button>
-              </span>
-            )
-          ) : (
-            <span className="text-neutral-400">
-              Hôtel non répertorié dans HELP.{" "}
-              <button
-                type="button"
-                onClick={() => setAjouterHotelZoneOpen(true)}
-                className="underline hover:no-underline"
-              >
-                L&apos;ajouter
-              </button>
-            </span>
-          )}
-        </div>
-      )}
-
-      {ajouterHotelZoneOpen && (
-        <AjouterHotelZoneModal
-          hotelNom={client.hotel}
-          onAdd={(ville) => onAddHotelRef(client.hotel, ville)}
-          onClose={() => setAjouterHotelZoneOpen(false)}
-        />
-      )}
-
-      {hotelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-md rounded-[6px] border border-[#eaeaea] bg-white p-6">
-            <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">Hébergement</h2>
-            <div className="space-y-1.5">
-              {client.type_hebergement === "airbnb" ? (
-                <>
-                  <PropertyRow label="Airbnb" icon={<PropIcon name="hotel" />}>
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={client.hotel}
-                        onChange={(e) => onChange({ hotel: e.target.value })}
-                        placeholder="Nom / lien de l'Airbnb"
-                        className="input-flat flex-1 font-medium"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => onChange({ type_hebergement: "hotel" })}
-                        className="flex-shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-neutral-600"
-                      >
-                        Revenir à un hôtel
-                      </button>
-                    </div>
-                  </PropertyRow>
-                  <PropertyRow label="Adresse / GPS">
-                    <input
-                      value={client.airbnb_adresse}
-                      onChange={(e) => onChange({ airbnb_adresse: e.target.value })}
-                      placeholder="Adresse ou lien Google Maps"
-                      className="input-flat"
-                    />
-                  </PropertyRow>
-                  <PropertyRow label="Appart / Bâtiment">
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={client.airbnb_appartement}
-                        onChange={(e) => onChange({ airbnb_appartement: e.target.value })}
-                        placeholder="N° appartement (si besoin)"
-                        className="input-flat flex-1"
-                      />
-                      <input
-                        value={client.airbnb_building}
-                        onChange={(e) => onChange({ airbnb_building: e.target.value })}
-                        placeholder="Bâtiment (si besoin)"
-                        className="input-flat flex-1"
-                      />
-                    </div>
-                  </PropertyRow>
-                </>
-              ) : (
-                <>
-                  {clientHotels.length === 0 && (
-                    <>
-                      <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />}>
-                        <input
-                          value={client.hotel}
-                          onChange={(e) => onChange({ hotel: e.target.value })}
-                          placeholder="Hôtel"
-                          className="input-flat w-full font-medium"
-                        />
-                      </PropertyRow>
-                      {client.hotel.trim() && !hotelMatch && (
-                        <div className="pl-[26px] text-xs text-orange-600">
-                          ⚠ Cet hôtel n&apos;est pas répertorié — il faut l&apos;ajouter pour continuer.{" "}
-                          <button
-                            type="button"
-                            onClick={() => setAjouterHotelZoneOpen(true)}
-                            className="underline hover:no-underline"
-                          >
-                            L&apos;ajouter
-                          </button>
-                        </div>
-                      )}
-                      <PropertyRow label="N° chambre(s)">
-                        <input
-                          value={client.chambre}
-                          onChange={(e) => onChange({ chambre: e.target.value })}
-                          placeholder="N° chambre(s)"
-                          className="input-flat w-full"
-                        />
-                      </PropertyRow>
-                      <button
-                        type="button"
-                        onClick={() => onChange({ type_hebergement: "airbnb" })}
-                        className="pl-[26px] text-left text-xs text-neutral-400 hover:text-neutral-600"
-                      >
-                        › changer vers un airbnb
-                      </button>
-                    </>
-                  )}
-
-                  <div className="border-t border-neutral-100 pt-2">
-                    {clientHotels.length === 0 && !showCircuit ? (
-                      <button
-                        type="button"
-                        onClick={addHotelStep}
-                        className="text-xs text-neutral-500 hover:text-neutral-700 hover:underline"
-                      >
-                        + Ajouter d&apos;autres hôtels (circuit)
-                      </button>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-xs font-medium text-neutral-500">
-                          Circuit (Caire, Louxor, Assouan, Marsa Alam, Siwa…)
-                        </p>
-                        {clientHotels.map((h, i) => (
-                          <div key={h.id} className="space-y-1.5 rounded-md border border-neutral-200 p-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  disabled={i === 0}
-                                  onClick={() => moveHotelStep(h.id, -1)}
-                                  className="text-xs text-neutral-500 disabled:opacity-20"
-                                >
-                                  ▲
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={i === clientHotels.length - 1}
-                                  onClick={() => moveHotelStep(h.id, 1)}
-                                  className="text-xs text-neutral-500 disabled:opacity-20"
-                                >
-                                  ▼
-                                </button>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => deleteHotelStep(h.id)}
-                                className="text-xs text-red-600"
-                              >
-                                ✕ Retirer
-                              </button>
-                            </div>
-                            <input
-                              value={h.nom}
-                              onChange={(e) => updateHotelStep(h.id, { nom: e.target.value })}
-                              placeholder="Hôtel"
-                              className="input w-full text-sm"
-                            />
-                            <div className="grid grid-cols-2 gap-1.5">
-                              <input
-                                value={h.ville}
-                                onChange={(e) => updateHotelStep(h.id, { ville: e.target.value })}
-                                placeholder="Ville"
-                                className="input text-sm"
-                              />
-                              <input
-                                value={h.chambre}
-                                onChange={(e) => updateHotelStep(h.id, { chambre: e.target.value })}
-                                placeholder="Chambre"
-                                className="input text-sm"
-                              />
-                              <div>
-                                <p className="mb-0.5 text-[10px] text-neutral-400">Arrivée</p>
-                                <input
-                                  type="date"
-                                  value={h.date_arrivee ?? ""}
-                                  onChange={(e) =>
-                                    updateHotelStep(h.id, { date_arrivee: e.target.value || null })
-                                  }
-                                  className="input w-full text-sm"
-                                />
-                              </div>
-                              <div>
-                                <p className="mb-0.5 text-[10px] text-neutral-400">Départ</p>
-                                <input
-                                  type="date"
-                                  value={h.date_depart ?? ""}
-                                  onChange={(e) =>
-                                    updateHotelStep(h.id, { date_depart: e.target.value || null })
-                                  }
-                                  className="input w-full text-sm"
-                                />
-                              </div>
-                            </div>
-                            {(() => {
-                              const info = villeTransfertInfo(
-                                h.ville,
-                                taxesRef,
-                                client.adultes,
-                                client.enfants,
-                                ZONES_HOTEL
-                              );
-                              if (info.kind === "hurghada") {
-                                return (
-                                  <p className="text-xs text-emerald-600">
-                                    ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
-                                  </p>
-                                );
-                              }
-                              if (info.kind === "taxe") {
-                                return (
-                                  <p className="text-xs text-orange-600">
-                                    ⚠ {info.ville} n&apos;est pas sur Hurghada, taxe de transfert possible
-                                    {info.taxe.type === "montant" ? ` (${euros(info.taxe.montant)} €)` : ""}
-                                    {info.taxe.type === "a_demander" ? ` (${info.taxe.note})` : ""}.
-                                  </p>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={addHotelStep}
-                          className="text-xs text-[#171717] hover:underline"
-                        >
-                          + Ajouter un hôtel
-                        </button>
-                        {clientHotels.some((h) => !h.date_arrivee || !h.date_depart) && (
-                          <p className="text-xs text-orange-600">
-                            ⚠ Renseigne les dates d&apos;arrivée et de départ de chaque hôtel pour
-                            continuer.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-            <button
-              type="button"
-              disabled={
-                client.type_hebergement !== "airbnb" &&
-                (clientHotels.length === 0
-                  ? !!client.hotel.trim() && !hotelMatch
-                  : clientHotels.some((h) => !h.date_arrivee || !h.date_depart))
-              }
-              onClick={() => setHotelModalOpen(false)}
-              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Valider
-            </button>
-          </div>
-        </div>
-      )}
+      <HebergementSection
+        client={client}
+        onChange={onChange}
+        hotelsRef={hotelsRef}
+        taxesRef={taxesRef}
+        onOpenHelp={onOpenHelp}
+        onAddHotelRef={onAddHotelRef}
+        onClientHotelsChange={setClientHotels}
+      />
 
       <PropertyRow label="Voyageurs" icon={<PropIcon name="person" />}>
         <button

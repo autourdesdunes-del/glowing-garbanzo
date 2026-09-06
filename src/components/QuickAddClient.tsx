@@ -5,9 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { ActivitesStep, Field, PaiementsStep } from "@/components/client-steps";
+import HebergementSection from "@/components/clientSteps/HebergementSection";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import DuplicateClientModal from "@/components/DuplicateClientModal";
-import AjouterHotelZoneModal from "@/components/AjouterHotelZoneModal";
 import { CANAUX, RELATIONS } from "@/lib/constants";
 import {
   CatalogueItem,
@@ -22,7 +22,7 @@ import {
   ReservationTarif,
   TransfertTaxe,
 } from "@/lib/types";
-import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
+import { matchHotel } from "@/lib/hotelHelp";
 import { DuplicateMatch, findDuplicateClients } from "@/lib/duplicates";
 
 type StepId =
@@ -41,7 +41,6 @@ type StepId =
   | "date_debut"
   | "date_fin"
   | "hotel"
-  | "chambre"
   | "adultes"
   | "enfants"
   | "ages_enfants"
@@ -67,7 +66,7 @@ function buildSteps(a: Partial<Client>): StepId[] {
   steps.push("relation");
   if (a.relation_grace_a === "Autre") steps.push("relation_autre");
   steps.push("telephone", "email", "passeport", "infos_manquantes");
-  steps.push("date_debut", "date_fin", "hotel", "chambre", "adultes", "enfants");
+  steps.push("date_debut", "date_fin", "hotel", "adultes", "enfants");
   if ((a.enfants ?? 0) > 0) steps.push("ages_enfants");
   steps.push("bebes");
   if ((a.bebes ?? 0) > 0) steps.push("ages_bebes");
@@ -132,7 +131,6 @@ export default function QuickAddClient({
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
-  const [ajouterHotelZoneOpen, setAjouterHotelZoneOpen] = useState(false);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
@@ -215,6 +213,36 @@ export default function QuickAddClient({
   const patch = (fields: Partial<Client>) => {
     setAnswers((prev) => ({ ...prev, ...fields }));
     if (clientId) onUpdateClient(clientId, fields);
+  };
+
+  // Ajoute un hôtel à hotels_reference (HELP) — utilisé à la fois par
+  // l'étape "hotel" du pas-à-pas et par HebergementSection (circuit
+  // multi-hôtels / Airbnb, voir le step "hotel" plus bas).
+  const addHotelRef = async (nom: string, ville: string) => {
+    const { data, error } = await supabase
+      .from("hotels_reference")
+      .insert({ nom, ville, sur_hurghada: ville === "Hurghada" })
+      .select()
+      .single();
+    if (!error && data) {
+      setHotelsRef((prev) => [...prev, data as HotelReference]);
+      return;
+    }
+    // Déjà répertorié sous un nom identique (index unique sur
+    // hotels_reference) — pas une vraie erreur : on récupère juste la
+    // fiche existante au lieu d'en recréer une, pour débloquer le pas suivant.
+    if (error?.code === "23505") {
+      const { data: existing } = await supabase
+        .from("hotels_reference")
+        .select("*")
+        .ilike("nom", nom)
+        .maybeSingle();
+      if (existing) {
+        setHotelsRef((prev) => (prev.some((h) => h.id === existing.id) ? prev : [...prev, existing as HotelReference]));
+      }
+    } else {
+      toast("Échec de l'ajout de l'hôtel.");
+    }
   };
 
   const handleBusEscalation = async (nomActivite: string, reservationId: string | null) => {
@@ -364,9 +392,6 @@ export default function QuickAddClient({
   };
 
   const hotelMatch = matchHotel(answers.hotel || "", hotelsRef);
-  const taxeMatch = hotelMatch
-    ? matchTransfertTaxe(taxesRef, hotelMatch.ville, answers.adultes || 0, answers.enfants || 0)
-    : null;
   const hotelHorsHurghada = !!hotelMatch && !hotelMatch.sur_hurghada;
 
   const addReservation = async (): Promise<string | null> => {
@@ -863,100 +888,14 @@ export default function QuickAddClient({
                 </Field>
               )}
 
-              {step === "hotel" && (
-                <>
-                  <Field label="Hôtel">
-                    <input
-                      autoFocus
-                      value={answers.hotel || ""}
-                      onChange={(e) => patch({ hotel: e.target.value })}
-                      className="input"
-                    />
-                  </Field>
-                  {(answers.hotel || "").trim() &&
-                    (hotelMatch ? (
-                      hotelMatch.sur_hurghada ? (
-                        <div className="mt-2 rounded-md bg-[#171717]/10 px-3 py-2 text-xs text-[#171717]">
-                          ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
-                        </div>
-                      ) : (
-                        <div className="mt-2 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
-                          ⚠ Attention, cet hôtel n&apos;est pas sur Hurghada ({hotelMatch.ville}), il peut
-                          comporter une taxe de transfert
-                          {(answers.adultes || 0) > 0 && taxeMatch?.type === "montant"
-                            ? ` (${taxeMatch.montant} €)`
-                            : ""}
-                          {(answers.adultes || 0) > 0 && taxeMatch?.type === "a_demander"
-                            ? ` (${taxeMatch.note})`
-                            : ""}
-                          {(answers.adultes || 0) === 0
-                            ? " — montant précis à confirmer une fois le nombre de participants renseigné"
-                            : ""}
-                          .
-                        </div>
-                      )
-                    ) : (
-                      <div className="mt-2 rounded-md bg-orange-50 px-3 py-2 text-xs text-orange-700">
-                        ⚠ Cet hôtel n&apos;est pas répertorié — il faut l&apos;ajouter pour continuer.{" "}
-                        <button
-                          type="button"
-                          onClick={() => setAjouterHotelZoneOpen(true)}
-                          className="underline hover:no-underline"
-                        >
-                          L&apos;ajouter
-                        </button>
-                      </div>
-                    ))}
-                  {ajouterHotelZoneOpen && (
-                    <AjouterHotelZoneModal
-                      hotelNom={answers.hotel || ""}
-                      onAdd={async (ville) => {
-                        const nom = (answers.hotel || "").trim();
-                        const { data, error } = await supabase
-                          .from("hotels_reference")
-                          .insert({ nom, ville, sur_hurghada: ville === "Hurghada" })
-                          .select()
-                          .single();
-                        if (!error && data) {
-                          setHotelsRef((prev) => [...prev, data as HotelReference]);
-                          setAjouterHotelZoneOpen(false);
-                          return;
-                        }
-                        // Déjà répertorié sous un nom identique (index unique
-                        // sur hotels_reference) — pas une vraie erreur : on
-                        // récupère juste la fiche existante au lieu d'en
-                        // recréer une, pour débloquer le pas suivant.
-                        if (error?.code === "23505") {
-                          const { data: existing } = await supabase
-                            .from("hotels_reference")
-                            .select("*")
-                            .ilike("nom", nom)
-                            .maybeSingle();
-                          if (existing) {
-                            setHotelsRef((prev) =>
-                              prev.some((h) => h.id === existing.id) ? prev : [...prev, existing as HotelReference]
-                            );
-                          }
-                        } else {
-                          toast("Échec de l'ajout de l'hôtel.");
-                        }
-                        setAjouterHotelZoneOpen(false);
-                      }}
-                      onClose={() => setAjouterHotelZoneOpen(false)}
-                    />
-                  )}
-                </>
-              )}
-
-              {step === "chambre" && (
-                <Field label="N° de chambre">
-                  <input
-                    autoFocus
-                    value={answers.chambre || ""}
-                    onChange={(e) => patch({ chambre: e.target.value })}
-                    className="input"
-                  />
-                </Field>
+              {step === "hotel" && clientId && (
+                <HebergementSection
+                  client={{ ...answers, id: clientId } as Client}
+                  onChange={patch}
+                  hotelsRef={hotelsRef}
+                  taxesRef={taxesRef}
+                  onAddHotelRef={addHotelRef}
+                />
               )}
 
               {step === "adultes" && (

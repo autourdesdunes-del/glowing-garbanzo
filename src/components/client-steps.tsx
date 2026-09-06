@@ -2437,7 +2437,18 @@ export function PaiementsStep({
                   key={o.key}
                   onClick={() => {
                     const r = reservationsActives(reservations)[0] || reservations[0];
-                    onChange(o.patch(r));
+                    // Le solde_montant doit toujours figer le total séjour
+                    // au moment où on marque payé — sinon une activité
+                    // ajoutée plus tard grossit le total sans que rien ne
+                    // détecte que ce surplus n'a jamais été réglé (voir
+                    // paiementProgress dans resa.ts).
+                    onChange({
+                      ...o.patch(r),
+                      solde_montant: totalSejour,
+                      reprise_montant: 0,
+                      reprise_mode: "",
+                      reprise_activite_id: null,
+                    });
                     setShowSoldeCompletPopup(false);
                   }}
                   className={`rounded-md border px-3 py-2 text-left text-sm font-medium hover:opacity-90 ${

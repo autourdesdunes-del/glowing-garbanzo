@@ -419,6 +419,16 @@ export function ActivityDetailModal({
                     if (!ok) return;
                   }
                   const patch = opt.patch(r);
+                  // Le solde_montant doit toujours figer le total séjour au
+                  // moment où on marque payé — sinon une activité ajoutée
+                  // plus tard grossit le total sans que rien ne détecte que
+                  // ce surplus n'a jamais été réglé (voir paiementProgress).
+                  if (opt.key.startsWith("paye_")) {
+                    patch.solde_montant = totalSejourClient;
+                    patch.reprise_montant = 0;
+                    patch.reprise_mode = "";
+                    patch.reprise_activite_id = null;
+                  }
                   setSoldeOverride((prev) => ({ ...prev, ...patch }));
                   await supabase.from("clients").update(patch).eq("id", client.id);
                 }}

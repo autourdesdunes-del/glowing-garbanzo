@@ -227,7 +227,19 @@ export function paiementProgress(
   const avoirUtilise = avoirUtiliseTotal(reservationsActives(reservations));
   const etapesSum = etapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const soldeRestant = Math.max(totalSejour - acompteEngage - etapesSum - avoirUtilise, 0);
-  const totalPaye = acomptePaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeRestant : 0);
+  // Le solde ne peut jamais couvrir plus que ce qui a été réellement figé au
+  // moment du règlement (client.solde_montant) — sinon une activité ajoutée
+  // après un solde déjà payé grossit totalSejour et se retrouve absorbée en
+  // silence dans un "Payé" qui n'a jamais couvert cette nouvelle activité.
+  // Le pop-up de reprise (checkRepriseApresAjout) ne suffit pas à s'en
+  // protéger : il ne se déclenche qu'une fois, juste après l'ajout, et rien
+  // ne le rejoue si on est interrompu avant de le valider. solde_montant à
+  // 0 = jamais renseigné (anciennes données) : on garde alors l'ancien
+  // calcul plutôt que d'écraser à tort un solde légitimement payé.
+  const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejour;
+  const croissanceApresSolde = Math.max(totalSejour - soldeBaseline, 0);
+  const soldeCouvert = client.solde_paye ? Math.max(soldeRestant - croissanceApresSolde, 0) : 0;
+  const totalPaye = acomptePaye + etapesSum + avoirUtilise + soldeCouvert;
   return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0), soldeRestant };
 }
 
@@ -344,6 +356,29 @@ export function paiementBadge(
       label: `Presque payé — reste ${fmtEuros(reste)} €`,
       className: "bg-blue-100 text-blue-700",
     };
+  }
+
+  // Solde marqué payé mais total séjour reparti à la hausse depuis (nouvelle
+  // activité ajoutée) SANS qu'une reprise n'ait été enregistrée (pop-up de
+  // reprise jamais rempli, interrompu par un rechargement ou une navigation
+  // avant validation) : reste > 0 le révèle malgré client.solde_paye. Ne
+  // jamais laisser cette nouvelle activité s'afficher "Payé" comme si de
+  // rien n'était — retenue avec la même règle de repli que
+  // repriseActiviteCible (prochaine activité à venir, sinon la plus
+  // récente), pour rester cohérent avec ce qu'aurait choisi le pop-up.
+  if (key.startsWith("paye_") && reste > 0.01 && !repriseActiviteCible(client, reservations)) {
+    const actives = reservationsActives(reservations).filter((rr) => rr.date_debut);
+    const prochaine = [...actives]
+      .filter((rr) => (rr.date_debut || "") >= todayStr())
+      .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""))[0];
+    const cibleAuto =
+      prochaine || [...actives].sort((a, b) => (b.date_debut || "").localeCompare(a.date_debut || ""))[0];
+    if (cibleAuto?.id === r.id) {
+      return {
+        label: `⚠️ ${fmtEuros(reste)} € non réglés (nouvelle activité)`,
+        className: "bg-red-100 text-red-700",
+      };
+    }
   }
 
   return { label: opt.label, className: opt.className };

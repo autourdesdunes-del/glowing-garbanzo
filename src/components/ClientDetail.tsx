@@ -942,8 +942,19 @@ export default function ClientDetail({
     totalSejourHeader - acomptePayeMontant - etapesSumHeader - avoirUtiliseHeader,
     0
   );
-  const totalPayeHeader =
-    acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + (client.solde_paye ? soldeRestantHeader : 0);
+  // Le solde ne peut jamais couvrir plus que ce qui a été réellement figé au
+  // moment du règlement (client.solde_montant) — sinon une activité ajoutée
+  // après coup grossit totalSejourHeader et se retrouve absorbée en silence
+  // dans un "Payé" qui n'a jamais couvert cette nouvelle activité (le
+  // pop-up de reprise ne suffit pas à s'en protéger : il ne se déclenche
+  // qu'une fois, au moment précis où on ajoute l'activité, et rien ne le
+  // rejoue si on est interrompu avant de le valider). solde_montant à 0 =
+  // jamais renseigné (anciennes données) : on garde alors l'ancien calcul
+  // plutôt que d'écraser à tort un solde légitimement payé.
+  const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejourHeader;
+  const croissanceApresSolde = Math.max(totalSejourHeader - soldeBaseline, 0);
+  const soldeCouvertHeader = client.solde_paye ? Math.max(soldeRestantHeader - croissanceApresSolde, 0) : 0;
+  const totalPayeHeader = acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + soldeCouvertHeader;
   const paiementFullyPaid =
     totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader && !(client.reprise_montant > 0);
 

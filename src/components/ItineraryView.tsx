@@ -41,6 +41,7 @@ import {
   paxLine,
   resaBreakdown,
   resaTotalMontant,
+  reservationsActives,
   soldeInclutAcompteImpaye,
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
@@ -188,7 +189,22 @@ export default function ItineraryView({
       });
       if (!ok) return;
     }
-    onUpdateClient(opt.patch(r));
+    const patch = opt.patch(r);
+    // Le solde_montant doit toujours figer le total séjour au moment où on
+    // marque payé — sinon une activité ajoutée plus tard grossit le total
+    // sans que rien ne détecte que ce surplus n'a jamais été réglé (voir
+    // paiementProgress dans resa.ts).
+    if (opt.key.startsWith("paye_")) {
+      const totalSejour = reservationsActives(reservations).reduce(
+        (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
+        0
+      );
+      patch.solde_montant = totalSejour;
+      patch.reprise_montant = 0;
+      patch.reprise_mode = "";
+      patch.reprise_activite_id = null;
+    }
+    onUpdateClient(patch);
   };
 
   const askPickup = (r: Reservation) => {

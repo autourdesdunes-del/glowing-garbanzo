@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   CatalogueItem,
   Client,
+  ClientHotel,
   HotelReference,
   PaiementEtape,
   Reservation,
@@ -66,11 +67,21 @@ export default function PlanningView({
   const [activeActivity, setActiveActivity] = useState<Row | null>(null);
   const [moisChoisi, setMoisChoisi] = useState(() => monthStartOf(toStr(new Date())));
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
+  // Circuits multi-hôtels groupés par client — sans ça, infosManquantesToutes
+  // (dans ReservationSummaryCard) signale "Hôtel" manquant même quand un
+  // circuit complet est renseigné (même correctif que côté DashboardView).
+  const [clientHotelsMap, setClientHotelsMap] = useState<Record<string, ClientHotel[]>>({});
   useEffect(() => {
     const supabase = createClient();
     (async () => {
       const { data } = await supabase.from("hotels_reference").select("*");
       setHotelsRef((data as HotelReference[]) || []);
+      const { data: hotels } = await supabase.from("client_hotels").select("*");
+      const grouped: Record<string, ClientHotel[]> = {};
+      ((hotels as ClientHotel[]) || []).forEach((h) => {
+        grouped[h.client_id] = [...(grouped[h.client_id] || []), h];
+      });
+      setClientHotelsMap(grouped);
     })();
   }, []);
 
@@ -244,6 +255,7 @@ export default function PlanningView({
                     resaTarifs={resaTarifs}
                     paiementsEtapes={paiementsEtapes}
                     hotelsRef={hotelsRef}
+                    clientHotels={clientHotelsMap[row.client.id] || []}
                     onClick={() => setActiveActivity(row)}
                     onOpenClient={onOpenClient}
                     size="medium"

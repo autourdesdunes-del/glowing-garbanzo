@@ -2,6 +2,7 @@
 
 import {
   Client,
+  ClientHotel,
   HotelReference,
   PaiementEtape,
   Reservation,
@@ -46,6 +47,7 @@ export function ReservationSummaryCard({
   resaTarifs,
   paiementsEtapes = [],
   hotelsRef = [],
+  clientHotels = [],
   onClick,
   onOpenClient,
   size = "full",
@@ -57,6 +59,10 @@ export function ReservationSummaryCard({
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
   hotelsRef?: HotelReference[];
+  // Circuit multi-hôtels de CE client — sans ça, infosManquantesToutes
+  // signale "Hôtel" manquant même quand un circuit complet est renseigné
+  // (voir aussi le même correctif côté DashboardView).
+  clientHotels?: ClientHotel[];
   onClick: () => void;
   onOpenClient: (clientId: string) => void;
   size?: "full" | "medium" | "compact";
@@ -84,7 +90,7 @@ export function ReservationSummaryCard({
     clientEtapes
   );
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
-  const infosManquantes = infosManquantesToutes(client, reservations);
+  const infosManquantes = infosManquantesToutes(client, reservations, hotelsRef, clientHotels);
   const infoComplet = infosManquantes.length === 0;
   const infoStatut = infoComplet ? null : infosManquantes[0];
 

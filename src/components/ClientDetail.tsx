@@ -1378,6 +1378,7 @@ export default function ClientDetail({
             })
           }
           onJumpToPaiements={jumpToPaiements}
+          onClientHotelsChange={setClientHotels}
         />
       </div>
 

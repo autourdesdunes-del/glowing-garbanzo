@@ -125,9 +125,15 @@ export function ContactStep({
   onOpenHelp,
   onAddHotelRef,
   onJumpToPaiements,
+  onClientHotelsChange,
 }: StepProps & {
   onNeedsField: (message: string, focusId: string) => void;
   reservations: Reservation[];
+  // ClientDetail garde sa propre copie de client_hotels (pour le badge
+  // "Hôtel" tout en haut de la fiche, hors de ce step) — sans ce callback,
+  // ajouter/modifier/retirer un hôtel du circuit ici ne se reflétait pas
+  // là-haut avant un rechargement complet de la page.
+  onClientHotelsChange?: (hotels: ClientHotel[]) => void;
   totalSejour?: number;
   hotelsRef: HotelReference[];
   taxesRef: TransfertTaxe[];
@@ -164,6 +170,13 @@ export function ContactStep({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
+
+  // Répercute toute mutation locale du circuit vers la copie que garde
+  // ClientDetail (badge "Hôtel" en haut de la fiche) — voir onClientHotelsChange.
+  useEffect(() => {
+    onClientHotelsChange?.(clientHotels);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientHotels]);
 
   const addHotelStep = async () => {
     const { data, error } = await supabase

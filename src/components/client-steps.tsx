@@ -1179,9 +1179,17 @@ export function ActivitesStep({
   assouanVerifications,
   paiementsEtapes = [],
   avoirs = [],
+  onAddPaiementEtape,
 }: StepProps & {
   reservations: Reservation[];
   avoirs?: Avoir[];
+  onAddPaiementEtape?: (
+    montant: number,
+    mode: string,
+    date: string,
+    note: string,
+    activiteNom: string
+  ) => void | Promise<void>;
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onAddReservation: (opts?: { skipAvoirPrompt?: boolean }) => Promise<string | null>;
@@ -1343,6 +1351,7 @@ export function ActivitesStep({
         onUpdateTarif={onUpdateTarif}
         onDeleteTarif={onDeleteTarif}
         onUpdateClient={onChange}
+        onAddPaiementEtape={onAddPaiementEtape}
         catalogue={catalogue}
         catalogueTarifs={catalogueTarifs}
         transfertTarifs={transfertTarifs}

@@ -1455,6 +1455,7 @@ export default function ClientDetail({
           assouanVerifications={assouanVerifications}
           paiementsEtapes={paiementsEtapes}
           avoirs={avoirs}
+          onAddPaiementEtape={addPaiementEtape}
         />
       </Section>
 

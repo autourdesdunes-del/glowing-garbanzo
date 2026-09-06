@@ -89,6 +89,7 @@ export default function ItineraryView({
   onUpdateTarif,
   onDeleteTarif,
   onUpdateClient,
+  onAddPaiementEtape,
   catalogue,
   catalogueTarifs,
   transfertTarifs,
@@ -109,6 +110,13 @@ export default function ItineraryView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  onAddPaiementEtape?: (
+    montant: number,
+    mode: string,
+    date: string,
+    note: string,
+    activiteNom: string
+  ) => void | Promise<void>;
   avoirs?: Avoir[];
   expandedId: string | null;
   onToggleExpand: (id: string | null) => void;
@@ -845,6 +853,7 @@ export default function ItineraryView({
               catalogueItem={catalogue.find((c) => c.id === resaAnnuler.catalogue_item_id)}
               onUpdate={(patch) => onUpdateReservation(resaAnnuler.id, patch)}
               onUpdateClient={onUpdateClient}
+              onAddPaiementEtape={onAddPaiementEtape}
               onClose={() => setAnnulerActiviteId(null)}
             />
           );

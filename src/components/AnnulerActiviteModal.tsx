@@ -30,6 +30,7 @@ export default function AnnulerActiviteModal({
   catalogueItem,
   onUpdate,
   onUpdateClient,
+  onAddPaiementEtape,
   onClose,
 }: {
   r: Reservation;
@@ -40,6 +41,19 @@ export default function AnnulerActiviteModal({
   catalogueItem: CatalogueItem | undefined;
   onUpdate: (patch: Partial<Reservation>) => void;
   onUpdateClient?: (patch: Partial<Client>) => void;
+  // Passé depuis la fiche client (ClientDetail) quand disponible — insère
+  // l'étape ET met à jour l'état local du "Résumé des paiements" tout de
+  // suite, sans attendre un rechargement complet de la page. Optionnel :
+  // les wizards de création (QuickAddClient, GuidedActivityModal) n'ont pas
+  // ce câblage, l'annulation reste alors correcte en base (voir doConfirm)
+  // mais son résumé n'apparaît qu'au prochain chargement de la fiche.
+  onAddPaiementEtape?: (
+    montant: number,
+    mode: string,
+    date: string,
+    note: string,
+    activiteNom: string
+  ) => void | Promise<void>;
   onClose: () => void;
 }) {
   const toast = useToast();
@@ -162,17 +176,22 @@ export default function AnnulerActiviteModal({
     }
 
     if (reglementIci && reglementChoix === "annuler") {
-      const { error } = await supabase.from("paiements_etapes").insert({
-        client_id: client.id,
-        montant: 0,
-        mode: "Annulation",
-        date: dateAnnulation || todayStr(),
-        activite_nom: r.nom_activite,
-        note: `Annulation paiement du ${fmtDateDMY(r.date_debut)} à ${r.nom_activite || "cette activité"} — montant : ${euros(
-          reglementIci.montant
-        )} € — raison : client a annulé l'activité le ${fmtDateDMY(dateAnnulation)} — conséquence : paiement annulé`,
-      });
-      if (error) toast("Échec de l'enregistrement de l'annulation du paiement.");
+      const noteAnnulation = `Annulation paiement du ${fmtDateDMY(r.date_debut)} à ${r.nom_activite || "cette activité"} — montant : ${euros(
+        reglementIci.montant
+      )} € — raison : client a annulé l'activité le ${fmtDateDMY(dateAnnulation)} — conséquence : paiement annulé`;
+      if (onAddPaiementEtape) {
+        await onAddPaiementEtape(0, "Annulation", dateAnnulation || todayStr(), noteAnnulation, r.nom_activite || "");
+      } else {
+        const { error } = await supabase.from("paiements_etapes").insert({
+          client_id: client.id,
+          montant: 0,
+          mode: "Annulation",
+          date: dateAnnulation || todayStr(),
+          activite_nom: r.nom_activite,
+          note: noteAnnulation,
+        });
+        if (error) toast("Échec de l'enregistrement de l'annulation du paiement.");
+      }
       onUpdateClient?.(
         reglementIci.type === "solde"
           ? {

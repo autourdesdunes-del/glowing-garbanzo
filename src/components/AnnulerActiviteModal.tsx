@@ -85,7 +85,12 @@ export default function AnnulerActiviteModal({
   const montantTotal = resaTotalMontant(r, client, options, tarifs);
   // Modifiable — permet un remboursement partiel (ex. frais déjà engagés
   // non récupérables) au lieu de toujours forcer le prix total de l'activité.
-  const [montant, setMontant] = useState(montantTotal);
+  // Part de 0 si "pas encore payée" est déjà la valeur par défaut de
+  // dejaPayee (cas le plus courant) — sinon le champ démarrait à
+  // montantTotal et déclenchait aussitôt l'erreur "rien à rembourser" sans
+  // que l'employée ait rien touché (les boutons Oui/Non ne remettent le
+  // montant à jour que sur un clic explicite, jamais au premier rendu).
+  const [montant, setMontant] = useState(dejaPayee ? montantTotal : 0);
   // Calculé sur la date d'annulation choisie (par défaut aujourd'hui), pas
   // toujours "maintenant" — permet de ressaisir une annulation passée (ex.
   // reprise de données Notion) sans que le délai de 24h/48h se retrouve

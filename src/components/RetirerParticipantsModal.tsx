@@ -125,6 +125,13 @@ export default function RetirerParticipantsModal({
         client_id: client.id,
         montant: montantAffiche,
         raison: "Annulation",
+        // "raison" doit rester une des 4 catégories fixes (voir
+        // RAISONS_REMBOURSEMENT) — le motif précis choisi ci-dessus
+        // (Météo/Malade/...) vient d'un vocabulaire différent
+        // (RAISONS_ANNULATION), donc rangé ici plutôt que dans raison_autre
+        // (qui ne s'affiche que si raison === "Autre") pour rester visible
+        // dans Suivis > Remboursements.
+        details: motifFinal ? `${nbPartent} participant${nbPartent > 1 ? "s" : ""} — ${motifFinal}` : "",
         mode: "PayPal",
         paypal_email: emailPourRemb.trim(),
         activite_id: r.id,
@@ -140,6 +147,7 @@ export default function RetirerParticipantsModal({
         montant: montantAffiche,
         montant_restant: montantAffiche,
         raison: "Annulation",
+        raison_autre: motifFinal ? `${nbPartent} participant${nbPartent > 1 ? "s" : ""} — ${motifFinal}` : "",
         activite_id: r.id,
         date_probleme: date || todayStr(),
       });

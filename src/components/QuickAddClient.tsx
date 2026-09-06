@@ -639,7 +639,18 @@ export default function QuickAddClient({
                   <select
                     autoFocus
                     value={answers.canal}
-                    onChange={(e) => patch({ canal: e.target.value })}
+                    onChange={(e) => {
+                      const canal = e.target.value;
+                      // Idem que dans la fiche (ContactStep) : si on revient
+                      // en arrière et qu'on choisit pour le canal principal
+                      // la même valeur que le second canal déjà saisi, ce
+                      // dernier n'a plus de sens — on le retire.
+                      if (canal === answers.canal_secondaire) {
+                        patch({ canal, canal_secondaire: "", canal_secondaire_autre: "", pseudo_contact_secondaire: "" });
+                      } else {
+                        patch({ canal });
+                      }
+                    }}
                     className="input"
                   >
                     {CANAUX.map((c) => (

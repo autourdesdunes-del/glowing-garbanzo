@@ -481,7 +481,18 @@ export function ContactStep({
               <PropertyRow label="Canal">
                 <select
                   value={client.canal}
-                  onChange={(e) => onChange({ canal: e.target.value })}
+                  onChange={(e) => {
+                    const canal = e.target.value;
+                    // Si le canal principal devient identique au second
+                    // canal déjà choisi, ce dernier n'a plus de sens (et
+                    // disparaîtrait du menu déroulant du second canal sans
+                    // que sa valeur ne soit effacée) — on le retire.
+                    if (canal === client.canal_secondaire) {
+                      onChange({ canal, canal_secondaire: "", canal_secondaire_autre: "", pseudo_contact_secondaire: "" });
+                    } else {
+                      onChange({ canal });
+                    }
+                  }}
                   className="input-flat w-full"
                 >
                   {CANAUX.map((c) => (

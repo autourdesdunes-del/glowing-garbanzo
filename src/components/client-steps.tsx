@@ -888,11 +888,16 @@ export function ActivitesStep({
   onAutoExpandHandled?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Comparaison en render (pas de useEffect) pour éviter
+  // react-hooks/set-state-in-effect — même pattern que lastSub dans
+  // PlanningView.tsx.
+  const [lastAutoExpandId, setLastAutoExpandId] = useState<string | null | undefined>(undefined);
+  if (autoExpandReservationId && autoExpandReservationId !== lastAutoExpandId) {
+    setLastAutoExpandId(autoExpandReservationId);
+    setExpandedId(autoExpandReservationId);
+  }
   useEffect(() => {
-    if (autoExpandReservationId) {
-      setExpandedId(autoExpandReservationId);
-      onAutoExpandHandled?.();
-    }
+    if (autoExpandReservationId) onAutoExpandHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoExpandReservationId]);
   const [addingNew, setAddingNewState] = useState(false);

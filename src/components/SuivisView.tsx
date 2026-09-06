@@ -210,7 +210,7 @@ export default function SuivisView({
   const pastDeadline = now.getHours() >= 18;
 
   const rdvRows = clients
-    .filter((c) => !c.solde_activite_id && (c.solde_rdv_heure || c.solde_rdv_lieu))
+    .filter((c) => !c.solde_activite_id && !c.solde_paye && (c.solde_rdv_heure || c.solde_rdv_lieu))
     .sort((a, b) => (a.solde_date || "").localeCompare(b.solde_date || ""));
 
   // RDV paiement à l'hôtel prévu aujourd'hui : à envoyer le matin même —

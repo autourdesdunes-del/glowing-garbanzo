@@ -966,6 +966,8 @@ export default function ItineraryView({
               client={client}
               options={resaOptions[resaCible.id] || []}
               tarifs={resaTarifs[resaCible.id] || []}
+              coutReel={canSeeMargins ? coutsMap[resaCible.id] : undefined}
+              onUpdateCoutReel={canSeeMargins ? (value) => onUpdateCoutReel(resaCible.id, value) : undefined}
               onUpdate={(patch) => onUpdateReservation(resaCible.id, patch)}
               onUpdateOption={(optId, patch) => onUpdateOption(resaCible.id, optId, patch)}
               onUpdateClient={onUpdateClient}

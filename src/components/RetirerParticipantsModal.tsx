@@ -24,6 +24,8 @@ export default function RetirerParticipantsModal({
   client,
   options,
   tarifs,
+  coutReel,
+  onUpdateCoutReel,
   onUpdate,
   onUpdateOption,
   onUpdateClient,
@@ -33,6 +35,10 @@ export default function RetirerParticipantsModal({
   client: Client;
   options: ReservationOption[];
   tarifs: ReservationTarif[];
+  // undefined = coût réel jamais saisi (voir DirectionView.tsx) ou compte
+  // équipe sans accès marge — dans les deux cas, rien à proratiser.
+  coutReel?: number;
+  onUpdateCoutReel?: (value: number) => void;
   onUpdate: (patch: Partial<Reservation>) => void;
   onUpdateOption: (optId: string, patch: Partial<ReservationOption>) => void;
   onUpdateClient?: (patch: Partial<Client>) => void;
@@ -86,6 +92,13 @@ export default function RetirerParticipantsModal({
   const avoirUtiliseAvant = Number(r.avoir_utilise) || 0;
   const avoirUtiliseApres = Math.round(avoirUtiliseAvant * ratioParticipants * 100) / 100;
   const avoirLibere = Math.max(avoirUtiliseAvant - avoirUtiliseApres, 0);
+  // Le coût réel (marge Direction) doit suivre la même baisse que le prix de
+  // vente quand des participants partent — sinon la marge affichée dégringole
+  // artificiellement (le coût payé au prestataire pour un quad à 4 devient
+  // "le coût pour 2" alors qu'il vient d'être proratisé nulle part), faussant
+  // le classement "Activités les plus rentables" et l'export Direction.
+  const coutReelApres =
+    coutReel !== undefined ? Math.round(coutReel * ratioParticipants * 100) / 100 : undefined;
   // null = pas encore modifié à la main (suit differenceCash) — jamais 0
   // par défaut : "montant || differenceCash" empêchait de saisir 0 € (ex.
   // frais déjà engagés non récupérables), un 0 tapé à la main retombait
@@ -133,6 +146,10 @@ export default function RetirerParticipantsModal({
         const nouvelleQuantite = Math.max(Math.round((Number(o.quantite) || 0) * ratioParticipants), 0);
         if (nouvelleQuantite !== o.quantite) onUpdateOption(o.id, { quantite: nouvelleQuantite });
       });
+    }
+
+    if (coutReelApres !== undefined && coutReelApres !== coutReel) {
+      onUpdateCoutReel?.(coutReelApres);
     }
 
     if (remboursementPossible && remboursementChoix === "rembourse") {
@@ -344,13 +361,20 @@ export default function RetirerParticipantsModal({
           </p>
         )}
 
+        {coutReelApres !== undefined && coutReelApres !== coutReel && (
+          <p className="mt-3 text-xs text-neutral-500">
+            Coût réel ajusté en conséquence : {euros(coutReel || 0)} € → {euros(coutReelApres)} €.
+          </p>
+        )}
+
         {dejaPayee && differenceCash > 0 && (
           <div className="mt-3">
             <label className="mb-1 block text-xs font-medium text-neutral-500">Montant à rembourser (€)</label>
             <input
               type="number"
               value={montantAffiche}
-              onChange={(e) => setMontant(Number(e.target.value) || 0)}
+              max={differenceCash}
+              onChange={(e) => setMontant(Math.min(Math.max(Number(e.target.value) || 0, 0), differenceCash))}
               className="input mb-2 max-w-[160px]"
             />
             <div className="flex gap-2">

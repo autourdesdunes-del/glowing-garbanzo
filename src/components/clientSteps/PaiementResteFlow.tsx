@@ -513,6 +513,7 @@ export function PaiementResteFlow({
         client.paiement_integral_mode !== "rdv" &&
         client.paiement_integral_mode !== "activite_eur" &&
         client.paiement_integral_mode !== "activite_egp" &&
+        client.paiement_integral_mode !== "activite_mixte" &&
         (() => {
           const modeInfo = INTEGRAL_MODES.find((m) => m.key === client.paiement_integral_mode)!;
           const soldeMode = INTEGRAL_MODE_SOLDE_MODE[client.paiement_integral_mode];

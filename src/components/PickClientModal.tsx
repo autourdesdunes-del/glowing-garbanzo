@@ -48,7 +48,19 @@ export default function PickClientModal({
               onClick={() => onSelect(c.id)}
               className="flex w-full items-center justify-between rounded-md border border-[#eaeaea] px-3 py-2 text-left text-sm hover:border-[#C9973E]"
             >
-              <span className="font-medium text-[#171717]">{c.nom || "Sans nom"}</span>
+              <span className="flex items-center gap-1.5">
+                <span className="font-medium text-[#171717]">{c.nom || "Sans nom"}</span>
+                {c.statut === "Client annulé" && (
+                  // Peut aussi être une fiche fusionnée (fusionnerClients,
+                  // AppShell.tsx), donc vidée de son historique au profit
+                  // d'une autre fiche — ce badge évite de la confondre avec
+                  // la bonne fiche sans empêcher un cas légitime (ex. un
+                  // remboursement tardif sur un client réellement annulé).
+                  <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
+                    Annulé
+                  </span>
+                )}
+              </span>
               <span className="text-xs text-[#666666]">{c.telephone}</span>
             </button>
           ))}

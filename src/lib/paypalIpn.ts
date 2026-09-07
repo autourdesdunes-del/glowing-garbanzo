@@ -31,6 +31,20 @@ export async function verifyIpn(rawBody: string): Promise<boolean> {
   return text.trim() === "VERIFIED";
 }
 
+// PayPal ne garantit avec "VERIFIED" que l'intégrité du message (il vient
+// bien de PayPal, non altéré) — jamais qu'il concerne CE compte marchand.
+// Sans cette vérification supplémentaire, n'importe quel IPN PayPal reçu
+// ailleurs (même un paiement personnel sans rapport) pourrait être rejoué
+// tel quel vers ce endpoint et se faire passer pour un acompte reçu par
+// l'agence. N'est appliqué que si PAYPAL_BUSINESS_EMAIL est configuré, pour
+// ne rien casser tant que la valeur n'a pas été renseignée côté Vercel.
+export function receiverMatchesBusiness(fields: Record<string, string>, businessEmail: string): boolean {
+  const clean = (s: string | undefined) => (s || "").trim().toLowerCase();
+  const attendu = clean(businessEmail);
+  if (!attendu) return true;
+  return clean(fields.receiver_email) === attendu || clean(fields.business) === attendu;
+}
+
 export type PaypalPaiementExtrait = {
   transaction_id: string;
   montant: number;

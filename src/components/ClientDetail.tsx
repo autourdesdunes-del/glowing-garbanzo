@@ -190,10 +190,16 @@ export default function ClientDetail({
   // savoir si une vérification est "validee" pour débloquer la confirmation
   // de l'activité, pas seulement celles en attente.
   const refreshAssouanVerifications = async () => {
+    // Le plus récent en premier : une vérification "refusée" suivie d'une
+    // nouvelle demande "validée" laisse deux lignes pour la même activité —
+    // sans cet ordre, le .find() plus bas (ligne ~2245) retombait sur la
+    // première rencontrée (l'ancienne refusée) et bloquait à tort la
+    // confirmation malgré la validation plus récente.
     const { data } = await supabase
       .from("assouan_verifications")
       .select("*")
-      .eq("client_id", client.id);
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false });
     setAssouanVerifications((data as AssouanVerification[]) || []);
   };
 

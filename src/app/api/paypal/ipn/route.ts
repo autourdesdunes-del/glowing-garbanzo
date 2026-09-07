@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { extractIpnPaiement, parseIpnBody, verifyIpn } from "@/lib/paypalIpn";
+import { extractIpnPaiement, parseIpnBody, receiverMatchesBusiness, verifyIpn } from "@/lib/paypalIpn";
 
 // Reçoit les notifications IPN PayPal (voir src/lib/paypalIpn.ts pour le
 // pourquoi d'IPN plutôt que les webhooks REST). Toujours journalisé, même
@@ -36,6 +36,18 @@ export async function POST(request: Request) {
     // PayPal n'attend pas de code d'erreur particulier pour un IPN invalide,
     // mais on répond quand même 200 pour ne pas déclencher de retries en
     // boucle sur un message qu'on a déjà journalisé.
+    return new Response("ok", { status: 200 });
+  }
+
+  // "VERIFIED" ne garantit que l'intégrité du message, jamais qu'il
+  // concerne ce compte — voir le commentaire sur receiverMatchesBusiness.
+  if (!receiverMatchesBusiness(fields, process.env.PAYPAL_BUSINESS_EMAIL || "")) {
+    if (logRow) {
+      await admin
+        .from("paypal_webhook_events")
+        .update({ error: "receiver_email/business ne correspond pas à PAYPAL_BUSINESS_EMAIL" })
+        .eq("id", logRow.id);
+    }
     return new Response("ok", { status: 200 });
   }
 

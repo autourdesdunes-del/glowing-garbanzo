@@ -616,11 +616,13 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   pseudo_contact_secondaire: "",
   pseudo_contact: "",
   pseudo_contact_2: "",
-  // Jamais un canal par défaut (ex. "Instagram") : une employée qui oublie
-  // de le changer fausserait les statistiques d'acquisition pour tout le
-  // monde — laissé vide, signalé comme info manquante (voir
-  // infosManquantes.ts) jusqu'à ce qu'il soit explicitement choisi.
-  relation_grace_a: "",
+  // ⚠️ Remis temporairement à "Instagram" — la contrainte SQL
+  // clients_relation_grace_a_check (migration 0001) n'autorise pas encore
+  // la chaîne vide et fait échouer toute création de client tant que la
+  // migration 0125_relation_grace_a_optionnel n'a pas été appliquée.
+  // Repasser à "" une fois la migration confirmée exécutée (voir
+  // infosManquantes.ts pour le reste du correctif, déjà actif).
+  relation_grace_a: "Instagram",
   relation_autre: "",
   statut: "Prospect",
   telephone: "",

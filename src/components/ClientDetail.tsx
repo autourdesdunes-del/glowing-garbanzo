@@ -780,37 +780,48 @@ export default function ClientDetail({
       ];
     });
 
-    if (list.length) {
-      const [{ data: opts }, { data: tarifs }] = await Promise.all([
-        supabase
-          .from("reservation_options")
-          .select("*")
-          .in(
-            "reservation_id",
-            list.map((r) => r.id)
-          ),
-        supabase
-          .from("reservation_tarifs")
-          .select("*")
-          .in(
-            "reservation_id",
-            list.map((r) => r.id)
-          ),
-      ]);
-      const grouped: Record<string, ReservationOption[]> = {};
-      ((opts as ReservationOption[]) || []).forEach((o) => {
-        grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
-      });
-      setResaOptions(grouped);
-      const groupedTarifs: Record<string, ReservationTarif[]> = {};
-      ((tarifs as ReservationTarif[]) || []).forEach((t) => {
-        groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
-      });
-      setResaTarifs(groupedTarifs);
-    } else {
-      setResaOptions({});
-      setResaTarifs({});
-    }
+    // Ce SELECT (et celui des tarifs) n'interroge que les réservations
+    // présentes dans `list` — une réservation gardée un court instant par
+    // la protection ci-dessus (recentLocalOnly, absente de `list` à cause
+    // de la même course) n'a pas été requêtée ici : ne jamais effacer ses
+    // options/tarifs déjà connus localement, sinon l'activité reste
+    // visible mais perd son détail (options, prix) jusqu'au prochain
+    // passage. `list` vide n'efface donc plus tout non plus.
+    const listIds = new Set(list.map((r) => r.id));
+    const [{ data: opts }, { data: tarifs }] = list.length
+      ? await Promise.all([
+          supabase
+            .from("reservation_options")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            ),
+          supabase
+            .from("reservation_tarifs")
+            .select("*")
+            .in(
+              "reservation_id",
+              list.map((r) => r.id)
+            ),
+        ])
+      : [{ data: [] }, { data: [] }];
+    const grouped: Record<string, ReservationOption[]> = {};
+    ((opts as ReservationOption[]) || []).forEach((o) => {
+      grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
+    });
+    const groupedTarifs: Record<string, ReservationTarif[]> = {};
+    ((tarifs as ReservationTarif[]) || []).forEach((t) => {
+      groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
+    });
+    setResaOptions((prev) => {
+      const kept = Object.fromEntries(Object.entries(prev).filter(([id]) => !listIds.has(id)));
+      return { ...kept, ...grouped };
+    });
+    setResaTarifs((prev) => {
+      const kept = Object.fromEntries(Object.entries(prev).filter(([id]) => !listIds.has(id)));
+      return { ...kept, ...groupedTarifs };
+    });
 
     if (canSeeMargins && list.length) {
       const { data: couts } = await supabase

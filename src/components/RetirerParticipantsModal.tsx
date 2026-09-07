@@ -86,12 +86,16 @@ export default function RetirerParticipantsModal({
   const avoirUtiliseAvant = Number(r.avoir_utilise) || 0;
   const avoirUtiliseApres = Math.round(avoirUtiliseAvant * ratioParticipants * 100) / 100;
   const avoirLibere = Math.max(avoirUtiliseAvant - avoirUtiliseApres, 0);
-  const [montant, setMontant] = useState(0);
+  // null = pas encore modifié à la main (suit differenceCash) — jamais 0
+  // par défaut : "montant || differenceCash" empêchait de saisir 0 € (ex.
+  // frais déjà engagés non récupérables), un 0 tapé à la main retombait
+  // aussitôt sur le montant suggéré à chaque re-rendu.
+  const [montant, setMontant] = useState<number | null>(null);
   // Le montant suggéré suit la différence (moins la part déjà couverte par
   // un avoir, restituée séparément ci-dessous) tant que l'employée ne l'a
   // pas modifié à la main (ex. frais déjà engagés non récupérables).
   const differenceCash = Math.max(difference - avoirLibere, 0);
-  const montantAffiche = montant || differenceCash;
+  const montantAffiche = montant ?? differenceCash;
 
   const remboursementPossible = dejaPayee && differenceCash > 0;
 

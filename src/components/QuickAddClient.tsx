@@ -755,10 +755,15 @@ export default function QuickAddClient({
                 <Field label="Relation grâce à">
                   <select
                     autoFocus
-                    value={answers.relation_grace_a}
+                    value={answers.relation_grace_a || ""}
                     onChange={(e) => patch({ relation_grace_a: e.target.value })}
                     className="input"
                   >
+                    {/* Pas de valeur par défaut présélectionnée (voir
+                        EMPTY_CLIENT dans types.ts) — sans ce "— Choisir —",
+                        le <select> natif affiche silencieusement la première
+                        option de la liste comme si elle était choisie. */}
+                    <option value="">— Choisir —</option>
                     {RELATIONS.map((r) => (
                       <option key={r}>{r}</option>
                     ))}

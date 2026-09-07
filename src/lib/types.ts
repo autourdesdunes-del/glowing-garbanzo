@@ -616,7 +616,11 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   pseudo_contact_secondaire: "",
   pseudo_contact: "",
   pseudo_contact_2: "",
-  relation_grace_a: "Instagram",
+  // Jamais un canal par défaut (ex. "Instagram") : une employée qui oublie
+  // de le changer fausserait les statistiques d'acquisition pour tout le
+  // monde — laissé vide, signalé comme info manquante (voir
+  // infosManquantes.ts) jusqu'à ce qu'il soit explicitement choisi.
+  relation_grace_a: "",
   relation_autre: "",
   statut: "Prospect",
   telephone: "",

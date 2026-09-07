@@ -22,6 +22,7 @@ export const INFO_MANQUANTE_AUTO_ACOMPTE = "Acompte PayPal";
 export const INFO_MANQUANTE_AUTO_BILLET = "Billets d'avion";
 export const INFO_MANQUANTE_AUTO_PASSEPORT = "Passeport";
 export const INFO_MANQUANTE_AUTO_VOL_TRANSFERT = "Flight ticket info";
+export const INFO_MANQUANTE_AUTO_RELATION = "Relation grâce à";
 
 export function infosManquantesAuto(
   client: Client,
@@ -78,6 +79,11 @@ export function infosManquantesAuto(
     result.push(INFO_MANQUANTE_AUTO_BILLET);
   }
   if (client.passeport_photos.length === 0) result.push(INFO_MANQUANTE_AUTO_PASSEPORT);
+  // Jamais deviné/laissé à une valeur par défaut (voir EMPTY_CLIENT dans
+  // types.ts) — une employée qui oublie de le renseigner fausserait les
+  // statistiques d'acquisition pour tout le monde plutôt que de simplement
+  // laisser un dossier incomplet, visible et corrigible.
+  if (!client.relation_grace_a.trim()) result.push(INFO_MANQUANTE_AUTO_RELATION);
   // Un transfert aéroport sans numéro de vol ni horaire ne peut pas être
   // organisé côté équipe Égypte — signalé tant que l'un des deux manque,
   // pour toute réservation active de ce type (le sens du transfert suffit
@@ -109,6 +115,7 @@ const MANUEL_RESOLU: Record<string, (client: Client) => boolean> = {
   [INFO_MANQUANTE_AUTO_WHATSAPP]: (c) => !!c.telephone.trim(),
   [INFO_MANQUANTE_AUTO_ACOMPTE]: (c) => c.paiement_type === "integral" || c.acompte_paye,
   [INFO_MANQUANTE_AUTO_PASSEPORT]: (c) => c.passeport_photos.length > 0,
+  [INFO_MANQUANTE_AUTO_RELATION]: (c) => !!c.relation_grace_a.trim(),
 };
 
 // Fusionne les tags manuels (moins le sentinel "Complet") avec les tags

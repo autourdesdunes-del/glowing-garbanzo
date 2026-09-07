@@ -352,8 +352,16 @@ export function generateClientDocument(
   const acompteReelPaye = client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
   const soldeMontant = Math.max(totalHT - acompteReelPaye, 0);
   const soldeApresEtapes = Math.max(soldeMontant - etapesSum - avoirUtilise, 0);
+  // Même correctif que paiementProgress() dans resa.ts — si le montant
+  // réellement encaissé (solde_montant_recu) diffère de ce qui était dû
+  // (oubli "Entre proches"), c'est ce montant qui doit compter comme payé
+  // sur la facture, jamais le solde théorique en entier.
+  const soldeDuDocument =
+    client.solde_montant_recu > 0
+      ? Math.min(Number(client.solde_montant_recu) || 0, soldeApresEtapes)
+      : soldeApresEtapes;
   const totalPaye =
-    acompteReelPaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeApresEtapes : 0);
+    acompteReelPaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeDuDocument : 0);
   const reste = Math.max(totalHT - totalPaye, 0);
 
   const conditions: string[] = [];

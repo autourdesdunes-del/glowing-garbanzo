@@ -1094,7 +1094,15 @@ export default function ClientDetail({
   // plutôt que d'écraser à tort un solde légitimement payé.
   const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejourHeader;
   const croissanceApresSolde = Math.max(totalSejourHeader - soldeBaseline, 0);
-  const soldeCouvertHeader = client.solde_paye ? Math.max(soldeRestantHeader - croissanceApresSolde, 0) : 0;
+  // Même correctif que paiementProgress() dans resa.ts — le montant
+  // réellement encaissé (solde_montant_recu) doit plafonner ce qui est
+  // compté payé, sinon un solde marqué "payé" avec un écart réel (oubli
+  // "Entre proches") s'affiche à tort comme entièrement réglé dans l'en-tête.
+  const soldeDuHeader =
+    client.solde_montant_recu > 0
+      ? Math.min(Number(client.solde_montant_recu) || 0, soldeRestantHeader)
+      : soldeRestantHeader;
+  const soldeCouvertHeader = client.solde_paye ? Math.max(soldeDuHeader - croissanceApresSolde, 0) : 0;
   const totalPayeHeader = acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + soldeCouvertHeader;
   const paiementFullyPaid =
     totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader && !(client.reprise_montant > 0);

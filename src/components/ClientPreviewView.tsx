@@ -214,7 +214,14 @@ export default function ClientPreviewView({
     0
   );
   const acomptePaye = client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  const totalPaye = acomptePaye + (client.solde_paye ? Math.max(total - acomptePaye, 0) : 0);
+  // Même correctif que paiementProgress() dans resa.ts — un solde payé avec
+  // un écart réel (solde_montant_recu, oubli "Entre proches") ne doit pas
+  // s'afficher au client comme entièrement soldé.
+  const soldeDuApercu =
+    client.solde_paye && client.solde_montant_recu > 0
+      ? Math.min(Number(client.solde_montant_recu) || 0, Math.max(total - acomptePaye, 0))
+      : Math.max(total - acomptePaye, 0);
+  const totalPaye = acomptePaye + (client.solde_paye ? soldeDuApercu : 0);
   const reste = Math.max(total - totalPaye, 0);
   const pct = total > 0 ? Math.min(100, Math.round((totalPaye / total) * 100)) : 0;
   const trackerStep = computeTrackerStep(client, totalPaye);

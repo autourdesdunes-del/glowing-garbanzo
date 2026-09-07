@@ -298,6 +298,12 @@ export default function GeneratorView({
         catalogue_item_id: l.catalogueItemId || null,
         pu_adulte: puEffectif,
         participants_mode: "custom",
+        // Sans ça, participants_adultes reste à 0 par défaut en base : le
+        // total de l'activité (toujours calculé depuis pu_adulte ×
+        // participants) valait silencieusement 0€ malgré un prix par
+        // personne correctement enregistré — seul pax_override (texte
+        // d'affichage) montrait le bon nombre de personnes.
+        participants_adultes: l.nbPersonnes,
         pax_override: `${l.nbPersonnes} personnes`,
         horaire_approx: item?.horaire_approx || "",
         inclus: (item?.inclus_liste || []).join(", ") || item?.inclus || "",

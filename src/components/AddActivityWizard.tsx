@@ -513,16 +513,21 @@ export default function AddActivityWizard({
     // indispensable : deaccent() ne fait qu'enlever les accents, les noms du
     // catalogue sont en Majuscules et la recherche tapée est en minuscules.
     const motsRecherche = rechercheNette.split(/\s+/).filter(Boolean);
+    // Un brouillon (pas encore validé côté Catalogue) ne doit jamais être
+    // réservable sur un vrai client — même règle que le Générateur de
+    // programme (generatorProgram.ts) et la sélection "Tout voir" du
+    // catalogue lui-même, seul ce picker-ci l'oubliait.
+    const catalogueValide = catalogue.filter((a) => a.valide);
     const catalogueFiltre =
       motsRecherche.length > 0
-        ? catalogue
+        ? catalogueValide
             .filter((a) => {
               const nomNormalise = deaccent(a.nom).toLowerCase();
               return motsRecherche.every((m) => nomNormalise.includes(m));
             })
             .sort((a, b) => a.nom.localeCompare(b.nom))
         : [];
-    const groupesCatalogue = catalogueToutVoir ? construireRubriquesCatalogue(catalogue) : [];
+    const groupesCatalogue = catalogueToutVoir ? construireRubriquesCatalogue(catalogueValide) : [];
 
     // Regroupe les vérifications qui suivent l'avertissement Caire (sens du
     // transfert, titre libre, ou création directe) — utilisé à la fois pour

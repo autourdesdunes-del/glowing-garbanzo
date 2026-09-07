@@ -297,9 +297,9 @@ export default function ItineraryView({
               {momentBadge(r)}
             </span>
           )}
-          {reductionBadge(r) && (
+          {reductionBadge(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []) && (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-              {reductionBadge(r)}
+              {reductionBadge(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || [])}
             </span>
           )}
           {enCoursBadge(r) && (
@@ -540,9 +540,9 @@ export default function ItineraryView({
                     {expandedReservation.participants_retires > 1 ? "s" : ""}
                   </span>
                 )}
-                {reductionBadge(expandedReservation) && (
+                {reductionBadge(expandedReservation, client, expOptions, expTarifs) && (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                    {reductionBadge(expandedReservation)}
+                    {reductionBadge(expandedReservation, client, expOptions, expTarifs)}
                   </span>
                 )}
                 {optionsBadge(expOptions.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, expandedReservation.id) && (

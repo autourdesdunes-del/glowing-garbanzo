@@ -277,9 +277,9 @@ export function ActivityDetailModal({
                 {momentBadge(r)}
               </span>
             )}
-            {reductionBadge(r) && (
+            {reductionBadge(r, client, options, tarifs) && (
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                {reductionBadge(r)}
+                {reductionBadge(r, client, options, tarifs)}
               </span>
             )}
             {enCoursBadge(r) && (
@@ -611,9 +611,9 @@ export function ActivityDetailModal({
           </div>
         )}
 
-        {reductionBadge(r) && (
+        {reductionBadge(r, client, options, tarifs) && (
           <div className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-            {reductionBadge(r)}
+            {reductionBadge(r, client, options, tarifs)}
             {r.reduction_motif ? ` — ${r.reduction_motif}` : ""}
           </div>
         )}

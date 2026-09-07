@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
 type ConfirmOptions = {
   title?: string;
@@ -20,22 +20,33 @@ export function useConfirm(): ConfirmFn {
   return ctx;
 }
 
+type PendingConfirm = { options: ConfirmOptions; resolve: (v: boolean) => void };
+
 export default function ConfirmProvider({ children }: { children: React.ReactNode }) {
-  const [options, setOptions] = useState<ConfirmOptions | null>(null);
-  const resolver = useRef<(v: boolean) => void>(null);
+  // File d'attente, pas un seul pending à la fois — sinon deux confirm()
+  // déclenchés à peu près en même temps (deux boutons cliqués vite, deux
+  // effets qui en demandent chacun un) écrasaient le premier resolver avant
+  // sa réponse : la Promise du premier appelant ne se résolvait jamais, et
+  // l'action censée suivre (suppression, annulation...) n'avait jamais
+  // lieu, sans aucune erreur visible.
+  const [queue, setQueue] = useState<PendingConfirm[]>([]);
 
   const confirm = useCallback<ConfirmFn>((opts) => {
     const normalized = typeof opts === "string" ? { message: opts } : opts;
-    setOptions(normalized);
     return new Promise<boolean>((resolve) => {
-      resolver.current = resolve;
+      setQueue((prev) => [...prev, { options: normalized, resolve }]);
     });
   }, []);
 
+  const current = queue[0] || null;
+
   const respond = (value: boolean) => {
-    setOptions(null);
-    resolver.current?.(value);
+    if (!current) return;
+    current.resolve(value);
+    setQueue((prev) => prev.slice(1));
   };
+
+  const options = current?.options || null;
 
   return (
     <ConfirmContext.Provider value={confirm}>

@@ -134,9 +134,9 @@ export function ReservationSummaryCard({
               {momentBadge(r)}
             </span>
           )}
-          {reductionBadge(r) && (
+          {reductionBadge(r, client, options, resaTarifs[r.id] || []) && (
             <span className="whitespace-nowrap rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-              {reductionBadge(r)}
+              {reductionBadge(r, client, options, resaTarifs[r.id] || [])}
             </span>
           )}
           {enCoursBadge(r) && (
@@ -337,9 +337,9 @@ export function ReservationSummaryCard({
             {momentBadge(r)}
           </span>
         )}
-        {reductionBadge(r) && (
+        {reductionBadge(r, client, options, resaTarifs[r.id] || []) && (
           <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-            {reductionBadge(r)}
+            {reductionBadge(r, client, options, resaTarifs[r.id] || [])}
           </span>
         )}
         {enCoursBadge(r) && (

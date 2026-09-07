@@ -19,10 +19,15 @@ export function fmtDDMonth(dateStr: string) {
 }
 
 export function moisLabelFromDates(dates: string[]) {
+  // Trié chronologiquement avant de dédupliquer — sinon l'ordre dépendait
+  // de l'ordre d'ajout des activités (jamais retrié après une date changée
+  // à la main), et le texte envoyé au client pouvait annoncer "Décembre -
+  // Novembre" au lieu de "Novembre - Décembre".
   const mois = Array.from(
     new Set(
       dates
         .filter(Boolean)
+        .sort()
         .map((d) => capitalize(new Date(d + "T00:00:00").toLocaleDateString("fr-FR", { month: "long" })))
     )
   );

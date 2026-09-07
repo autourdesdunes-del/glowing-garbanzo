@@ -694,9 +694,18 @@ export function momentBadge(r: Reservation) {
 // Badge "🎁 Offerte" / "− 20 €" à afficher à côté du titre d'une activité
 // réduite/offerte — une seule fonction partagée pour que la fiche client et
 // la vue Réservations affichent toujours exactement la même chose.
-export function reductionBadge(r: Reservation): string {
+// Plafonné au total réel (resaBrutMontant) comme resaTotalMontant le fait
+// déjà — sinon, un participant retiré ou une option supprimée après coup
+// pouvait faire chuter le total facturé à 0€ tout en laissant le badge
+// afficher l'ancien montant de réduction, plus gros que le total lui-même.
+export function reductionBadge(
+  r: Reservation,
+  client: Client,
+  options: ReservationOption[] = [],
+  tarifs: ReservationTarif[] = []
+): string {
   if (r.activite_offerte) return "🎁 Offerte";
-  const montant = Number(r.reduction_montant) || 0;
+  const montant = Math.min(Math.max(Number(r.reduction_montant) || 0, 0), resaBrutMontant(r, client, options, tarifs));
   if (montant > 0) return `− ${fmtEuros(montant)} €`;
   return "";
 }
@@ -1782,7 +1791,11 @@ export function soldeRestantSejour(
   return Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
 }
 
-export function resaTotalMontant(
+// Total avant réduction/activité offerte — extrait de resaTotalMontant pour
+// que reductionBadge (le petit badge affiché à côté du titre) puisse
+// plafonner l'affichage de la réduction exactement comme le total facturé
+// le fait déjà, sans dupliquer cette formule une troisième fois.
+export function resaBrutMontant(
   r: Reservation,
   client: Client,
   options: ReservationOption[] = [],
@@ -1819,7 +1832,16 @@ export function resaTotalMontant(
   // automatiquement dès que l'île est sélectionnée, jamais à saisir à la main.
   const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
   const supplementGEM = isGrandEgyptianMuseum(r.site_caire) ? nbAd * 20 + nbEnf * 10 : 0;
-  const brut = base + optionsTotal + tarifsTotal + transfert + supplementIle + supplementGEM;
+  return base + optionsTotal + tarifsTotal + transfert + supplementIle + supplementGEM;
+}
+
+export function resaTotalMontant(
+  r: Reservation,
+  client: Client,
+  options: ReservationOption[] = [],
+  tarifs: ReservationTarif[] = []
+) {
+  const brut = resaBrutMontant(r, client, options, tarifs);
   // Activité offerte : le client ne paie rien, quel que soit le montant
   // enregistré (mis à jour pour suivre le total au moment où c'est décidé,
   // mais toujours plafonné au total réel pour ne jamais passer en négatif).

@@ -33,7 +33,13 @@ import {
   TransfertTaxeModificationRequest,
   Verification,
 } from "@/lib/types";
-import { reservationsActives, resaTotalMontant, sharedActivityAlerts, SharedActivityAlert } from "@/lib/resa";
+import {
+  remboursementImpact,
+  reservationsActives,
+  resaTotalMontant,
+  sharedActivityAlerts,
+  SharedActivityAlert,
+} from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 import { deaccent } from "@/lib/deaccent";
 import { CLIENT_STATUTS, PROSPECT_STATUTS, STATUT_COLORS } from "@/lib/constants";
@@ -998,25 +1004,7 @@ function AppShellInner({
       if (flags.planningLoaded) {
         const { data: resas } = await supabase.from("reservations").select("*");
         const list = (resas as Reservation[]) || [];
-        const nowReservations = Date.now();
-        setAllReservations((prev) => {
-          const fetchedIds = new Set(list.map((r) => r.id));
-          // Ce SELECT tourne sur un minuteur indépendant (25s) — une
-          // activité tout juste ajoutée ailleurs (fiche client) entre le
-          // lancement de cette requête et sa réponse n'apparaît pas encore
-          // dans `list` alors qu'elle existe bel et bien en base. Sans
-          // cette protection, elle disparaissait du Dashboard/Résa/
-          // Direction jusqu'au prochain passage (vécu : ajout d'activité
-          // qui "disparaît" ou met du temps à s'afficher). On la garde un
-          // court instant plutôt que de la faire disparaître à tort ;
-          // passé ce délai, son absence reflète une vraie suppression.
-          const recentLocalOnly = prev.filter((r) => {
-            if (fetchedIds.has(r.id)) return false;
-            const createdAt = r.created_at ? new Date(r.created_at).getTime() : 0;
-            return nowReservations - createdAt < 60000;
-          });
-          return [...list, ...recentLocalOnly];
-        });
+        setAllReservations(list);
         if (list.length) {
           const [{ data: opts }, { data: tarifs }] = await Promise.all([
             supabase
@@ -1961,9 +1949,12 @@ function AppShellInner({
         allResaTarifs[r.id] || []
       );
       const cout = Number(allCoutsMap[r.id]) || 0;
+      const impacts = allRemboursements.filter((rb) => rb.activite_id === r.id).map(remboursementImpact);
+      const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
+      const impactMarge = impacts.reduce((s, i) => s + i.marge, 0);
       if (!byItem[r.catalogue_item_id]) byItem[r.catalogue_item_id] = { total: 0, marge: 0 };
-      byItem[r.catalogue_item_id].total += total;
-      byItem[r.catalogue_item_id].marge += total - cout;
+      byItem[r.catalogue_item_id].total += total + impactCa;
+      byItem[r.catalogue_item_id].marge += total - cout + impactMarge;
     });
     const entries = Object.entries(byItem);
     const ventes = new Set(
@@ -1984,7 +1975,7 @@ function AppShellInner({
         )
       : new Set<string>();
     return { topVenteIds: ventes, topRentabiliteIds: rentabilite };
-  }, [allReservations, clients, allResaOptions, allResaTarifs, allCoutsMap, isDirection]);
+  }, [allReservations, clients, allResaOptions, allResaTarifs, allCoutsMap, allRemboursements, isDirection]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();

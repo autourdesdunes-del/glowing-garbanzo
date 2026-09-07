@@ -4,6 +4,7 @@ import {
   Client,
   Pack,
   PaiementEtape,
+  Remboursement,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -433,6 +434,25 @@ export function badgeAnnulation(r: Reservation): { label: string; className: str
 // le séjour est simplement la somme de ce champ sur toutes les activités.
 export function avoirUtiliseTotal(reservations: Reservation[]) {
   return reservations.reduce((s, rr) => s + (Number(rr.avoir_utilise) || 0), 0);
+}
+
+// Impact d'un remboursement sur le CA/la marge affichés en Direction — une
+// activité qui reste "Confirmée" (jamais annulée) mais a fait l'objet d'un
+// remboursement continuait sinon de compter comme vendue à plein tarif,
+// argent parti compris. Deux cas très différents en pratique :
+//   - "Annulation"/"Problème activité"/"Autre" : un vrai remboursement,
+//     l'argent sort réellement de la vente — retiré du CA ET de la marge.
+//   - "Dédommagement" : l'activité a bien eu lieu (le CA reste dû), seul le
+//     geste commercial coûte quelque chose — et seulement si c'est
+//     l'agence qui le paie de sa poche (prise_en_charge) ; si c'est le
+//     prestataire qui rembourse l'agence qui reverse au client, l'opération
+//     est neutre pour l'agence.
+export function remboursementImpact(r: Remboursement): { ca: number; marge: number } {
+  const montant = Number(r.montant) || 0;
+  if (r.raison === "Dédommagement") {
+    return r.prise_en_charge === "agence" ? { ca: 0, marge: -montant } : { ca: 0, marge: 0 };
+  }
+  return { ca: -montant, marge: -montant };
 }
 
 // Une activité annulée sort du total du séjour (et de tout calcul de

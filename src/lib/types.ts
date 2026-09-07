@@ -328,6 +328,11 @@ export type Remboursement = {
   // "Effectué", consultable ensuite depuis la fiche client.
   preuve_photo_path: string | null;
   created_at: string;
+  // Uniquement significatif quand raison === "Dédommagement" — qui paie
+  // réellement le geste (impact CA/marge dans DirectionView.tsx). Éditable
+  // seulement côté Direction, l'employée qui saisit le remboursement ne le
+  // sait presque jamais au moment de la saisie.
+  prise_en_charge: "agence" | "prestataire";
 };
 
 // Tâche libre ajoutée à la main par la Direction dans la "Liste prioritaire"

@@ -12,7 +12,7 @@ import {
   ReservationTarif,
   TransfertTaxeModificationRequest,
 } from "@/lib/types";
-import { reservationsActives, resaTotalMontant } from "@/lib/resa";
+import { remboursementImpact, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { downloadCsv } from "@/lib/csv";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 import { todayStr } from "@/lib/dates";
@@ -162,6 +162,14 @@ export default function DirectionView({
       const client = clients.find((c) => c.id === r.client_id);
       const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
       const cout = Number(coutsMap[r.id]) || 0;
+      // Un remboursement/dédommagement sur une activité restée "Confirmée"
+      // (jamais annulée) doit se répercuter ici — sinon elle continue de
+      // compter comme vendue à plein tarif, argent parti compris.
+      const impacts = remboursements
+        .filter((rb) => rb.activite_id === r.id)
+        .map(remboursementImpact);
+      const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
+      const impactMarge = impacts.reduce((s, i) => s + i.marge, 0);
       // Groupe par modèle catalogue quand la réservation en vient (le nom
       // catalogue à jour prime), sinon par nom d'activité saisi à la main.
       const catalogueMatch = r.catalogue_item_id
@@ -171,8 +179,8 @@ export default function DirectionView({
         groupKey: r.catalogue_item_id || `manuel:${r.nom_activite || "Sans nom"}`,
         nom: catalogueMatch?.nom || r.nom_activite || "Sans nom",
         date: r.date_debut,
-        total,
-        marge: total - cout,
+        total: total + impactCa,
+        marge: total - cout + impactMarge,
         clientNom: client?.nom || "Sans nom",
       };
     });
@@ -230,7 +238,12 @@ export default function DirectionView({
       const client = clients.find((c) => c.id === r.client_id);
       const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
       const cout = Number(coutsMap[r.id]) || 0;
-      return { total, marge: total - cout };
+      const impacts = remboursements
+        .filter((rb) => rb.activite_id === r.id)
+        .map(remboursementImpact);
+      const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
+      const impactMarge = impacts.reduce((s, i) => s + i.marge, 0);
+      return { total: total + impactCa, marge: total - cout + impactMarge };
     });
   const caMoisActuel = rowsMoisActuel.reduce((s, r) => s + r.total, 0);
   const margeMoisActuel = rowsMoisActuel.reduce((s, r) => s + r.marge, 0);

@@ -1367,11 +1367,14 @@ export default function SuivisView({
                   (r.mode === "PayPal" && !r.paypal_email) ||
                   (r.mode === "Virement bancaire" && !r.rib_photo_path)
               );
+              const manqueRaisonAutre = cibles.find((r) => r.raison === "Autre" && !r.raison_autre.trim());
               const infosManquantes = manqueInfo
                 ? manqueInfo.mode === "PayPal"
                   ? "Adresse PayPal manquante"
                   : "RIB manquant"
-                : undefined;
+                : manqueRaisonAutre
+                  ? "Raison « Autre » à préciser"
+                  : undefined;
               return (
                 <MarquerRembourseModal
                   clientNom={client.nom || "Sans nom"}

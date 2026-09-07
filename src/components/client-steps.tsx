@@ -2985,6 +2985,22 @@ export function SuiviStep({
                         />
                       </Field>
                     )}
+                    {r.raison === "Dédommagement" && isDirection && (
+                      <Field label="Pris en charge par">
+                        <select
+                          value={r.prise_en_charge}
+                          onChange={(e) =>
+                            updateRemboursement(r.id, {
+                              prise_en_charge: e.target.value as "agence" | "prestataire",
+                            })
+                          }
+                          className="input"
+                        >
+                          <option value="prestataire">Prestataire (neutre pour l&apos;agence)</option>
+                          <option value="agence">Agence (coût réel, réduit la marge)</option>
+                        </select>
+                      </Field>
+                    )}
                   </div>
 
                   <Field label="Détails — pourquoi ce remboursement ?">
@@ -3100,7 +3116,9 @@ export function SuiviStep({
               ? "Adresse PayPal manquante"
               : cible.mode === "Virement bancaire" && !cible.rib_photo_path
                 ? "RIB manquant"
-                : undefined;
+                : cible.raison === "Autre" && !cible.raison_autre.trim()
+                  ? "Raison « Autre » à préciser"
+                  : undefined;
           return (
             <MarquerRembourseModal
               clientNom={client.nom || "Sans nom"}

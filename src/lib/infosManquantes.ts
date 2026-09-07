@@ -63,7 +63,18 @@ export function infosManquantesAuto(
   if (client.paiement_type !== "integral" && !client.acompte_paye) {
     result.push(INFO_MANQUANTE_AUTO_ACOMPTE);
   }
-  if (reservations.some((r) => r.client_id === client.id && r.billet_requis && r.billet_etape !== "termine")) {
+  // Une activité annulée après coup gardait billet_requis à true et
+  // continuait de marquer le dossier "incomplet" indéfiniment (voir le même
+  // correctif dans SuivisView.tsx > onglet Billets d'avion).
+  if (
+    reservations.some(
+      (r) =>
+        r.client_id === client.id &&
+        r.statut_resa !== "Annulée" &&
+        r.billet_requis &&
+        r.billet_etape !== "termine"
+    )
+  ) {
     result.push(INFO_MANQUANTE_AUTO_BILLET);
   }
   if (client.passeport_photos.length === 0) result.push(INFO_MANQUANTE_AUTO_PASSEPORT);

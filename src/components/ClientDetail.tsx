@@ -75,6 +75,7 @@ export default function ClientDetail({
   onAutoOpenActivityHandled,
   autoOpenSection,
   onAutoOpenSectionHandled,
+  onIncidentsChanged,
 }: {
   client: Client;
   allClients: Client[];
@@ -102,6 +103,12 @@ export default function ClientDetail({
   // "Ajouter un remboursement/avoir" (section Suivi) depuis le dashboard.
   autoOpenSection?: "Activités" | "Suivi";
   onAutoOpenSectionHandled?: () => void;
+  // Prévient AppShell qu'un incident vient de changer depuis cette fiche —
+  // le badge "Incidents ouverts" du Dashboard lit sa propre copie
+  // (allIncidents), jamais rafraîchie automatiquement sinon (vécu : un
+  // incident résolu ou créé ici restait affiché à l'ancien statut sur le
+  // Dashboard jusqu'à un rechargement complet de la page).
+  onIncidentsChanged?: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const confirm = useConfirm();
@@ -1669,6 +1676,7 @@ export default function ClientDetail({
           incidents={incidents}
           onResolveIncident={(id, statut) => {
             setIncidents((prev) => prev.map((i) => (i.id === id ? { ...i, statut } : i)));
+            onIncidentsChanged?.();
             supabase.from("incidents").update({ statut }).eq("id", id).then(({ error }) => {
               if (error) toast("Échec de la mise à jour.");
             });
@@ -1954,9 +1962,18 @@ export default function ClientDetail({
           clientId={client.id}
           clientNom={client.nom}
           incidents={incidents}
-          onAdd={(incident) => setIncidents((prev) => [...prev, incident])}
-          onUpdate={(id, patch) => setIncidents((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)))}
-          onDelete={(id) => setIncidents((prev) => prev.filter((i) => i.id !== id))}
+          onAdd={(incident) => {
+            setIncidents((prev) => [...prev, incident]);
+            onIncidentsChanged?.();
+          }}
+          onUpdate={(id, patch) => {
+            setIncidents((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+            onIncidentsChanged?.();
+          }}
+          onDelete={(id) => {
+            setIncidents((prev) => prev.filter((i) => i.id !== id));
+            onIncidentsChanged?.();
+          }}
           onClose={() => setShowIncidentsModal(false)}
         />
       )}

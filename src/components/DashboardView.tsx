@@ -230,7 +230,16 @@ export default function DashboardView({
   const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);
 
   const billetsEnAttente = reservations
-    .filter((r) => r.billet_requis && r.billet_etape !== "termine" && (!r.billet_date || r.billet_date >= todayStr))
+    // Une activité annulée après coup gardait billet_requis à true et
+    // continuait d'apparaître ici indéfiniment (voir le même correctif dans
+    // SuivisView.tsx > onglet Billets d'avion).
+    .filter(
+      (r) =>
+        r.statut_resa !== "Annulée" &&
+        r.billet_requis &&
+        r.billet_etape !== "termine" &&
+        (!r.billet_date || r.billet_date >= todayStr)
+    )
     .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
 
   // Activités pas encore validées (Brouillon) — souvent parce qu'une info
@@ -301,6 +310,10 @@ export default function DashboardView({
   // client") alors que le vol est dans 15 jours ou moins.
   const billetsUrgents = reservations.filter(
     (r) =>
+      // Une activité annulée après coup gardait billet_requis à true et
+      // continuait d'apparaître ici indéfiniment (voir le même correctif
+      // dans SuivisView.tsx > onglet Billets d'avion).
+      r.statut_resa !== "Annulée" &&
       r.billet_requis &&
       r.billet_etape !== "a_envoyer_client" &&
       r.billet_etape !== "termine" &&

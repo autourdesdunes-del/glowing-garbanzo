@@ -33,6 +33,10 @@ export default function BilletRappels({
     const check = () => {
       const now = new Date();
       for (const r of reservations) {
+        // Une activité annulée après coup gardait billet_requis à true et
+        // continuait de déclencher ce pop-up indéfiniment (voir le même
+        // correctif dans SuivisView.tsx > onglet Billets d'avion).
+        if (r.statut_resa === "Annulée") continue;
         if (!r.billet_requis) continue;
         const client = clients.find((c) => c.id === r.client_id);
         if (!client) continue;

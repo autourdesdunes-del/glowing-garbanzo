@@ -77,12 +77,23 @@ export default function RetirerParticipantsModal({
   const nouveauTotal = resaTotalMontant(rSimule, client, optionsSimulees, tarifs);
   const difference = Math.max(ancienTotal - nouveauTotal, 0);
   const nbPartent = adultesPartent + enfantsPartent;
+  // Part de l'avoir déjà consommé qui suit les participants qui partent,
+  // au même ratio que les options (voir ratioParticipants ci-dessus) —
+  // jamais de l'argent reçu par l'agence, donc jamais à rembourser en cash
+  // (même principe que AnnulerActiviteModal.avoirDejaUtilise, adapté ici au
+  // retrait PARTIEL : seule la part proportionnelle est libérée, le reste
+  // continue de couvrir les participants qui restent).
+  const avoirUtiliseAvant = Number(r.avoir_utilise) || 0;
+  const avoirUtiliseApres = Math.round(avoirUtiliseAvant * ratioParticipants * 100) / 100;
+  const avoirLibere = Math.max(avoirUtiliseAvant - avoirUtiliseApres, 0);
   const [montant, setMontant] = useState(0);
-  // Le montant suggéré suit la différence tant que l'employée ne l'a pas
-  // modifié à la main (ex. frais déjà engagés non récupérables).
-  const montantAffiche = montant || difference;
+  // Le montant suggéré suit la différence (moins la part déjà couverte par
+  // un avoir, restituée séparément ci-dessous) tant que l'employée ne l'a
+  // pas modifié à la main (ex. frais déjà engagés non récupérables).
+  const differenceCash = Math.max(difference - avoirLibere, 0);
+  const montantAffiche = montant || differenceCash;
 
-  const remboursementPossible = dejaPayee && difference > 0;
+  const remboursementPossible = dejaPayee && differenceCash > 0;
 
   const confirmer = () => {
     if (nbPartent === 0) {
@@ -154,6 +165,21 @@ export default function RetirerParticipantsModal({
       if (error) toast("Échec de la création de l'avoir.");
     }
 
+    // La part de l'avoir qui suivait les participants qui partent n'est
+    // jamais de l'argent reçu par l'agence — restituée en avoir plutôt
+    // qu'absorbée dans le remboursement cash ci-dessus (voir avoirLibere).
+    if (avoirLibere > 0) {
+      const { error } = await supabase.from("avoirs").insert({
+        client_id: client.id,
+        montant: avoirLibere,
+        montant_restant: avoirLibere,
+        raison: "Annulation",
+        activite_id: r.id,
+        date_probleme: date || todayStr(),
+      });
+      if (error) toast("Échec de la restitution de l'avoir.");
+    }
+
     onUpdate({
       participants_mode: "custom",
       participants_adultes: nouveauxAd,
@@ -163,6 +189,7 @@ export default function RetirerParticipantsModal({
       participants_enfants_3ans: nbEnf3,
       participants_retires: (Number(r.participants_retires) || 0) + nbPartent,
       participants_retires_motif: motifFinal,
+      ...(avoirUtiliseAvant > 0 ? { avoir_utilise: avoirUtiliseApres } : {}),
     });
     setSubmitting(false);
     onClose();
@@ -306,7 +333,14 @@ export default function RetirerParticipantsModal({
           </div>
         </div>
 
-        {dejaPayee && difference > 0 && (
+        {avoirLibere > 0 && (
+          <p className="mt-3 text-xs text-neutral-500">
+            {euros(avoirLibere)} € de cette baisse venaient d&apos;un avoir — ce montant sera automatiquement
+            restitué en avoir à la confirmation, pas ajouté au remboursement ci-dessous.
+          </p>
+        )}
+
+        {dejaPayee && differenceCash > 0 && (
           <div className="mt-3">
             <label className="mb-1 block text-xs font-medium text-neutral-500">Montant à rembourser (€)</label>
             <input

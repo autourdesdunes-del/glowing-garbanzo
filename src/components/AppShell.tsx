@@ -1161,6 +1161,16 @@ function AppShellInner({
     }
   };
 
+  // La fiche client garde sa propre copie des incidents (filtrée sur ce
+  // client) — sans ce rafraîchissement, le badge "Incidents ouverts" du
+  // Dashboard (basé sur allIncidents, chargé une seule fois) restait à
+  // l'ancien statut après un ajout/résolution/suppression depuis la fiche,
+  // jusqu'à un rechargement complet de la page.
+  const refreshIncidents = async () => {
+    const { data } = await supabase.from("incidents").select("*").order("created_at", { ascending: false });
+    setAllIncidents((data as Incident[]) || []);
+  };
+
   const deleteClient = async (id: string): Promise<boolean> => {
     const client = clients.find((c) => c.id === id);
     const ok = await confirm({
@@ -2704,6 +2714,7 @@ function AppShellInner({
                   onAutoOpenActivityHandled={() => setActivityAutoOpenClientId(null)}
                   autoOpenSection={sectionAutoOpen?.clientId === selected.id ? sectionAutoOpen.section : undefined}
                   onAutoOpenSectionHandled={() => setSectionAutoOpen(null)}
+                  onIncidentsChanged={refreshIncidents}
                 />
               </>
             )}

@@ -115,6 +115,13 @@ export default function CatalogueView({
   const [categoryFilter, setCategoryFilter] = useState<string>("Toutes");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(null);
+  // "✎ Modifier" sur une activité déjà validée doit juste ouvrir son
+  // formulaire d'édition — avant ce correctif, il faisait passer
+  // valide:false en base, ce qui masquait aussitôt l'activité de tout le
+  // catalogue réservable (pour toute l'équipe) tant que personne ne
+  // recliquait explicitement "Valider cette activité", même pour un simple
+  // changement d'info logistique jamais allé au bout.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [tagViewMode, setTagViewMode] = useState<"cards" | "rows">("cards");
   const [activityViewMode, setActivityViewMode] = useState<"cards" | "rows">("cards");
   const [newInclus, setNewInclus] = useState<Record<string, string>>({});
@@ -236,15 +243,30 @@ export default function CatalogueView({
   const renderBrouillon = (a: CatalogueItem) => (
     <div className="rounded-[6px] border border-[#f5a623]/40 bg-white p-4">
               <div className="mb-3 flex items-center justify-between">
-                <span className="rounded-full bg-[#f5a623]/20 px-3 py-1 text-xs text-[#666666]">
-                  ✎ Brouillon
-                </span>
-                <button
-                  onClick={() => onUpdate(a.id, { valide: true })}
-                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm text-white hover:opacity-90"
-                >
-                  ✓ Valider cette activité
-                </button>
+                {a.valide ? (
+                  <span className="rounded-full bg-[#0070f3]/10 px-3 py-1 text-xs text-[#0070f3]">
+                    ✎ Édition
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-[#f5a623]/20 px-3 py-1 text-xs text-[#666666]">
+                    ✎ Brouillon
+                  </span>
+                )}
+                {a.valide ? (
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm text-white hover:opacity-90"
+                  >
+                    ✓ Terminer
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onUpdate(a.id, { valide: true })}
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm text-white hover:opacity-90"
+                  >
+                    ✓ Valider cette activité
+                  </button>
+                )}
               </div>
 
               <div className="mb-3 flex items-center gap-2">
@@ -1279,11 +1301,14 @@ export default function CatalogueView({
             (() => {
               const a = items.find((i) => i.id === selectedActivityId);
               if (!a) return null;
-              if (!a.valide) {
+              if (!a.valide || editingId === a.id) {
                 return (
                   <div>
                     <button
-                      onClick={() => setSelectedActivityId(null)}
+                      onClick={() => {
+                        setSelectedActivityId(null);
+                        setEditingId(null);
+                      }}
                       className="mb-3 text-sm font-medium text-[#171717] hover:underline"
                     >
                       ← Toutes les activités
@@ -1356,7 +1381,7 @@ export default function CatalogueView({
                             ⧉ Dupliquer
                           </button>
                           <button
-                            onClick={() => onUpdate(a.id, { valide: false })}
+                            onClick={() => setEditingId(a.id)}
                             className="rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]/60"
                           >
                             ✎ Modifier
@@ -1835,7 +1860,7 @@ export default function CatalogueView({
                   {canSeeMargins && (
                     <button
                       onClick={() => {
-                        onUpdate(a.id, { valide: false });
+                        setEditingId(a.id);
                         onAddTarif(a.id);
                       }}
                       className="w-full rounded-full bg-[#171717] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
@@ -1931,7 +1956,7 @@ export default function CatalogueView({
                 }
               >
                 {filtered.map((a) =>
-                  !a.valide ? (
+                  !a.valide || editingId === a.id ? (
                     <div key={a.id} className={activityViewMode === "cards" ? "sm:col-span-2" : ""}>
                       {renderBrouillon(a)}
                     </div>

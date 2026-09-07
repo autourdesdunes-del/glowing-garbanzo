@@ -121,8 +121,13 @@ function ConfirmationTemplate({
   const { acompteMontant, acomptePaypal, url: paypalUrl } = acomptePaypalInfo(client);
   const soldeMontant = Math.max(totalSejour - acompteMontant, 0);
   const soldeRdv = soldeRdvInfo(client);
+  // `actives`, pas `reservations` brut : sinon un solde_activite_id
+  // pointant vers une activité Brouillon/Annulée (donc absente du
+  // programme listé plus haut et de totalSejour) s'affichait quand même
+  // ici comme point de collecte — incohérence visible par le client entre
+  // le programme annoncé et l'activité citée pour le règlement du solde.
   const soldeActivite = client.solde_activite_id
-    ? reservations.find((r) => r.id === client.solde_activite_id) || null
+    ? actives.find((r) => r.id === client.solde_activite_id) || null
     : null;
   const soldeDate = soldeRdv?.date || soldeActivite?.date_debut || null;
 

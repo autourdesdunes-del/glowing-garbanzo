@@ -513,6 +513,17 @@ export function reservationsActives(reservations: Reservation[]) {
   return reservations.filter((r) => r.statut_resa !== "Annulée");
 }
 
+// Une activité encore en Brouillon (prix/détails pas finalisés) ne doit
+// jamais compter comme une vente réelle dans le CA/marge côté Direction —
+// vécu : "Rapport détaillé", panier moyen par employée et classement
+// "Activités les plus rentables" comptaient à tort les Brouillons, gonflant
+// artificiellement les chiffres tant qu'une activité n'était pas validée.
+// Toujours passer les réservations par ici (jamais reservationsActives)
+// avant un calcul de CA/marge/vente.
+export function reservationsVendues(reservations: Reservation[]) {
+  return reservationsActives(reservations).filter((r) => r.statut_resa === "Confirmée");
+}
+
 // Point de collecte du solde (acompte + activité désignée, ou paiement
 // intégral "à la première activité") : signale, sur cette activité, le
 // montant qui reste à encaisser. Une fois la date de cette activité passée

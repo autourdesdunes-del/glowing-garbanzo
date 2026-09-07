@@ -238,8 +238,9 @@ export default function ManagerView({
   // voir le commentaire sur ces colonnes dans types.ts.
   const rapportsParEmploye = employeesEligibles.map((p) => {
     const resasCreeesParElle = reservations.filter((r) => r.cree_par_id === p.id);
-    // Annulées exclues : ça ne représente pas une vente réelle.
-    const ventes = resasCreeesParElle.filter((r) => r.statut_resa !== "Annulée");
+    // Annulées ET Brouillon exclues : une activité pas encore confirmée
+    // (prix pas finalisé) ne représente pas une vente réelle.
+    const ventes = resasCreeesParElle.filter((r) => r.statut_resa === "Confirmée");
     const panierMoyen =
       ventes.length === 0
         ? null
@@ -271,8 +272,9 @@ export default function ManagerView({
 
   // Chiffre d'affaires uniquement (jamais de coût/marge ici) : calculable
   // côté client sans passer par le serveur, contrairement au classement
-  // rentabilité ci-dessous. Annulées exclues, comme pour le panier moyen.
-  const ventesActives = reservations.filter((r) => r.statut_resa !== "Annulée");
+  // rentabilité ci-dessous. Annulées ET Brouillon exclues, comme pour le
+  // panier moyen — une activité pas confirmée n'est pas une vente réelle.
+  const ventesActives = reservations.filter((r) => r.statut_resa === "Confirmée");
   const caParActivite = new Map<string, { total: number; count: number }>();
   const caParClient = new Map<string, number>();
   ventesActives.forEach((r) => {

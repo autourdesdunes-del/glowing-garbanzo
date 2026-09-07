@@ -29,7 +29,10 @@ export async function GET() {
     { data: couts },
     { data: catalogue },
   ] = await Promise.all([
-    admin.from("reservations").select("*").neq("statut_resa", "Annulée"),
+    // "Confirmée" seulement : une activité en Brouillon (prix pas
+    // finalisé) ne représente pas une vente réelle, elle gonflerait le
+    // classement de rentabilité à tort.
+    admin.from("reservations").select("*").eq("statut_resa", "Confirmée"),
     admin.from("clients").select("*"),
     admin.from("reservation_options").select("*"),
     admin.from("reservation_tarifs").select("*"),

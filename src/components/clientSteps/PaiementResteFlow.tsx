@@ -1013,6 +1013,7 @@ export function PaiementResteFlow({
                   <Field label="Montant en € (cash)">
                     <input
                       type="number"
+                      min="0"
                       value={mixteModal.eur}
                       onChange={(e) => setMixteModal({ ...mixteModal, eur: e.target.value })}
                       className="input"
@@ -1021,6 +1022,7 @@ export function PaiementResteFlow({
                   <Field label="Montant en EGP (cash)">
                     <input
                       type="number"
+                      min="0"
                       value={mixteModal.egp}
                       onChange={(e) => setMixteModal({ ...mixteModal, egp: e.target.value })}
                       className="input"
@@ -1042,6 +1044,7 @@ export function PaiementResteFlow({
                 </p>
                 <div className="mt-4 flex justify-end gap-2">
                   <button
+                    disabled={eurVal < 0 || egpVal < 0}
                     onClick={() => {
                       onChange({
                         solde_activite_id: mixteModal.r.id,
@@ -1055,7 +1058,7 @@ export function PaiementResteFlow({
                       });
                       setMixteModal(null);
                     }}
-                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Valider
                   </button>

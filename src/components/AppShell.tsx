@@ -704,12 +704,14 @@ function AppShellInner({
     busEscalationsPending.length + jourEscalationsPending.length + assouanVerificationsPending.length;
   const managerClientsCount = clients.filter((c) => c.confirmation_a_traiter).length;
   const managerActivitesCount = allReservations.filter((r) => r.statut_resa === "Brouillon").length;
+  const managerCatalogueBrouillonCount = catalogue.filter((a) => !a.valide).length;
   const managerDoublonsCount = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite).length;
   const managerProspectsStagnantsCount = clients.filter(prospectStagnantNav).length;
   // Badges par sous-menu (pas un total global) : "Gestion équipe" n'a pas
   // de badge, rien à traiter en urgence de ce côté.
   const managerSubCounts: Record<ManagerSub, number> = {
-    attente: managerAutorisationsCount + managerClientsCount + managerActivitesCount,
+    attente:
+      managerAutorisationsCount + managerClientsCount + managerActivitesCount + managerCatalogueBrouillonCount,
     equipe: 0,
     suivi: managerDoublonsCount + managerProspectsStagnantsCount,
     stats: 0,
@@ -3049,6 +3051,7 @@ function AppShellInner({
               resaTarifs={allResaTarifs}
               catalogue={catalogue}
               onOpenClient={openClient}
+              onOpenCatalogue={() => setMode("catalogue")}
               busEscalations={busEscalationsPending}
               jourEscalations={jourEscalationsPending}
               assouanVerifications={assouanVerificationsPending}

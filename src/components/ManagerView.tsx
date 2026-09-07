@@ -103,6 +103,7 @@ export default function ManagerView({
   resaTarifs,
   catalogue,
   onOpenClient,
+  onOpenCatalogue,
   busEscalations,
   jourEscalations,
   assouanVerifications,
@@ -119,6 +120,7 @@ export default function ManagerView({
   resaTarifs: Record<string, ReservationTarif[]>;
   catalogue: CatalogueItem[];
   onOpenClient: (id: string) => void;
+  onOpenCatalogue: () => void;
   busEscalations: BusEscalation[];
   jourEscalations: JourEscalation[];
   assouanVerifications: AssouanVerification[];
@@ -195,6 +197,15 @@ export default function ManagerView({
   const activitesEnAttente = reservations
     .filter((r) => r.statut_resa === "Brouillon")
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
+
+  // Un article catalogue jamais validé reste invisible pour les employées
+  // (le picker "Ajouter une activité" exclut les brouillons) sans que
+  // personne ne soit prévenu qu'il attend une validation — d'où cette
+  // liste dédiée, pour qu'aucun article ne reste en brouillon sans que la
+  // Direction le sache.
+  const catalogueBrouillons = [...catalogue]
+    .filter((a) => !a.valide)
+    .sort((a, b) => (a.nom || "").localeCompare(b.nom || ""));
 
   const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);
 
@@ -375,6 +386,31 @@ export default function ManagerView({
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Catalogue : activités en brouillon
+            </h2>
+            {catalogueBrouillons.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien en attente.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {catalogueBrouillons.map((a) => (
+                  <div
+                    key={a.id}
+                    onClick={onOpenCatalogue}
+                    className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+                  >
+                    <p className="text-sm font-medium text-[#171717]">{a.nom || "Sans nom"}</p>
+                    <p className="mt-0.5 text-xs text-[#666666]">
+                      Jamais validée — invisible pour l&apos;équipe tant qu&apos;elle n&apos;est pas
+                      cliquée sur &quot;Valider cette activité&quot; dans le Catalogue.
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
           </div>

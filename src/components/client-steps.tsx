@@ -2879,9 +2879,10 @@ export function SuiviStep({
                     <Field label="Montant (€)">
                       <input
                         type="number"
+                        min="0"
                         value={r.montant}
                         onChange={(e) =>
-                          updateRemboursement(r.id, { montant: Number(e.target.value) })
+                          updateRemboursement(r.id, { montant: Math.max(0, Number(e.target.value) || 0) })
                         }
                         className="input"
                       />

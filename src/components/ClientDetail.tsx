@@ -755,11 +755,30 @@ export default function ClientDetail({
       .eq("client_id", client.id)
       .order("created_at", { ascending: true });
     const list = (resas as Reservation[]) || [];
-    setReservations(
-      list.map((r) =>
-        reservationPendingPatch.current[r.id] ? { ...r, ...reservationPendingPatch.current[r.id] } : r
-      )
-    );
+    const now = Date.now();
+    setReservations((prev) => {
+      const fetchedIds = new Set(list.map((r) => r.id));
+      // Ce SELECT et un ajout d'activité tournent en parallèle (ce
+      // rafraîchissement est sur un minuteur indépendant, toutes les 25s) —
+      // si l'activité vient d'être insérée entre le lancement de cette
+      // requête et sa réponse, elle n'apparaît pas encore dans `list` alors
+      // qu'elle existe bel et bien en base. Sans cette protection, elle
+      // disparaissait de la fiche jusqu'au prochain passage (vécu : ajout
+      // d'activité qui "disparaît" ou met du temps à s'afficher). On la
+      // garde un court instant plutôt que de la faire disparaître à tort ;
+      // passé ce délai, son absence reflète une vraie suppression.
+      const recentLocalOnly = prev.filter((r) => {
+        if (fetchedIds.has(r.id)) return false;
+        const createdAt = r.created_at ? new Date(r.created_at).getTime() : 0;
+        return now - createdAt < 60000;
+      });
+      return [
+        ...list.map((r) =>
+          reservationPendingPatch.current[r.id] ? { ...r, ...reservationPendingPatch.current[r.id] } : r
+        ),
+        ...recentLocalOnly,
+      ];
+    });
 
     if (list.length) {
       const [{ data: opts }, { data: tarifs }] = await Promise.all([

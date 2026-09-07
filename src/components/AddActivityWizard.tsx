@@ -892,13 +892,43 @@ export default function AddActivityWizard({
                 value={r.creneau}
                 onChange={(e) => {
                   const creneau = e.target.value;
+                  // "Safari quad" au coucher de soleil est un item catalogue
+                  // à part entière (30€/pers, pas 25€) — pas un simple
+                  // changement de libellé : il faut aussi rebasculer le prix
+                  // et le lien catalogue, comme pour "Le Caire mini-bus" →
+                  // VIP un peu plus bas dans ce fichier (sinon la carte
+                  // reste facturée au tarif normal malgré le nouveau titre).
+                  const itemSunset =
+                    catalogueItem && !isCustomFlow && isSafariQuadBase(catalogueItem.nom) && creneau === "Coucher de soleil"
+                      ? catalogue.find((a) => a.nom === "Safari quad au coucher du soleil")
+                      : null;
+                  if (itemSunset) {
+                    onUpdateReservation(r.id, {
+                      creneau,
+                      nom_activite: itemSunset.nom,
+                      catalogue_item_id: itemSunset.id,
+                      pu_adulte: itemSunset.pu_adulte,
+                      pu_enfant: itemSunset.pu_enfant,
+                      pu_bebe: itemSunset.pu_bebe,
+                      pu_accompagnateur: itemSunset.pu_accompagnateur,
+                      pu_enfant_3ans: itemSunset.pu_enfant_3ans,
+                      tarif_mode: itemSunset.tarif_mode,
+                      prix_groupe_base: itemSunset.prix_groupe_base,
+                      prix_groupe_extra1: itemSunset.prix_groupe_extra1,
+                      prix_groupe_extra_enfant: itemSunset.prix_groupe_extra_enfant,
+                      horaire_approx: itemSunset.horaire_approx,
+                      inclus: (itemSunset.inclus_liste || []).join(", ") || itemSunset.inclus,
+                      non_inclus: itemSunset.non_inclus,
+                      a_prevoir: itemSunset.a_prevoir,
+                      point_rdv: itemSunset.point_rdv,
+                      photo_path: itemSunset.photo_path,
+                    });
+                    return;
+                  }
                   onUpdateReservation(r.id, {
                     creneau,
                     ...(catalogueItem && !isCustomFlow && isSafariQuadBase(catalogueItem.nom)
-                      ? {
-                          nom_activite:
-                            creneau === "Coucher de soleil" ? "Safari quad au coucher du soleil" : catalogueItem.nom,
-                        }
+                      ? { nom_activite: catalogueItem.nom }
                       : catalogueItem && !isCustomFlow
                         ? {
                             nom_activite: titleWithSuffix(

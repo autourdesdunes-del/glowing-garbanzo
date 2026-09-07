@@ -18,6 +18,7 @@ import {
 } from "@/lib/types";
 import {
   activiteEnAttenteRaisons,
+  catalogueItemPrixManquant,
   cleanActivityTitle,
   isFamilySafariBedouin,
   resaTotalMontant,
@@ -215,6 +216,15 @@ export default function ManagerView({
   // Direction le sache.
   const catalogueBrouillons = [...catalogue]
     .filter((a) => !a.valide)
+    .sort((a, b) => (a.nom || "").localeCompare(b.nom || ""));
+
+  // Une activité déjà validée (visible et réservable par l'équipe) mais
+  // dont le prix est resté à 0€ facturerait le client 0€ sans que
+  // personne ne le remarque avant le paiement — voir catalogueItemPrixManquant
+  // dans resa.ts pour l'historique de ce bug (Buggy Sunset, Safari Buggy
+  // Famille... ont déjà perdu leur prix comme ça).
+  const catalogueSansPrix = [...catalogue]
+    .filter(catalogueItemPrixManquant)
     .sort((a, b) => (a.nom || "").localeCompare(b.nom || ""));
 
   const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);
@@ -418,6 +428,31 @@ export default function ManagerView({
                     <p className="mt-0.5 text-xs text-[#666666]">
                       Jamais validée — invisible pour l&apos;équipe tant qu&apos;elle n&apos;est pas
                       cliquée sur &quot;Valider cette activité&quot; dans le Catalogue.
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+              Catalogue : prix manquant
+            </h2>
+            {catalogueSansPrix.length === 0 ? (
+              <p className="text-sm text-neutral-400">Rien en attente.</p>
+            ) : (
+              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                {catalogueSansPrix.map((a) => (
+                  <div
+                    key={a.id}
+                    onClick={onOpenCatalogue}
+                    className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
+                  >
+                    <p className="text-sm font-medium text-[#171717]">{a.nom || "Sans nom"}</p>
+                    <p className="mt-0.5 text-xs text-[#666666]">
+                      Activité validée mais à 0€ — un client réservé dessus ne paierait rien tant
+                      que le prix n&apos;est pas remis dans le Catalogue.
                     </p>
                   </div>
                 ))}

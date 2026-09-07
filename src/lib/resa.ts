@@ -1477,6 +1477,26 @@ export function estBaseAvecFormuleCoucherDeSoleil(nom: string): boolean {
   return creneauCoucherDeSoleilCible(nom) !== null;
 }
 
+// Seuls items du catalogue dont le prix est légitimement variable au cas
+// par cas (jamais un vrai "0€ oublié") — tapé à la main par l'employée à
+// chaque utilisation, voir leur description dans le Catalogue. Toute autre
+// activité validée à 0€ est une vraie donnée manquante à corriger.
+const CATALOGUE_PRIX_VARIABLE_PAR_NOM = new Set(["transfert aléatoire"]);
+
+// Une activité catalogue "validée" (visible par l'équipe) dont le prix de
+// base est resté à 0€ — vécu plusieurs fois (Buggy Sunset, Safari Buggy
+// Famille...) : le Catalogue perd parfois un prix déjà saisi (voir la liste
+// Direction "Catalogue : prix manquant"), sans que personne ne s'en
+// aperçoive avant qu'un client soit facturé 0€. Respecte tarif_mode : un
+// item "groupe" se juge sur prix_groupe_base, pas sur pu_adulte (toujours
+// 0 dans ce mode).
+export function catalogueItemPrixManquant(item: CatalogueItem): boolean {
+  if (!item.valide) return false;
+  if (CATALOGUE_PRIX_VARIABLE_PAR_NOM.has((item.nom || "").toLowerCase().trim())) return false;
+  if (item.tarif_mode === "groupe") return !(Number(item.prix_groupe_base) > 0);
+  return !(Number(item.pu_adulte) > 0);
+}
+
 // Pré-remplissage du forfait groupe : le forfait de base couvre déjà
 // prix_groupe_base_pax personnes (des adultes en priorité) — seuls les
 // adultes au-delà de ce nombre sont "en supplément". Les enfants ne sont

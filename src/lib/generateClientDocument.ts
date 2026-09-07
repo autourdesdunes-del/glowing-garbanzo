@@ -360,8 +360,21 @@ export function generateClientDocument(
     client.solde_montant_recu > 0
       ? Math.min(Number(client.solde_montant_recu) || 0, soldeApresEtapes)
       : soldeApresEtapes;
-  const totalPaye =
-    acompteReelPaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeDuDocument : 0);
+  // Sans ce garde-fou (même logique que paiementProgress() dans resa.ts,
+  // jamais reprise ici jusqu'à maintenant), une activité ajoutée après que
+  // le solde a déjà été marqué payé (reprise en cours, réglée ou pas)
+  // faisait bêtement recalculer soldeApresEtapes sur le nouveau totalHT
+  // grossi, et solde_paye=true suffisait à la compter payée en entier —
+  // la facture affichait "Reste à payer : 0 €" alors qu'une reprise de
+  // 50 € restait due. client.solde_montant fige le total au moment du
+  // règlement du solde ; toute croissance au-delà n'est jamais couverte
+  // par lui, seulement par un vrai règlement de reprise (étapesSum).
+  const soldeBaselineDocument = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalHT;
+  const croissanceApresSoldeDocument = Math.max(totalHT - soldeBaselineDocument, 0);
+  const soldeCouvertDocument = client.solde_paye
+    ? Math.max(soldeDuDocument - croissanceApresSoldeDocument, 0)
+    : 0;
+  const totalPaye = acompteReelPaye + etapesSum + avoirUtilise + soldeCouvertDocument;
   const reste = Math.max(totalHT - totalPaye, 0);
 
   const conditions: string[] = [];
@@ -393,9 +406,22 @@ export function generateClientDocument(
         : "";
     conditions.push(
       client.solde_paye
-        ? `${euros(soldeApresEtapes)} encaissé${client.solde_mode ? ` (${client.solde_mode})` : ""}${detailMixte}${client.solde_date ? ` le ${fmtDate(client.solde_date)}` : ""}`
+        ? `${euros(soldeCouvertDocument)} encaissé${client.solde_mode ? ` (${client.solde_mode})` : ""}${detailMixte}${client.solde_date ? ` le ${fmtDate(client.solde_date)}` : ""}`
         : `${euros(soldeApresEtapes)} à payer`
     );
+  }
+  // Reprise en cours (nouvelle activité ajoutée après que le solde a déjà
+  // été marqué payé) — jusqu'ici totalement absente des documents. Sans
+  // cette ligne, le "reste à payer" ci-dessus (désormais correct grâce à
+  // croissanceApresSoldeDocument) apparaissait sans aucune explication.
+  if (Number(client.reprise_montant) > 0) {
+    const detailMixteReprise =
+      client.reprise_mode === "Modes différents" && client.reprise_mixte_egp > 0
+        ? ` (${euros(client.reprise_mixte_eur)} € + ${client.reprise_mixte_egp.toLocaleString("fr-FR")} EGP)`
+        : client.reprise_mode
+          ? ` (${client.reprise_mode})`
+          : "";
+    conditions.push(`${euros(Number(client.reprise_montant) || 0)} à payer — activité ajoutée en cours de séjour${detailMixteReprise}`);
   }
 
   const footerText =

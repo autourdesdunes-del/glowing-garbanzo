@@ -13,6 +13,7 @@ import {
   Client,
   ClientHotel,
   PaiementEtape,
+  Remboursement,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -80,6 +81,7 @@ export default function ItineraryView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  remboursements = [],
   avoirs = [],
   expandedId,
   onToggleExpand,
@@ -114,6 +116,7 @@ export default function ItineraryView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  remboursements?: Remboursement[];
   onAddPaiementEtape?: (
     montant: number,
     mode: string,
@@ -241,7 +244,9 @@ export default function ItineraryView({
     // réglée (ex. ajoutée après coup, annulée avant d'être payée sur
     // place). On affiche plutôt ce qui a été tranché à l'annulation.
     const badge =
-      r.statut_resa === "Annulée" ? badgeAnnulation(r) : paiementBadge(client, r, reservations, resaOptions, resaTarifs, paiementsEtapes);
+      r.statut_resa === "Annulée"
+        ? badgeAnnulation(r, remboursements)
+        : paiementBadge(client, r, reservations, resaOptions, resaTarifs, paiementsEtapes);
     const paiementWarning = activitePaiementWarning(
       client,
       r,
@@ -461,7 +466,7 @@ export default function ItineraryView({
     : 0;
   const expBadge = expandedReservation
     ? expandedReservation.statut_resa === "Annulée"
-      ? badgeAnnulation(expandedReservation)
+      ? badgeAnnulation(expandedReservation, remboursements)
       : paiementBadge(client, expandedReservation, reservations, resaOptions, resaTarifs, paiementsEtapes)
     : null;
   const expBreakdown = expandedReservation

@@ -376,10 +376,15 @@ export function paiementBadge(
   // reprise est déjà en attente, pour ne pas la redemander deux fois) :
   // sans ce filet, cette deuxième activité reste "Payé" indéfiniment, son
   // coût jamais tracé nulle part. Jamais laisser une nouvelle activité
-  // s'afficher "Payé" comme si de rien n'était — retenue avec la même
-  // règle de repli que repriseActiviteCible (prochaine activité à venir,
-  // sinon la plus récente), en excluant l'activité déjà ciblée par la
-  // reprise existante (elle a déjà son propre badge, juste au-dessus).
+  // s'afficher "Payé" comme si de rien n'était — retenue par ordre de
+  // création (la plus récemment ajoutée), pas par date de séjour : une
+  // activité déjà couverte par le solde figé peut très bien tomber plus
+  // tôt dans le calendrier qu'une nouvelle activité ajoutée après coup, et
+  // un tri par date_debut désignerait alors à tort cette activité déjà
+  // payée au lieu de la vraie nouveauté — même logique que la cible par
+  // défaut de checkRepriseApresAjout (ClientDetail.tsx), qui utilise déjà
+  // created_at pour cette même raison. Exclut l'activité déjà ciblée par
+  // la reprise existante (elle a déjà son propre badge, juste au-dessus).
   if (key.startsWith("paye_") && reste > 0.01) {
     const cibleReprise = repriseActiviteCible(client, reservations);
     if (cibleReprise?.id !== r.id) {
@@ -387,14 +392,8 @@ export function paiementBadge(
       const repriseCouverte = Number(client.reprise_montant) || 0;
       const nonCouvert = Math.max(totalSejour - soldeBaseline - repriseCouverte, 0);
       if (nonCouvert > 0.01) {
-        const actives = reservationsActives(reservations).filter(
-          (rr) => rr.date_debut && rr.id !== cibleReprise?.id
-        );
-        const prochaine = [...actives]
-          .filter((rr) => (rr.date_debut || "") >= todayStr())
-          .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""))[0];
-        const cibleAuto =
-          prochaine || [...actives].sort((a, b) => (b.date_debut || "").localeCompare(a.date_debut || ""))[0];
+        const actives = reservationsActives(reservations).filter((rr) => rr.id !== cibleReprise?.id);
+        const cibleAuto = [...actives].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
         if (cibleAuto?.id === r.id) {
           return {
             label: `⚠️ ${fmtEuros(nonCouvert)} € non réglés (nouvelle activité)`,

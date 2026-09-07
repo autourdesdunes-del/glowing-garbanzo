@@ -161,6 +161,12 @@ export default function DirectionView({
     .map((r) => {
       const client = clients.find((c) => c.id === r.client_id);
       const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+      // coutsMap[r.id] === undefined veut dire "coût réel jamais saisi", pas
+      // "coût nul" (updateCoutReel upserte même une saisie à 0€, ex.
+      // activité offerte) — sans cette distinction, une activité dont
+      // personne n'a encore rempli le coût affichait 100% de marge et
+      // remontait à tort en tête de "Activités les plus rentables".
+      const coutSaisi = coutsMap[r.id] !== undefined;
       const cout = Number(coutsMap[r.id]) || 0;
       // Un remboursement/dédommagement sur une activité restée "Confirmée"
       // (jamais annulée) doit se répercuter ici — sinon elle continue de
@@ -181,6 +187,7 @@ export default function DirectionView({
         date: r.date_debut,
         total: total + impactCa,
         marge: total - cout + impactMarge,
+        coutSaisi,
         clientId: r.client_id,
         clientNom: client?.nom || "Sans nom",
       };
@@ -204,18 +211,27 @@ export default function DirectionView({
     byYear[r.date.slice(0, 4)] = (byYear[r.date.slice(0, 4)] || 0) + r.total;
   });
 
-  const byActivite: Record<string, { nom: string; count: number; total: number; marge: number }> =
-    {};
+  const byActivite: Record<
+    string,
+    { nom: string; count: number; total: number; marge: number; sansCout: number }
+  > = {};
   rows.forEach((r) => {
     if (!byActivite[r.groupKey]) {
-      byActivite[r.groupKey] = { nom: r.nom, count: 0, total: 0, marge: 0 };
+      byActivite[r.groupKey] = { nom: r.nom, count: 0, total: 0, marge: 0, sansCout: 0 };
     }
     byActivite[r.groupKey].count += 1;
     byActivite[r.groupKey].total += r.total;
     byActivite[r.groupKey].marge += r.marge;
+    if (!r.coutSaisi) byActivite[r.groupKey].sansCout += 1;
   });
   const topVendues = Object.entries(byActivite).sort((a, b) => b[1].total - a[1].total).slice(0, 8);
+  // Une activité dont AUCUNE vente n'a de coût réel saisi n'a pas sa place
+  // dans un classement de rentabilité — sa "marge" n'est qu'un total de
+  // vente déguisé (cout = 0 par défaut), voir le commentaire sur coutSaisi
+  // plus haut. Celles avec un coût partiellement saisi restent affichées
+  // (mieux qu'aucune donnée) mais avec un avertissement, voir le rendu.
   const topRentables = Object.entries(byActivite)
+    .filter(([, d]) => d.sansCout < d.count)
     .sort((a, b) => b[1].marge - a[1].marge)
     .slice(0, 8);
 
@@ -246,17 +262,24 @@ export default function DirectionView({
     .map((r) => {
       const client = clients.find((c) => c.id === r.client_id);
       const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+      // coutsMap[r.id] === undefined veut dire "coût réel jamais saisi", pas
+      // "coût nul" (updateCoutReel upserte même une saisie à 0€, ex.
+      // activité offerte) — sans cette distinction, une activité dont
+      // personne n'a encore rempli le coût affichait 100% de marge et
+      // remontait à tort en tête de "Activités les plus rentables".
+      const coutSaisi = coutsMap[r.id] !== undefined;
       const cout = Number(coutsMap[r.id]) || 0;
       const impacts = remboursements
         .filter((rb) => rb.activite_id === r.id)
         .map(remboursementImpact);
       const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
       const impactMarge = impacts.reduce((s, i) => s + i.marge, 0);
-      return { total: total + impactCa, marge: total - cout + impactMarge };
+      return { total: total + impactCa, marge: total - cout + impactMarge, coutSaisi };
     });
   const caMoisActuel = rowsMoisActuel.reduce((s, r) => s + r.total, 0);
   const margeMoisActuel = rowsMoisActuel.reduce((s, r) => s + r.marge, 0);
   const margePctMoisActuel = caMoisActuel > 0 ? Math.round((margeMoisActuel / caMoisActuel) * 100) : 0;
+  const sansCoutMoisActuel = rowsMoisActuel.filter((r) => !r.coutSaisi).length;
 
   // Même logique que clientsInEgypt côté accueil (DashboardView.tsx).
   const todayStrNow = todayStr();
@@ -327,7 +350,11 @@ export default function DirectionView({
         <DirMetric
           label="Bénéfice du mois"
           value={`${euros(margeMoisActuel)} €`}
-          sub={`${margePctMoisActuel}% de marge`}
+          sub={
+            sansCoutMoisActuel > 0
+              ? `${margePctMoisActuel}% de marge — ⚠️ coût manquant sur ${sansCoutMoisActuel} vente(s)`
+              : `${margePctMoisActuel}% de marge`
+          }
         />
         <DirMetric label="Clients en Égypte" value={String(clientsInEgypt.length)} />
         <DirMetric label="Clients ce mois" value={String(clientsDuMois.length)} />
@@ -710,6 +737,11 @@ export default function DirectionView({
             >
               <span>
                 <strong>{d.nom}</strong>
+                {d.sansCout > 0 && (
+                  <span className="ml-2 text-[11px] font-normal text-[#f5a623]">
+                    ⚠️ coût manquant sur {d.sansCout}/{d.count}
+                  </span>
+                )}
               </span>
               <span>{euros(d.marge)} € de marge</span>
             </div>

@@ -193,14 +193,6 @@ export default function HebergementSection({
         </div>
       )}
 
-      {ajouterHotelZoneOpen && (
-        <AjouterHotelZoneModal
-          hotelNom={client.hotel}
-          onAdd={(ville) => onAddHotelRef(client.hotel, ville)}
-          onClose={() => setAjouterHotelZoneOpen(false)}
-        />
-      )}
-
       {hotelModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-md rounded-[6px] border border-[#eaeaea] bg-white p-6">
@@ -437,6 +429,20 @@ export default function HebergementSection({
             </button>
           </div>
         </div>
+      )}
+
+      {/* Rendu APRÈS la modale "Hébergement" (pas avant) : les deux sont en
+          z-50, et "L'ajouter" ne fermait pas la modale Hébergement en
+          l'ouvrant — à égalité de z-index, l'élément le plus tard dans le
+          DOM s'affiche au-dessus. Avant ce réordonnancement, ce pop-up
+          s'ouvrait bien mais restait invisible, caché derrière la modale
+          Hébergement toujours ouverte (vécu depuis "+ Nouveau client"). */}
+      {ajouterHotelZoneOpen && (
+        <AjouterHotelZoneModal
+          hotelNom={client.hotel}
+          onAdd={(ville) => onAddHotelRef(client.hotel, ville)}
+          onClose={() => setAjouterHotelZoneOpen(false)}
+        />
       )}
     </div>
   );

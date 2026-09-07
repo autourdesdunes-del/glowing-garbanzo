@@ -36,7 +36,13 @@ import { STATUT_COLORS, MODES_PAIEMENT } from "@/lib/constants";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
 import { DuplicateMatch, findDuplicateClients, normText } from "@/lib/duplicates";
-import { resaTotalMontant, avoirUtiliseTotal, findMomentConflict, reservationsActives } from "@/lib/resa";
+import {
+  resaTotalMontant,
+  avoirUtiliseTotal,
+  findMomentConflict,
+  reservationsActives,
+  soldeRestantSejour,
+} from "@/lib/resa";
 import { todayStr } from "@/lib/dates";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import {
@@ -815,14 +821,7 @@ export default function ClientDetail({
     });
   };
 
-  const deleteReservation = async (id: string) => {
-    const ok = await confirm({
-      title: "Retirer cette activité ?",
-      message: "Ses options et son lien éventuel au solde seront aussi retirés. Cette action est irréversible.",
-      confirmLabel: "Retirer",
-      danger: true,
-    });
-    if (!ok) return;
+  const performDeleteReservation = async (id: string) => {
     setReservations((prev) => prev.filter((r) => r.id !== id));
     setResaOptions((prev) => {
       const next = { ...prev };
@@ -836,6 +835,105 @@ export default function ClientDetail({
     });
     const { error } = await supabase.from("reservations").delete().eq("id", id);
     if (error) toast("Échec de la suppression.");
+  };
+
+  // Le solde (unique par séjour) ou un règlement de reprise (activité
+  // ajoutée après un solde déjà payé) peuvent être rattachés pile à
+  // l'activité qu'on est en train de retirer — la retirer sans rien faire
+  // laissait ce règlement "prévu" pointer dans le vide (le message de
+  // confirmation promettait de le retirer aussi, mais rien ne le faisait
+  // réellement). Toujours demandé explicitement avant suppression, jamais
+  // effacé/déplacé en silence — même logique que reglementIci dans
+  // AnnulerActiviteModal, adaptée ici à un simple retrait (pas une vraie
+  // annulation côté client : pas de raison/date/remboursement à saisir).
+  const [reglementSuppressionModal, setReglementSuppressionModal] = useState<{
+    reservationId: string;
+    reservationNom: string;
+    type: "solde" | "reprise";
+    montant: string;
+    mode: string;
+    choix: "annuler" | "deplacer" | "";
+    cibleId: string;
+  } | null>(null);
+
+  const deleteReservation = async (id: string) => {
+    const r = reservations.find((rr) => rr.id === id);
+    const soldeIci = client.solde_activite_id === id && !client.solde_paye;
+    const repriseIci = !soldeIci && client.reprise_activite_id === id && Number(client.reprise_montant) > 0;
+    if (soldeIci || repriseIci) {
+      const montant = soldeIci
+        ? soldeRestantSejour(
+            client,
+            reservations.filter((rr) => rr.id !== id),
+            resaOptions,
+            resaTarifs,
+            paiementsEtapes
+          )
+        : Number(client.reprise_montant) || 0;
+      setReglementSuppressionModal({
+        reservationId: id,
+        reservationNom: r?.nom_activite || "cette activité",
+        type: soldeIci ? "solde" : "reprise",
+        montant: String(montant),
+        mode: soldeIci ? client.solde_mode : client.reprise_mode,
+        choix: "",
+        cibleId: "",
+      });
+      return;
+    }
+    const ok = await confirm({
+      title: "Retirer cette activité ?",
+      message: "Ses options seront aussi retirées. Cette action est irréversible.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
+    await performDeleteReservation(id);
+  };
+
+  const confirmerReglementSuppression = async () => {
+    const m = reglementSuppressionModal;
+    if (!m || !m.choix) return;
+    if (m.choix === "deplacer" && !m.cibleId) {
+      toast("Choisis une activité où reporter ce règlement.");
+      return;
+    }
+    const montant = Number(m.montant) || 0;
+    if (m.choix === "annuler") {
+      // Trace dans l'historique des paiements (montant 0 — jamais compté
+      // comme reçu) pour qu'on retrouve pourquoi ce règlement a disparu,
+      // exactement comme le fait AnnulerActiviteModal pour une vraie
+      // annulation client.
+      await addPaiementEtape(
+        0,
+        "Annulation",
+        todayStr(),
+        `Règlement annulé — ${euros(montant)} € prévus à "${m.reservationNom}" (activité retirée du dossier), jamais perçus`,
+        m.reservationNom
+      );
+      onChange(
+        m.type === "solde"
+          ? {
+              paiement_integral_mode: "",
+              solde_activite_id: null,
+              solde_rdv_heure: "",
+              solde_rdv_lieu: "",
+              solde_rdv_valide: false,
+              solde_rdv_finalise: false,
+              solde_mode: "Espèces EUR",
+              solde_montant: 0,
+            }
+          : { reprise_montant: 0, reprise_activite_id: null, reprise_mode: "" }
+      );
+    } else {
+      onChange(
+        m.type === "solde"
+          ? { solde_activite_id: m.cibleId, solde_mode: m.mode }
+          : { reprise_activite_id: m.cibleId, reprise_montant: montant, reprise_mode: m.mode }
+      );
+    }
+    await performDeleteReservation(m.reservationId);
+    setReglementSuppressionModal(null);
   };
 
   const addOption = async (
@@ -1649,6 +1747,114 @@ export default function ClientDetail({
                 className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
               >
                 Programmer une deuxième étape pour ce paiement
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reglementSuppressionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Un règlement est prévu sur &quot;{reglementSuppressionModal.reservationNom}&quot;
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              {reglementSuppressionModal.type === "solde" ? "Le solde du séjour" : "Un reste de reprise"} de{" "}
+              {euros(Number(reglementSuppressionModal.montant) || 0)} € doit encore être réglé sur cette
+              activité — décide quoi en faire avant de la retirer.
+            </p>
+            <div className="mb-4 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setReglementSuppressionModal({ ...reglementSuppressionModal, choix: "annuler" })}
+                className={`rounded-md border px-3 py-2 text-left text-sm font-medium hover:opacity-90 ${
+                  reglementSuppressionModal.choix === "annuler"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 text-neutral-700"
+                }`}
+              >
+                Annuler ce règlement — il n&apos;a jamais été payé
+              </button>
+              <button
+                type="button"
+                onClick={() => setReglementSuppressionModal({ ...reglementSuppressionModal, choix: "deplacer" })}
+                className={`rounded-md border px-3 py-2 text-left text-sm font-medium hover:opacity-90 ${
+                  reglementSuppressionModal.choix === "deplacer"
+                    ? "border-[#171717] bg-[#171717] text-white"
+                    : "border-neutral-300 text-neutral-700"
+                }`}
+              >
+                Reporter ce règlement sur une autre activité
+              </button>
+            </div>
+            {reglementSuppressionModal.choix === "deplacer" && (
+              <>
+                {reglementSuppressionModal.type === "reprise" && (
+                  <div className="mb-3">
+                    <label className="mb-1 block text-xs font-medium text-neutral-500">Montant</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                      value={reglementSuppressionModal.montant}
+                      onChange={(e) =>
+                        setReglementSuppressionModal({ ...reglementSuppressionModal, montant: e.target.value })
+                      }
+                    />
+                  </div>
+                )}
+                <div className="mb-3">
+                  <label className="mb-1 block text-xs font-medium text-neutral-500">Mode de règlement</label>
+                  <select
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    value={reglementSuppressionModal.mode}
+                    onChange={(e) =>
+                      setReglementSuppressionModal({ ...reglementSuppressionModal, mode: e.target.value })
+                    }
+                  >
+                    {MODES_PAIEMENT.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="mb-1 block text-xs font-medium text-neutral-500">Sur quelle activité ?</label>
+                  <select
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    value={reglementSuppressionModal.cibleId}
+                    onChange={(e) =>
+                      setReglementSuppressionModal({ ...reglementSuppressionModal, cibleId: e.target.value })
+                    }
+                  >
+                    <option value="">— Choisir —</option>
+                    {reservationsActives(reservations)
+                      .filter((r) => r.id !== reglementSuppressionModal.reservationId)
+                      .map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nom_activite || "Activité sans nom"}
+                          {r.date_debut ? ` — ${fmtDate(r.date_debut)}` : ""}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </>
+            )}
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={confirmerReglementSuppression}
+                disabled={!reglementSuppressionModal.choix}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Valider et retirer l&apos;activité
+              </button>
+              <button
+                onClick={() => setReglementSuppressionModal(null)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Annuler (garder l&apos;activité)
               </button>
             </div>
           </div>

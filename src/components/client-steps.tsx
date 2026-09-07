@@ -1277,6 +1277,32 @@ export function PaiementsStep({
     });
   };
 
+  // Contrepartie de marquerRepriseReglee pour le cas où ce reste n'a en
+  // réalité jamais été dû (erreur de saisie, activité retirée par erreur
+  // puis abandonnée) — jusqu'ici la seule action possible depuis ce
+  // bandeau était "Marquer réglé", qui enregistre à tort un paiement
+  // réellement encaissé. Trace quand même l'annulation dans l'historique
+  // des paiements (montant 0) pour qu'on retrouve pourquoi ce reste a
+  // disparu.
+  const annulerRepriseNonPercue = async () => {
+    const ok = await confirm({
+      title: "Annuler ce règlement en attente ?",
+      message: `${euros(client.reprise_montant)} € ne seront plus comptés comme dus — à utiliser seulement si cet argent n'a jamais été payé et ne le sera pas.`,
+      confirmLabel: "Annuler ce règlement",
+      danger: true,
+    });
+    if (!ok) return;
+    const activiteLiee = reservations.find((r) => r.id === client.reprise_activite_id);
+    onAddPaiementEtape(
+      0,
+      "Annulation",
+      todayStr(),
+      `Règlement annulé — ${euros(client.reprise_montant)} € jamais perçus`,
+      activiteLiee?.nom_activite || ""
+    );
+    onChange({ reprise_montant: 0, reprise_mode: "", reprise_activite_id: null });
+  };
+
   // Dès que l'acompte + les étapes libres couvrent tout le séjour (avant
   // même que le solde ne soit explicitement marqué "payé"), on propose de
   // passer toutes les activités en payé d'un coup — y compris à l'ouverture
@@ -1971,12 +1997,20 @@ export function PaiementsStep({
                 {client.reprise_mode}
                 {activiteLiee ? ` (à l'activité "${activiteLiee.nom_activite}")` : ""}
               </span>
-              <button
-                onClick={() => setRepriseDateModal(activiteLiee?.date_debut || todayStr())}
-                className="shrink-0 rounded-md bg-white px-2 py-1 font-medium text-red-700 underline hover:no-underline"
-              >
-                Marquer réglé
-              </button>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  onClick={() => setRepriseDateModal(activiteLiee?.date_debut || todayStr())}
+                  className="rounded-md bg-white px-2 py-1 font-medium text-red-700 underline hover:no-underline"
+                >
+                  Marquer réglé
+                </button>
+                <button
+                  onClick={annulerRepriseNonPercue}
+                  className="rounded-md bg-white px-2 py-1 font-medium text-neutral-500 underline hover:no-underline"
+                >
+                  Annuler
+                </button>
+              </div>
             </div>
           );
         })()}

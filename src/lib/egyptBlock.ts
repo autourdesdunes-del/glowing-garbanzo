@@ -10,7 +10,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { hotelEgyptLinePourActivite } from "@/lib/hotelHelp";
+import { hotelEgyptLinePourActivite, hotelPourDate } from "@/lib/hotelHelp";
 import {
   activitePaiementWarning,
   chevalChameauBadge,
@@ -223,12 +223,30 @@ export function buildEgyptActivityBlock(
   if (r.pointure) activiteLines.push(`Shoe size : ${r.pointure}`);
 
   const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs, etapes);
+  // Même condition que la branche "reprise" tout en haut de
+  // activitePaiementWarning (resa.ts) — sinon le mode affiché ici peut venir
+  // d'une reprise réglée sur une TOUTE AUTRE activité (ou en PayPal/
+  // Virement, exclus de cette branche) alors que paiementWarning est en
+  // réalité retombé sur le solde classique pour cette activité précise.
+  const repriseIci =
+    Number(client.reprise_montant) > 0 &&
+    client.reprise_mode !== "PayPal" &&
+    client.reprise_mode !== "Virement bancaire" &&
+    client.reprise_activite_id === r.id;
+  const modePaiement = repriseIci ? client.reprise_mode : client.solde_mode;
   const paymentLine = paiementWarning
     ? `Payment : ${euros(paiementWarning.amount)} ${paiementWarning.devise === "EGP" ? "EGP" : "euros"} ${
-        PAYMENT_MODE_EN[client.reprise_montant > 0 ? client.reprise_mode : client.solde_mode] ||
-        (client.reprise_montant > 0 ? client.reprise_mode : client.solde_mode)
+        PAYMENT_MODE_EN[modePaiement] || modePaiement
       } ⚠️⚠️`
     : "";
+
+  // Même étape que celle utilisée juste au-dessus pour le nom de l'hôtel
+  // (hotelEgyptLinePourActivite) — sans ça, un circuit multi-hôtels affiche
+  // toujours le numéro de chambre global du client (souvent vide, ou celui
+  // d'une autre étape) au lieu de celui de l'hôtel réellement affiché pour
+  // cette date.
+  const etapeChambre = clientHotels.length > 0 ? hotelPourDate(clientHotels, r.date_debut) : null;
+  const chambre = etapeChambre ? etapeChambre.chambre : client.chambre;
 
   return `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${buildPaxEnglish(
     client
@@ -237,7 +255,7 @@ export function buildEgyptActivityBlock(
     r.date_debut,
     client.hotel,
     hotelVille
-  )}\nRoom Number : ${client.chambre || "—"}\n\nWhat's app : ${client.telephone || "—"}${
+  )}\nRoom Number : ${chambre || "—"}\n\nWhat's app : ${client.telephone || "—"}${
     paymentLine ? `\n\n${paymentLine}` : ""
   }`;
 }

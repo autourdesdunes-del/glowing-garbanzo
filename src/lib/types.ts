@@ -525,6 +525,15 @@ export type Client = {
   reprise_activite_id: string | null;
   egp_taux: number;
   egp_montant: number;
+  // Paiement "mixte" du solde à l'activité (une partie en €, une partie en
+  // EGP, ex. 200€ + 1200 EGP) — deux montants indépendants, PAS liés par un
+  // taux comme egp_taux/egp_montant (le client choisit la répartition, ce
+  // n'est pas une simple conversion d'un seul montant total). Remplis
+  // seulement quand paiement_integral_mode === "activite_mixte" (voir
+  // mixteModal dans PaiementResteFlow). solde_mode devient alors "Modes
+  // différents", déjà géré par paiementStatutKey (resa.ts).
+  solde_mixte_eur: number;
+  solde_mixte_egp: number;
   // Pendant équivalent EGP de l'acompte, seulement rempli quand
   // acompte_mode est "Espèces EGP" — egp_taux/egp_montant ci-dessus ne
   // concernent que le solde (voir egpModal dans PaiementResteFlow).
@@ -670,6 +679,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   reprise_activite_id: null,
   egp_taux: 0,
   egp_montant: 0,
+  solde_mixte_eur: 0,
+  solde_mixte_egp: 0,
   acompte_egp_montant: 0,
   acompte_montant: 0,
   acompte_mode: "PayPal",

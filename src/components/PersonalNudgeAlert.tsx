@@ -31,11 +31,17 @@ function estProspectStagnant(c: Client) {
 }
 
 function estAuRevoirEnAttente(c: Client) {
-  return !!c.date_fin && !c.au_revoir_envoye && addDays(c.date_fin, 1) <= todayStr();
+  return (
+    c.statut !== "Client annulé" &&
+    !!c.date_fin &&
+    !c.au_revoir_envoye &&
+    addDays(c.date_fin, 1) <= todayStr()
+  );
 }
 
 function estAvisEnAttente(c: Client) {
   return (
+    c.statut !== "Client annulé" &&
     !!c.date_fin &&
     !c.avis_envoye &&
     c.avis_statut === "À demander" &&

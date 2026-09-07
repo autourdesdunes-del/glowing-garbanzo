@@ -111,9 +111,17 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" }
   const deleteHotel = async (id: string) => {
     const ok = await confirm({ message: "Retirer cet hôtel de la référence ?", confirmLabel: "Retirer", danger: true });
     if (!ok) return;
+    const removed = hotels.find((h) => h.id === id);
     setHotels((prev) => prev.filter((h) => h.id !== id));
     const { error } = await supabase.from("hotels_reference").delete().eq("id", id);
-    if (error) toast("Échec de la suppression.");
+    if (error) {
+      // Sans ce rollback, l'hôtel restait invisible dans la liste (état
+      // local déjà retiré) alors qu'il existe toujours en base, jusqu'au
+      // prochain rechargement — confusion "je l'ai supprimé mais il est
+      // revenu".
+      if (removed) setHotels((prev) => [...prev, removed]);
+      toast("Échec de la suppression.");
+    }
   };
 
 

@@ -298,6 +298,11 @@ export default function PlanningRHView({
     setConges((prev) => prev.map((c) => (c.id === id ? { ...c, statut } : c)));
     const { error } = await supabase.from("conges").update({ statut }).eq("id", id);
     if (error) {
+      // Sans ce rollback, l'état local affichait déjà "Validé"/"Refusé"
+      // alors que l'écriture a échoué — une autre session (ou un
+      // rechargement) verrait encore l'ancien statut en base, provoquant
+      // une confusion sur un congé qu'on croit accordé.
+      if (conge) setConges((prev) => prev.map((c) => (c.id === id ? conge : c)));
       toast("Échec de l'enregistrement.");
       return;
     }
@@ -332,17 +337,25 @@ export default function PlanningRHView({
       danger: true,
     });
     if (!ok) return;
+    const conge = conges.find((c) => c.id === id);
     setConges((prev) => prev.filter((c) => c.id !== id));
     const { error } = await supabase.from("conges").delete().eq("id", id);
-    if (error) toast("Échec de la suppression.");
+    if (error) {
+      if (conge) setConges((prev) => [...prev, conge]);
+      toast("Échec de la suppression.");
+    }
   };
 
   // Refuser une demande la retire directement de la liste — pas de statut
   // "Refusé" qui traîne, elle disparaît tout simplement.
   const refuserConge = async (id: string) => {
+    const conge = conges.find((c) => c.id === id);
     setConges((prev) => prev.filter((c) => c.id !== id));
     const { error } = await supabase.from("conges").delete().eq("id", id);
-    if (error) toast("Échec du refus.");
+    if (error) {
+      if (conge) setConges((prev) => [...prev, conge]);
+      toast("Échec du refus.");
+    }
   };
 
   // Jour "exceptionnel" (Noël, jour de l'an, raison spéciale...) : l'alerte

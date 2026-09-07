@@ -244,7 +244,7 @@ export default function SuivisView({
   // il y restait pour toujours (coché mais jamais retiré), ce qui donnait
   // l'impression que ça ne menait nulle part.
   const auRevoirRows = clients
-    .filter((c) => c.date_fin && !c.au_revoir_envoye)
+    .filter((c) => c.statut !== "Client annulé" && c.date_fin && !c.au_revoir_envoye)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 1) }))
     .filter((x) => x.dateCible <= todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
@@ -287,13 +287,13 @@ export default function SuivisView({
   };
 
   const auRevoirUpcomingRows = clients
-    .filter((c) => c.date_fin && !c.au_revoir_envoye)
+    .filter((c) => c.statut !== "Client annulé" && c.date_fin && !c.au_revoir_envoye)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 1) }))
     .filter((x) => x.dateCible > todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
 
   const avisRows = clients
-    .filter((c) => c.date_fin && !c.avis_envoye)
+    .filter((c) => c.statut !== "Client annulé" && c.date_fin && !c.avis_envoye)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 7) }))
     .filter((x) => x.dateCible <= todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));
@@ -304,7 +304,7 @@ export default function SuivisView({
     .sort((a, b) => (b.avis_envoye_le as string).localeCompare(a.avis_envoye_le as string));
 
   const avisUpcomingRows = clients
-    .filter((c) => c.date_fin && !c.avis_envoye)
+    .filter((c) => c.statut !== "Client annulé" && c.date_fin && !c.avis_envoye)
     .map((c) => ({ c, dateCible: addDays(c.date_fin as string, 7) }))
     .filter((x) => x.dateCible > todayStr)
     .sort((a, b) => a.dateCible.localeCompare(b.dateCible));

@@ -45,6 +45,7 @@ export default function AppelReminders({
 
       const myCallsToday = clients.filter(
         (c) =>
+          c.statut !== "Client annulé" &&
           c.prochain_appel_date === todayStr &&
           c.prochain_appel_heure &&
           profilesOnShiftAt(profiles, planningShifts, todayStr, c.prochain_appel_heure).some(

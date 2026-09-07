@@ -262,10 +262,12 @@ export default function DashboardView({
   const clientsEnAttenteConfirmation = clients.filter((c) => c.confirmation_a_traiter);
 
   const auRevoirToday = clients.filter(
-    (c) => c.date_fin && addDays(c.date_fin, 1) === todayStr && !c.au_revoir_envoye
+    (c) =>
+      c.statut !== "Client annulé" && c.date_fin && addDays(c.date_fin, 1) === todayStr && !c.au_revoir_envoye
   );
   const avisToday = clients.filter(
-    (c) => c.date_fin && addDays(c.date_fin, 7) === todayStr && !c.avis_envoye
+    (c) =>
+      c.statut !== "Client annulé" && c.date_fin && addDays(c.date_fin, 7) === todayStr && !c.avis_envoye
   );
 
   // "À relancer" se base sur le dernier contact réel (dernier_contact_date),

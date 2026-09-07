@@ -779,28 +779,55 @@ export function packBadge(r: Reservation) {
   return `Pack : ${r.pack_nom.trim()}`;
 }
 
+// Certaines activités coûtent réellement trop cher à l'agence pour se
+// contenter d'une part au prorata du prix pack (ex. le transport pour
+// Louxor) — demande explicite de Mélanie le 07/09/2026 : un prix plancher
+// fixe pour ces activités précises, quel que soit le pack où elles
+// apparaissent (Pack Détente et Pack Exploration partagent Louxor en
+// mini-bus et Orange Bay). Le reste du prix pack (jamais négatif) continue
+// d'être réparti au prorata entre les activités choisies qui n'ont pas de
+// prix fixe.
+const PACK_PRIX_FIXE: Record<string, { pu_adulte: number; pu_enfant: number }> = {
+  "Louxor en mini-bus": { pu_adulte: 160, pu_enfant: 80 },
+  "Orange Bay": { pu_adulte: 50, pu_enfant: 25 },
+  "Spa/Massage": { pu_adulte: 40, pu_enfant: 0 },
+};
+
 // Répartit le prix du pack (prix_adulte/prix_enfant) sur chaque activité
 // choisie, au prorata de son prix catalogue normal — jamais un prix à 0€
 // caché sur certaines cartes : si le client annule une des activités, seule
 // sa part disparaît du total, exactement comme une réservation normale.
 // Repli en parts égales si la somme des prix catalogue normaux est nulle
-// (ex. items sans prix catalogue renseigné).
+// (ex. items sans prix catalogue renseigné). Les activités listées dans
+// PACK_PRIX_FIXE ci-dessus sortent de ce calcul : leur prix est fixe, le
+// prorata ne porte que sur le reste du budget pack et le reste des
+// activités choisies.
 export function packSlotPrix(
   pack: Pack,
   itemsChoisis: CatalogueItem[]
 ): { itemId: string; pu_adulte: number; pu_enfant: number }[] {
-  const sommeAdulte = itemsChoisis.reduce((s, i) => s + (Number(i.pu_adulte) || 0), 0);
-  const sommeEnfant = itemsChoisis.reduce((s, i) => s + (Number(i.pu_enfant) || 0), 0);
-  const n = itemsChoisis.length || 1;
+  const itemsFixes = itemsChoisis.filter((i) => PACK_PRIX_FIXE[i.nom]);
+  const itemsProrata = itemsChoisis.filter((i) => !PACK_PRIX_FIXE[i.nom]);
+  const sommeFixeAdulte = itemsFixes.reduce((s, i) => s + PACK_PRIX_FIXE[i.nom].pu_adulte, 0);
+  const sommeFixeEnfant = itemsFixes.reduce((s, i) => s + PACK_PRIX_FIXE[i.nom].pu_enfant, 0);
+  const budgetAdulte = Math.max(pack.prix_adulte - sommeFixeAdulte, 0);
+  const budgetEnfant = Math.max(pack.prix_enfant - sommeFixeEnfant, 0);
+  const sommeAdulte = itemsProrata.reduce((s, i) => s + (Number(i.pu_adulte) || 0), 0);
+  const sommeEnfant = itemsProrata.reduce((s, i) => s + (Number(i.pu_enfant) || 0), 0);
+  const n = itemsProrata.length || 1;
   return itemsChoisis.map((item) => {
+    const prixFixe = PACK_PRIX_FIXE[item.nom];
+    if (prixFixe) {
+      return { itemId: item.id, pu_adulte: prixFixe.pu_adulte, pu_enfant: prixFixe.pu_enfant };
+    }
     const pu_adulte =
       sommeAdulte > 0
-        ? (pack.prix_adulte * (Number(item.pu_adulte) || 0)) / sommeAdulte
-        : pack.prix_adulte / n;
+        ? (budgetAdulte * (Number(item.pu_adulte) || 0)) / sommeAdulte
+        : budgetAdulte / n;
     const pu_enfant =
       sommeEnfant > 0
-        ? (pack.prix_enfant * (Number(item.pu_enfant) || 0)) / sommeEnfant
-        : pack.prix_enfant / n;
+        ? (budgetEnfant * (Number(item.pu_enfant) || 0)) / sommeEnfant
+        : budgetEnfant / n;
     return {
       itemId: item.id,
       pu_adulte: Math.round(pu_adulte * 100) / 100,

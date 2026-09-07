@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CatalogueItem, Pack, Reservation, TransfertTaxe } from "@/lib/types";
 import { noTaxeTransfert, packSlotPrix } from "@/lib/resa";
 import { matchTransfertTaxe } from "@/lib/hotelHelp";
+import { isSpaMassage, SPA_HEURES, SPA_MINUTES } from "@/lib/addActivityWizardHelpers";
 import { todayStr } from "@/lib/dates";
 import { Field } from "@/components/Field";
 import { useToast } from "@/components/ToastProvider";
@@ -42,6 +43,14 @@ export default function AddPackModal({
   const [taxeAlerte, setTaxeAlerte] = useState<{ nbActivites: number; montantParActivite: number; note: string } | null>(
     null
   );
+  // Le pack Spa/Massage n'a pas d'horaire par défaut — contrairement à
+  // l'ajout d'une activité seule (AddActivityWizard), ce modal-ci n'avait
+  // aucun moyen de le renseigner, donc le pack partait sans "Horaire
+  // souhaité" et l'équipe Égypte ne savait jamais quand caler le massage.
+  // Bloqué ici avant même de proposer "Ajouter" : demande explicite de
+  // Mélanie le 07/09/2026.
+  const [spaHoraire, setSpaHoraire] = useState("");
+  const [spaHorairePrompt, setSpaHorairePrompt] = useState(false);
 
   const pack = packs.find((p) => p.id === packId) || null;
   const itemById = (id: string) => catalogue.find((c) => c.id === id) || null;
@@ -65,10 +74,21 @@ export default function AddPackModal({
 
   const confirmer = async () => {
     if (!pack || !pretAConfirmer) return;
-    setSubmitting(true);
     const itemsChoisis = pack.slots
       .map((slot) => itemById(choix[slot.ordre]))
       .filter((i): i is CatalogueItem => !!i);
+    // Bloque avant toute création de carte — pas question d'ajouter le pack
+    // puis de redemander l'horaire après coup.
+    if (itemsChoisis.some((i) => isSpaMassage(i.nom)) && !spaHoraire) {
+      setSpaHorairePrompt(true);
+      return;
+    }
+    await ajouterLesActivites(itemsChoisis);
+  };
+
+  const ajouterLesActivites = async (itemsChoisis: CatalogueItem[]) => {
+    if (!pack) return;
+    setSubmitting(true);
     const prix = packSlotPrix(pack, itemsChoisis);
     // La taxe de transfert n'est jamais incluse dans le prix d'un pack — un
     // pack créant plusieurs activités à des dates différentes, chacune la
@@ -105,6 +125,7 @@ export default function AddPackModal({
         a_prevoir: item.a_prevoir,
         point_rdv: item.point_rdv,
         photo_path: item.photo_path,
+        ...(isSpaMassage(item.nom) && spaHoraire ? { horaire_souhaite: spaHoraire } : {}),
         ...(concerneParTaxe
           ? {
               transfert_inclus: false,
@@ -125,6 +146,81 @@ export default function AddPackModal({
       onClose();
     }
   };
+
+  if (spaHorairePrompt && pack) {
+    const [hActuelle, mActuelle] = spaHoraire ? spaHoraire.split(":") : ["", ""];
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+        <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+          <h2 className="font-heading text-lg font-semibold text-[#171717]">Horaire du Spa/Massage ?</h2>
+          <p className="mt-2 text-sm text-[#666666]">
+            Nécessaire pour caler le rendez-vous — le pack ne peut pas être ajouté sans.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <select
+              value={hActuelle}
+              onChange={(e) => {
+                if (!e.target.value) {
+                  setSpaHoraire("");
+                  return;
+                }
+                setSpaHoraire(`${e.target.value}:${mActuelle || "00"}`);
+              }}
+              className="input"
+            >
+              <option value="">Heure</option>
+              {SPA_HEURES.map((h) => (
+                <option key={h} value={h}>
+                  {h}h
+                </option>
+              ))}
+            </select>
+            <select
+              value={mActuelle}
+              onChange={(e) => {
+                if (!e.target.value) {
+                  setSpaHoraire("");
+                  return;
+                }
+                setSpaHoraire(`${hActuelle || "10"}:${e.target.value}`);
+              }}
+              className="input"
+            >
+              <option value="">Minutes</option>
+              {SPA_MINUTES.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-4 flex justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setSpaHorairePrompt(false)}
+              className="rounded-md border border-[#eaeaea] px-3 py-1.5 text-sm font-medium text-[#666666] hover:text-[#171717]"
+            >
+              ‹ Retour
+            </button>
+            <button
+              type="button"
+              disabled={!spaHoraire}
+              onClick={() => {
+                setSpaHorairePrompt(false);
+                const itemsChoisis = pack.slots
+                  .map((slot) => itemById(choix[slot.ordre]))
+                  .filter((i): i is CatalogueItem => !!i);
+                ajouterLesActivites(itemsChoisis);
+              }}
+              className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              Valider et ajouter le pack
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (taxeAlerte) {
     return (

@@ -1143,11 +1143,12 @@ export function isLeCaireEnAvion(nom: string) {
 // billet est acheté immédiatement et n'est pas remboursable (voir
 // reglementAnnulation ci-dessus), donc l'agence a besoin d'un acompte qui
 // couvre au moins ce risque avant de commander le billet. Règle validée
-// avec Mélanie (2026-09) : 120€ par adulte, 120€ par enfant, 60€ pour un
-// bébé de 2 ans ou moins (billet moins cher à cet âge) — calculé UNIQUEMENT
-// à partir des compteurs numériques adultes/enfants/bebes du client, jamais
-// depuis ages_enfants (texte libre saisi à la main, pas assez fiable pour
-// un calcul d'argent).
+// avec Mélanie (2026-09), alignée sur le glossaire des activités (tarif
+// "Bébé 0 à 1 an" à 60€, tout le reste — enfants 2-3 ans compris — au tarif
+// plein) : 120€ par adulte, 120€ par enfant, 60€ pour un bébé de 0 à 1 an
+// — calculé UNIQUEMENT à partir des compteurs numériques adultes/enfants/
+// bebes du client, jamais depuis ages_enfants (texte libre saisi à la
+// main, pas assez fiable pour un calcul d'argent).
 export function acompteMinimumCaireEnAvion(client: Client): number {
   return (
     (Number(client.adultes) || 0) * 120 +
@@ -1508,7 +1509,20 @@ export function estBaseAvecFormuleCoucherDeSoleil(nom: string): boolean {
 // par cas (jamais un vrai "0€ oublié") — tapé à la main par l'employée à
 // chaque utilisation, voir leur description dans le Catalogue. Toute autre
 // activité validée à 0€ est une vraie donnée manquante à corriger.
-const CATALOGUE_PRIX_VARIABLE_PAR_NOM = new Set(["transfert aléatoire"]);
+// - "transfert aléatoire" : titre et prix retapés à chaque usage.
+// - "yacht privé (petit modèle)" : glossaire officiel ("Sur demande") —
+//   tarif au cas par cas selon dispo/nombre de personnes, à demander à
+//   Hossam à chaque fois, jamais un montant fixe en catalogue.
+// - "safari mix quad/buggy" : tarif au véhicule (25€/quad, 110€/buggy,
+//   sans limite de personnes par véhicule), pas au forfait groupe — ce
+//   modèle de prix "par véhicule" n'existe pas encore dans le schéma
+//   catalogue actuel (tarif_mode ne connaît que "personne"/"groupe").
+//   Restera à 0€ tant que ce mode de calcul n'est pas ajouté au produit.
+const CATALOGUE_PRIX_VARIABLE_PAR_NOM = new Set([
+  "transfert aléatoire",
+  "yacht privé (petit modèle)",
+  "safari mix quad/buggy",
+]);
 
 // Une activité catalogue "validée" (visible par l'équipe) dont le prix de
 // base est resté à 0€ — vécu plusieurs fois (Buggy Sunset, Safari Buggy

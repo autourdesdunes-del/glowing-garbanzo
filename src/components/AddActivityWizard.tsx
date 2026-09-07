@@ -2984,7 +2984,7 @@ export default function AddActivityWizard({
                 <p className="mb-4 text-sm text-neutral-600">
                   Le billet du Caire est acheté immédiatement et n&apos;est pas remboursable — un
                   acompte d&apos;au moins <strong>{euros(minimum)} €</strong> doit être demandé (120€
-                  par adulte, 120€ par enfant, 60€ pour un bébé de 2 ans ou moins). Basé sur{" "}
+                  par adulte, 120€ par enfant, 60€ pour un bébé de 0 à 1 an). Basé sur{" "}
                   {client.adultes} adulte(s), {client.enfants} enfant(s) et {client.bebes} bébé(s).
                 </p>
                 <button

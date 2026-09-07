@@ -1547,7 +1547,7 @@ export function PaiementsStep({
     }
     // "Le Caire en avion" : le billet est acheté immédiatement et n'est
     // pas remboursable, d'où ce minimum (120€/adulte, 120€/enfant, 60€ pour
-    // un bébé de 2 ans ou moins — voir acompteMinimumCaireEnAvion, resa.ts).
+    // un bébé de 0 à 1 an — voir acompteMinimumCaireEnAvion, resa.ts).
     // Jamais bloquant — l'employée peut valider quand même — mais Sylvie/
     // Direction sont alors prévenues pour pouvoir relancer le client.
     const caireEnAvion = reservations.find(
@@ -1559,7 +1559,7 @@ export function PaiementsStep({
       if (montant < minimum) {
         const ok = await confirm({
           title: "Acompte sous le minimum requis",
-          message: `"Le Caire en avion" exige un acompte d'au moins ${euros(minimum)} € (120€ par adulte, 120€ par enfant, 60€ pour un bébé de 2 ans ou moins) — le billet est acheté immédiatement et n'est pas remboursable. Ici : ${euros(montant)} €. Continuer quand même ?`,
+          message: `"Le Caire en avion" exige un acompte d'au moins ${euros(minimum)} € (120€ par adulte, 120€ par enfant, 60€ pour un bébé de 0 à 1 an) — le billet est acheté immédiatement et n'est pas remboursable. Ici : ${euros(montant)} €. Continuer quand même ?`,
           confirmLabel: "Continuer quand même",
           cancelLabel: "Annuler, je corrige le montant",
         });

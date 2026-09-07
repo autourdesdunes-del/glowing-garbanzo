@@ -23,6 +23,7 @@ import {
   VEHICULES_TRANSFERT,
 } from "@/lib/constants";
 import {
+  acompteMinimumCaireEnAvion,
   groupeExtraCounts,
   hauteSaisonAttendu,
   isChevalOuChameau,
@@ -40,7 +41,8 @@ import {
   isLeCaireEnAvion,
   needsBilletInterneGenerique,
   isMontgolfiereActivity,
-  isSafariQuadBase,
+  creneauCoucherDeSoleilCible,
+  estBaseAvecFormuleCoucherDeSoleil,
   isQuad,
   isSpeedboatPriveMaisonDauphins,
   joursDisponiblesMismatch,
@@ -151,6 +153,7 @@ export default function AddActivityWizard({
   onJourEscalation,
   onAssouanVerification,
   editReservationId,
+  onSuggestAcompte,
 }: {
   client: Client;
   catalogue: CatalogueItem[];
@@ -193,6 +196,11 @@ export default function AddActivityWizard({
   // relisent alors les vraies valeurs de cette réservation, comme une
   // création, plutôt que le gros formulaire d'édition d'un seul bloc.
   editReservationId?: string;
+  // Pré-remplit l'acompte au minimum requis quand "Le Caire en avion" vient
+  // d'être ajouté (voir le pop-up juste avant onFinish plus bas) —
+  // undefined si l'acompte est déjà validé, ou hors contexte "nouveau
+  // client"/"nouvelle activité" (édition d'une activité existante).
+  onSuggestAcompte?: (montant: number) => void;
 }) {
   const [step, setStep] = useState<Step>("choix");
   const [draftId, setDraftId] = useState<string | null>(editReservationId ?? null);
@@ -245,6 +253,12 @@ export default function AddActivityWizard({
   const [hossamAskedPremiere, setHossamAskedPremiere] = useState(false);
   const [hossamAskedFinale, setHossamAskedFinale] = useState(false);
   const [hossamUrgentAlert, setHossamUrgentAlert] = useState(false);
+  // Info sur l'acompte minimum requis pour "Le Caire en avion" — ne se
+  // déclenche que sur un vrai ajout (jamais en édition d'une activité déjà
+  // en place, où l'acompte a déjà pu être traité) et une seule fois par
+  // ouverture du wizard.
+  const [acompteMinInfo, setAcompteMinInfo] = useState(false);
+  const [acompteMinAsked, setAcompteMinAsked] = useState(false);
   // La date choisie peut tomber hors des jours disponibles du catalogue —
   // une fois que l'employée a répondu (changer / demander l'autorisation)
   // pour CETTE date précise, on ne la rembête pas une deuxième fois tant
@@ -892,16 +906,20 @@ export default function AddActivityWizard({
                 value={r.creneau}
                 onChange={(e) => {
                   const creneau = e.target.value;
-                  // "Safari quad" au coucher de soleil est un item catalogue
-                  // à part entière (30€/pers, pas 25€) — pas un simple
-                  // changement de libellé : il faut aussi rebasculer le prix
-                  // et le lien catalogue, comme pour "Le Caire mini-bus" →
-                  // VIP un peu plus bas dans ce fichier (sinon la carte
-                  // reste facturée au tarif normal malgré le nouveau titre).
-                  const itemSunset =
-                    catalogueItem && !isCustomFlow && isSafariQuadBase(catalogueItem.nom) && creneau === "Coucher de soleil"
-                      ? catalogue.find((a) => a.nom === "Safari quad au coucher du soleil")
+                  // Certaines activités (Safari quad, Buggy...) ont une
+                  // formule "coucher de soleil" à part entière dans le
+                  // catalogue, avec son propre prix — voir
+                  // CRENEAU_COUCHER_DE_SOLEIL_SWITCH dans resa.ts. Ce n'est
+                  // jamais un simple changement de libellé : il faut aussi
+                  // rebasculer le prix et le lien catalogue, comme pour
+                  // "Le Caire mini-bus" → VIP un peu plus bas dans ce
+                  // fichier (sinon la carte reste facturée au tarif normal
+                  // malgré le nouveau titre).
+                  const nomCible =
+                    catalogueItem && !isCustomFlow && creneau === "Coucher de soleil"
+                      ? creneauCoucherDeSoleilCible(catalogueItem.nom)
                       : null;
+                  const itemSunset = nomCible ? catalogue.find((a) => a.nom === nomCible) : null;
                   if (itemSunset) {
                     onUpdateReservation(r.id, {
                       creneau,
@@ -927,7 +945,7 @@ export default function AddActivityWizard({
                   }
                   onUpdateReservation(r.id, {
                     creneau,
-                    ...(catalogueItem && !isCustomFlow && isSafariQuadBase(catalogueItem.nom)
+                    ...(catalogueItem && !isCustomFlow && estBaseAvecFormuleCoucherDeSoleil(catalogueItem.nom)
                       ? { nom_activite: catalogueItem.nom }
                       : catalogueItem && !isCustomFlow
                         ? {
@@ -2738,12 +2756,30 @@ export default function AddActivityWizard({
       ? matchTransfertTaxe(taxesRef ?? [], hotelVille, nbAdTransfert, nbEnfTransfert)
       : null;
 
+  // Dernier filtre avant de vraiment terminer l'ajout — le popup Hossam a
+  // déjà pu s'occuper de la date du billet, celui-ci s'occupe de l'acompte.
+  // Ne se déclenche qu'à l'ajout d'une nouvelle activité (jamais en édition
+  // d'une déjà en place, où l'acompte a pu être traité depuis longtemps) et
+  // une seule fois par ouverture du wizard.
+  const completeFinish = () => {
+    if (
+      !editReservationId &&
+      onSuggestAcompte &&
+      isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) &&
+      !acompteMinAsked
+    ) {
+      setAcompteMinInfo(true);
+      return;
+    }
+    onFinish();
+  };
+
   const finishClick = () => {
     if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedFinale) {
       setHossamPopup("finale");
       return;
     }
-    onFinish();
+    completeFinish();
   };
 
   const finaliserHossam = (etape: "attente_hossam" | "a_envoyer_hossam" | null) => {
@@ -2761,7 +2797,7 @@ export default function AddActivityWizard({
     if (jours !== null && jours < 15) {
       setHossamUrgentAlert(true);
     } else {
-      onFinish();
+      completeFinish();
     }
   };
 
@@ -2926,7 +2962,7 @@ export default function AddActivityWizard({
               type="button"
               onClick={() => {
                 setHossamUrgentAlert(false);
-                onFinish();
+                completeFinish();
               }}
               className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
             >
@@ -2935,6 +2971,38 @@ export default function AddActivityWizard({
           </div>
         </div>
       )}
+
+      {acompteMinInfo &&
+        (() => {
+          const minimum = acompteMinimumCaireEnAvion(client);
+          return (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4">
+              <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+                <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+                  Acompte minimum requis
+                </h2>
+                <p className="mb-4 text-sm text-neutral-600">
+                  Le billet du Caire est acheté immédiatement et n&apos;est pas remboursable — un
+                  acompte d&apos;au moins <strong>{euros(minimum)} €</strong> doit être demandé (120€
+                  par adulte, 120€ par enfant, 60€ pour un bébé de 2 ans ou moins). Basé sur{" "}
+                  {client.adultes} adulte(s), {client.enfants} enfant(s) et {client.bebes} bébé(s).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSuggestAcompte?.(minimum);
+                    setAcompteMinInfo(false);
+                    setAcompteMinAsked(true);
+                    onFinish();
+                  }}
+                  className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+                >
+                  OK, pré-remplir l&apos;acompte
+                </button>
+              </div>
+            </div>
+          );
+        })()}
     </>
   );
 }

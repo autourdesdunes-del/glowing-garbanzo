@@ -267,6 +267,35 @@ export default function QuickAddClient({
     });
   };
 
+  const handleAcompteAlerte = async (
+    montantMinimum: number,
+    montantSaisi: number,
+    nomActivite: string,
+    reservationId: string | null
+  ) => {
+    if (!clientId) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    await supabase.from("acompte_alertes").insert({
+      client_id: clientId,
+      client_nom: answers.nom || "",
+      reservation_id: reservationId,
+      nom_activite: nomActivite,
+      montant_minimum: montantMinimum,
+      montant_saisi: montantSaisi,
+      employe_id: user.id,
+      employe_nom: employeNom,
+    });
+  };
+
   const handleAssouanVerification = async (nomActivite: string, reservationId: string) => {
     if (!clientId) return;
     const {
@@ -1034,6 +1063,9 @@ export default function QuickAddClient({
                   onJourEscalation={handleJourEscalation}
                   onAssouanVerification={handleAssouanVerification}
                   assouanVerifications={[]}
+                  onSuggestAcompte={
+                    answers.acompte_valide ? undefined : (montant) => patch({ acompte_montant: montant })
+                  }
                 />
               )}
 
@@ -1050,6 +1082,7 @@ export default function QuickAddClient({
                   // fois le dossier établi) ne doit pas gêner la première
                   // saisie si l'employée change d'avis avant de valider.
                   isDirection
+                  onAcompteAlerte={handleAcompteAlerte}
                 />
               )}
 

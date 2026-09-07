@@ -33,9 +33,11 @@ import {
   STATUTS,
 } from "@/lib/constants";
 import {
+  acompteMinimumCaireEnAvion,
   cleanActivityTitle,
   fmtEncaisseLe,
   hossamBilletMessage,
+  isLeCaireEnAvion,
   paiementProgress,
   paxSummary,
   reservationsActives,
@@ -833,6 +835,7 @@ export function ActivitesStep({
   onAddPaiementEtape,
   autoExpandReservationId,
   onAutoExpandHandled,
+  onSuggestAcompte,
 }: StepProps & {
   reservations: Reservation[];
   avoirs?: Avoir[];
@@ -899,6 +902,11 @@ export function ActivitesStep({
   // à la main dans la liste.
   autoExpandReservationId?: string | null;
   onAutoExpandHandled?: () => void;
+  // Pré-remplit l'acompte avec le minimum requis quand "Le Caire en avion"
+  // vient d'être ajouté (voir AddActivityWizard) — undefined si l'acompte
+  // est déjà validé (jamais réécrire un montant sur lequel l'employée s'est
+  // déjà engagée).
+  onSuggestAcompte?: (montant: number) => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // Lecture seule ici, dupliquée volontairement de l'état géré par
@@ -967,6 +975,7 @@ export function ActivitesStep({
         onBusEscalation={onBusEscalation}
         onJourEscalation={onJourEscalation}
         onAssouanVerification={onAssouanVerification}
+        onSuggestAcompte={onSuggestAcompte}
       />
     );
   }
@@ -1068,6 +1077,7 @@ export function PaiementsStep({
   onAddPaiementEtape = () => {},
   onDeletePaiementEtape = () => {},
   isDirection = false,
+  onAcompteAlerte,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -1084,6 +1094,14 @@ export function PaiementsStep({
   ) => void;
   onDeletePaiementEtape?: (id: string) => void;
   isDirection?: boolean;
+  // Prévient Sylvie/Direction quand l'acompte validé reste sous le minimum
+  // requis pour "Le Caire en avion" — voir validerAcompte plus bas.
+  onAcompteAlerte?: (
+    montantMinimum: number,
+    montantSaisi: number,
+    nomActivite: string,
+    reservationId: string | null
+  ) => Promise<void>;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -1522,10 +1540,32 @@ export function PaiementsStep({
     resetEtapeForm();
   };
 
-  const validerAcompte = () => {
+  const validerAcompte = async () => {
     if (!client.acompte_montant) {
       toast("Renseigne le montant de l'acompte avant de valider.");
       return;
+    }
+    // "Le Caire en avion" : le billet est acheté immédiatement et n'est
+    // pas remboursable, d'où ce minimum (120€/adulte, 120€/enfant, 60€ pour
+    // un bébé de 2 ans ou moins — voir acompteMinimumCaireEnAvion, resa.ts).
+    // Jamais bloquant — l'employée peut valider quand même — mais Sylvie/
+    // Direction sont alors prévenues pour pouvoir relancer le client.
+    const caireEnAvion = reservations.find(
+      (r) => isLeCaireEnAvion(r.nom_activite) && r.statut_resa !== "Annulée"
+    );
+    if (caireEnAvion) {
+      const minimum = acompteMinimumCaireEnAvion(client);
+      const montant = Number(client.acompte_montant) || 0;
+      if (montant < minimum) {
+        const ok = await confirm({
+          title: "Acompte sous le minimum requis",
+          message: `"Le Caire en avion" exige un acompte d'au moins ${euros(minimum)} € (120€ par adulte, 120€ par enfant, 60€ pour un bébé de 2 ans ou moins) — le billet est acheté immédiatement et n'est pas remboursable. Ici : ${euros(montant)} €. Continuer quand même ?`,
+          confirmLabel: "Continuer quand même",
+          cancelLabel: "Annuler, je corrige le montant",
+        });
+        if (!ok) return;
+        await onAcompteAlerte?.(minimum, montant, caireEnAvion.nom_activite, caireEnAvion.id);
+      }
     }
     onChange({ acompte_valide: true, acompte_montant_prevu: Number(client.acompte_montant) || 0 });
   };

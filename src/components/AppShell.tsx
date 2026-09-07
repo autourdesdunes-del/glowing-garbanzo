@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
+  AcompteAlerte,
   AssouanVerification,
   BusEscalation,
   CatalogueFaq,
@@ -74,6 +75,7 @@ import NouveauClientConfirmeAlert from "@/components/NouveauClientConfirmeAlert"
 import BusEscalationCenter from "@/components/BusEscalationCenter";
 import JourEscalationCenter from "@/components/JourEscalationCenter";
 import AssouanVerificationCenter from "@/components/AssouanVerificationCenter";
+import AcompteAlerteCenter from "@/components/AcompteAlerteCenter";
 import RemarqueEmployeeCenter from "@/components/RemarqueEmployeeCenter";
 import PersonalNudgeAlert from "@/components/PersonalNudgeAlert";
 import {
@@ -316,6 +318,7 @@ function AppShellInner({
   const [assouanVerificationsPending, setAssouanVerificationsPending] = useState<AssouanVerification[]>(
     []
   );
+  const [acompteAlertesPending, setAcompteAlertesPending] = useState<AcompteAlerte[]>([]);
   const [suivisLoaded, setSuivisLoaded] = useState(false);
   const [modifsLoaded, setModifsLoaded] = useState(false);
   const [remarquesEmploye, setRemarquesEmploye] = useState<RemarqueEmployee[]>([]);
@@ -701,7 +704,10 @@ function AppShellInner({
   // pas comptées ici : elles concernent uniquement la Direction et restent
   // dans l'onglet Direction (voir ManagerView.tsx).
   const managerAutorisationsCount =
-    busEscalationsPending.length + jourEscalationsPending.length + assouanVerificationsPending.length;
+    busEscalationsPending.length +
+    jourEscalationsPending.length +
+    assouanVerificationsPending.length +
+    acompteAlertesPending.length;
   const managerClientsCount = clients.filter((c) => c.confirmation_a_traiter).length;
   const managerActivitesCount = allReservations.filter((r) => r.statut_resa === "Brouillon").length;
   const managerCatalogueBrouillonCount = catalogue.filter((a) => !a.valide).length;
@@ -1306,6 +1312,7 @@ function AppShellInner({
       "assouan_verifications",
       "bus_escalations",
       "jour_escalations",
+      "acompte_alertes",
       "kommo_reponses_employe",
       "remarques_employe",
       "activity_log",
@@ -2327,6 +2334,11 @@ function AppShellInner({
         currentUserId={userId}
         onPendingChange={setAssouanVerificationsPending}
       />
+      <AcompteAlerteCenter
+        profiles={teamProfiles}
+        currentUserId={userId}
+        onPendingChange={setAcompteAlertesPending}
+      />
       <RemarqueEmployeeCenter currentUserId={userId} />
       {!isDirection && (
         <PersonalNudgeAlert
@@ -3055,6 +3067,7 @@ function AppShellInner({
               busEscalations={busEscalationsPending}
               jourEscalations={jourEscalationsPending}
               assouanVerifications={assouanVerificationsPending}
+              acompteAlertes={acompteAlertesPending}
               profiles={teamProfiles}
               currentUserId={userId}
               remarquesEmploye={remarquesEmploye}

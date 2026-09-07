@@ -205,6 +205,39 @@ export default function ClientDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
 
+  // L'acompte validé reste sous le minimum requis pour "Le Caire en avion"
+  // (billet acheté immédiatement, non remboursable) malgré l'alerte —
+  // jamais bloquant (le client peut avoir de bonnes raisons, un vol déjà
+  // pris ne peut pas attendre), mais Sylvie/Direction doivent le savoir
+  // pour pouvoir relancer le client si besoin.
+  const handleAcompteAlerte = async (
+    montantMinimum: number,
+    montantSaisi: number,
+    nomActivite: string,
+    reservationId: string | null
+  ) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("prenom, email")
+      .eq("id", user.id)
+      .single();
+    const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    await supabase.from("acompte_alertes").insert({
+      client_id: client.id,
+      client_nom: client.nom,
+      reservation_id: reservationId,
+      nom_activite: nomActivite,
+      montant_minimum: montantMinimum,
+      montant_saisi: montantSaisi,
+      employe_id: user.id,
+      employe_nom: employeNom,
+    });
+  };
+
   // L'employée indique avoir informé le client de vérifier la localisation
   // de son hôtel à Assouan — reste "en_attente" jusqu'à ce que Sylvie/
   // Direction valide, ce qui seul débloque la confirmation de l'activité.
@@ -1529,6 +1562,7 @@ export default function ClientDetail({
         onJourEscalation={handleJourEscalation}
         onAssouanVerification={handleAssouanVerification}
         assouanVerifications={assouanVerifications}
+        onAcompteAlerte={handleAcompteAlerte}
       />
 
       {/* Contact : toujours visible, pas de clic pour déplier — c'est
@@ -1694,6 +1728,7 @@ export default function ClientDetail({
               onAddPaiementEtape={addPaiementEtape}
               onDeletePaiementEtape={deletePaiementEtape}
               isDirection={canSeeMargins}
+              onAcompteAlerte={handleAcompteAlerte}
             />
           </div>
         </div>

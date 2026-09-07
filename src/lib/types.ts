@@ -975,6 +975,28 @@ export type AssouanVerification = {
   created_at: string;
 };
 
+// L'employée a validé un acompte sous le minimum requis pour "Le Caire en
+// avion" (billet acheté immédiatement, non remboursable — voir
+// acompteMinimumCaireEnAvion dans resa.ts) malgré l'alerte affichée —
+// jamais bloquant, juste un signal pour Sylvie/Direction. Pas de statut
+// validee/refusee comme BusEscalation/JourEscalation : rien à trancher,
+// juste à prendre connaissance (vu/vu_par_nom).
+export type AcompteAlerte = {
+  id: string;
+  client_id: string;
+  client_nom: string;
+  reservation_id: string | null;
+  nom_activite: string;
+  montant_minimum: number;
+  montant_saisi: number;
+  employe_id: string;
+  employe_nom: string;
+  vu: boolean;
+  vu_par_nom: string;
+  vu_at: string | null;
+  created_at: string;
+};
+
 export type CatalogueModificationRequest = {
   id: string;
   catalogue_item_ids: string[];

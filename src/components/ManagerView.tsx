@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
+  AcompteAlerte,
   AssouanVerification,
   BusEscalation,
   CatalogueItem,
@@ -107,6 +108,7 @@ export default function ManagerView({
   busEscalations,
   jourEscalations,
   assouanVerifications,
+  acompteAlertes,
   profiles,
   currentUserId,
   remarquesEmploye,
@@ -124,6 +126,7 @@ export default function ManagerView({
   busEscalations: BusEscalation[];
   jourEscalations: JourEscalation[];
   assouanVerifications: AssouanVerification[];
+  acompteAlertes: AcompteAlerte[];
   profiles: Profile[];
   currentUserId: string;
   remarquesEmploye: RemarqueEmployee[];
@@ -188,6 +191,13 @@ export default function ManagerView({
       created_at: e.created_at,
       icon: "🏨",
       texte: `${e.employe_nom} indique avoir informé ${e.client_nom} de vérifier la localisation de son hôtel à Assouan pour ${e.nom_activite}.`,
+      clientId: e.client_id,
+    })),
+    ...acompteAlertes.map((e) => ({
+      id: e.id,
+      created_at: e.created_at,
+      icon: "✈️",
+      texte: `${e.employe_nom} a validé un acompte de ${euros(e.montant_saisi)} € pour ${e.client_nom} — sous le minimum de ${euros(e.montant_minimum)} € requis pour ${e.nom_activite}.`,
       clientId: e.client_id,
     })),
   ].sort((a, b) => a.created_at.localeCompare(b.created_at));

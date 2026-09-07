@@ -1112,6 +1112,30 @@ export function isLeCaireEnAvion(nom: string) {
   return (nom || "").trim().toLowerCase() === "le caire en avion";
 }
 
+// Acompte minimum exigé dès que le séjour inclut "Le Caire en avion" — le
+// billet est acheté immédiatement et n'est pas remboursable (voir
+// reglementAnnulation ci-dessus), donc l'agence a besoin d'un acompte qui
+// couvre au moins ce risque avant de commander le billet. Règle validée
+// avec Mélanie (2026-09) : 120€ par adulte, 120€ par enfant, 60€ pour un
+// bébé de 2 ans ou moins (billet moins cher à cet âge) — calculé UNIQUEMENT
+// à partir des compteurs numériques adultes/enfants/bebes du client, jamais
+// depuis ages_enfants (texte libre saisi à la main, pas assez fiable pour
+// un calcul d'argent).
+export function acompteMinimumCaireEnAvion(client: Client): number {
+  return (
+    (Number(client.adultes) || 0) * 120 +
+    (Number(client.enfants) || 0) * 120 +
+    (Number(client.bebes) || 0) * 60
+  );
+}
+
+// Le séjour a-t-il "Le Caire en avion" parmi ses activités actives (pas
+// annulée) — sert à savoir si la règle d'acompte minimum ci-dessus
+// s'applique encore, y compris si l'activité a été retirée après coup.
+export function clientALeCaireEnAvion(reservations: Reservation[]): boolean {
+  return reservationsActives(reservations).some((r) => isLeCaireEnAvion(r.nom_activite));
+}
+
 // Autres cas où l'agence achète elle-même un billet d'avion intérieur pour
 // le client — l'activité générique "Billets d'avion" (vols achetés au cas
 // par cas, hors trajet fixe du Caire) et tous les circuits multi-jours.
@@ -1429,10 +1453,28 @@ export function needsMomentSpeedboat(nom: string) {
   return true;
 }
 
-// Choisir "Coucher de soleil" sur un Safari quad classique le transforme en
-// la formule dédiée du catalogue — pas de simple suffixe sur le titre.
-export function isSafariQuadBase(nom: string) {
-  return (nom || "").toLowerCase().trim() === "safari quad";
+// Activités où choisir "Coucher de soleil" comme créneau doit rebasculer
+// sur une formule dédiée du catalogue (prix et détails propres), pas juste
+// suffixer le titre — clé = nom exact de l'item catalogue "classique",
+// valeur = nom exact de l'item catalogue "coucher de soleil" correspondant.
+// Étendre cette table (plutôt que dupliquer la logique de switch) est le
+// seul geste nécessaire pour ajouter un nouveau cas de ce genre.
+export const CRENEAU_COUCHER_DE_SOLEIL_SWITCH: Record<string, string> = {
+  "safari quad": "Safari quad au coucher du soleil",
+  buggy: "Buggy Sunset",
+};
+
+// Nom de l'item catalogue "coucher de soleil" vers lequel basculer, ou null
+// si cette activité n'a pas de formule dédiée pour ce créneau.
+export function creneauCoucherDeSoleilCible(nom: string): string | null {
+  return CRENEAU_COUCHER_DE_SOLEIL_SWITCH[(nom || "").toLowerCase().trim()] || null;
+}
+
+// Une activité de base qui a une formule "coucher de soleil" dédiée ne doit
+// jamais recevoir de suffixe de titre générique sur son propre nom (matin/
+// après-midi) — le switch gère le titre du créneau soleil couchant lui-même.
+export function estBaseAvecFormuleCoucherDeSoleil(nom: string): boolean {
+  return creneauCoucherDeSoleilCible(nom) !== null;
 }
 
 // Pré-remplissage du forfait groupe : le forfait de base couvre déjà

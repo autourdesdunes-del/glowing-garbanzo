@@ -57,6 +57,7 @@ export default function GuidedActivityModal({
   onAssouanVerification,
   assouanVerifications,
   onActivityFinished,
+  onAcompteAlerte,
 }: {
   open: boolean;
   onClose: () => void;
@@ -97,6 +98,12 @@ export default function GuidedActivityModal({
   onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
   assouanVerifications: AssouanVerification[];
   onActivityFinished?: () => void;
+  onAcompteAlerte?: (
+    montantMinimum: number,
+    montantSaisi: number,
+    nomActivite: string,
+    reservationId: string | null
+  ) => Promise<void>;
 }) {
   const [step, setStep] = useState<Step>("activites");
   // Tant que le pas-à-pas de création d'activité est ouvert (à l'intérieur
@@ -176,6 +183,9 @@ export default function GuidedActivityModal({
             onJourEscalation={onJourEscalation}
             onAssouanVerification={onAssouanVerification}
             assouanVerifications={assouanVerifications}
+            onSuggestAcompte={
+              client.acompte_valide ? undefined : (montant) => onChange({ acompte_montant: montant })
+            }
           />
         )}
 
@@ -188,6 +198,7 @@ export default function GuidedActivityModal({
             resaTarifs={resaTarifs}
             onUpdateReservation={onUpdateReservation}
             isDirection={canSeeMargins}
+            onAcompteAlerte={onAcompteAlerte}
           />
         )}
 

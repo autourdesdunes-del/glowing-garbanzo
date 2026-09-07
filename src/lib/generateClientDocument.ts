@@ -69,7 +69,7 @@ function lignesPourReservation(
   tarifs: ReservationTarif[]
 ): LigneMontant[] {
   const lignes: LigneMontant[] = [];
-  const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
+  const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
 
   if (r.tarif_mode === "groupe") {
     const base =
@@ -79,10 +79,18 @@ function lignesPourReservation(
       (Number(r.participants_extra_bebes) || 0) * (Number(r.pu_bebe) || 0);
     lignes.push({ label: "Forfait", quantite: 1, puVente: base, montantHT: base });
   } else {
+    // "Bébé" (nbBebe/pu_bebe, déduit du séjour) et "Enfant 3 ans"
+    // (nbEnf3/pu_enfant_3ans, saisi au cas par cas sur la réservation — voir
+    // participantsFor) sont deux tranches tarifaires distinctes. Avant ce
+    // correctif, la ligne "Bébé" affichait en réalité le tarif enfant 3 ans
+    // et le vrai bébé n'avait aucune ligne dédiée (rattrapé silencieusement
+    // par la ligne "Ajustement" plus bas) — trompeur sur un document envoyé
+    // au client.
     const tranches = [
       { label: "Adulte", nb: nbAd, pu: Number(r.pu_adulte) || 0 },
       { label: "Enfant", nb: nbEnf, pu: Number(r.pu_enfant) || 0 },
-      { label: "Bébé", nb: nbEnf3, pu: Number(r.pu_enfant_3ans) || 0 },
+      { label: "Bébé", nb: nbBebe, pu: Number(r.pu_bebe) || 0 },
+      { label: "Enfant 3 ans", nb: nbEnf3, pu: Number(r.pu_enfant_3ans) || 0 },
       { label: "Accompagnateur", nb: nbAcc, pu: Number(r.pu_accompagnateur) || 0 },
     ].filter((t) => t.nb > 0);
 

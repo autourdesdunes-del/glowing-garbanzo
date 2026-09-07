@@ -2194,6 +2194,7 @@ export default function ClientDetail({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
           catalogue={catalogue}
           onUpdateClient={onChange}
           onUpdateReservation={updateReservation}

@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CatalogueItem, Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { clientAPayeQuelqueChose, reglementAnnulation, resaTotalMontant } from "@/lib/resa";
+import {
+  CatalogueItem,
+  Client,
+  PaiementEtape,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
+import { clientAPayeQuelqueChose, paiementProgress, reglementAnnulation, resaTotalMontant } from "@/lib/resa";
 import { RAISONS_ANNULATION } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/client";
@@ -23,6 +30,7 @@ export default function AnnulerClientModal({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   catalogue,
   onUpdateClient,
   onUpdateReservation,
@@ -32,6 +40,7 @@ export default function AnnulerClientModal({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   catalogue: CatalogueItem[];
   onUpdateClient: (patch: Partial<Client>) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
@@ -48,7 +57,7 @@ export default function AnnulerClientModal({
   const argentRecu = clientAPayeQuelqueChose(client);
   const actives = reservations.filter((r) => r.client_id === client.id && r.statut_resa !== "Annulée");
   const now = new Date();
-  const lignes = actives.map((r) => {
+  const lignesBrutes = actives.map((r) => {
     const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
     const montant = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
     const reglement = reglementAnnulation(r, catalogueItem, now);
@@ -58,6 +67,22 @@ export default function AnnulerClientModal({
     const remboursable = reglement.remboursable && montant > 0 && argentRecu;
     return { r, montant, reglement, remboursable };
   });
+  const totalRemboursableBrut = lignesBrutes
+    .filter((l) => l.remboursable)
+    .reduce((s, l) => s + l.montant, 0);
+  // Le prix plein d'une activité n'est pas forcément ce que l'agence a
+  // réellement encaissé (acompte partiel, solde pas encore réglé) — plafonner
+  // au véritable "payé" du séjour (même calcul que la fiche client) évite de
+  // générer un remboursement/avoir plus gros que l'argent réellement reçu.
+  // On répartit ce plafond au prorata entre les lignes remboursables plutôt
+  // que de rembourser certaines en entier et d'autres pas du tout.
+  const { totalPaye } = paiementProgress(client, reservations, resaOptions, resaTarifs, paiementsEtapes);
+  const facteurPlafond =
+    totalRemboursableBrut > 0 ? Math.min(1, totalPaye / totalRemboursableBrut) : 1;
+  const lignes = lignesBrutes.map((l) => ({
+    ...l,
+    montant: l.remboursable ? Math.round(l.montant * facteurPlafond * 100) / 100 : l.montant,
+  }));
   const totalRemboursable = lignes.filter((l) => l.remboursable).reduce((s, l) => s + l.montant, 0);
   const raisonFinale = raison === "Autre" ? raisonAutre.trim() : raison;
 

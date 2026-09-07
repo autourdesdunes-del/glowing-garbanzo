@@ -1415,9 +1415,17 @@ export function PaiementsStep({
       : null;
     paiementsChronologiques.push({
       id: "solde",
-      label: `Solde — ${client.solde_mode}`,
+      label:
+        client.solde_mode === "Modes différents"
+          ? `Solde — ${euros(client.solde_mixte_eur)} € + ${client.solde_mixte_egp.toLocaleString("fr-FR")} EGP`
+          : `Solde — ${client.solde_mode}`,
       montant: soldeRestant,
-      montantEgp: client.solde_mode === "Espèces EGP" ? Number(client.egp_montant) || 0 : 0,
+      montantEgp:
+        client.solde_mode === "Espèces EGP"
+          ? Number(client.egp_montant) || 0
+          : client.solde_mode === "Modes différents"
+            ? Number(client.solde_mixte_egp) || 0
+            : 0,
       when: client.solde_date ? fmtDateDMY(client.solde_date) : "—",
       sortKey: client.solde_date || "",
       activite: soldeActivite?.nom_activite,

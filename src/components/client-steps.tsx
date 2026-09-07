@@ -1626,8 +1626,21 @@ export function PaiementsStep({
           <>
         <select
           value={client.paiement_type}
-          onChange={(e) => {
+          onChange={async (e) => {
             const value = e.target.value;
+            // Un acompte déjà encaissé compte toujours comme payé, même
+            // après ce changement (voir paiementProgress dans resa.ts) —
+            // mais sans ce message, l'équipe ne voit jamais que ce
+            // changement a un effet sur un montant réel déjà en caisse.
+            if (value !== client.paiement_type && client.acompte_paye && Number(client.acompte_montant) > 0) {
+              const ok = await confirm({
+                title: "Acompte déjà encaissé",
+                message: `Un acompte de ${euros(client.acompte_montant)} € a déjà été encaissé sous « Acompte + règlement à l'arrivée ». Il continuera à compter comme payé même après ce changement.`,
+                confirmLabel: "Continuer",
+                cancelLabel: "Annuler",
+              });
+              if (!ok) return;
+            }
             onChange({
               paiement_type: value,
               // Le tout premier choix jamais fait reste figé pour toujours,

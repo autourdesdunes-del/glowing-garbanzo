@@ -157,8 +157,7 @@ export function ActivityDetailModal({
     (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
     0
   );
-  const acompteClient =
-    client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
+  const acompteClient = client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
   const etapesSumClient = clientEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const montantRdv = Math.max(
     totalSejourClient - acompteClient - etapesSumClient - avoirUtiliseTotal(reservationsActives(clientReservations)),

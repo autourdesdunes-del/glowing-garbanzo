@@ -40,8 +40,7 @@ function soldeDe(
   resaTarifs: Record<string, ReservationTarif[]>,
   paiementsEtapes: PaiementEtape[]
 ) {
-  const acomptePaye =
-    c.paiement_type === "acompte" && c.acompte_paye ? Number(c.acompte_montant) || 0 : 0;
+  const acomptePaye = c.acompte_paye ? Number(c.acompte_montant) || 0 : 0;
   const totalSejour = totalSejourDe(c, reservations, resaOptions, resaTarifs);
   const avoirUtilise = avoirUtiliseTotal(
     reservationsActives(reservations.filter((r) => r.client_id === c.id))

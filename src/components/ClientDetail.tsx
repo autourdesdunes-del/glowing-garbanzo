@@ -934,8 +934,10 @@ export default function ClientDetail({
   );
   const toutesInfosManquantes = [...autoInfosManquantes, ...manuelInfosManquantes];
 
-  const acomptePayeMontant =
-    client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  // Compte dès qu'un acompte est réellement encaissé, quel que soit le
+  // "Type de paiement" affiché aujourd'hui — le rebasculer sur "intégral"
+  // après coup ne doit jamais faire disparaître de l'argent déjà reçu.
+  const acomptePayeMontant = client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
   const avoirUtiliseHeader = avoirUtiliseTotal(reservationsActives(reservations));
   const etapesSumHeader = paiementsEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   const soldeRestantHeader = Math.max(

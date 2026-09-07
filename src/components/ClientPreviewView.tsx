@@ -213,10 +213,9 @@ export default function ClientPreviewView({
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
-  const totalPaye =
-    (client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0) +
-    (client.solde_paye ? Math.max(total - (client.acompte_paye ? Number(client.acompte_montant) || 0 : 0), 0) : 0);
-  const reste = total - totalPaye;
+  const acomptePaye = client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  const totalPaye = acomptePaye + (client.solde_paye ? Math.max(total - acomptePaye, 0) : 0);
+  const reste = Math.max(total - totalPaye, 0);
   const pct = total > 0 ? Math.min(100, Math.round((totalPaye / total) * 100)) : 0;
   const trackerStep = computeTrackerStep(client, totalPaye);
   const steps = [

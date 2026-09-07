@@ -342,14 +342,18 @@ export function generateClientDocument(
   // jusqu'ici, ce qui aurait affiché un "reste à payer" gonflé pour tout
   // client ayant utilisé un avoir. Même formule que ClientDetail (en-tête).
   const avoirUtilise = avoirUtiliseTotal(relevantResas);
+  // Ligne "Acompte" affichée dans le récapitulatif — reflète le type de
+  // paiement actuellement choisi (montre "à régler" tant qu'il ne l'est pas).
   const acompteMontant = client.paiement_type === "acompte" ? Number(client.acompte_montant) || 0 : 0;
-  const soldeMontant = Math.max(totalHT - acompteMontant, 0);
+  // Montant réellement encaissé, indépendant du type affiché aujourd'hui —
+  // sert au total payé, pour que rebasculer "Type de paiement" sur
+  // "intégral" après coup ne fasse jamais disparaître un acompte pourtant
+  // bien reçu de la facture.
+  const acompteReelPaye = client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  const soldeMontant = Math.max(totalHT - acompteReelPaye, 0);
   const soldeApresEtapes = Math.max(soldeMontant - etapesSum - avoirUtilise, 0);
   const totalPaye =
-    (client.acompte_paye ? acompteMontant : 0) +
-    etapesSum +
-    avoirUtilise +
-    (client.solde_paye ? soldeApresEtapes : 0);
+    acompteReelPaye + etapesSum + avoirUtilise + (client.solde_paye ? soldeApresEtapes : 0);
   const reste = Math.max(totalHT - totalPaye, 0);
 
   const conditions: string[] = [];

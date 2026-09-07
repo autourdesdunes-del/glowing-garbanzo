@@ -194,7 +194,11 @@ const RDV_FINALISE_LABELS: Record<string, string> = {
 // encaissé se retrouve compté comme payé partout sans que personne ne
 // l'ait vérifié.
 export function soldeInclutAcompteImpaye(client: Client): boolean {
-  return client.paiement_type === "acompte" && client.acompte_valide && !client.acompte_paye;
+  // Ne dépend plus de paiement_type : un acompte validé reste dû même si le
+  // type est rebasculé sur "intégral" après coup (voir le commentaire sur
+  // acompteEngage plus bas — un changement de type ne doit jamais faire
+  // disparaître un engagement ou un encaissement réel).
+  return client.acompte_valide && !client.acompte_paye;
 }
 
 // Même calcul que le récapitulatif "Paiements" de la fiche client (acompte
@@ -212,15 +216,18 @@ export function paiementProgress(
     (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
     0
   );
-  const acomptePaye =
-    client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  // Compte dès qu'un acompte est réellement encaissé/validé, quel que soit
+  // le type de paiement actuellement affiché — rebasculer "Type de
+  // paiement" sur "intégral" après coup ne doit jamais faire disparaître de
+  // l'argent réellement reçu (vécu : 390€ d'acompte PayPal bel et bien
+  // encaissés disparaissaient du total "Payé" dès que le menu changeait).
+  const acomptePaye = client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
   // Un acompte validé (montant/mode fixés) suit son propre règlement même
   // s'il n'est pas encore physiquement encaissé — jamais compté dans ce qui
   // reste dû À LA DESTINATION, sous peine de fusionner les deux montants
   // (vécu : acompte PayPal de 390€ non encaissé + solde de 2260€ à une
   // activité affichés comme "2650€ en retard" sur cette seule activité).
-  const acompteEngage =
-    client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
+  const acompteEngage = client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
   // reservationsActives(), pas reservations brut : sinon un avoir utilisé
   // sur une activité ensuite annulée reste compté dans le total payé alors
   // que l'activité qu'il finançait n'existe plus dans totalSejour.
@@ -475,7 +482,7 @@ export function activitePaiementWarning(
     (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
     0
   );
-  const acompte = client.paiement_type === "acompte" && client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
+  const acompte = client.acompte_valide ? Number(client.acompte_montant) || 0 : 0;
   // Un avoir consommé réduit le montant restant dû pour tout le séjour, où
   // qu'il soit collecté (règle du solde unique par séjour) — jamais un
   // deuxième "solde" par activité. Les étapes de paiement libres (acompte
@@ -1070,7 +1077,7 @@ export function reglementAnnulation(
 // (acompte encaissé ou solde payé). Sans ça, "rembourser" rendrait de
 // l'argent que l'agence n'a jamais reçu.
 export function clientAPayeQuelqueChose(client: Client) {
-  return !!((client.paiement_type === "acompte" && client.acompte_valide && client.acompte_paye) || client.solde_paye);
+  return !!((client.acompte_valide && client.acompte_paye) || client.solde_paye);
 }
 
 const BILLET_ETAPE_SHORT_LABELS: Record<string, string> = {
@@ -1512,8 +1519,11 @@ export function soldeRestantSejour(
     (sum, r) => sum + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
-  const acomptePaye = client.paiement_type === "acompte" && client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
-  const avoirUtilise = reservations.reduce((s, r) => s + (Number(r.avoir_utilise) || 0), 0);
+  const acomptePaye = client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  // reservationsActives(), pas reservations brut : sinon un avoir consommé
+  // sur une activité ensuite annulée reste compté ici alors qu'elle ne
+  // pèse plus dans totalSejour.
+  const avoirUtilise = avoirUtiliseTotal(reservationsActives(reservations));
   const etapesSum = paiementsEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
   return Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
 }

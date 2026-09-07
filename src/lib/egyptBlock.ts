@@ -90,6 +90,28 @@ const FR_EN_DICT: [RegExp, string][] = [
   [/égypte/gi, "Egypt"],
   [/guide francophone/gi, "French-speaking guide"],
   [/guide anglophone/gi, "English-speaking guide"],
+  // Vocabulaire du texte PAX personnalisé (pax_override, voir paxLine dans
+  // resa.ts et buildPaxEnglishForReservation) — ex. "2 participants, 1
+  // accompagnateur", le texte cité en exemple dans le brief business. Cette
+  // ligne est retapée à la main par l'employée en français ; sans ces
+  // entrées, elle apparaissait telle quelle au milieu d'un bloc équipe
+  // Égypte sinon entièrement en anglais. Pluriels avant singuliers, comme
+  // "chevaux"/"cheval" plus haut, pour ne jamais laisser un "s" français
+  // traîner après un mot déjà traduit.
+  [/accompagnateurs/gi, "companions"],
+  [/accompagnateur/gi, "companion"],
+  [/passagers/gi, "passengers"],
+  [/passager/gi, "passenger"],
+  [/conducteurs/gi, "drivers"],
+  [/conducteur/gi, "driver"],
+  [/chauffeurs/gi, "drivers"],
+  [/chauffeur/gi, "driver"],
+  [/\badultes\b/gi, "adults"],
+  [/\badulte\b/gi, "adult"],
+  [/\benfants\b/gi, "children"],
+  [/\benfant\b/gi, "child"],
+  [/bébés/gi, "babies"],
+  [/bébé/gi, "baby"],
   [/\bvol\b/gi, "flight"],
   [/ avec /gi, " with "],
   [/ et /gi, " and "],
@@ -259,9 +281,15 @@ export function buildEgyptActivityBlock(
   const etapeChambre = clientHotels.length > 0 ? hotelPourDate(clientHotels, r.date_debut) : null;
   const chambre = etapeChambre ? etapeChambre.chambre : client.chambre;
 
-  return `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${buildPaxEnglishForReservation(
-    r,
-    client
+  // translateFr() : buildPaxEnglishForReservation renvoie pax_override tel
+  // quel quand il est rempli (paxLine, côté fiche client français, fait
+  // pareil) — sans cette passe, un texte comme "1 participant, 1
+  // accompagnateur" retapé à la main par l'employée en français
+  // apparaissait tel quel au milieu d'un bloc sinon entièrement en anglais.
+  // Sans effet sur le texte déjà calculé en anglais (aucun mot français à
+  // traduire dedans).
+  return `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${translateFr(
+    buildPaxEnglishForReservation(r, client)
   )}\n\nHotel : ${hotelEgyptLinePourActivite(
     clientHotels,
     r.date_debut,

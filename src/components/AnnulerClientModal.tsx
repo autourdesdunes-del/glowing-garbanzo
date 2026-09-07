@@ -105,6 +105,11 @@ export default function AnnulerClientModal({
         annulation_remb_avoir: remboursable ? remboursementChoix : "",
         annulation_exception_hossam: false,
         annulation_prevenir_hossam: reglement.prevenirHossam,
+        // Sans ce champ, badgeAnnulation() (resa.ts) affiche "Non payée"
+        // sur TOUTE activité annulée via ce flux groupé, même remboursée à
+        // l'instant — AnnulerActiviteModal (annulation activité par
+        // activité) le renseigne déjà avec dejaPayee, jamais repris ici.
+        annulation_paye_avant: argentRecu,
       });
     }
 

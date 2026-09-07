@@ -38,6 +38,11 @@ export function findDuplicateClients(
   const matches: DuplicateMatch[] = [];
   for (const c of existing) {
     if (excludeId && c.id === excludeId) continue;
+    // Une fiche déjà fusionnée/annulée (voir fusionnerClients, AppShell.tsx)
+    // ne doit jamais être proposée comme doublon — son historique a déjà
+    // été transféré vers la fiche gardée, la remonter ici ne ferait
+    // qu'orienter vers une fiche morte plutôt que la bonne.
+    if (c.statut === "Client annulé") continue;
     const reasons: string[] = [];
     if (nom && normText(c.nom) === nom) reasons.push("même nom");
     if (tel && tel.length >= 6 && normPhone(c.telephone) === tel) reasons.push("même numéro");

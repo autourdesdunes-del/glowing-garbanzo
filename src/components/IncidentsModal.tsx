@@ -72,10 +72,17 @@ export default function IncidentsModal({
   };
 
   const toggleStatut = async (incident: Incident) => {
-    const statut = incident.statut === "Ouvert" ? "Résolu" : "Ouvert";
+    const statutPrecedent = incident.statut;
+    const statut = statutPrecedent === "Ouvert" ? "Résolu" : "Ouvert";
     onUpdate(incident.id, { statut });
     const { error } = await supabase.from("incidents").update({ statut }).eq("id", incident.id);
-    if (error) toast("Échec de la mise à jour.");
+    if (error) {
+      // Sans ce rollback, l'incident s'affichait "Résolu" (🚩 disparu) alors
+      // que l'écriture a échoué — il resterait "Ouvert" en base jusqu'au
+      // prochain rechargement, sans que personne ne le sache entre-temps.
+      onUpdate(incident.id, { statut: statutPrecedent });
+      toast("Échec de la mise à jour.");
+    }
   };
 
   const supprimer = async (incident: Incident) => {
@@ -87,7 +94,12 @@ export default function IncidentsModal({
     if (!ok) return;
     onDelete(incident.id);
     const { error } = await supabase.from("incidents").delete().eq("id", incident.id);
-    if (error) toast("Échec de la suppression.");
+    if (error) {
+      // Sans ce rollback, l'incident disparaissait de la liste alors qu'il
+      // existe toujours en base — invisible jusqu'au prochain rechargement.
+      onAdd(incident);
+      toast("Échec de la suppression.");
+    }
   };
 
   return (

@@ -24,7 +24,11 @@ async function findPossibleDuplicateByName(
 ): Promise<string | null> {
   const target = normText(nom);
   if (!target) return null;
-  const { data } = await admin.from("clients").select("id, nom");
+  // Exclut les fiches déjà fusionnées/annulées (fusionnerClients,
+  // AppShell.tsx) — sans ça, un nouveau lead au nom identique pouvait être
+  // proposé en doublon de l'ancienne fiche vidée par la fusion, au lieu de
+  // la fiche vivante qui a récupéré l'historique réel.
+  const { data } = await admin.from("clients").select("id, nom, statut").neq("statut", "Client annulé");
   const match = (data as { id: string; nom: string }[] | null)?.find((c) => normText(c.nom) === target);
   return match?.id ?? null;
 }

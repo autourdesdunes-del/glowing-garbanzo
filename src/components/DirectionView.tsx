@@ -181,6 +181,7 @@ export default function DirectionView({
         date: r.date_debut,
         total: total + impactCa,
         marge: total - cout + impactMarge,
+        clientId: r.client_id,
         clientNom: client?.nom || "Sans nom",
       };
     });
@@ -218,11 +219,19 @@ export default function DirectionView({
     .sort((a, b) => b[1].marge - a[1].marge)
     .slice(0, 8);
 
-  const byClient: Record<string, number> = {};
+  // Groupé par client_id (pas par nom affiché) : deux clients distincts
+  // portant le même nom — homonyme, ou tous deux sans nom renseigné — ne
+  // doivent jamais voir leur CA fusionné en une seule ligne ici.
+  const byClient: Record<string, { nom: string; total: number }> = {};
   rows.forEach((r) => {
-    byClient[r.clientNom] = (byClient[r.clientNom] || 0) + r.total;
+    const key = r.clientId || `sans-id:${r.clientNom}`;
+    if (!byClient[key]) byClient[key] = { nom: r.clientNom, total: 0 };
+    byClient[key].total += r.total;
   });
-  const topClients = Object.entries(byClient).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const topClients = Object.values(byClient)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8)
+    .map((c) => [c.nom, c.total] as [string, number]);
 
   const caTotal = rows.reduce((s, r) => s + r.total, 0);
   const margeTotal = rows.reduce((s, r) => s + r.marge, 0);

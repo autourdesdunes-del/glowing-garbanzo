@@ -12,7 +12,7 @@ import {
   ReservationTarif,
   TransfertTaxeModificationRequest,
 } from "@/lib/types";
-import { resaTotalMontant } from "@/lib/resa";
+import { reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { downloadCsv } from "@/lib/csv";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 import { todayStr } from "@/lib/dates";
@@ -156,7 +156,7 @@ export default function DirectionView({
     return true;
   };
 
-  const rows = reservations
+  const rows = reservationsActives(reservations)
     .filter((r) => inRange(r.date_debut))
     .map((r) => {
       const client = clients.find((c) => c.id === r.client_id);
@@ -224,7 +224,7 @@ export default function DirectionView({
   // sélecteur mois/plage ci-dessous (lui sert à l'export et aux tops, pas
   // au résumé du mois "en direct"). Même logique que `rows`, filtrée sur le
   // mois courant plutôt que sur `dateFrom`/`dateTo`.
-  const rowsMoisActuel = reservations
+  const rowsMoisActuel = reservationsActives(reservations)
     .filter((r) => (r.date_debut || "").slice(0, 7) === currentMonth)
     .map((r) => {
       const client = clients.find((c) => c.id === r.client_id);

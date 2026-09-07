@@ -2289,8 +2289,19 @@ export default function AddActivityWizard({
       ? OPTIONS_PRESETS.filter((p) => !["Parachute", "2ème île", "Privatif"].includes(p))
       : OPTIONS_PRESETS;
     const { nbAd: nbAdOptions, nbEnf: nbEnfOptions } = participantsFor(r, client);
+    // Les 4 noms codés en dur couvrent les presets historiques (voir
+    // OPTIONS_PRESETS) — mais une option créée dans le Catalogue avec
+    // mode="personne" (CatalogueView.tsx) doit se multiplier par le nombre
+    // de participants elle aussi, quel que soit son nom : sans ce second
+    // test, toute nouvelle option "par personne" ajoutée par Direction en
+    // dehors de ces 4 noms se facturait à tort en montant fixe (aucun champ
+    // quantité ne s'affichait pour la corriger).
     const isQuantitePersonne = (nom: string) =>
-      nom === "Parachute" || nom === "Montgolfière" || nom === "Abu Simbel" || nom === "Privatif";
+      nom === "Parachute" ||
+      nom === "Montgolfière" ||
+      nom === "Abu Simbel" ||
+      nom === "Privatif" ||
+      catOptions.some((co) => co.nom === nom && co.mode === "personne");
 
     const carteLieePour = (nomOption: string) =>
       reservations.find((rr) => rr.parent_reservation_id === r.id && rr.nom_activite === nomOption);

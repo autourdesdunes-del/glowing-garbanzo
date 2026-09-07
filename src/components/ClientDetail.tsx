@@ -226,6 +226,22 @@ export default function ClientDetail({
       .eq("id", user.id)
       .single();
     const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    // Sans cette vérification, un aller-retour "Annuler l'acompte" →
+    // "Revalider" (ex. pour corriger un champ sans changer le montant)
+    // réinsérait une alerte identique à chaque passage — la Direction
+    // voyait alors plusieurs entrées empilées dans "Autorisations en
+    // attente" pour un seul vrai incident. On ne réinsère que si aucune
+    // alerte non encore vue n'existe déjà pour cette même activité.
+    if (reservationId) {
+      const { data: existante } = await supabase
+        .from("acompte_alertes")
+        .select("id")
+        .eq("client_id", client.id)
+        .eq("reservation_id", reservationId)
+        .eq("vu", false)
+        .limit(1);
+      if (existante && existante.length > 0) return;
+    }
     await supabase.from("acompte_alertes").insert({
       client_id: client.id,
       client_nom: client.nom,

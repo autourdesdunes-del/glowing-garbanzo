@@ -98,6 +98,22 @@ export default function AnnulerClientModal({
           date_probleme: date,
         });
       }
+      // Même règle que AnnulerActiviteModal : un avoir déjà consommé par
+      // cette activité n'est jamais de l'argent reçu par l'agence — sans
+      // cette restitution, il restait marqué "utilisé" sur une activité qui
+      // n'existe plus, perdu pour le client alors qu'il ne l'a jamais
+      // réellement dépensé.
+      const avoirDejaUtilise = Number(r.avoir_utilise) || 0;
+      if (avoirDejaUtilise > 0) {
+        await supabase.from("avoirs").insert({
+          client_id: client.id,
+          montant: avoirDejaUtilise,
+          montant_restant: avoirDejaUtilise,
+          raison: "Annulation",
+          activite_id: r.id,
+          date_probleme: date,
+        });
+      }
       onUpdateReservation(r.id, {
         statut_resa: "Annulée",
         annulation_raison: raisonFinale,
@@ -110,10 +126,18 @@ export default function AnnulerClientModal({
         // l'instant — AnnulerActiviteModal (annulation activité par
         // activité) le renseigne déjà avec dejaPayee, jamais repris ici.
         annulation_paye_avant: argentRecu,
+        ...(avoirDejaUtilise > 0 ? { avoir_utilise: 0 } : {}),
       });
     }
 
-    onUpdateClient({
+    // Le solde/la reprise ne doivent jamais rester pointés vers une
+    // activité qui vient d'être annulée — sinon activitePaiementWarning()
+    // (resa.ts) garde un rappel de règlement "orphelin" sur une carte
+    // Annulée, invisible nulle part ailleurs puisque tout le séjour est
+    // annulé d'un coup (aucune "prochaine activité active" vers qui il
+    // pourrait se décaler, contrairement à une annulation individuelle).
+    const idsAnnules = new Set(lignes.map((l) => l.r.id));
+    const patchClient: Partial<Client> = {
       statut: "Client annulé",
       annulation_raison: raisonFinale,
       annulation_date: date,
@@ -122,7 +146,21 @@ export default function AnnulerClientModal({
       ...(remboursementChoix === "rembourse" && paypalEmail.trim() && paypalEmail.trim() !== client.paypal_email
         ? { paypal_email: paypalEmail.trim() }
         : {}),
-    });
+      ...(client.solde_activite_id && idsAnnules.has(client.solde_activite_id)
+        ? {
+            paiement_integral_mode: "",
+            solde_activite_id: null,
+            solde_rdv_heure: "",
+            solde_rdv_lieu: "",
+            solde_rdv_valide: false,
+            solde_rdv_finalise: false,
+          }
+        : {}),
+      ...(client.reprise_activite_id && idsAnnules.has(client.reprise_activite_id)
+        ? { reprise_montant: 0, reprise_activite_id: null, reprise_mode: "" }
+        : {}),
+    };
+    onUpdateClient(patchClient);
     setSubmitting(false);
     onClose();
   };

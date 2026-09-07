@@ -39,6 +39,7 @@ import {
   hossamBilletMessage,
   isLeCaireEnAvion,
   paiementProgress,
+  participantsFor,
   paxSummary,
   reservationsActives,
   STATUT_PAIEMENT_OPTIONS,
@@ -90,6 +91,29 @@ export function buildPaxEnglish(client: Client) {
   if (client.bebes > 0) {
     const ages = extractAges(client.ages_bebes);
     parts.push(`${client.bebes} baby${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
+  }
+  return parts.join(" + ");
+}
+
+// Même chose que buildPaxEnglish, mais pour UNE activité précise plutôt que
+// le séjour entier — respecte pax_override et le sous-groupe de
+// participants (participants_mode "personnalisé", ex. pack, retrait de
+// participants) comme paxLine() le fait déjà côté français (resa.ts). Sans
+// ça, le bloc équipe Égypte affichait toujours le total du séjour, même
+// pour une activité dont seule une partie des voyageurs participe.
+export function buildPaxEnglishForReservation(r: Reservation, client: Client) {
+  if (r.pax_override) return r.pax_override;
+  const { nbAd, nbEnf, nbBebe } = participantsFor(r, client);
+  const showAges = r.participants_mode === "tous";
+  const parts = [`${nbAd} adult${nbAd > 1 ? "s" : ""}`];
+  if (nbEnf > 0) {
+    const ages = showAges ? extractAges(client.ages_enfants) : [];
+    const word = nbEnf > 1 ? "children" : "child";
+    parts.push(`${nbEnf} ${word}${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
+  }
+  if (nbBebe > 0) {
+    const ages = showAges ? extractAges(client.ages_bebes) : [];
+    parts.push(`${nbBebe} baby${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
   }
   return parts.join(" + ");
 }

@@ -18,7 +18,7 @@ import {
   momentBadge,
   siteCaireEgyptLine,
 } from "@/lib/resa";
-import { buildPaxEnglish } from "@/components/client-steps";
+import { buildPaxEnglishForReservation } from "@/components/client-steps";
 
 export function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -259,7 +259,8 @@ export function buildEgyptActivityBlock(
   const etapeChambre = clientHotels.length > 0 ? hotelPourDate(clientHotels, r.date_debut) : null;
   const chambre = etapeChambre ? etapeChambre.chambre : client.chambre;
 
-  return `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${buildPaxEnglish(
+  return `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${buildPaxEnglishForReservation(
+    r,
     client
   )}\n\nHotel : ${hotelEgyptLinePourActivite(
     clientHotels,

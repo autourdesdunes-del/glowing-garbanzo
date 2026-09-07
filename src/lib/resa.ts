@@ -627,7 +627,11 @@ export function acompteWaitingWarning(
   }
   if (client.paiement_type !== "acompte") return null;
   if (!client.acompte_valide || client.acompte_paye) return null;
-  const sorted = [...reservations]
+  // reservationsActives() : sinon la toute première activité du séjour,
+  // une fois annulée, gardait ce rappel accroché sur une carte morte — plus
+  // affiché nulle part côté client tant qu'une deuxième activité (active,
+  // elle) ne devenait pas la plus proche à son tour.
+  const sorted = reservationsActives(reservations)
     .filter((rr) => rr.date_debut)
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
   if (sorted.length === 0 || sorted[0].id !== r.id) return null;

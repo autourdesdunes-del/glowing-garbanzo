@@ -761,7 +761,7 @@ export function PaypalPaiementRow({
 }: {
   paiement: PaypalPaiement;
   clients: Client[];
-  onRattacher: (clientId: string, type: "acompte" | "etape" | "solde") => void;
+  onRattacher: (clientId: string, type: "acompte" | "etape" | "solde" | "reprise") => void;
 }) {
   const [query, setQuery] = useState("");
   // Un paiement PayPal en cours de dossier n'est pas toujours l'acompte —
@@ -775,7 +775,7 @@ export function PaypalPaiementRow({
           .slice(0, 6)
       : [];
 
-  const rattacher = (type: "acompte" | "etape" | "solde") => {
+  const rattacher = (type: "acompte" | "etape" | "solde" | "reprise") => {
     if (!clientChoisi) return;
     onRattacher(clientChoisi.id, type);
     setQuery("");
@@ -793,6 +793,10 @@ export function PaypalPaiementRow({
       (!!clientChoisi.paiement_type && clientChoisi.paiement_type !== "acompte"));
   const soldeDejaPris =
     !!clientChoisi && (clientChoisi.solde_paye || Number(clientChoisi.solde_montant) > 0);
+  // Même raison que PaypalPaiementRappel.tsx : sans ce cas, un paiement
+  // PayPal réglant une reprise en cours ne pouvait se rattacher qu'en
+  // "étape", sans jamais éteindre le bandeau "En attente de règlement".
+  const repriseEnCours = !!clientChoisi && Number(clientChoisi.reprise_montant) > 0;
 
   return (
     <div className="rounded-md border border-neutral-200 bg-white p-3 text-sm">
@@ -865,6 +869,14 @@ export function PaypalPaiementRow({
             >
               Le solde{soldeDejaPris ? " — déjà renseigné" : ""}
             </button>
+            {repriseEnCours && (
+              <button
+                onClick={() => rattacher("reprise")}
+                className="rounded-md border border-orange-300 bg-orange-50 px-2.5 py-1 text-xs text-orange-700 hover:bg-orange-100"
+              >
+                La reprise en attente ({euros(clientChoisi.reprise_montant)} €)
+              </button>
+            )}
             <button
               onClick={() => setClientChoisi(null)}
               className="px-1 text-xs text-neutral-400 hover:underline"

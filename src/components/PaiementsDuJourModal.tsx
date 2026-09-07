@@ -70,7 +70,8 @@ export function computePaiementsDuJour(
   resaTarifs: Record<string, ReservationTarif[]>,
   paiementsEtapes: PaiementEtape[],
   todayStr: string,
-  onUpdateClient: (id: string, patch: Partial<Client>) => void
+  onUpdateClient: (id: string, patch: Partial<Client>) => void,
+  onMarquerRepriseReglee: (clientId: string, date: string) => void
 ) {
   const encaisses: Ligne[] = [];
   const aPayer: Ligne[] = [];
@@ -108,8 +109,40 @@ export function computePaiementsDuJour(
       };
       (c.solde_paye ? encaisses : aPayer).push(ligne);
     }
+
+    // Reprise (nouvelle activité ajoutée après un solde déjà clôturé) —
+    // même principe que la branche Solde ci-dessus, mais manquait
+    // entièrement : une reprise à encaisser aujourd'hui même, à une
+    // activité précise, était invisible ici (l'équipe pouvait simplement
+    // oublier de la réclamer). Contrairement au solde, une reprise réglée
+    // à distance (PayPal/Virement) n'a pas de date propre (pas de
+    // "reprise_date") — seul le cas "réglée à une activité précise,
+    // aujourd'hui" est détectable ici.
+    const activiteRepriseLiee = c.reprise_activite_id
+      ? reservations.find((r) => r.id === c.reprise_activite_id) || null
+      : null;
+    if (
+      Number(c.reprise_montant) > 0 &&
+      activiteRepriseLiee &&
+      activiteRepriseLiee.statut_resa !== "Annulée" &&
+      activiteRepriseLiee.date_debut === todayStr
+    ) {
+      aPayer.push({
+        client: c,
+        libelle: `Reprise à l'activité — ${activiteRepriseLiee.nom_activite || "activité"}`,
+        montant: Number(c.reprise_montant) || 0,
+        paye: false,
+        onMarquerPaye: (date) => onMarquerRepriseReglee(c.id, date),
+        // Pas de "marquer non payé" symétrique ici : contrairement au
+        // solde (simple flag solde_paye), régler une reprise insère une
+        // vraie étape de paiement — l'annuler doit passer par le bandeau
+        // dédié de la fiche client (⚠️ En attente de règlement), qui sait
+        // distinguer "jamais payé" de "payé puis annulé".
+        onAnnulerPaye: () => {},
+      });
+    }
     // Volontairement pas d'acompte ici (PayPal ou autre) — cette popup ne
-    // couvre que le solde : RDV paiement et solde réglé à une activité.
+    // couvre que le solde et la reprise réglés à une activité précise.
   }
 
   return { encaisses, aPayer };

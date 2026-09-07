@@ -1434,7 +1434,7 @@ function AppShellInner({
   const rattacherPaypalPaiement = async (
     paiementId: string,
     clientId: string,
-    type: "acompte" | "etape" | "solde"
+    type: "acompte" | "etape" | "solde" | "reprise"
   ) => {
     const paiement = paypalPaiements.find((p) => p.id === paiementId);
     if (!paiement) return;
@@ -1504,6 +1504,44 @@ function AppShellInner({
         solde_date: paiement.paypal_recu_le.slice(0, 10),
         solde_rdv_valide: true,
       });
+    } else if (type === "reprise") {
+      // Même geste que marquerRepriseReglee (client-steps.tsx) — sans lui,
+      // le paiement était bien enregistré (comme "étape") mais
+      // reprise_montant/mode restaient tels quels : le bandeau "En attente
+      // de règlement" continuait d'afficher un argent pourtant déjà reçu,
+      // avec le risque de le redemander au client ou de le compter deux
+      // fois si quelqu'un cliquait ensuite "Marquer réglé" dessus.
+      const activiteLiee = allReservations.find((r) => r.id === client.reprise_activite_id);
+      const note = paiement.entre_proches
+        ? "Paiement PayPal rattaché — règlement de la reprise (nouvelle activité)"
+        : `Paiement PayPal rattaché — règlement de la reprise (nouvelle activité), frais PayPal prélevés (${paiement.montant} € envoyés, ${paiement.montant_net} € reçus)`;
+      const { error: errEtape } = await supabase.from("paiements_etapes").insert({
+        client_id: clientId,
+        montant: paiement.montant_net,
+        mode: "PayPal",
+        date: paiement.paypal_recu_le.slice(0, 10),
+        note,
+        activite_nom: activiteLiee?.nom_activite || "",
+        montant_egp: 0,
+      });
+      if (errEtape) {
+        toast("Le paiement a été rattaché mais l'étape n'a pas pu être enregistrée.");
+        return;
+      }
+      const totalSejourReprise = reservationsActives(
+        allReservations.filter((r) => r.client_id === clientId)
+      ).reduce(
+        (sum, r) => sum + resaTotalMontant(r, client, allResaOptions[r.id] || [], allResaTarifs[r.id] || []),
+        0
+      );
+      await updateClientById(clientId, {
+        reprise_montant: 0,
+        reprise_mode: "",
+        reprise_activite_id: null,
+        reprise_mixte_eur: 0,
+        reprise_mixte_egp: 0,
+        solde_montant: totalSejourReprise,
+      });
     } else {
       // Pas de champ dédié "montant prévu"/"entre proches oublié" pour une
       // étape (contrairement à l'acompte) — l'info reste au moins visible
@@ -1522,6 +1560,50 @@ function AppShellInner({
       });
       if (errEtape) toast("Le paiement a été rattaché mais l'étape n'a pas pu être enregistrée.");
     }
+  };
+
+  // Même geste que marquerRepriseReglee (client-steps.tsx), pour un endroit
+  // qui n'a accès qu'à onUpdateClient et pas au contexte complet d'une
+  // fiche client — voir "Paiements du jour" (PaiementsDuJourModal), qui
+  // affichait une reprise réglée à une activité du jour sans jamais pouvoir
+  // la faire disparaître une fois payée.
+  const marquerRepriseRegleeGlobal = async (clientId: string, date: string) => {
+    const client = clients.find((c) => c.id === clientId);
+    if (!client) return;
+    const activiteLiee = allReservations.find((r) => r.id === client.reprise_activite_id);
+    const estMixte = client.reprise_mode === "Modes différents";
+    const { data, error } = await supabase
+      .from("paiements_etapes")
+      .insert({
+        client_id: clientId,
+        montant: estMixte ? client.reprise_mixte_eur : client.reprise_montant,
+        mode: client.reprise_mode,
+        date,
+        note: "Activité réservée ultérieurement — nouveau règlement du solde",
+        activite_nom: activiteLiee?.nom_activite || "",
+        montant_egp: estMixte ? client.reprise_mixte_egp : 0,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast("Impossible d'enregistrer ce règlement de reprise.");
+      return;
+    }
+    setAllPaiementsEtapes((prev) => [...prev, data as PaiementEtape]);
+    const totalSejourReprise = reservationsActives(
+      allReservations.filter((r) => r.client_id === clientId)
+    ).reduce(
+      (sum, r) => sum + resaTotalMontant(r, client, allResaOptions[r.id] || [], allResaTarifs[r.id] || []),
+      0
+    );
+    await updateClientById(clientId, {
+      reprise_montant: 0,
+      reprise_mode: "",
+      reprise_activite_id: null,
+      reprise_mixte_eur: 0,
+      reprise_mixte_egp: 0,
+      solde_montant: totalSejourReprise,
+    });
   };
 
   const updateReservationById = async (id: string, patch: Partial<Reservation>) => {
@@ -2574,6 +2656,7 @@ function AppShellInner({
               paypalPaiementsNonRattaches={paypalPaiementsNonRattaches}
               onCreateClient={addClient}
               onUpdateClient={updateClientById}
+              onMarquerRepriseReglee={marquerRepriseRegleeGlobal}
               onDeleteClient={deleteClient}
               catalogue={catalogue}
               incidents={allIncidents}

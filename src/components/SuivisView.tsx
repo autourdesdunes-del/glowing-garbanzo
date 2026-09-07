@@ -131,7 +131,11 @@ export default function SuivisView({
   incidents: Incident[];
   verifications: Verification[];
   paypalPaiements: PaypalPaiement[];
-  onRattacherPaiement: (paiementId: string, clientId: string, type: "acompte" | "etape" | "solde") => void;
+  onRattacherPaiement: (
+    paiementId: string,
+    clientId: string,
+    type: "acompte" | "etape" | "solde" | "reprise"
+  ) => void;
   profiles: Profile[];
   currentUserId: string;
   planningShifts: PlanningShift[];

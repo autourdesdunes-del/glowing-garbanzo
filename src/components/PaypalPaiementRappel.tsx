@@ -21,7 +21,7 @@ export default function PaypalPaiementRappel({
 }: {
   paypalPaiements: PaypalPaiement[];
   clients: Client[];
-  onRattacher: (paiementId: string, clientId: string, type: "acompte" | "etape" | "solde") => void;
+  onRattacher: (paiementId: string, clientId: string, type: "acompte" | "etape" | "solde" | "reprise") => void;
 }) {
   const [alert, setAlert] = useState<{ p: PaypalPaiement; key: string } | null>(null);
   const [query, setQuery] = useState("");
@@ -60,7 +60,7 @@ export default function PaypalPaiementRappel({
     setClientChoisi(null);
   };
 
-  const rattacher = (type: "acompte" | "etape" | "solde") => {
+  const rattacher = (type: "acompte" | "etape" | "solde" | "reprise") => {
     if (!clientChoisi) return;
     onRattacher(p.id, clientChoisi.id, type);
     setAlert(null);
@@ -86,6 +86,14 @@ export default function PaypalPaiementRappel({
       (!!clientChoisi.paiement_type && clientChoisi.paiement_type !== "acompte"));
   const soldeDejaPris =
     !!clientChoisi && (clientChoisi.solde_paye || Number(clientChoisi.solde_montant) > 0);
+  // Une reprise en cours (nouvelle activité ajoutée après un solde déjà
+  // clôturé) n'était rattachable qu'en "étape" — sans bouton dédié, le
+  // paiement était bien enregistré mais reprise_montant/mode restaient tels
+  // quels : le bandeau "En attente de règlement" continuait d'afficher un
+  // argent pourtant déjà reçu, avec le risque qu'on le fasse redemander au
+  // client, ou qu'un second passage par "Marquer réglé" double-compte le
+  // même montant (voir marquerRepriseReglee, client-steps.tsx).
+  const repriseEnCours = !!clientChoisi && Number(clientChoisi.reprise_montant) > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -148,6 +156,14 @@ export default function PaypalPaiementRappel({
               >
                 Le solde{soldeDejaPris ? " — déjà renseigné" : ""}
               </button>
+              {repriseEnCours && (
+                <button
+                  onClick={() => rattacher("reprise")}
+                  className="rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-left text-sm text-orange-700 hover:bg-orange-100"
+                >
+                  La reprise en attente ({euros(clientChoisi.reprise_montant)} €, nouvelle activité)
+                </button>
+              )}
             </div>
             <button
               onClick={() => setClientChoisi(null)}

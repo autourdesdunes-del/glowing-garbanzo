@@ -62,6 +62,7 @@ export default function DashboardView({
   paypalPaiementsNonRattaches,
   onCreateClient,
   onUpdateClient,
+  onMarquerRepriseReglee,
   onDeleteClient,
   catalogue,
   incidents,
@@ -103,6 +104,7 @@ export default function DashboardView({
     statut: "Prospect" | "Client confirmé";
   }) => Promise<Client | null>;
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
+  onMarquerRepriseReglee: (clientId: string, date: string) => void;
   onDeleteClient: (id: string) => Promise<boolean>;
   catalogue: CatalogueItem[];
   incidents: Incident[];
@@ -217,9 +219,19 @@ export default function DashboardView({
         resaTarifs,
         paiementsEtapes,
         todayStr,
-        onUpdateClient
+        onUpdateClient,
+        onMarquerRepriseReglee
       ),
-    [clients, reservations, resaOptions, resaTarifs, paiementsEtapes, todayStr, onUpdateClient]
+    [
+      clients,
+      reservations,
+      resaOptions,
+      resaTarifs,
+      paiementsEtapes,
+      todayStr,
+      onUpdateClient,
+      onMarquerRepriseReglee,
+    ]
   );
   const callsToday = clients
     .filter((c) => c.prochain_appel_date === todayStr)

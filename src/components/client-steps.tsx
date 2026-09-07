@@ -843,6 +843,8 @@ export function ActivitesStep({
   canSeeMargins,
   hotelHorsHurghada,
   hotelVille,
+  clientHotels = [],
+  hotelsRef = [],
   taxesRef = [],
   coutsMap,
   onUpdateCoutReel,
@@ -889,6 +891,8 @@ export function ActivitesStep({
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
   hotelVille?: string;
+  clientHotels?: ClientHotel[];
+  hotelsRef?: HotelReference[];
   taxesRef?: TransfertTaxe[];
   coutsMap: Record<string, number>;
   onUpdateCoutReel: (id: string, value: number) => void;
@@ -978,6 +982,8 @@ export function ActivitesStep({
         catalogueOptions={catalogueOptions}
         hotelHorsHurghada={hotelHorsHurghada}
         hotelVille={hotelVille}
+        clientHotels={clientHotels}
+        hotelsRef={hotelsRef}
         taxesRef={taxesRef}
         onAddReservation={onAddReservation}
         onUpdateReservation={onUpdateReservation}

@@ -317,6 +317,14 @@ export default function GeneratorView({
         zone_transfert: villeClient,
         cree_par_id: user?.id || null,
         cree_par_nom: creeParNom,
+        // Sans ça, statut_resa restait à sa valeur par défaut ("Brouillon")
+        // même pour un client déjà "Client confirmé" — même règle que
+        // l'ajout d'activité normal (voir ClientDetail.tsx, addReservation).
+        // Une activité créée ici pour un client confirmé restait donc
+        // invisible sur les factures (qui ne reprennent que les
+        // Confirmées) tant que personne ne pensait à cliquer "Valider" à
+        // la main sur la carte.
+        statut_resa: prospectSelectionne?.statut === "Client confirmé" ? "Confirmée" : "Brouillon",
       });
       if (error) {
         toast("Échec de l'ajout d'une activité.");

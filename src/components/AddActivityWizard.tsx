@@ -9,12 +9,14 @@ import {
   CatalogueTarif,
   CatalogueTransfertTarif,
   Client,
+  ClientHotel,
+  HotelReference,
   Reservation,
   ReservationOption,
   ReservationTarif,
   TransfertTaxe,
 } from "@/lib/types";
-import { matchTransfertTaxe } from "@/lib/hotelHelp";
+import { hotelNomPourActivite, matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import {
   CHAMPS_REQUIS_PRESETS,
   CRENEAUX_ACTIVITE,
@@ -134,6 +136,8 @@ export default function AddActivityWizard({
   catalogueOptions,
   hotelHorsHurghada,
   hotelVille,
+  clientHotels,
+  hotelsRef,
   taxesRef,
   onAddReservation,
   onUpdateReservation,
@@ -162,6 +166,13 @@ export default function AddActivityWizard({
   catalogueOptions: Record<string, CatalogueOption[]>;
   hotelHorsHurghada?: boolean;
   hotelVille?: string;
+  // Résolution date-par-date de l'hôtel effectif pour un circuit
+  // multi-hôtels — hotelHorsHurghada/hotelVille ci-dessus restent calculés
+  // une seule fois pour tout le séjour (client.hotel, vide par design en
+  // circuit) et servent de repli tant que ces deux props ne sont pas
+  // fournies ou que la date de l'activité n'est pas encore choisie.
+  clientHotels?: ClientHotel[];
+  hotelsRef?: HotelReference[];
   taxesRef?: TransfertTaxe[];
   // reservationId est désormais null au moment de la demande — l'activité
   // n'est plus créée avant que la Direction/Sylvie ait tranché (voir
@@ -273,6 +284,22 @@ export default function AddActivityWizard({
   const [isCustomFlow, setIsCustomFlow] = useState(false);
 
   const r = reservations.find((x) => x.id === draftId) || null;
+
+  // Sans ça, hotelHorsHurghada/hotelVille (calculés une fois pour tout le
+  // séjour depuis client.hotel, vide par design en circuit multi-hôtels)
+  // considéraient TOUJOURS un client en circuit comme "sur Hurghada" — la
+  // taxe de transfert n'était jamais suggérée/signalée manquante pour une
+  // activité au Caire, à Louxor... Recalcule depuis l'étape du circuit
+  // active à LA DATE de cette activité précise dès qu'elle est connue.
+  const hotelNomEffectif =
+    clientHotels && clientHotels.length > 0 && r?.date_debut
+      ? hotelNomPourActivite(clientHotels, r.date_debut, client.hotel)
+      : client.hotel;
+  const hotelMatchEffectif = hotelsRef ? matchHotel(hotelNomEffectif, hotelsRef) : null;
+  const hotelHorsHurghadaEffectif = hotelsRef
+    ? !!hotelMatchEffectif && !hotelMatchEffectif.sur_hurghada
+    : hotelHorsHurghada;
+  const hotelVilleEffectif = hotelsRef ? hotelMatchEffectif?.ville || hotelVille : hotelVille;
   const options = draftId ? resaOptions[draftId] || [] : [];
   const tarifs = draftId ? resaTarifs[draftId] || [] : [];
   const catalogueItem = r?.catalogue_item_id ? catalogue.find((a) => a.id === r.catalogue_item_id) : null;
@@ -347,14 +374,14 @@ export default function AddActivityWizard({
   // montant déjà saisi (à la main ou lors d'un passage précédent).
   useEffect(() => {
     if (step !== "transfert" || !r || r.transfert_inclus || r.transfert_montant) return;
-    if (!hotelHorsHurghada || !hotelVille) return;
+    if (!hotelHorsHurghadaEffectif || !hotelVilleEffectif) return;
     const { nbAd, nbEnf } = participantsFor(r, client);
-    const taxe = matchTransfertTaxe(taxesRef ?? [], hotelVille, nbAd, nbEnf);
+    const taxe = matchTransfertTaxe(taxesRef ?? [], hotelVilleEffectif, nbAd, nbEnf);
     if (taxe.type === "montant" && taxe.montant > 0) {
       onUpdateReservation(r.id, { transfert_montant: taxe.montant });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, r?.id, r?.transfert_inclus, r?.transfert_montant, hotelHorsHurghada, hotelVille]);
+  }, [step, r?.id, r?.transfert_inclus, r?.transfert_montant, hotelHorsHurghadaEffectif, hotelVilleEffectif]);
 
   const startFromCatalogue = async (
     item: CatalogueItem,
@@ -388,7 +415,7 @@ export default function AddActivityWizard({
         a_prevoir: item.a_prevoir,
         point_rdv: item.point_rdv,
         photo_path: item.photo_path,
-        transfert_inclus: !hotelHorsHurghada,
+        transfert_inclus: !hotelHorsHurghadaEffectif,
         // Signalé dès la création plutôt que d'attendre que la carte soit
         // ouverte une première fois (ReservationCard ne monte, et donc son
         // useEffect de secours ne tourne, que lorsque l'activité est
@@ -437,7 +464,7 @@ export default function AddActivityWizard({
       onUpdateReservation(id, {
         nom_activite: customName.trim(),
         catalogue_item_id: customLinkId,
-        transfert_inclus: !hotelHorsHurghada,
+        transfert_inclus: !hotelHorsHurghadaEffectif,
         // Voir le commentaire équivalent dans startFromCatalogue.
         moment: "Journée",
         ile_selectionnee: "",
@@ -1826,7 +1853,7 @@ export default function AddActivityWizard({
   if (step === "tarifs") {
     const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
     const total = resaTotalMontant(r, client, options, tarifs);
-    const breakdown = resaBreakdown(r, client, options, tarifs, reservations, hotelVille);
+    const breakdown = resaBreakdown(r, client, options, tarifs, reservations, hotelVilleEffectif);
 
     // Modifier le "x N" d'adulte/enfant/bébé en mode "tous" doit basculer en
     // "custom" (sinon rien à modifier — ces nombres sont déduits du séjour
@@ -2752,8 +2779,8 @@ export default function AddActivityWizard({
   // le montant conseillé vient de la même table de référence que partout
   // ailleurs (transfert_taxes) — jamais deviné à la main par l'employée.
   const taxeSuggeree =
-    hotelHorsHurghada && hotelVille
-      ? matchTransfertTaxe(taxesRef ?? [], hotelVille, nbAdTransfert, nbEnfTransfert)
+    hotelHorsHurghadaEffectif && hotelVilleEffectif
+      ? matchTransfertTaxe(taxesRef ?? [], hotelVilleEffectif, nbAdTransfert, nbEnfTransfert)
       : null;
 
   // Dernier filtre avant de vraiment terminer l'ajout — le popup Hossam a
@@ -2833,11 +2860,11 @@ export default function AddActivityWizard({
         </p>
       )}
       {!isAeroportTransfertHorsHurghada(r.nom_activite) &&
-        (hotelHorsHurghada ? (
+        (hotelHorsHurghadaEffectif ? (
           r.transfert_inclus && (
             <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-orange-50 px-2 py-1.5 text-xs text-orange-700">
               <span>
-                ⚠ N&apos;oubliez pas de remplir cette case car le client est à {hotelVille}
+                ⚠ N&apos;oubliez pas de remplir cette case car le client est à {hotelVilleEffectif}
                 {taxeSuggeree?.type === "montant"
                   ? ` — prix conseillé : ${euros(taxeSuggeree.montant)}€.`
                   : taxeSuggeree?.type === "a_demander"
@@ -2870,12 +2897,12 @@ export default function AddActivityWizard({
           </Field>
           {taxeSuggeree?.type === "montant" && (
             <p className="mt-1 text-[11px] text-neutral-500">
-              Prix conseillé pour {hotelVille} : {euros(taxeSuggeree.montant)}€ (déjà pré-rempli).
+              Prix conseillé pour {hotelVilleEffectif} : {euros(taxeSuggeree.montant)}€ (déjà pré-rempli).
             </p>
           )}
           {taxeSuggeree?.type === "a_demander" && (
             <p className="mt-1 text-[11px] text-neutral-500">
-              Pas de montant fixe pour {hotelVille} : {taxeSuggeree.note}.
+              Pas de montant fixe pour {hotelVilleEffectif} : {taxeSuggeree.note}.
             </p>
           )}
         </div>

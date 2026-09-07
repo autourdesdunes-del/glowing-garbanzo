@@ -11,7 +11,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { matchHotel } from "@/lib/hotelHelp";
+import { hotelNomPourActivite, matchHotel } from "@/lib/hotelHelp";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
@@ -115,7 +115,15 @@ export function ActivityDetailModal({
   const options = resaOptions[r.id] || [];
   const tarifs = resaTarifs[r.id] || [];
   const total = resaTotalMontant(r, client, options, tarifs);
-  const breakdown = resaBreakdown(r, client, options, tarifs, reservations, matchHotel(client.hotel, hotelsRef)?.ville);
+  const hotelNomActivite = hotelNomPourActivite(clientHotels, r.date_debut, client.hotel);
+  const breakdown = resaBreakdown(
+    r,
+    client,
+    options,
+    tarifs,
+    reservations,
+    matchHotel(hotelNomActivite, hotelsRef)?.ville
+  );
   const { nbAd, nbEnf } = participantsFor(r, client);
   const soldeIci = client.solde_activite_id === r.id;
   // Le calcul du restant à payer a besoin des réservations de CE client
@@ -173,7 +181,7 @@ export function ActivityDetailModal({
   );
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
 
-  const hotelMatch = matchHotel(client.hotel, hotelsRef);
+  const hotelMatch = matchHotel(hotelNomActivite, hotelsRef);
   const egyptBlock = buildEgyptActivityBlock(
     client,
     r,

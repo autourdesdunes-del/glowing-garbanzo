@@ -1727,6 +1727,8 @@ export default function ClientDetail({
           canSeeMargins={canSeeMargins}
           hotelHorsHurghada={hotelHorsHurghada}
           hotelVille={hotelMatch?.ville}
+          clientHotels={clientHotels}
+          hotelsRef={hotelsRef}
           taxesRef={taxesRef}
           coutsMap={coutsMap}
           onUpdateCoutReel={updateCoutReel}

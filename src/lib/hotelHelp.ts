@@ -99,6 +99,26 @@ export function hotelEgyptLinePourActivite(
   return hotelDisplayForEgypt(hotelNomUnique, villeUnique);
 }
 
+// Nom de l'hôtel effectif pour UNE activité précise — même résolution que
+// hotelEgyptLinePourActivite (étape du circuit à cette date, sinon
+// client.hotel), mais renvoie juste le nom brut pour matchHotel(). Sans ce
+// helper, la plupart des calculs "hors Hurghada" (taxe de transfert,
+// transfert_inclus par défaut) retombaient sur client.hotel — qui reste
+// vide par design dès qu'un circuit multi-hôtels existe (voir
+// infosManquantes.ts) — et considéraient donc TOUJOURS ces clients comme
+// "sur Hurghada", même pour une activité au Caire ou à Louxor.
+export function hotelNomPourActivite(
+  clientHotels: ClientHotel[],
+  dateActivite: string | null,
+  hotelNomUnique: string
+): string {
+  if (clientHotels.length > 0) {
+    const etape = hotelPourDate(clientHotels, dateActivite);
+    if (etape) return etape.nom;
+  }
+  return hotelNomUnique;
+}
+
 function dansTranche(n: number, min: number | null, max: number | null) {
   if (min !== null && n < min) return false;
   if (max !== null && n > max) return false;

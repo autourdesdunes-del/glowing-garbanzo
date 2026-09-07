@@ -9,7 +9,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { matchHotel } from "@/lib/hotelHelp";
+import { hotelNomPourActivite, matchHotel } from "@/lib/hotelHelp";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
@@ -69,7 +69,13 @@ export function ReservationSummaryCard({
   size?: "full" | "medium" | "compact";
 }) {
   const hotelHorsHurghada = (() => {
-    const m = matchHotel(client.hotel, hotelsRef);
+    // hotelNomPourActivite résout l'étape du circuit à LA DATE de cette
+    // activité — client.hotel reste vide par design en circuit
+    // multi-hôtels, donc sans ça toute activité hors Hurghada d'un client
+    // en circuit était considérée à tort "sur Hurghada" (taxe de transfert
+    // jamais signalée manquante).
+    const nomEffectif = hotelNomPourActivite(clientHotels, r.date_debut, client.hotel);
+    const m = matchHotel(nomEffectif, hotelsRef);
     return !!m && !m.sur_hurghada;
   })();
   const options = resaOptions[r.id] || [];

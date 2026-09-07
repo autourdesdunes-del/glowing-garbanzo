@@ -214,13 +214,23 @@ export default function ClientPreviewView({
     0
   );
   const acomptePaye = client.acompte_paye ? Number(client.acompte_montant) || 0 : 0;
+  const soldeRestantApercu = Math.max(total - acomptePaye, 0);
   // Même correctif que paiementProgress() dans resa.ts — un solde payé avec
   // un écart réel (solde_montant_recu, oubli "Entre proches") ne doit pas
   // s'afficher au client comme entièrement soldé.
-  const soldeDuApercu =
-    client.solde_paye && client.solde_montant_recu > 0
-      ? Math.min(Number(client.solde_montant_recu) || 0, Math.max(total - acomptePaye, 0))
-      : Math.max(total - acomptePaye, 0);
+  const soldeDuBaseApercu =
+    client.solde_montant_recu > 0
+      ? Math.min(Number(client.solde_montant_recu) || 0, soldeRestantApercu)
+      : soldeRestantApercu;
+  // Même garde-fou que ClientDetail.tsx/generateClientDocument.ts : une
+  // activité ajoutée après que le solde a déjà été marqué payé (reprise en
+  // cours) ne doit jamais se retrouver comptée payée en silence — sans lui,
+  // le client voyait "séjour payé à 100%" sur SA PROPRE page alors qu'une
+  // reprise restait due, pire encore que sur la facture PDF puisque cette
+  // vue est en direct.
+  const soldeBaselineApercu = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : total;
+  const croissanceApresSoldeApercu = Math.max(total - soldeBaselineApercu, 0);
+  const soldeDuApercu = Math.max(soldeDuBaseApercu - croissanceApresSoldeApercu, 0);
   const totalPaye = acomptePaye + (client.solde_paye ? soldeDuApercu : 0);
   const reste = Math.max(total - totalPaye, 0);
   const pct = total > 0 ? Math.min(100, Math.round((totalPaye / total) * 100)) : 0;

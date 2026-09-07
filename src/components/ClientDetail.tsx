@@ -597,8 +597,16 @@ export default function ClientDetail({
     // Le montant appliqué se rattache à cette activité précise, pour
     // s'afficher sur sa carte ("avoir de X € utilisé sur cette activité"),
     // même si le solde qu'il réduit reste unique pour tout le séjour.
-    await updateReservation(reservationId, { avoir_utilise: montant });
-    setAvoirAppliedNotice(montant);
+    // On écrit ce qui a réellement été débité des avoirs (montant - restant),
+    // pas le montant demandé : si le solde d'avoirs disponible était
+    // insuffisant (ex. déjà entamé par une autre session dans la fenêtre
+    // documentée ci-dessus), écrire `montant` ferait apparaître un crédit
+    // plus gros que celui réellement consommé, et donc un "reste à payer"
+    // sous-évalué (avoirUtilise, sommé dans client-steps.tsx, vient réduire
+    // le total dans paiementProgress()).
+    const montantReellementApplique = montant - restant;
+    await updateReservation(reservationId, { avoir_utilise: montantReellementApplique });
+    setAvoirAppliedNotice(montantReellementApplique);
     usingAvoirRef.current = false;
   };
 

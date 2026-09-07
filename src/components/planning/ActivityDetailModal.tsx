@@ -399,9 +399,14 @@ export function ActivityDetailModal({
               // annulée — sinon on peut la remarquer "Payé" par erreur alors
               // que le vrai statut à retenir est celui décidé à l'annulation
               // (remboursée / avoir créé / non remboursée).
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
-                {badge.label}
-              </span>
+              (() => {
+                const b = badgeAnnulation(r);
+                return (
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.className}`}>
+                    {b.label}
+                  </span>
+                );
+              })()
             ) : (
               <select
                 value={paiementStatutKey(effectiveClient, r)}
@@ -431,7 +436,17 @@ export function ActivityDetailModal({
                   setSoldeOverride((prev) => ({ ...prev, ...patch }));
                   await supabase.from("clients").update(patch).eq("id", client.id);
                 }}
-                className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${badge.className}`}
+                className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${
+                  // badge peut être null ici : cette carte n'est pas la
+                  // "prochaine activité" choisie pour porter le badge visuel
+                  // (voir paiementBadge, resa.ts) quand le solde est réglé à
+                  // distance — le select garde quand même la couleur du
+                  // statut réel, ce menu servant justement à le modifier.
+                  badge?.className ||
+                  STATUT_PAIEMENT_OPTIONS.find((o) => o.key === paiementStatutKey(effectiveClient, r))
+                    ?.className ||
+                  ""
+                }`}
               >
                 {STATUT_PAIEMENT_OPTIONS.map((o) => (
                   <option key={o.key} value={o.key}>

@@ -269,6 +269,20 @@ export function repriseActiviteCible(client: Client, reservations: Reservation[]
   if (client.reprise_mode !== "PayPal" && client.reprise_mode !== "Virement bancaire" && client.reprise_activite_id) {
     return reservations.find((r) => r.id === client.reprise_activite_id) || null;
   }
+  return prochaineActiviteActive(reservations);
+}
+
+// Activité active la plus proche à venir (aujourd'hui compris), sinon la
+// plus récente déjà passée — sert à choisir UNE carte de référence quand un
+// règlement (reprise, ou solde réglé à distance en PayPal/virement — voir
+// paiementBadge) ne se rattache à aucune activité précise. Sans ce choix
+// unique, chaque activité active recevrait indépendamment le même badge
+// "En attente" dupliqué sur toutes les cartes à la fois (vécu : badge
+// "En attente - PayPal" affiché sur les 3 activités d'un même séjour). Se
+// décale automatiquement sur la suivante dès qu'une date est dépassée,
+// puisque reservationsActives()/le filtre par date sont recalculés à
+// chaque appel plutôt que figés une fois pour toutes.
+export function prochaineActiviteActive(reservations: Reservation[]): Reservation | null {
   const actives = reservationsActives(reservations).filter((r) => r.date_debut);
   const prochaine = [...actives]
     .filter((r) => (r.date_debut || "") >= todayStr())
@@ -297,7 +311,7 @@ export function paiementBadge(
   resaOptions?: Record<string, ReservationOption[]>,
   resaTarifs?: Record<string, ReservationTarif[]>,
   etapes?: PaiementEtape[]
-) {
+): { label: string; className: string } | null {
   if (reservations && repriseActiviteCible(client, reservations)?.id === r.id) {
     const repriseKey = REPRISE_MODE_TO_KEY[client.reprise_mode] || "attente";
     const repriseOpt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === repriseKey)!;
@@ -336,6 +350,18 @@ export function paiementBadge(
       label: RDV_FINALISE_LABELS[client.solde_mode] || "Payé en € - rendez-vous paiement finalisé",
       className: "bg-green-100 text-green-700",
     };
+  }
+
+  // Solde réglé "à distance" (PayPal/virement), donc rattaché à aucune
+  // activité précise (solde_activite_id vide) : sans ce filtre, CHAQUE
+  // activité active recevrait indépendamment ce même badge "En attente",
+  // dupliqué sur toutes les cartes du séjour à la fois. On ne le montre que
+  // sur la prochaine activité à venir (prochaineActiviteActive se décale
+  // seule dès qu'une date est dépassée) ; les autres cartes n'affichent
+  // rien ici, l'info reste visible au bon endroit (étape Paiements).
+  if ((key === "attente" || key === "attente_paypal") && reservations) {
+    const cible = prochaineActiviteActive(reservations);
+    if (cible && cible.id !== r.id) return null;
   }
 
   // Le point de collecte désigné pour le solde, une fois sa date passée

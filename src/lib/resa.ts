@@ -416,11 +416,25 @@ export function paiementBadge(
 // s'affiche jamais avec le badge de paiement "en direct" (trompeur — une
 // activité annulée et déjà remboursée ne doit jamais pouvoir se remarquer
 // "Payé" par erreur).
-export function badgeAnnulation(r: Reservation): { label: string; className: string } {
+export function badgeAnnulation(
+  r: Reservation,
+  remboursements: Remboursement[] = []
+): { label: string; className: string } {
   if (!r.annulation_paye_avant) {
     return { label: "Non payée", className: "bg-neutral-100 text-neutral-500" };
   }
   if (r.annulation_remb_avoir === "rembourse") {
+    // Le choix "rembourse" fait à l'annulation ne dit que ce qui est
+    // PRÉVU, pas ce qui a réellement été traité — sans vérifier le statut
+    // du remboursement lui-même, "Payée — remboursée" s'affichait dès
+    // l'annulation, avant même que l'argent ne soit reparti. On ne
+    // l'affiche qu'une fois le remboursement effectivement "Effectué" —
+    // faute de le retrouver (donnée jamais créée, ou déjà supprimée), on
+    // reste prudent plutôt que d'affirmer à tort que c'est fait.
+    const remb = remboursements.find((rb) => rb.activite_id === r.id);
+    if (!remb || remb.statut !== "Effectué") {
+      return { label: "Payée — en attente de remboursement", className: "bg-orange-100 text-orange-700" };
+    }
     return { label: "Payée — remboursée", className: "bg-[#0F5C56]/10 text-[#0F5C56]" };
   }
   if (r.annulation_remb_avoir === "avoir") {

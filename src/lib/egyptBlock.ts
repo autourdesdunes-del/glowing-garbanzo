@@ -221,6 +221,13 @@ export function buildEgyptActivityBlock(
   if (r.nb_conducteurs != null) activiteLines.push(`Drivers : ${r.nb_conducteurs}`);
   if (r.nb_passagers != null) activiteLines.push(`Passengers : ${r.nb_passagers}`);
   if (r.pointure) activiteLines.push(`Shoe size : ${r.pointure}`);
+  // Info importante (bouton "+" bleu de l'étape Options du wizard, ex.
+  // "Allergie fruits de mer") — visible en badge rouge sur la carte côté
+  // Réservations (ItineraryView) mais jusqu'ici absente de ce bloc, alors
+  // que c'est justement l'équipe Égypte sur le terrain qui doit la voir.
+  // Jamais traduite (texte libre saisi à la main) — préfixée pour rester
+  // repérable même si le reste du bloc est en anglais.
+  if (r.info_importante.trim()) activiteLines.push(`IMPORTANT : ${r.info_importante.trim()}`);
 
   const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs, etapes);
   // Même condition que la branche "reprise" tout en haut de

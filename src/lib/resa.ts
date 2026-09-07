@@ -801,7 +801,11 @@ export function packBadge(r: Reservation) {
 // mini-bus et Orange Bay). Le reste du prix pack (jamais négatif) continue
 // d'être réparti au prorata entre les activités choisies qui n'ont pas de
 // prix fixe.
-const PACK_PRIX_FIXE: Record<string, { pu_adulte: number; pu_enfant: number }> = {
+// Exporté pour AddPackModal.tsx : le prix enfant proposé ici n'est qu'une
+// suggestion pré-remplie — l'employée doit toujours la valider (ou
+// l'ajuster) elle-même à l'ajout du pack quand des enfants sont présents,
+// jamais appliquée en silence (demande de Mélanie le 07/09/2026).
+export const PACK_PRIX_FIXE: Record<string, { pu_adulte: number; pu_enfant: number }> = {
   "Louxor en mini-bus": { pu_adulte: 160, pu_enfant: 80 },
   "Orange Bay": { pu_adulte: 50, pu_enfant: 25 },
   "Spa/Massage": { pu_adulte: 40, pu_enfant: 0 },

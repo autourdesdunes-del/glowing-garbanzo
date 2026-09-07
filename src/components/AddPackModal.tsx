@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CatalogueItem, Pack, Reservation, TransfertTaxe } from "@/lib/types";
-import { noTaxeTransfert, packSlotPrix } from "@/lib/resa";
+import { noTaxeTransfert, packSlotPrix, PACK_PRIX_FIXE } from "@/lib/resa";
 import { matchTransfertTaxe } from "@/lib/hotelHelp";
 import { isSpaMassage, SPA_HEURES, SPA_MINUTES } from "@/lib/addActivityWizardHelpers";
 import { todayStr } from "@/lib/dates";
@@ -51,6 +51,13 @@ export default function AddPackModal({
   // Mélanie le 07/09/2026.
   const [spaHoraire, setSpaHoraire] = useState("");
   const [spaHorairePrompt, setSpaHorairePrompt] = useState(false);
+  // Le prix enfant des activités à prix plancher (PACK_PRIX_FIXE, voir
+  // resa.ts) n'est qu'une proposition — jamais appliquée en silence :
+  // l'employée doit la valider (ou l'ajuster) elle-même dès qu'il y a des
+  // enfants. Clé = id de l'activité catalogue, valeur = prix confirmé.
+  const [enfantPrixPrompt, setEnfantPrixPrompt] = useState(false);
+  const [enfantPrixEdit, setEnfantPrixEdit] = useState<Record<string, number>>({});
+  const [enfantPrixConfirmes, setEnfantPrixConfirmes] = useState<Record<string, number> | null>(null);
 
   const pack = packs.find((p) => p.id === packId) || null;
   const itemById = (id: string) => catalogue.find((c) => c.id === id) || null;
@@ -72,7 +79,25 @@ export default function AddPackModal({
     pack.slots.every((slot) => choix[slot.ordre] && dates[slot.ordre]) &&
     (adultes > 0 || enfants > 0);
 
-  const confirmer = async () => {
+  // Étape suivante une fois l'horaire du Spa réglé (ou hors de propos) —
+  // partagée entre "confirmer" (cas normal) et le bouton "Valider" du
+  // pop-up horaire (cas où le Spa vient d'être traité), pour ne jamais
+  // sauter la validation du prix enfant selon le chemin emprunté.
+  const apresHoraireSpa = (itemsChoisis: CatalogueItem[], enfantPrixDejaConfirmes: Record<string, number> | null) => {
+    const itemsAvecPrixFixe = itemsChoisis.filter((i) => PACK_PRIX_FIXE[i.nom]);
+    if (enfants > 0 && itemsAvecPrixFixe.length > 0 && !enfantPrixDejaConfirmes) {
+      const propose: Record<string, number> = {};
+      itemsAvecPrixFixe.forEach((i) => {
+        propose[i.id] = PACK_PRIX_FIXE[i.nom].pu_enfant;
+      });
+      setEnfantPrixEdit(propose);
+      setEnfantPrixPrompt(true);
+      return;
+    }
+    ajouterLesActivites(itemsChoisis, enfantPrixDejaConfirmes || {});
+  };
+
+  const confirmer = () => {
     if (!pack || !pretAConfirmer) return;
     const itemsChoisis = pack.slots
       .map((slot) => itemById(choix[slot.ordre]))
@@ -83,13 +108,18 @@ export default function AddPackModal({
       setSpaHorairePrompt(true);
       return;
     }
-    await ajouterLesActivites(itemsChoisis);
+    apresHoraireSpa(itemsChoisis, enfantPrixConfirmes);
   };
 
-  const ajouterLesActivites = async (itemsChoisis: CatalogueItem[]) => {
+  const ajouterLesActivites = async (
+    itemsChoisis: CatalogueItem[],
+    enfantPrixOverride: Record<string, number> = {}
+  ) => {
     if (!pack) return;
     setSubmitting(true);
-    const prix = packSlotPrix(pack, itemsChoisis);
+    const prix = packSlotPrix(pack, itemsChoisis).map((p) =>
+      p.itemId in enfantPrixOverride ? { ...p, pu_enfant: enfantPrixOverride[p.itemId] } : p
+    );
     // La taxe de transfert n'est jamais incluse dans le prix d'un pack — un
     // pack créant plusieurs activités à des dates différentes, chacune la
     // doit individuellement (comme n'importe quelle activité isolée),
@@ -210,9 +240,67 @@ export default function AddPackModal({
                 const itemsChoisis = pack.slots
                   .map((slot) => itemById(choix[slot.ordre]))
                   .filter((i): i is CatalogueItem => !!i);
-                ajouterLesActivites(itemsChoisis);
+                apresHoraireSpa(itemsChoisis, enfantPrixConfirmes);
               }}
               className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              Valider et continuer
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (enfantPrixPrompt && pack) {
+    const itemsAvecPrixFixe = Object.keys(enfantPrixEdit)
+      .map((id) => itemById(id))
+      .filter((i): i is CatalogueItem => !!i);
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+        <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+          <h2 className="font-heading text-lg font-semibold text-[#171717]">Prix enfant à valider</h2>
+          <p className="mt-2 text-sm text-[#666666]">
+            Proposition pour {enfants} enfant{enfants > 1 ? "s" : ""} — à confirmer ou ajuster avant d&apos;ajouter
+            le pack.
+          </p>
+          <div className="mt-3 space-y-3">
+            {itemsAvecPrixFixe.map((item) => (
+              <Field key={item.id} label={item.nom}>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min={0}
+                    value={enfantPrixEdit[item.id] ?? 0}
+                    onChange={(e) =>
+                      setEnfantPrixEdit((prev) => ({ ...prev, [item.id]: Number(e.target.value) || 0 }))
+                    }
+                    className="w-full rounded-md border border-[#eaeaea] px-2 py-1.5 text-sm"
+                  />
+                  <span className="text-sm text-[#666666]">€/enfant</span>
+                </div>
+              </Field>
+            ))}
+          </div>
+          <div className="mt-4 flex justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setEnfantPrixPrompt(false)}
+              className="rounded-md border border-[#eaeaea] px-3 py-1.5 text-sm font-medium text-[#666666] hover:text-[#171717]"
+            >
+              ‹ Retour
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEnfantPrixPrompt(false);
+                setEnfantPrixConfirmes(enfantPrixEdit);
+                const itemsChoisis = pack.slots
+                  .map((slot) => itemById(choix[slot.ordre]))
+                  .filter((i): i is CatalogueItem => !!i);
+                ajouterLesActivites(itemsChoisis, enfantPrixEdit);
+              }}
+              className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
             >
               Valider et ajouter le pack
             </button>

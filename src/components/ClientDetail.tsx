@@ -899,6 +899,10 @@ export default function ClientDetail({
       return;
     }
     const montant = Number(m.montant) || 0;
+    if (m.choix === "deplacer" && m.type === "reprise" && montant <= 0) {
+      toast("Renseigne un montant avant de reporter ce règlement.");
+      return;
+    }
     if (m.choix === "annuler") {
       // Trace dans l'historique des paiements (montant 0 — jamais compté
       // comme reçu) pour qu'on retrouve pourquoi ce règlement a disparu,

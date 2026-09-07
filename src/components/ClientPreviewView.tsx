@@ -9,7 +9,7 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { resaTotalMontant } from "@/lib/resa";
+import { resaTotalMontant, reservationsVendues } from "@/lib/resa";
 import MarqueeAlongSvgPath from "@/components/ui/marquee-along-svg-path";
 
 function euros(n: number) {
@@ -43,9 +43,22 @@ function computeTrackerStep(client: Client, totalPaye: number) {
   let current = 0;
   if (confirmee) current = 1;
   if (confirmee && acompteRecu) current = 2;
-  if (daysToStart !== null && daysToStart <= 0) current = 3;
-  if (daysToStart !== null && daysToStart < 0 && daysToEnd !== null && daysToEnd >= 0) current = 4;
-  if (daysToEnd !== null && daysToEnd < 0) current = 5;
+  // Les étapes basées sur la date (pickup / séjour en cours / terminé) ne
+  // doivent jamais s'afficher cochées avant confirmation + acompte — sinon
+  // des dates déjà passées (placeholder saisi en pleine négociation, ou
+  // fiche reprise) font croire au client qu'il a payé un acompte qu'il n'a
+  // jamais versé.
+  if (confirmee && acompteRecu && daysToStart !== null && daysToStart <= 0) current = 3;
+  if (
+    confirmee &&
+    acompteRecu &&
+    daysToStart !== null &&
+    daysToStart < 0 &&
+    daysToEnd !== null &&
+    daysToEnd >= 0
+  )
+    current = 4;
+  if (confirmee && acompteRecu && daysToEnd !== null && daysToEnd < 0) current = 5;
   return current;
 }
 
@@ -206,9 +219,13 @@ export default function ClientPreviewView({
   }
 
   const annulees = reservations.filter((r) => r.statut_resa === "Annulée");
-  const sortedResas = reservations
-    .filter((r) => r.statut_resa !== "Annulée")
-    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
+  // reservationsVendues (pas juste "!= Annulée") : une activité encore en
+  // Brouillon (prix/détails pas finalisés côté équipe) ne doit jamais être
+  // visible du client — ni dans "Mon séjour"/"Mes activités", ni dans le
+  // total dû/pourcentage payé affiché sur cette page, voir resa.ts.
+  const sortedResas = reservationsVendues(reservations).sort((a, b) =>
+    (a.date_debut || "").localeCompare(b.date_debut || "")
+  );
   const total = sortedResas.reduce(
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0

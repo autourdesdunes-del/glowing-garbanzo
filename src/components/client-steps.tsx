@@ -901,6 +901,22 @@ export function ActivitesStep({
   onAutoExpandHandled?: () => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Lecture seule ici, dupliquée volontairement de l'état géré par
+  // SuiviStep (qui garde la main sur le CRUD complet) — juste pour que le
+  // badge d'une activité annulée (badgeAnnulation, resa.ts) sache si le
+  // remboursement associé est réellement "Effectué" ou seulement planifié,
+  // au lieu d'afficher "Payée — remboursée" dès le choix fait à
+  // l'annulation, avant même que l'argent ne soit parti. Même compromis
+  // "fetch dupliqué, pas cher, sans risque" que client_hotels dans
+  // HebergementSection.
+  const [remboursementsPourBadge, setRemboursementsPourBadge] = useState<Remboursement[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data } = await supabase.from("remboursements").select("*").eq("client_id", client.id);
+      setRemboursementsPourBadge((data as Remboursement[]) || []);
+    })();
+  }, [client.id]);
   // Comparaison en render (pas de useEffect) pour éviter
   // react-hooks/set-state-in-effect — même pattern que lastSub dans
   // PlanningView.tsx.
@@ -1003,6 +1019,7 @@ export function ActivitesStep({
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
         paiementsEtapes={paiementsEtapes}
+        remboursements={remboursementsPourBadge}
         avoirs={avoirs}
         expandedId={expandedId}
         onToggleExpand={setExpandedId}

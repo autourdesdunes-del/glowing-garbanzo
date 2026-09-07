@@ -1389,7 +1389,7 @@ export function findMomentConflict(
   const moment = momentDeLaJournee(current);
   if (!moment) return null;
   return (
-    reservations.find(
+    reservationsActives(reservations).find(
       (r) =>
         r.id !== reservationId &&
         r.date_debut === current.date_debut &&
@@ -1707,7 +1707,11 @@ export function sharedActivityAlerts(
   endStr: string
 ): SharedActivityAlert[] {
   const totals = new Map<string, number>();
-  reservations.forEach((r) => {
+  // reservationsActives() : sinon une place annulée restait comptée dans le
+  // groupe (silence à tort sur un groupe en réalité entamé) et une
+  // annulation pouvait aussi faire apparaître une fausse alerte "reste à
+  // remplir" sur un groupe déjà complet côté actif.
+  reservationsActives(reservations).forEach((r) => {
     if (!r.date_debut || r.date_debut < todayStr || r.date_debut > endStr) return;
     const info = sharedActivityCapacity(r.nom_activite);
     if (!info) return;

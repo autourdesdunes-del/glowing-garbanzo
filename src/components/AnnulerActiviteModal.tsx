@@ -99,6 +99,11 @@ export default function AnnulerActiviteModal({
   const [submitting, setSubmitting] = useState(false);
 
   const montantTotal = resaTotalMontant(r, client, options, tarifs);
+  // Part de l'activité déjà couverte par un avoir (voir ClientDetail.tsx —
+  // appliquerAvoir) : ce n'est jamais de l'argent reçu par l'agence, donc
+  // jamais à rembourser en cash — seulement à restituer en avoir (voir plus
+  // bas dans doConfirm), pour ne pas faire perdre ce crédit au client.
+  const avoirDejaUtilise = Number(r.avoir_utilise) || 0;
   // Modifiable — permet un remboursement partiel (ex. frais déjà engagés
   // non récupérables) au lieu de toujours forcer le prix total de l'activité.
   // Part de 0 si "pas encore payée" est déjà la valeur par défaut de
@@ -106,7 +111,9 @@ export default function AnnulerActiviteModal({
   // montantTotal et déclenchait aussitôt l'erreur "rien à rembourser" sans
   // que l'employée ait rien touché (les boutons Oui/Non ne remettent le
   // montant à jour que sur un clic explicite, jamais au premier rendu).
-  const [montant, setMontant] = useState(dejaPayee ? montantTotal : 0);
+  const [montant, setMontant] = useState(
+    dejaPayee ? Math.max(montantTotal - avoirDejaUtilise, 0) : 0
+  );
   // Calculé sur la date d'annulation choisie (par défaut aujourd'hui), pas
   // toujours "maintenant" — permet de ressaisir une annulation passée (ex.
   // reprise de données Notion) sans que le délai de 24h/48h se retrouve
@@ -213,6 +220,29 @@ export default function AnnulerActiviteModal({
       if (error) toast("Échec de la création de l'avoir.");
     }
 
+    // L'avoir consommé par cette activité n'est jamais de l'argent reçu par
+    // l'agence — sans ça il reste marqué "utilisé" sur une activité qui
+    // n'existe plus, perdu pour le client alors qu'il ne l'a jamais
+    // réellement dépensé. On ne sait pas forcément de quel(s) avoir(s)
+    // d'origine il vient (répartition possible sur plusieurs), donc on le
+    // restitue sous la forme d'un nouvel avoir plutôt que de deviner lequel
+    // recréditer.
+    if (avoirDejaUtilise > 0) {
+      // raison "Annulation" (seule valeur du enum qui convient ici) — le
+      // motif réel s'affiche via activiteLieeAvoir?.annulation_raison,
+      // prioritaire sur ce champ partout où un avoir est listé (voir
+      // RemboursementSummaryCard/client-steps).
+      const { error } = await supabase.from("avoirs").insert({
+        client_id: client.id,
+        montant: avoirDejaUtilise,
+        montant_restant: avoirDejaUtilise,
+        raison: "Annulation",
+        activite_id: r.id,
+        date_probleme: dateAnnulation || todayStr(),
+      });
+      if (error) toast("Échec de la restitution de l'avoir.");
+    }
+
     if (reglementIci && reglementChoix === "annuler") {
       const noteAnnulation = `Annulation paiement du ${fmtDateDMY(r.date_debut)} à ${r.nom_activite || "cette activité"} — montant : ${euros(
         reglementIci.montant
@@ -274,6 +304,7 @@ export default function AnnulerActiviteModal({
       annulation_type: annulationType,
       annulation_delai_raison: reglement.raison,
       annulation_paye_avant: dejaPayee,
+      ...(avoirDejaUtilise > 0 ? { avoir_utilise: 0 } : {}),
     });
     setSubmitting(false);
     onClose();
@@ -368,7 +399,7 @@ export default function AnnulerActiviteModal({
               type="button"
               onClick={() => {
                 setDejaPayee(true);
-                if (montant === 0) setMontant(montantTotal);
+                if (montant === 0) setMontant(Math.max(montantTotal - avoirDejaUtilise, 0));
               }}
               className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-medium ${
                 dejaPayee
@@ -440,6 +471,12 @@ export default function AnnulerActiviteModal({
                 </span>
               )}
             </label>
+            {avoirDejaUtilise > 0 && (
+              <p className="mb-1.5 text-xs text-neutral-500">
+                {euros(avoirDejaUtilise)} € de cette activité venaient d&apos;un avoir — ce montant sera
+                automatiquement restitué en avoir à la confirmation, pas ajouté au remboursement ci-dessous.
+              </p>
+            )}
             <input
               type="number"
               value={montant}

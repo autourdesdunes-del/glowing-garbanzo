@@ -8,17 +8,31 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { resaTotalMontant } from "@/lib/resa";
+import { avoirUtiliseTotal, reservationsActives, resaTotalMontant, soldeInclutAcompteImpaye } from "@/lib/resa";
 import { todayStr } from "@/lib/dates";
+import { useConfirm } from "@/components/ConfirmProvider";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
 // Même calcul que soldeRestantFor (SuivisView) : total du séjour moins
-// l'acompte déjà encaissé et les règlements intermédiaires — c'est aussi le
-// montant du solde une fois qu'il est marqué payé (rien dans ce calcul ne
-// dépend de solde_paye), donc réutilisable pour l'afficher avant ET après.
+// l'acompte déjà encaissé, les règlements intermédiaires et les avoirs
+// consommés — c'est aussi le montant du solde une fois qu'il est marqué payé
+// (rien dans ce calcul ne dépend de solde_paye), donc réutilisable pour
+// l'afficher avant ET après.
+function totalSejourDe(
+  c: Client,
+  reservations: Reservation[],
+  resaOptions: Record<string, ReservationOption[]>,
+  resaTarifs: Record<string, ReservationTarif[]>
+) {
+  return reservationsActives(reservations.filter((r) => r.client_id === c.id)).reduce(
+    (sum, r) => sum + resaTotalMontant(r, c, resaOptions[r.id] || [], resaTarifs[r.id] || []),
+    0
+  );
+}
+
 function soldeDe(
   c: Client,
   reservations: Reservation[],
@@ -28,13 +42,14 @@ function soldeDe(
 ) {
   const acomptePaye =
     c.paiement_type === "acompte" && c.acompte_paye ? Number(c.acompte_montant) || 0 : 0;
-  const totalSejour = reservations
-    .filter((r) => r.client_id === c.id && r.statut_resa !== "Annulée")
-    .reduce((sum, r) => sum + resaTotalMontant(r, c, resaOptions[r.id] || [], resaTarifs[r.id] || []), 0);
+  const totalSejour = totalSejourDe(c, reservations, resaOptions, resaTarifs);
+  const avoirUtilise = avoirUtiliseTotal(
+    reservationsActives(reservations.filter((r) => r.client_id === c.id))
+  );
   const etapesSum = paiementsEtapes
     .filter((e) => e.client_id === c.id)
     .reduce((s, e) => s + (Number(e.montant) || 0), 0);
-  return Math.max(totalSejour - acomptePaye - etapesSum, 0);
+  return Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
 }
 
 type Ligne = {
@@ -80,7 +95,16 @@ export function computePaiementsDuJour(
           : "RDV solde",
         montant,
         paye: !!c.solde_paye,
-        onMarquerPaye: (date) => onUpdateClient(c.id, { solde_paye: true, solde_date: date }),
+        onMarquerPaye: (date) =>
+          onUpdateClient(c.id, {
+            solde_paye: true,
+            solde_date: date,
+            // Figer le total séjour au moment du règlement — sinon une
+            // activité ajoutée plus tard peut se retrouver absorbée en
+            // silence dans un "Payé" qui ne l'a jamais couverte (voir
+            // paiementProgress dans resa.ts).
+            solde_montant: totalSejourDe(c, reservations, resaOptions, resaTarifs),
+          }),
         onAnnulerPaye: () => onUpdateClient(c.id, { solde_paye: false, solde_date: null }),
       };
       (c.solde_paye ? encaisses : aPayer).push(ligne);
@@ -104,6 +128,7 @@ export default function PaiementsDuJourModal({
   onClose: () => void;
 }) {
   const [dateModal, setDateModal] = useState<{ ligne: Ligne; date: string } | null>(null);
+  const confirm = useConfirm();
 
   const Row = ({ ligne }: { ligne: Ligne }) => (
     <div className="flex items-center justify-between gap-3 border-b border-neutral-100 py-2.5 last:border-0">
@@ -118,9 +143,26 @@ export default function PaiementsDuJourModal({
       </div>
       <span className="font-amounts flex-shrink-0 text-sm text-[#171717]">{euros(ligne.montant)} €</span>
       <button
-        onClick={() =>
-          ligne.paye ? ligne.onAnnulerPaye() : setDateModal({ ligne, date: todayStr() })
-        }
+        onClick={async () => {
+          if (ligne.paye) {
+            ligne.onAnnulerPaye();
+            return;
+          }
+          // Même garde-fou que partout ailleurs où on marque le solde payé
+          // (ItineraryView, ActivityDetailModal, PaiementResteFlow) : un
+          // acompte validé mais jamais réellement encaissé ne doit pas se
+          // retrouver compté comme payé sans confirmation.
+          if (soldeInclutAcompteImpaye(ligne.client)) {
+            const ok = await confirm({
+              title: "L'acompte n'a pas encore été marqué encaissé",
+              message: `L'acompte de ${euros(ligne.client.acompte_montant)} € (${ligne.client.acompte_mode}) est toujours "en attente". En continuant, tout le séjour — acompte compris — sera considéré comme payé partout dans le dossier. Le montant collecté couvre-t-il bien aussi cet acompte ?`,
+              confirmLabel: "Oui, l'acompte est inclus",
+              cancelLabel: "Non, annuler",
+            });
+            if (!ok) return;
+          }
+          setDateModal({ ligne, date: todayStr() });
+        }}
         className={`flex-shrink-0 rounded-md border px-2.5 py-1 text-xs font-medium ${
           ligne.paye
             ? "border-neutral-300 text-neutral-600 hover:border-red-400 hover:text-red-600"

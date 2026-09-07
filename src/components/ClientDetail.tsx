@@ -1554,7 +1554,7 @@ export default function ClientDetail({
           <span className="flex items-center gap-1.5">
             {reservations.length > 0 && (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#0F5C56]/10 px-1 text-xs font-semibold text-[#0F5C56]">
-                {reservations.length}
+                {reservationsActives(reservations).length}
               </span>
             )}
             {reservations.filter((r) => r.statut_resa === "Annulée").length > 0 && (

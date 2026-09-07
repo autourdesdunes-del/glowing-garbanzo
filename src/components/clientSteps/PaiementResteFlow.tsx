@@ -5,7 +5,7 @@ import { Client, Reservation } from "@/lib/types";
 import { ASSIGNE_A_OPTIONS } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
-import { soldeInclutAcompteImpaye } from "@/lib/resa";
+import { fmtEncaisseLe, soldeInclutAcompteImpaye } from "@/lib/resa";
 import { euros, fmtDateDMY } from "@/lib/contactStepFormat";
 import { Field } from "@/components/Field";
 import MontantEgpField from "@/components/MontantEgpField";
@@ -84,16 +84,24 @@ function EcartAcompteLine({
   reel,
   prevu,
   entreProchesOublie,
+  // "acompte" par défaut (usage historique) — mais ce même composant sert
+  // aussi à afficher l'écart sur le SOLDE (solde_montant_recu), qui disait
+  // à tort "montant de l'acompte ajusté" même quand c'est le solde qui a
+  // été réglé pour un montant différent.
+  contexte = "acompte",
 }: {
   reel: number;
   prevu: number;
   entreProchesOublie: boolean;
+  contexte?: "acompte" | "solde";
 }) {
   if (reel === prevu) return null;
   return (
     <p className="mt-1 text-xs font-medium text-red-600">
       {euros(reel)} € au lieu de {euros(prevu)} € → raison :{" "}
-      {entreProchesOublie ? "rattrapage de l'oubli « Entre proches »" : "montant de l'acompte ajusté"}
+      {entreProchesOublie
+        ? "rattrapage de l'oubli « Entre proches »"
+        : `montant ${contexte === "solde" ? "du solde" : "de l'acompte"} ajusté`}
     </p>
   );
 }
@@ -512,7 +520,10 @@ export function PaiementResteFlow({
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm text-neutral-700">
                     <p className="font-medium text-[#171717]">
-                      {modeInfo.label} — {fmtDateDMY(client.solde_date)}
+                      {modeInfo.label}
+                      {client.solde_paye && client.solde_date
+                        ? ` — encaissé le ${fmtEncaisseLe(client.solde_date, client.solde_encaisse_ts)}`
+                        : ` — ${fmtDateDMY(client.solde_date)}`}
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
@@ -529,6 +540,7 @@ export function PaiementResteFlow({
                         reel={client.solde_montant_recu}
                         prevu={montantACouvrir}
                         entreProchesOublie={client.solde_entre_proches_oublie}
+                        contexte="solde"
                       />
                     )}
                   </div>

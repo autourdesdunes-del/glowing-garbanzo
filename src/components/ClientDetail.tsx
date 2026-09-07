@@ -1037,13 +1037,28 @@ export default function ClientDetail({
               solde_mode: "Espèces EUR",
               solde_montant: 0,
             }
-          : { reprise_montant: 0, reprise_activite_id: null, reprise_mode: "" }
+          : {
+              reprise_montant: 0,
+              reprise_activite_id: null,
+              reprise_mode: "",
+              reprise_mixte_eur: 0,
+              reprise_mixte_egp: 0,
+            }
       );
     } else {
       onChange(
         m.type === "solde"
           ? { solde_activite_id: m.cibleId, solde_mode: m.mode }
-          : { reprise_activite_id: m.cibleId, reprise_montant: montant, reprise_mode: m.mode }
+          : // Ce sélecteur de mode (MODES_PAIEMENT) ne propose pas "Modes
+            // différents" — reporter une reprise sur une autre activité
+            // retombe donc toujours sur un mode simple, jamais mixte.
+            {
+              reprise_activite_id: m.cibleId,
+              reprise_montant: montant,
+              reprise_mode: m.mode,
+              reprise_mixte_eur: 0,
+              reprise_mixte_egp: 0,
+            }
       );
     }
     await performDeleteReservation(m.reservationId);
@@ -1193,6 +1208,8 @@ export default function ClientDetail({
     montant: string;
     mode: string;
     activiteId: string;
+    mixteEur: string;
+    mixteEgp: string;
   } | null>(null);
   const checkRepriseApresAjout = () => {
     if (!client.solde_paye || client.reprise_montant > 0) return;
@@ -1206,6 +1223,8 @@ export default function ClientDetail({
       montant: String(diff),
       mode: MODES_PAIEMENT[0] || "Espèces EUR",
       activiteId: derniereActivite?.id || "",
+      mixteEur: "",
+      mixteEgp: "",
     });
   };
 
@@ -1214,6 +1233,13 @@ export default function ClientDetail({
     const montant = Number(repriseModal.montant) || 0;
     if (montant <= 0) {
       toast("Renseigne un montant avant de valider.");
+      return;
+    }
+    const estMixte = repriseModal.mode === "Modes différents";
+    const mixteEurVal = Number(repriseModal.mixteEur) || 0;
+    const mixteEgpVal = Number(repriseModal.mixteEgp) || 0;
+    if (estMixte && mixteEurVal <= 0 && mixteEgpVal <= 0) {
+      toast("Renseigne au moins un montant (€ ou EGP) pour ce règlement mixte.");
       return;
     }
     const modeSansActivite = repriseModal.mode === "PayPal" || repriseModal.mode === "Virement bancaire";
@@ -1225,6 +1251,10 @@ export default function ClientDetail({
       reprise_montant: montant,
       reprise_mode: repriseModal.mode,
       reprise_activite_id: modeSansActivite ? null : repriseModal.activiteId,
+      // Remis à 0 quand le mode n'est pas mixte, pour ne jamais laisser une
+      // ancienne répartition €+EGP traîner sur un règlement redevenu simple.
+      reprise_mixte_eur: estMixte ? mixteEurVal : 0,
+      reprise_mixte_egp: estMixte ? mixteEgpVal : 0,
     });
     setRepriseModal(null);
   };
@@ -1835,8 +1865,42 @@ export default function ClientDetail({
                     {m}
                   </option>
                 ))}
+                {/* Pas dans MODES_PAIEMENT (liste partagée avec l'acompte et
+                    les étapes libres, qui ne gèrent pas ce cas) — seule la
+                    reprise et le solde savent traiter un règlement mixte. */}
+                <option value="Modes différents">Paiement mixte (€ + EGP)</option>
               </select>
             </div>
+            {repriseModal.mode === "Modes différents" && (
+              <div className="mb-3 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-500">
+                    Montant en € (cash)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    value={repriseModal.mixteEur}
+                    onChange={(e) => setRepriseModal({ ...repriseModal, mixteEur: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-500">
+                    Montant en EGP (cash)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                    value={repriseModal.mixteEgp}
+                    onChange={(e) => setRepriseModal({ ...repriseModal, mixteEgp: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
             {repriseModal.mode !== "PayPal" && repriseModal.mode !== "Virement bancaire" && (
               <div className="mb-4">
                 <label className="mb-1 block text-xs font-medium text-neutral-500">

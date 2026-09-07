@@ -1320,17 +1320,25 @@ export function PaiementsStep({
   // Ici on ne gère que la résolution, une fois le règlement choisi.
   const marquerRepriseReglee = (date: string) => {
     const activiteLiee = reservations.find((r) => r.id === client.reprise_activite_id);
+    // Mixte €+EGP : paiements_etapes porte déjà les deux montants sur une
+    // seule ligne (montant en €, montant_egp à part — voir addPaiementEtape
+    // dans ClientDetail.tsx) ; sans ce cas, la part EGP de la reprise
+    // n'était jamais tracée nulle part une fois "marquée réglée".
+    const estMixte = client.reprise_mode === "Modes différents";
     onAddPaiementEtape(
-      client.reprise_montant,
+      estMixte ? client.reprise_mixte_eur : client.reprise_montant,
       client.reprise_mode,
       date,
       "Activité réservée ultérieurement — nouveau règlement du solde",
-      activiteLiee?.nom_activite || ""
+      activiteLiee?.nom_activite || "",
+      estMixte ? client.reprise_mixte_egp : 0
     );
     onChange({
       reprise_montant: 0,
       reprise_mode: "",
       reprise_activite_id: null,
+      reprise_mixte_eur: 0,
+      reprise_mixte_egp: 0,
       // Reclôture le séjour au total actuel — sert de nouvelle base pour
       // détecter une prochaine activité ajoutée après coup.
       solde_montant: totalSejour,
@@ -1360,7 +1368,13 @@ export function PaiementsStep({
       `Règlement annulé — ${euros(client.reprise_montant)} € jamais perçus`,
       activiteLiee?.nom_activite || ""
     );
-    onChange({ reprise_montant: 0, reprise_mode: "", reprise_activite_id: null });
+    onChange({
+      reprise_montant: 0,
+      reprise_mode: "",
+      reprise_activite_id: null,
+      reprise_mixte_eur: 0,
+      reprise_mixte_egp: 0,
+    });
   };
 
   // Dès que l'acompte + les étapes libres couvrent tout le séjour (avant
@@ -2085,6 +2099,9 @@ export function PaiementsStep({
               <span>
                 ⚠️ En attente de règlement : {euros(client.reprise_montant)} € (nouvelle activité) —{" "}
                 {client.reprise_mode}
+                {client.reprise_mode === "Modes différents"
+                  ? ` (${euros(client.reprise_mixte_eur)} € + ${client.reprise_mixte_egp.toLocaleString("fr-FR")} EGP)`
+                  : ""}
                 {activiteLiee ? ` (à l'activité "${activiteLiee.nom_activite}")` : ""}
               </span>
               <div className="flex shrink-0 gap-2">
@@ -2585,6 +2602,8 @@ export function PaiementsStep({
                       reprise_montant: 0,
                       reprise_mode: "",
                       reprise_activite_id: null,
+                      reprise_mixte_eur: 0,
+                      reprise_mixte_egp: 0,
                     });
                     setShowSoldeCompletPopup(false);
                   }}

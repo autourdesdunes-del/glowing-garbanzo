@@ -312,6 +312,10 @@ const REPRISE_MODE_TO_KEY: Record<string, StatutPaiementKey> = {
   "Carte bleue": "activite_cb",
   PayPal: "attente_paypal",
   "Virement bancaire": "attente",
+  // Mixte €+EGP (reprise_mixte_eur/egp) — même traitement que le solde
+  // mixte (paiementStatutKey plus bas retombe aussi sur "activite_eur"
+  // pour solde_mode "Modes différents", faute de badge dédié).
+  "Modes différents": "activite_eur",
 };
 
 export function paiementBadge(
@@ -552,6 +556,17 @@ export function activitePaiementWarning(
     client.reprise_mode !== "Virement bancaire" &&
     client.reprise_activite_id === r.id
   ) {
+    // Mixte €+EGP (reprise_mixte_eur/egp) — même principe que le solde
+    // mixte plus bas : répartition figée par l'employée, jamais recalculée,
+    // sinon la part EGP due sur cette reprise disparaissait du rappel.
+    if (client.reprise_mode === "Modes différents") {
+      return {
+        amount: client.reprise_mixte_eur,
+        devise: "€",
+        amount2: client.reprise_mixte_egp,
+        devise2: "EGP",
+      };
+    }
     return {
       amount: Number(client.reprise_montant) || 0,
       devise: client.reprise_mode === "Espèces EGP" ? "EGP" : "€",

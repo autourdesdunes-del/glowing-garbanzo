@@ -523,6 +523,12 @@ export type Client = {
   reprise_montant: number;
   reprise_mode: string;
   reprise_activite_id: string | null;
+  // Répartition réelle quand reprise_mode = "Modes différents" (paiement
+  // mixte €+EGP) — même principe que solde_mixte_eur/solde_mixte_egp,
+  // reprise_montant reste le total dû en € indépendamment de ces deux
+  // champs (voir migration 0128).
+  reprise_mixte_eur: number;
+  reprise_mixte_egp: number;
   egp_taux: number;
   egp_montant: number;
   // Paiement "mixte" du solde à l'activité (une partie en €, une partie en
@@ -677,6 +683,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   reprise_montant: 0,
   reprise_mode: "",
   reprise_activite_id: null,
+  reprise_mixte_eur: 0,
+  reprise_mixte_egp: 0,
   egp_taux: 0,
   egp_montant: 0,
   solde_mixte_eur: 0,

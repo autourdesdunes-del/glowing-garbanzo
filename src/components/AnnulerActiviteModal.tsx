@@ -272,7 +272,13 @@ export default function AnnulerActiviteModal({
               solde_mode: "Espèces EUR",
               solde_montant: 0,
             }
-          : { reprise_montant: 0, reprise_activite_id: null, reprise_mode: "" }
+          : {
+              reprise_montant: 0,
+              reprise_activite_id: null,
+              reprise_mode: "",
+              reprise_mixte_eur: 0,
+              reprise_mixte_egp: 0,
+            }
       );
     } else if (reglementIci && reglementChoix === "deplacer") {
       // Le solde n'est jamais un montant saisi à la main (toujours recalculé
@@ -289,7 +295,17 @@ export default function AnnulerActiviteModal({
       onUpdateClient?.(
         reglementIci.type === "solde"
           ? { solde_activite_id: null, solde_mode: reglementModeAutre }
-          : { reprise_activite_id: null, reprise_mode: reglementModeAutre, reprise_montant: reglementMontant }
+          : {
+              reprise_activite_id: null,
+              reprise_mode: reglementModeAutre,
+              reprise_montant: reglementMontant,
+              // reglementModeAutre vient d'un sélecteur MODES_PAIEMENT
+              // classique (jamais "Modes différents") — toujours reset pour
+              // ne pas laisser une ancienne répartition €+EGP traîner sur
+              // un mode redevenu simple.
+              reprise_mixte_eur: 0,
+              reprise_mixte_egp: 0,
+            }
       );
     }
 

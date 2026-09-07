@@ -157,7 +157,13 @@ export default function AnnulerClientModal({
           }
         : {}),
       ...(client.reprise_activite_id && idsAnnules.has(client.reprise_activite_id)
-        ? { reprise_montant: 0, reprise_activite_id: null, reprise_mode: "" }
+        ? {
+            reprise_montant: 0,
+            reprise_activite_id: null,
+            reprise_mode: "",
+            reprise_mixte_eur: 0,
+            reprise_mixte_egp: 0,
+          }
         : {}),
     };
     onUpdateClient(patchClient);

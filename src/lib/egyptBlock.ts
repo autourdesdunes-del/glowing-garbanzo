@@ -267,10 +267,17 @@ export function buildEgyptActivityBlock(
     client.reprise_mode !== "Virement bancaire" &&
     client.reprise_activite_id === r.id;
   const modePaiement = repriseIci ? client.reprise_mode : client.solde_mode;
+  // Règlement mixte €+EGP (solde ou reprise) : paiementWarning.amount2 porte
+  // la part EGP — sans ce cas, cette ligne (construite à part, pas via
+  // paiementWarningLabel qui utilise le symbole "€" plutôt que le mot
+  // "euros" utilisé ici) ignorait complètement la part EGP due, comme
+  // c'était déjà le cas pour "reste à payer" avant d'être corrigé ailleurs.
   const paymentLine = paiementWarning
-    ? `Payment : ${euros(paiementWarning.amount)} ${paiementWarning.devise === "EGP" ? "EGP" : "euros"} ${
-        PAYMENT_MODE_EN[modePaiement] || modePaiement
-      } ⚠️⚠️`
+    ? `Payment : ${euros(paiementWarning.amount)} ${paiementWarning.devise === "EGP" ? "EGP" : "euros"}${
+        paiementWarning.amount2 != null
+          ? ` + ${euros(paiementWarning.amount2)} ${paiementWarning.devise2 === "EGP" ? "EGP" : "euros"}`
+          : ""
+      } ${PAYMENT_MODE_EN[modePaiement] || modePaiement} ⚠️⚠️`
     : "";
 
   // Même étape que celle utilisée juste au-dessus pour le nom de l'hôtel

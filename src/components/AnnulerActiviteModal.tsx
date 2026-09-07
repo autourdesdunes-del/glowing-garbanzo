@@ -136,6 +136,11 @@ export default function AnnulerActiviteModal({
   // l'agence n'a jamais reçu — bloque explicitement plutôt que de laisser
   // confirmer silencieusement une erreur de saisie.
   const montantSansPaiement = !dejaPayee && montant > 0;
+  // Plafond du champ modifiable ci-dessous : jamais plus que le prix de
+  // l'activité moins la part déjà couverte par un avoir (restituée à part,
+  // voir avoirDejaUtilise) — rien n'empêchait avant de saisir un montant
+  // supérieur à ce qui a été réellement encaissé pour cette activité.
+  const montantMax = Math.max(montantTotal - avoirDejaUtilise, 0);
 
   // Le solde (unique par séjour) ou un règlement de reprise (activité
   // ajoutée après coup, voir reprise_*) peuvent être rattachés pile à
@@ -507,7 +512,8 @@ export default function AnnulerActiviteModal({
             <input
               type="number"
               value={montant}
-              onChange={(e) => setMontant(Number(e.target.value) || 0)}
+              max={montantMax}
+              onChange={(e) => setMontant(Math.min(Math.max(Number(e.target.value) || 0, 0), montantMax))}
               className={`input mb-2 max-w-[160px] ${montantSansPaiement ? "border-red-300 focus:border-red-400" : ""}`}
             />
             {montantSansPaiement && (

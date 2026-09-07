@@ -23,6 +23,7 @@ export default function AddPackModal({
   onAddReservation,
   onUpdateReservation,
   onClose,
+  onAdded,
 }: {
   catalogue: CatalogueItem[];
   packs: Pack[];
@@ -32,6 +33,11 @@ export default function AddPackModal({
   onAddReservation: (opts?: { skipAvoirPrompt?: boolean }) => Promise<string | null>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onClose: () => void;
+  // Appelé uniquement quand le pack a bien été ajouté (jamais sur un
+  // simple "Annuler"/✕) — permet au parent de proposer la reprise de
+  // paiement si le séjour était déjà soldé (voir checkRepriseApresAjout,
+  // ClientDetail.tsx), comme le fait déjà "+ Ajouter une activité".
+  onAdded?: () => void;
 }) {
   const toast = useToast();
   const [packId, setPackId] = useState<string | null>(null);
@@ -174,6 +180,7 @@ export default function AddPackModal({
       setTaxeAlerte({ nbActivites: nbActivitesAvecTaxe, montantParActivite: 0, note: taxe.note });
     } else {
       onClose();
+      onAdded?.();
     }
   };
 
@@ -332,7 +339,10 @@ export default function AddPackModal({
           )}
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => {
+              onClose();
+              onAdded?.();
+            }}
             className="mt-4 w-full rounded-md bg-red-700 py-2 text-sm font-medium text-white hover:opacity-90"
           >
             J&apos;ai compris

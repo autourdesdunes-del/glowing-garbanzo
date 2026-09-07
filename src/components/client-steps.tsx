@@ -1043,6 +1043,7 @@ export function ActivitesStep({
           onAddReservation={onAddReservation}
           onUpdateReservation={onUpdateReservation}
           onClose={() => setAddingPack(false)}
+          onAdded={onActivityFinished}
         />
       )}
 

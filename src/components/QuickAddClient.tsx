@@ -308,6 +308,16 @@ export default function QuickAddClient({
       .eq("id", user.id)
       .single();
     const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    // Même garde-fou que ClientDetail.tsx : revenir en arrière dans ce
+    // pas-à-pas puis re-cliquer réinsérerait sinon une demande identique.
+    const { data: existante } = await supabase
+      .from("assouan_verifications")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("reservation_id", reservationId)
+      .eq("statut", "en_attente")
+      .limit(1);
+    if (existante && existante.length > 0) return;
     await supabase.from("assouan_verifications").insert({
       client_id: clientId,
       client_nom: answers.nom || "",
@@ -336,6 +346,17 @@ export default function QuickAddClient({
       .eq("id", user.id)
       .single();
     const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    // Même garde-fou que ClientDetail.tsx : revenir en arrière dans ce
+    // pas-à-pas puis redemander l'autorisation réinsérerait sinon une
+    // demande identique.
+    const { data: existante } = await supabase
+      .from("jour_escalations")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("reservation_id", reservationId)
+      .eq("statut", "en_attente")
+      .limit(1);
+    if (existante && existante.length > 0) return;
     await supabase.from("jour_escalations").insert({
       client_id: clientId,
       client_nom: answers.nom || "",

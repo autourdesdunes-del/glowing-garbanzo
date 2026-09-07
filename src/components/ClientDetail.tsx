@@ -268,6 +268,18 @@ export default function ClientDetail({
       .eq("id", user.id)
       .single();
     const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    // Même garde-fou que handleAcompteAlerte : sans lui, rouvrir l'édition
+    // de cette activité et recliquer "Confirmer l'info" réinsère une
+    // demande identique à chaque passage, empilée dans "Autorisations en
+    // attente" pour un seul vrai signalement.
+    const { data: existante } = await supabase
+      .from("assouan_verifications")
+      .select("id")
+      .eq("client_id", client.id)
+      .eq("reservation_id", reservationId)
+      .eq("statut", "en_attente")
+      .limit(1);
+    if (existante && existante.length > 0) return;
     await supabase.from("assouan_verifications").insert({
       client_id: client.id,
       client_nom: client.nom,
@@ -329,6 +341,18 @@ export default function ClientDetail({
       .eq("id", user.id)
       .single();
     const employeNom = prof?.prenom || (prof?.email || "").split("@")[0] || "Quelqu'un de l'équipe";
+    // Même garde-fou que handleAcompteAlerte/handleAssouanVerification :
+    // rouvrir l'édition de cette activité (ex. depuis ItineraryView) et
+    // redemander l'autorisation sur la même date réinsérerait sinon une
+    // demande identique à chaque passage.
+    const { data: existante } = await supabase
+      .from("jour_escalations")
+      .select("id")
+      .eq("client_id", client.id)
+      .eq("reservation_id", reservationId)
+      .eq("statut", "en_attente")
+      .limit(1);
+    if (existante && existante.length > 0) return;
     await supabase.from("jour_escalations").insert({
       client_id: client.id,
       client_nom: client.nom,

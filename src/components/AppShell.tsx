@@ -37,6 +37,7 @@ import {
 import {
   remboursementImpact,
   reservationsActives,
+  reservationsVendues,
   resaTotalMontant,
   sharedActivityAlerts,
   SharedActivityAlert,
@@ -1987,10 +1988,12 @@ function AppShellInner({
 
   const { topVenteIds, topRentabiliteIds } = useMemo(() => {
     const byItem: Record<string, { total: number; marge: number }> = {};
-    // Une activité annulée ne doit jamais peser dans le classement "top
-    // ventes"/"top rentabilité" du catalogue — sinon un gros forfait annulé
-    // peut faire passer une activité pour un best-seller qu'elle n'est pas.
-    reservationsActives(allReservations).forEach((r) => {
+    // Une activité annulée ou encore en Brouillon (prix pas finalisé) ne
+    // doit jamais peser dans le classement "top ventes"/"top rentabilité"
+    // du catalogue — reservationsVendues, jamais reservationsActives, pour
+    // un calcul de CA/marge/vente (voir le commentaire sur cette fonction,
+    // resa.ts).
+    reservationsVendues(allReservations).forEach((r) => {
       if (!r.catalogue_item_id) return;
       const client = clients.find((c) => c.id === r.client_id);
       if (!client) return;

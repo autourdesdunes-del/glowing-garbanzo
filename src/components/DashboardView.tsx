@@ -15,7 +15,14 @@ import {
   ReservationTarif,
   UserShift,
 } from "@/lib/types";
-import { cleanActivityTitle, missingChampsFor, paxSummary, resaTotalMontant, reservationsActives } from "@/lib/resa";
+import {
+  cleanActivityTitle,
+  missingChampsFor,
+  paxSummary,
+  resaTotalMontant,
+  reservationsActives,
+  reservationsVendues,
+} from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
@@ -452,9 +459,11 @@ export default function DashboardView({
     byStatut[c.statut] = (byStatut[c.statut] || 0) + 1;
   });
 
+  // reservationsVendues, jamais reservationsActives : une activité encore
+  // en Brouillon (prix pas finalisé) ne doit jamais gonfler le CA affiché
+  // à la Direction (voir le commentaire sur cette fonction, resa.ts).
   const caTotal = isDirection
-    ? reservations
-        .filter((r) => r.statut_resa !== "Annulée")
+    ? reservationsVendues(reservations)
         .reduce(
         (s, r) =>
           s +

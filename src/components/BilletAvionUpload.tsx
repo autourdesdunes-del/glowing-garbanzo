@@ -40,7 +40,6 @@ export default function BilletAvionUpload({
     }
     setUploading(true);
     const supabase = createClient();
-    if (path) await supabase.storage.from(BUCKET).remove([path]);
     const ext = file.name.split(".").pop();
     const newPath = `${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from(BUCKET).upload(newPath, file);
@@ -49,6 +48,10 @@ export default function BilletAvionUpload({
       toast("Échec de l'envoi du billet.");
       return;
     }
+    // Ne retirer l'ancien fichier qu'une fois le nouveau bien envoyé —
+    // sinon un échec réseau sur l'upload laissait la fiche pointer sur un
+    // fichier déjà supprimé.
+    if (path) await supabase.storage.from(BUCKET).remove([path]);
     onChange(newPath);
   }
 

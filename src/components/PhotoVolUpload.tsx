@@ -39,7 +39,6 @@ export default function PhotoVolUpload({
     }
     setUploading(true);
     const supabase = createClient();
-    if (path) await supabase.storage.from(BUCKET).remove([path]);
     const ext = file.name.split(".").pop();
     const newPath = `${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from(BUCKET).upload(newPath, file);
@@ -48,6 +47,10 @@ export default function PhotoVolUpload({
       toast("Échec de l'envoi de la photo.");
       return;
     }
+    // Ne retirer l'ancienne photo qu'une fois la nouvelle bien envoyée —
+    // dans l'autre ordre, un échec réseau sur l'upload laissait la fiche
+    // pointer sur un fichier déjà supprimé (photo perdue pour de bon).
+    if (path) await supabase.storage.from(BUCKET).remove([path]);
     onChange(newPath);
   }
 

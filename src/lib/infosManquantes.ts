@@ -40,21 +40,39 @@ export function infosManquantesAuto(
   // permanente. Ne compte comme vraiment manquant qu'à la veille ou le
   // jour même de l'arrivée, quand il devient urgent de l'avoir — et
   // seulement pour un hôtel à Hurghada/région (voir VILLES_CHAMBRE_NON_REQUISE).
-  const hotelMatch = matchHotel(client.hotel, hotelsRef);
-  const chambreRequisePourCetteVille = !hotelMatch || !VILLES_CHAMBRE_NON_REQUISE.includes(hotelMatch.ville);
-  // Pour un Airbnb, le numéro de chambre n'existe pas — c'est le numéro
-  // d'appartement (airbnb_appartement) qui joue ce rôle. Sans ce cas
-  // particulier, "Room number" restait signalé manquant indéfiniment dès
-  // qu'un client passait en Airbnb, même une fois l'appartement renseigné.
-  const numeroLogementRempli =
-    client.type_hebergement === "airbnb" ? !!client.airbnb_appartement.trim() : !!client.chambre.trim();
-  if (
-    chambreRequisePourCetteVille &&
-    !numeroLogementRempli &&
-    client.date_debut &&
-    client.date_debut <= addDays(todayStr(), 1)
-  ) {
-    result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
+  if (clientHotels.length > 0) {
+    // Circuit multi-hôtels : client.hotel/client.chambre restent vides par
+    // design (voir plus haut) — sans ce cas à part, chaque étape retombait
+    // sur matchHotel("", ...) => null => "chambre requise", et le numéro
+    // renseigné par étape (client_hotels.chambre) n'était jamais regardé,
+    // signalant "Room number" manquant en permanence dès qu'un circuit
+    // était en place, même une fois tout renseigné.
+    const seuil = addDays(todayStr(), 1);
+    const etapeSansChambre = clientHotels.some(
+      (h) =>
+        !VILLES_CHAMBRE_NON_REQUISE.some((v) => v.trim().toLowerCase() === h.ville.trim().toLowerCase()) &&
+        !h.chambre.trim() &&
+        h.date_arrivee &&
+        h.date_arrivee <= seuil
+    );
+    if (etapeSansChambre) result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
+  } else {
+    const hotelMatch = matchHotel(client.hotel, hotelsRef);
+    const chambreRequisePourCetteVille = !hotelMatch || !VILLES_CHAMBRE_NON_REQUISE.includes(hotelMatch.ville);
+    // Pour un Airbnb, le numéro de chambre n'existe pas — c'est le numéro
+    // d'appartement (airbnb_appartement) qui joue ce rôle. Sans ce cas
+    // particulier, "Room number" restait signalé manquant indéfiniment dès
+    // qu'un client passait en Airbnb, même une fois l'appartement renseigné.
+    const numeroLogementRempli =
+      client.type_hebergement === "airbnb" ? !!client.airbnb_appartement.trim() : !!client.chambre.trim();
+    if (
+      chambreRequisePourCetteVille &&
+      !numeroLogementRempli &&
+      client.date_debut &&
+      client.date_debut <= addDays(todayStr(), 1)
+    ) {
+      result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
+    }
   }
   if (!client.telephone.trim()) result.push(INFO_MANQUANTE_AUTO_WHATSAPP);
   // Signalé tant qu'aucun acompte n'est réglé — y compris avant que le mode

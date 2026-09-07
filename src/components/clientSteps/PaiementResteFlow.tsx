@@ -110,6 +110,7 @@ export const INTEGRAL_MODES = [
   { key: "rdv", label: "Rendez-vous paiement planifié", className: "border-blue-300 bg-blue-50 text-blue-700" },
   { key: "activite_eur", label: "Paiement à la première activité en €", className: "border-orange-300 bg-orange-50 text-orange-700" },
   { key: "activite_egp", label: "Paiement à la première activité en EGP", className: "border-orange-300 bg-orange-50 text-orange-700" },
+  { key: "activite_mixte", label: "Paiement à la première activité — € + EGP", className: "border-orange-300 bg-orange-50 text-orange-700" },
   { key: "paypal", label: "Paiement via PayPal", className: "border-orange-300 bg-orange-50 text-orange-700" },
   { key: "virement", label: "Paiement par virement bancaire", className: "border-orange-300 bg-orange-50 text-orange-700" },
   { key: "cb", label: "Paiement par CB", className: "border-orange-300 bg-orange-50 text-orange-700" },
@@ -120,6 +121,9 @@ const RDV_MODES = ["Carte bleue", "Espèces EUR", "Espèces EGP"] as const;
 const INTEGRAL_MODE_SOLDE_MODE: Record<string, string> = {
   activite_eur: "Espèces EUR",
   activite_egp: "Espèces EGP",
+  // Déjà géré par paiementStatutKey (resa.ts) → badge "Payé - modes
+  // différents", pas besoin d'une nouvelle clé de statut dédiée.
+  activite_mixte: "Modes différents",
   paypal: "PayPal",
   virement: "Virement bancaire",
   cb: "Carte bleue",
@@ -171,6 +175,13 @@ export function PaiementResteFlow({
   const montantAttenduReel = montantActiviteAttenduReel ?? montantACouvrir;
   const [showActivityPicker, setShowActivityPicker] = useState(false);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
+  // Répartition € + EGP saisie librement par l'employée (montants
+  // indépendants, pas liés par un taux) — le taux n'est ici affiché qu'à
+  // titre indicatif pour comparer au total attendu, jamais utilisé pour
+  // recalculer l'un des deux montants à la place de l'autre.
+  const [mixteModal, setMixteModal] = useState<{ r: Reservation; eur: string; egp: string; rate: number } | null>(
+    null
+  );
   // "Marquer encaissé" demande la date où le client a réellement payé —
   // souvent pas le jour où l'employée clique (elle rattrape parfois un
   // paiement de plusieurs jours plus tôt) — plutôt que de figer todayStr()
@@ -296,6 +307,12 @@ export function PaiementResteFlow({
     setShowActivityPicker(false);
     if (key === "activite_egp") {
       getEurToEgpRate().then((rate) => setEgpModal({ r, rate: rate || client.egp_taux || 0 }));
+    } else if (key === "activite_mixte") {
+      // Pré-rempli avec tout le montant en € et rien en EGP — l'employée
+      // ajuste ensuite librement la répartition réelle (voir mixteModal).
+      getEurToEgpRate().then((rate) =>
+        setMixteModal({ r, eur: String(montantACouvrir), egp: "0", rate: rate || client.egp_taux || 0 })
+      );
     } else {
       onChange({
         solde_activite_id: r.id,
@@ -350,11 +367,13 @@ export function PaiementResteFlow({
                   solde_rdv_lieu: "",
                   solde_rdv_valide: false,
                   solde_activite_id: null,
+                  solde_mixte_eur: 0,
+                  solde_mixte_egp: 0,
                 });
                 setShowActivityPicker(false);
                 return;
               }
-              if (m.key === "activite_eur" || m.key === "activite_egp") {
+              if (m.key === "activite_eur" || m.key === "activite_egp" || m.key === "activite_mixte") {
                 selectActiviteMode(m.key);
               } else {
                 onChange({
@@ -596,10 +615,12 @@ export function PaiementResteFlow({
         })()}
 
       {(client.paiement_integral_mode === "activite_eur" ||
-        client.paiement_integral_mode === "activite_egp") &&
+        client.paiement_integral_mode === "activite_egp" ||
+        client.paiement_integral_mode === "activite_mixte") &&
         (() => {
           const modeInfo = INTEGRAL_MODES.find((m) => m.key === client.paiement_integral_mode)!;
-          const soldeMode = client.paiement_integral_mode === "activite_egp" ? "Espèces EGP" : "Espèces EUR";
+          const soldeMode = INTEGRAL_MODE_SOLDE_MODE[client.paiement_integral_mode];
+          const estMixte = client.paiement_integral_mode === "activite_mixte";
           const chosenResa = reservations.find((r) => r.id === client.solde_activite_id) || null;
 
           if (showActivityPicker || (!client.solde_rdv_valide && !chosenResa)) {
@@ -641,10 +662,37 @@ export function PaiementResteFlow({
                     {fmtDateDMY(chosenResa.date_debut)})
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
-                      {soldeMode}
-                    </span>
+                    {estMixte ? (
+                      <>
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                          {euros(client.solde_mixte_eur)} € cash
+                        </span>
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                          {client.solde_mixte_egp.toLocaleString("fr-FR")} EGP cash
+                        </span>
+                      </>
+                    ) : (
+                      <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                        {soldeMode}
+                      </span>
+                    )}
                   </div>
+                  {estMixte && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMixteModal({
+                          r: chosenResa,
+                          eur: String(client.solde_mixte_eur),
+                          egp: String(client.solde_mixte_egp),
+                          rate: client.egp_taux || 0,
+                        })
+                      }
+                      className="mt-1 text-xs font-medium text-neutral-500 underline hover:text-neutral-700"
+                    >
+                      Modifier la répartition
+                    </button>
+                  )}
                   <EcartAcompteLine
                     reel={montantAttenduReel}
                     prevu={montantAttenduPrevu}
@@ -673,7 +721,11 @@ export function PaiementResteFlow({
                         activiteId: chosenResa.id,
                       })
                     }
-                    marquerLabel={`${euros(montantACouvrir)} € encaissés ici`}
+                    marquerLabel={
+                      estMixte
+                        ? `${euros(client.solde_mixte_eur)} € + ${client.solde_mixte_egp.toLocaleString("fr-FR")} EGP encaissés ici`
+                        : `${euros(montantACouvrir)} € encaissés ici`
+                    }
                   />
                   {isDirection && (
                     <button
@@ -934,6 +986,89 @@ export function PaiementResteFlow({
           </div>
         </div>
       )}
+
+      {mixteModal &&
+        (() => {
+          const eurVal = Number(mixteModal.eur) || 0;
+          const egpVal = Number(mixteModal.egp) || 0;
+          // Simple repère de cohérence (pas bloquant) : le montant en EGP
+          // ramené en € au taux du jour, ajouté à la part en €, devrait
+          // retomber proche du total attendu — sans jamais l'imposer, la
+          // répartition réelle décidée avec le client prime toujours sur
+          // n'importe quelle estimation automatique.
+          const equivalentEur = eurVal + (mixteModal.rate > 0 ? egpVal / mixteModal.rate : 0);
+          const ecartSignificatif = Math.abs(equivalentEur - montantACouvrir) > 1;
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+              <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+                <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+                  Répartition € + EGP
+                </h2>
+                <p className="mb-4 text-sm text-neutral-600">
+                  Total du séjour à couvrir : <strong>{euros(montantACouvrir)} €</strong>. Indique
+                  combien le client réglera dans chaque devise à cette activité.
+                </p>
+                <div className="mb-3 grid grid-cols-2 gap-3">
+                  <Field label="Montant en € (cash)">
+                    <input
+                      type="number"
+                      value={mixteModal.eur}
+                      onChange={(e) => setMixteModal({ ...mixteModal, eur: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                  <Field label="Montant en EGP (cash)">
+                    <input
+                      type="number"
+                      value={mixteModal.egp}
+                      onChange={(e) => setMixteModal({ ...mixteModal, egp: e.target.value })}
+                      className="input"
+                    />
+                  </Field>
+                </div>
+                <Field label="Taux du jour (1€ =), pour info">
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={mixteModal.rate}
+                    onChange={(e) => setMixteModal({ ...mixteModal, rate: Number(e.target.value) })}
+                    className="input max-w-[140px]"
+                  />
+                </Field>
+                <p className={`mt-2 text-xs ${ecartSignificatif ? "font-medium text-orange-600" : "text-neutral-500"}`}>
+                  Soit l&apos;équivalent de {euros(Math.round(equivalentEur * 100) / 100)} € au taux
+                  ci-dessus{ecartSignificatif ? ` — écart avec le total attendu (${euros(montantACouvrir)} €)` : ""}.
+                </p>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      onChange({
+                        solde_activite_id: mixteModal.r.id,
+                        solde_mode: "Modes différents",
+                        solde_rdv_valide: true,
+                        solde_mixte_eur: eurVal,
+                        solde_mixte_egp: egpVal,
+                        egp_taux: mixteModal.rate,
+                        solde_rdv_heure: "",
+                        solde_rdv_lieu: "",
+                      });
+                      setMixteModal(null);
+                    }}
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    Valider
+                  </button>
+                  <button
+                    onClick={() => setMixteModal(null)}
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
     </div>
   );
 }

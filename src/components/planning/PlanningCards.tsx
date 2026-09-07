@@ -21,6 +21,7 @@ import {
   optionsBadge,
   packBadge,
   paiementBadge,
+  paiementWarningLabel,
   participantsFor,
   paxLine,
   pointureBadge,
@@ -218,7 +219,7 @@ export function ReservationSummaryCard({
         {(paiementWarning || (!infoComplet && infoStatut)) && (
           <p className="mt-1.5 text-xs font-medium leading-tight text-red-600">
             {paiementWarning
-              ? `⚠️ ${euros(paiementWarning.amount)} ${paiementWarning.devise} to pay`
+              ? `⚠️ ${paiementWarningLabel(paiementWarning, euros)} to pay`
               : `⚠️ ${infoStatut}`}
           </p>
         )}
@@ -290,7 +291,7 @@ export function ReservationSummaryCard({
         {(paiementWarning || (!infoComplet && infoStatut)) && (
           <p className="mt-1 text-[10px] font-medium text-red-600">
             {paiementWarning
-              ? `⚠️ ${euros(paiementWarning.amount)} ${paiementWarning.devise}`
+              ? `⚠️ ${paiementWarningLabel(paiementWarning, euros)}`
               : `⚠️ ${infoStatut}`}
           </p>
         )}
@@ -389,7 +390,7 @@ export function ReservationSummaryCard({
         )}
         {paiementWarning && (
           <span className="text-xs font-medium text-red-600">
-            ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+            ⚠️ {paiementWarningLabel(paiementWarning, euros)} to pay to activity
           </span>
         )}
       </div>

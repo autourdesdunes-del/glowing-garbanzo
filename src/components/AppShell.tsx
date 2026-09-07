@@ -968,11 +968,26 @@ function AppShellInner({
       setPacks((packsData as Pack[]) || []);
 
       if (freshClients) {
-        setClients(
-          (freshClients as Client[]).map((c) =>
-            pendingPatches.current[c.id] ? { ...c, ...pendingPatches.current[c.id] } : c
-          )
+        const list = (freshClients as Client[]).map((c) =>
+          pendingPatches.current[c.id] ? { ...c, ...pendingPatches.current[c.id] } : c
         );
+        // Même protection que allReservations juste plus bas : ce SELECT
+        // tourne sur le même minuteur 25s indépendant — un client tout
+        // juste créé (addClient fait un setClients optimiste juste après
+        // l'insert Supabase) peut ne pas encore apparaître dans `list` si
+        // la requête est partie juste avant. Sans ce filet, il disparaît
+        // quelques secondes de la liste et l'employée peut recliquer
+        // "Ajouter", créant un vrai doublon en base.
+        const nowClients = Date.now();
+        setClients((prev) => {
+          const fetchedIds = new Set(list.map((c) => c.id));
+          const recentLocalOnly = prev.filter((c) => {
+            if (fetchedIds.has(c.id)) return false;
+            const createdAt = c.created_at ? new Date(c.created_at).getTime() : 0;
+            return nowClients - createdAt < 60000;
+          });
+          return [...list, ...recentLocalOnly];
+        });
       }
       if (cat) setCatalogue(cat as CatalogueItem[]);
       const groupedCatTarifs: Record<string, CatalogueTarif[]> = {};

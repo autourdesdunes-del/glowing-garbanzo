@@ -111,7 +111,12 @@ export default function RecapMoisView({
       const agg = map[nom];
       agg.reservationsCount += 1;
       let pax = 0;
-      let warning: { amount: number; devise: "€" | "EGP" } | null = null;
+      let warning: {
+        amount: number;
+        devise: "€" | "EGP";
+        amount2?: number;
+        devise2?: "€" | "EGP";
+      } | null = null;
       if (client) {
         const { nbAd, nbEnf, nbAcc, nbEnf3 } = participantsFor(r, client);
         pax = nbAd + nbEnf + nbAcc + nbEnf3;
@@ -128,6 +133,13 @@ export default function RecapMoisView({
       if (warning) {
         if (warning.devise === "EGP") agg.montantEgp += warning.amount;
         else agg.montantEur += warning.amount;
+        // Règlement mixte (activite_mixte) : le montant EGP est porté par
+        // amount2/devise2 plutôt que par le champ principal — sans cette
+        // ligne, la part EGP d'un mixte disparaissait entièrement du récap.
+        if (warning.amount2 != null) {
+          if (warning.devise2 === "EGP") agg.montantEgp += warning.amount2;
+          else agg.montantEur += warning.amount2;
+        }
       }
       agg.details.push({
         clientNom: client?.nom || "—",

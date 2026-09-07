@@ -105,7 +105,11 @@ function ConfirmationTemplate({
   hotelVille?: string;
   qrDataUrl?: string | null;
 }) {
+  // Un bon de confirmation envoyé au client ne doit jamais lister une
+  // activité encore en Brouillon (prix/détails pas finalisés) comme si elle
+  // était réservée — même filtre que la facture (generateClientDocument.ts).
   const actives = reservationsActives(reservations)
+    .filter((r) => r.statut_resa === "Confirmée")
     .filter((r) => r.date_debut)
     .slice()
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));

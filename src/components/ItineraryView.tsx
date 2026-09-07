@@ -34,6 +34,7 @@ import {
   paiementStatutKey,
   pointureBadge,
   packBadge,
+  paiementWarningLabel,
   siteCaireBadge,
   taxeTransfertManquante,
   volBadge,
@@ -380,7 +381,7 @@ export default function ItineraryView({
           )}
           {paiementWarning && (
             <span className="text-xs font-medium text-red-600">
-              ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+              ⚠️ {paiementWarningLabel(paiementWarning, euros)} to pay to activity
             </span>
           )}
           {r.avoir_utilise > 0 && (

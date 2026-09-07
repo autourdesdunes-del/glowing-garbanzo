@@ -530,7 +530,7 @@ export function activitePaiementWarning(
   resaOptions: Record<string, ReservationOption[]>,
   resaTarifs: Record<string, ReservationTarif[]>,
   etapes: PaiementEtape[] = []
-): { amount: number; devise: "€" | "EGP" } | null {
+): { amount: number; devise: "€" | "EGP"; amount2?: number; devise2?: "€" | "EGP" } | null {
   // Reprise réglée en espèces/CB/EGP : prioritaire sur le solde d'origine,
   // déjà "payé" par ailleurs (règle du solde unique — voir
   // repriseActiviteCible) — affichée avec le même rappel que le point de
@@ -554,8 +554,22 @@ export function activitePaiementWarning(
     // conversion — jamais recalculé silencieusement à l'affichage.
     return { amount: client.egp_montant, devise: "EGP" };
   }
+  if (estCollecte && client.paiement_integral_mode === "activite_mixte") {
+    // Même principe que activite_egp ci-dessus : répartition €/EGP figée
+    // par l'employée (mixteModal dans PaiementResteFlow.tsx), jamais
+    // recalculée. Sans cette branche, le mode mixte retombait dans le
+    // calcul générique tout-€ plus bas, qui ignore la part EGP — l'équipe
+    // sur le terrain ne savait alors pas qu'une partie était due en EGP.
+    return {
+      amount: client.solde_mixte_eur,
+      devise: "€",
+      amount2: client.solde_mixte_egp,
+      devise2: "EGP",
+    };
+  }
   if (!estCollecte) {
     if (client.paiement_integral_mode === "activite_egp") return null;
+    if (client.paiement_integral_mode === "activite_mixte") return null;
     const collecte = reservations.find((rr) => rr.id === client.solde_activite_id);
     const collecteDepassee = !!collecte?.date_debut && collecte.date_debut < todayStr();
     if (!collecteDepassee) return null;
@@ -579,6 +593,19 @@ export function activitePaiementWarning(
     0
   );
   return { amount, devise: "€" };
+}
+
+// Texte "montant devise" (ou "montant devise + montant2 devise2" pour un
+// règlement mixte) à afficher pour un activitePaiementWarning — factorisé
+// ici pour que les 5 endroits qui l'affichent (ItineraryView, PlanningCards,
+// SuivisRows, RecapMoisView...) ne dupliquent jamais la logique du cas
+// mixte €+EGP et ne l'oublient donc plus une deuxième fois.
+export function paiementWarningLabel(
+  w: { amount: number; devise: "€" | "EGP"; amount2?: number; devise2?: "€" | "EGP" },
+  euros: (n: number) => string
+): string {
+  const base = `${euros(w.amount)} ${w.devise}`;
+  return w.amount2 != null ? `${base} + ${euros(w.amount2)} ${w.devise2}` : base;
 }
 
 // Acompte pas encore encaissé : signalé sur la toute première activité

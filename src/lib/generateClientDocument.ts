@@ -382,9 +382,18 @@ export function generateClientDocument(
   // ce champ soit remis à zéro), donc on ne l'affiche jamais dans ce cas.
   // Rien à ajouter si les étapes/avoir ont déjà tout couvert.
   if (soldeApresEtapes > 0 || (etapesClient.length === 0 && avoirUtilise === 0)) {
+    // Un solde encaissé en mixte €+EGP (client.solde_mode = "Modes
+    // différents") ne dit rien de la répartition réelle si on se contente
+    // du libellé générique — la facture affichait alors juste "encaissé
+    // (Modes différents)" sans jamais mentionner solde_mixte_eur/
+    // solde_mixte_egp, alors que ces montants existent déjà sur le client.
+    const detailMixte =
+      client.solde_paye && client.solde_mode === "Modes différents" && client.solde_mixte_egp > 0
+        ? ` (${euros(client.solde_mixte_eur)} € + ${client.solde_mixte_egp.toLocaleString("fr-FR")} EGP)`
+        : "";
     conditions.push(
       client.solde_paye
-        ? `${euros(soldeApresEtapes)} encaissé${client.solde_mode ? ` (${client.solde_mode})` : ""}${client.solde_date ? ` le ${fmtDate(client.solde_date)}` : ""}`
+        ? `${euros(soldeApresEtapes)} encaissé${client.solde_mode ? ` (${client.solde_mode})` : ""}${detailMixte}${client.solde_date ? ` le ${fmtDate(client.solde_date)}` : ""}`
         : `${euros(soldeApresEtapes)} à payer`
     );
   }

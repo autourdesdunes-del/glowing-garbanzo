@@ -167,6 +167,10 @@ export const PAYMENT_MODE_EN: Record<string, string> = {
   "Carte bleue": "card",
   "Virement bancaire": "bank transfer",
   PayPal: "PayPal",
+  // Solde réglé en mixte €+EGP (client.solde_mixte_eur/solde_mixte_egp) —
+  // sans cette entrée, "Modes différents" passait tel quel, en français, au
+  // milieu d'un message sinon entièrement en anglais.
+  "Modes différents": "cash (mixed EUR + EGP)",
 };
 
 // Le bloc complet : date, nom traduit, options/moment/spécificités, puis les

@@ -20,6 +20,7 @@ import {
   hossamBilletMessage,
   isLeCaireEnAvion,
   missingChampsFor,
+  paiementWarningLabel,
   participantsFor,
 } from "@/lib/resa";
 import { BILLET_ETAPES, VILLES_VOL } from "@/lib/constants";
@@ -565,7 +566,7 @@ export function PickupActivityCard({
         )}
         {paiementWarning && (
           <span className="text-xs font-medium text-red-600">
-            ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+            ⚠️ {paiementWarningLabel(paiementWarning, euros)} to pay to activity
           </span>
         )}
       </div>

@@ -704,9 +704,13 @@ export default function ItineraryView({
                 )}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!window.confirm("Supprimer cette activité ? Cette action est irréversible.")) return;
-                    onDeleteReservation(expandedReservation.id);
+                  onClick={async () => {
+                    // Pas de window.confirm ici : deleteReservation gère déjà
+                    // sa propre confirmation (et, si un règlement est
+                    // rattaché à cette activité, ouvre un pop-up de
+                    // résolution à la place — un confirm() natif en plus
+                    // bloquait ce second pop-up sans rien y ajouter).
+                    await onDeleteReservation(expandedReservation.id);
                     onToggleExpand(null);
                   }}
                   title="Supprimer définitivement cette activité"

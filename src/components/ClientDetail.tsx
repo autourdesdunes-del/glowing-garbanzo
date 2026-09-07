@@ -1210,6 +1210,7 @@ export default function ClientDetail({
     activiteId: string;
     mixteEur: string;
     mixteEgp: string;
+    mixteRate: number;
   } | null>(null);
   const checkRepriseApresAjout = () => {
     if (!client.solde_paye || client.reprise_montant > 0) return;
@@ -1225,6 +1226,7 @@ export default function ClientDetail({
       activiteId: derniereActivite?.id || "",
       mixteEur: "",
       mixteEgp: "",
+      mixteRate: client.egp_taux || 0,
     });
   };
 
@@ -1255,6 +1257,9 @@ export default function ClientDetail({
       // ancienne répartition €+EGP traîner sur un règlement redevenu simple.
       reprise_mixte_eur: estMixte ? mixteEurVal : 0,
       reprise_mixte_egp: estMixte ? mixteEgpVal : 0,
+      // Mémorise le taux pour la prochaine fois (même principe que
+      // marquerEncaisse pour le solde mixte, PaiementResteFlow.tsx).
+      ...(estMixte && repriseModal.mixteRate > 0 ? { egp_taux: repriseModal.mixteRate } : {}),
     });
     setRepriseModal(null);
   };
@@ -1858,7 +1863,20 @@ export default function ClientDetail({
               <select
                 className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
                 value={repriseModal.mode}
-                onChange={(e) => setRepriseModal({ ...repriseModal, mode: e.target.value })}
+                onChange={(e) => {
+                  const mode = e.target.value;
+                  // Pré-rempli avec tout le montant en € et rien en EGP —
+                  // même principe que le mixteModal du solde
+                  // (PaiementResteFlow.tsx) : l'employée ajuste ensuite
+                  // librement la vraie répartition, mais part d'un état
+                  // cohérent avec le Montant déjà saisi plutôt que de deux
+                  // champs vides sans lien avec lui.
+                  if (mode === "Modes différents" && !repriseModal.mixteEur && !repriseModal.mixteEgp) {
+                    setRepriseModal({ ...repriseModal, mode, mixteEur: repriseModal.montant, mixteEgp: "0" });
+                  } else {
+                    setRepriseModal({ ...repriseModal, mode });
+                  }
+                }}
               >
                 {MODES_PAIEMENT.map((m) => (
                   <option key={m} value={m}>
@@ -1901,6 +1919,44 @@ export default function ClientDetail({
                 </div>
               </div>
             )}
+            {repriseModal.mode === "Modes différents" && (
+              <div className="mb-3">
+                <label className="mb-1 block text-xs font-medium text-neutral-500">
+                  Taux du jour (1€ =), pour info
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full max-w-[140px] rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  value={repriseModal.mixteRate}
+                  onChange={(e) => setRepriseModal({ ...repriseModal, mixteRate: Number(e.target.value) })}
+                />
+              </div>
+            )}
+            {repriseModal.mode === "Modes différents" &&
+              (() => {
+                // Simple repère de cohérence (jamais bloquant, même
+                // principe que le mixteModal du solde) : le Montant du haut
+                // sert de flag "reprise en cours" et de total affiché —
+                // sans ce repère, rien n'avertissait si sa somme s'éloigne
+                // de la vraie répartition €+EGP saisie juste au-dessus.
+                const eurVal = Number(repriseModal.mixteEur) || 0;
+                const egpVal = Number(repriseModal.mixteEgp) || 0;
+                const taux = repriseModal.mixteRate || 0;
+                const equivalentEur = eurVal + (taux > 0 ? egpVal / taux : 0);
+                const montantVal = Number(repriseModal.montant) || 0;
+                const ecartSignificatif = Math.abs(equivalentEur - montantVal) > 1;
+                return (
+                  <p
+                    className={`mb-3 text-xs ${ecartSignificatif ? "font-medium text-orange-600" : "text-neutral-500"}`}
+                  >
+                    Soit l&apos;équivalent de {euros(equivalentEur)} € (taux du jour : {taux || "non renseigné"})
+                    {ecartSignificatif
+                      ? ` — écart avec le Montant saisi en haut (${euros(montantVal)} €).`
+                      : "."}
+                  </p>
+                );
+              })()}
             {repriseModal.mode !== "PayPal" && repriseModal.mode !== "Virement bancaire" && (
               <div className="mb-4">
                 <label className="mb-1 block text-xs font-medium text-neutral-500">

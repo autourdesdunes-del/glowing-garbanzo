@@ -289,7 +289,18 @@ export default function AnnulerActiviteModal({
       onUpdateClient?.(
         reglementIci.type === "solde"
           ? { solde_activite_id: reglementCibleId }
-          : { reprise_activite_id: reglementCibleId, reprise_montant: reglementMontant }
+          : // reprise_mixte_eur/egp toujours remis à 0 ici : ce pop-up ne
+            // permet pas de resaisir la répartition €+EGP, seulement le
+            // montant total — les garder alors que reglementMontant change
+            // laisserait une ancienne répartition, périmée, continuer à
+            // s'afficher (bloc Égypte, bandeau) comme si elle était encore
+            // exacte.
+            {
+              reprise_activite_id: reglementCibleId,
+              reprise_montant: reglementMontant,
+              reprise_mixte_eur: 0,
+              reprise_mixte_egp: 0,
+            }
       );
     } else if (reglementIci && reglementChoix === "autre_moyen") {
       onUpdateClient?.(

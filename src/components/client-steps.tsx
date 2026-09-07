@@ -1454,7 +1454,11 @@ export function PaiementsStep({
       id: `etape-${e.id}`,
       label: estAnnulation ? "Annulation de règlement" : `Étape — ${e.mode || "—"}`,
       montant: Number(e.montant) || 0,
-      montantEgp: e.mode === "Espèces EGP" ? Number(e.montant_egp) || 0 : 0,
+      // Pas seulement "Espèces EGP" : une étape mixte €+EGP (reprise ou
+      // solde réglés en "Modes différents") porte elle aussi un montant_egp
+      // sur la même ligne — sans ce cas, sa part EGP disparaissait
+      // silencieusement du résumé chronologique des paiements.
+      montantEgp: e.mode === "Espèces EGP" || e.mode === "Modes différents" ? Number(e.montant_egp) || 0 : 0,
       when: e.date ? fmtDateDMY(e.date) : "—",
       sortKey: e.date || "",
       etapeId: e.id,

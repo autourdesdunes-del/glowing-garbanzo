@@ -21,6 +21,8 @@ export function EncaisseButton({
   marquerLabel = "Marquer encaissé",
   onDifferent,
   differentLabel = "Réglé autrement",
+  onMontantDifferent,
+  montantDifferentLabel = "Montant du règlement différent ?",
 }: {
   paye: boolean;
   onMarquer: () => void;
@@ -28,6 +30,12 @@ export function EncaisseButton({
   marquerLabel?: string;
   onDifferent?: () => void;
   differentLabel?: string;
+  // Distinct de onDifferent (qui change de MODE de paiement) : ici le mode
+  // reste le même, seul le montant réellement reçu diffère de celui prévu
+  // (ex. frais PayPal déduits) — sans cette 3e option, rien ne permettait
+  // de le signaler pour le solde, contrairement à l'acompte qui l'a déjà.
+  onMontantDifferent?: () => void;
+  montantDifferentLabel?: string;
 }) {
   if (paye) {
     return (
@@ -54,6 +62,14 @@ export function EncaisseButton({
           className="whitespace-nowrap text-[10px] font-medium text-neutral-500 underline hover:text-neutral-700"
         >
           {differentLabel}
+        </button>
+      )}
+      {onMontantDifferent && (
+        <button
+          onClick={onMontantDifferent}
+          className="whitespace-nowrap text-[10px] font-medium text-neutral-500 underline hover:text-neutral-700"
+        >
+          {montantDifferentLabel}
         </button>
       )}
     </div>
@@ -157,8 +173,10 @@ export function PaiementResteFlow({
   const [encaisseDateModal, setEncaisseDateModal] = useState<{
     mode: string;
     date: string;
-    montant: string;
+    time: string;
+    step: "choix" | "date";
     montantDifferent: boolean;
+    montant: string;
     entreProchesOublie: boolean;
   } | null>(null);
   // Frais standards PayPal (paiement "biens et services", pas "Entre
@@ -226,7 +244,8 @@ export function PaiementResteFlow({
     mode: string,
     date: string,
     montantRecu: number,
-    entreProchesOublie: boolean
+    entreProchesOublie: boolean,
+    time?: string
   ) => {
     if (!(await confirmerAcompteInclus())) return;
     onChange({
@@ -240,6 +259,8 @@ export function PaiementResteFlow({
       solde_montant: totalSejour,
       solde_montant_recu: montantRecu,
       solde_entre_proches_oublie: entreProchesOublie,
+      solde_encaisse_ts:
+        mode === "PayPal" && time ? new Date(`${date}T${time}:00`).toISOString() : null,
     });
   };
 
@@ -518,6 +539,8 @@ export function PaiementResteFlow({
                         setEncaisseDateModal({
                           mode: soldeMode,
                           date: client.solde_date || todayStr(),
+                          time: "",
+                          step: "choix",
                           montant: String(montantACouvrir),
                           montantDifferent: false,
                           entreProchesOublie: false,
@@ -532,6 +555,17 @@ export function PaiementResteFlow({
                         })
                       }
                       marquerLabel={`${euros(montantACouvrir)} € encaissés`}
+                      onMontantDifferent={() =>
+                        setEncaisseDateModal({
+                          mode: soldeMode,
+                          date: client.solde_date || todayStr(),
+                          time: "",
+                          step: "choix",
+                          montant: String(montantACouvrir),
+                          montantDifferent: true,
+                          entreProchesOublie: false,
+                        })
+                      }
                     />
                     {isDirection && (
                       <button
@@ -612,6 +646,8 @@ export function PaiementResteFlow({
                       setEncaisseDateModal({
                         mode: soldeMode,
                         date: chosenResa.date_debut || todayStr(),
+                        time: "",
+                        step: "choix",
                         montant: String(montantACouvrir),
                         montantDifferent: false,
                         entreProchesOublie: false,
@@ -646,88 +682,196 @@ export function PaiementResteFlow({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
             <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
-              Quand le client a-t-il payé ?
+              Marquer le montant encaissé
             </h2>
-            <p className="mb-4 text-sm text-neutral-600">
-              Renseigne la date où l&apos;argent a réellement été remis — pas forcément
-              aujourd&apos;hui si tu rattrapes un paiement déjà reçu.
-            </p>
-            <input
-              type="date"
-              value={encaisseDateModal.date}
-              onChange={(e) => setEncaisseDateModal({ ...encaisseDateModal, date: e.target.value })}
-              className="mb-4 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-            />
-            <div className="mb-4">
-              {encaisseDateModal.montantDifferent ? (
-                <>
-                  <Field label="Montant réellement reçu (€)">
+            {encaisseDateModal.step === "choix" ? (
+              <>
+                <p className="mb-4 text-sm text-neutral-600">
+                  Marquer ce paiement encaissé à la date d&apos;aujourd&apos;hui ?
+                </p>
+                <div className="mb-4">
+                  {encaisseDateModal.montantDifferent ? (
+                    <>
+                      <Field label="Montant réellement reçu (€)">
+                        <input
+                          type="number"
+                          value={encaisseDateModal.montant}
+                          onChange={(e) =>
+                            setEncaisseDateModal({ ...encaisseDateModal, montant: e.target.value })
+                          }
+                          className="input"
+                        />
+                      </Field>
+                      {encaisseDateModal.mode === "PayPal" && (
+                        <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+                          <input
+                            type="checkbox"
+                            checked={encaisseDateModal.entreProchesOublie}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setEncaisseDateModal({
+                                ...encaisseDateModal,
+                                entreProchesOublie: checked,
+                                montant: checked
+                                  ? String(calculerMontantSansEntreProches(montantACouvrir))
+                                  : String(montantACouvrir),
+                              });
+                            }}
+                          />
+                          Oubli &quot;Entre proches&quot; (frais PayPal déduits)
+                        </label>
+                      )}
+                      {Number(encaisseDateModal.montant) !== montantACouvrir && (
+                        <p className="mt-1 text-xs text-orange-600">
+                          ⚠ Différent du montant attendu ({euros(montantACouvrir)} €)
+                          {encaisseDateModal.entreProchesOublie ? " (frais PayPal estimés)" : ""}.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEncaisseDateModal({ ...encaisseDateModal, montantDifferent: true })}
+                      className="text-xs font-medium text-neutral-500 underline hover:text-neutral-700"
+                    >
+                      Montant différent ?
+                    </button>
+                  )}
+                </div>
+                {encaisseDateModal.mode === "PayPal" && (
+                  <div className="mb-4">
+                    <Field label="Heure de l'encaissement">
+                      <input
+                        type="time"
+                        value={encaisseDateModal.time}
+                        onChange={(e) => setEncaisseDateModal({ ...encaisseDateModal, time: e.target.value })}
+                        className="input"
+                      />
+                    </Field>
+                  </div>
+                )}
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      const montantFinal = Number(encaisseDateModal.montant) || montantACouvrir;
+                      marquerEncaisse(
+                        encaisseDateModal.mode,
+                        todayStr(),
+                        montantFinal,
+                        encaisseDateModal.entreProchesOublie,
+                        encaisseDateModal.time
+                      );
+                      setEncaisseDateModal(null);
+                    }}
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    Oui, encaissé aujourd&apos;hui
+                  </button>
+                  <button
+                    onClick={() => setEncaisseDateModal({ ...encaisseDateModal, step: "date" })}
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Non, une autre date
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-4">
+                  {encaisseDateModal.montantDifferent ? (
+                    <>
+                      <Field label="Montant réellement reçu (€)">
+                        <input
+                          type="number"
+                          value={encaisseDateModal.montant}
+                          onChange={(e) =>
+                            setEncaisseDateModal({ ...encaisseDateModal, montant: e.target.value })
+                          }
+                          className="input"
+                        />
+                      </Field>
+                      {encaisseDateModal.mode === "PayPal" && (
+                        <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+                          <input
+                            type="checkbox"
+                            checked={encaisseDateModal.entreProchesOublie}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setEncaisseDateModal({
+                                ...encaisseDateModal,
+                                entreProchesOublie: checked,
+                                montant: checked
+                                  ? String(calculerMontantSansEntreProches(montantACouvrir))
+                                  : String(montantACouvrir),
+                              });
+                            }}
+                          />
+                          Oubli &quot;Entre proches&quot; (frais PayPal déduits)
+                        </label>
+                      )}
+                      {Number(encaisseDateModal.montant) !== montantACouvrir && (
+                        <p className="mt-1 text-xs text-orange-600">
+                          ⚠ Différent du montant attendu ({euros(montantACouvrir)} €)
+                          {encaisseDateModal.entreProchesOublie ? " (frais PayPal estimés)" : ""}.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEncaisseDateModal({ ...encaisseDateModal, montantDifferent: true })}
+                      className="text-xs font-medium text-neutral-500 underline hover:text-neutral-700"
+                    >
+                      Montant différent ?
+                    </button>
+                  )}
+                </div>
+                <div className="mb-4 flex gap-2">
+                  <Field label="Date d'encaissement">
                     <input
-                      type="number"
-                      value={encaisseDateModal.montant}
-                      onChange={(e) => setEncaisseDateModal({ ...encaisseDateModal, montant: e.target.value })}
+                      type="date"
+                      value={encaisseDateModal.date}
+                      onChange={(e) => setEncaisseDateModal({ ...encaisseDateModal, date: e.target.value })}
                       className="input"
                     />
                   </Field>
                   {encaisseDateModal.mode === "PayPal" && (
-                    <label className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
+                    <Field label="Heure">
                       <input
-                        type="checkbox"
-                        checked={encaisseDateModal.entreProchesOublie}
-                        onChange={(e) => {
-                          const checked = e.target.checked;
-                          setEncaisseDateModal({
-                            ...encaisseDateModal,
-                            entreProchesOublie: checked,
-                            montant: checked
-                              ? String(calculerMontantSansEntreProches(montantACouvrir))
-                              : String(montantACouvrir),
-                          });
-                        }}
+                        type="time"
+                        value={encaisseDateModal.time}
+                        onChange={(e) => setEncaisseDateModal({ ...encaisseDateModal, time: e.target.value })}
+                        className="input"
                       />
-                      Oubli &quot;Entre proches&quot; (frais PayPal déduits)
-                    </label>
+                    </Field>
                   )}
-                  {Number(encaisseDateModal.montant) !== montantACouvrir && (
-                    <p className="mt-1 text-xs text-orange-600">
-                      ⚠ Différent du montant attendu ({euros(montantACouvrir)} €)
-                      {encaisseDateModal.entreProchesOublie ? " (frais PayPal estimés)" : ""}.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setEncaisseDateModal({ ...encaisseDateModal, montantDifferent: true })}
-                  className="text-xs font-medium text-neutral-500 underline hover:text-neutral-700"
-                >
-                  Montant différent ?
-                </button>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => {
-                  const montantFinal = Number(encaisseDateModal.montant) || montantACouvrir;
-                  marquerEncaisse(
-                    encaisseDateModal.mode,
-                    encaisseDateModal.date || todayStr(),
-                    montantFinal,
-                    encaisseDateModal.entreProchesOublie
-                  );
-                  setEncaisseDateModal(null);
-                }}
-                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-              >
-                Valider
-              </button>
-              <button
-                onClick={() => setEncaisseDateModal(null)}
-                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
-              >
-                Annuler
-              </button>
-            </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => {
+                      const montantFinal = Number(encaisseDateModal.montant) || montantACouvrir;
+                      marquerEncaisse(
+                        encaisseDateModal.mode,
+                        encaisseDateModal.date || todayStr(),
+                        montantFinal,
+                        encaisseDateModal.entreProchesOublie,
+                        encaisseDateModal.time
+                      );
+                      setEncaisseDateModal(null);
+                    }}
+                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    Valider
+                  </button>
+                  <button
+                    onClick={() => setEncaisseDateModal(null)}
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

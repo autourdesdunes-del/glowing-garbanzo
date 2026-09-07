@@ -494,6 +494,9 @@ export type Client = {
   // pour détecter une activité ajoutée après coup). 0 = jamais renseigné.
   solde_montant_recu: number;
   solde_entre_proches_oublie: boolean;
+  // Horodatage exact (date + heure) de l'encaissement PayPal du solde — même
+  // principe que acompte_encaisse_ts ; solde_date reste une simple date.
+  solde_encaisse_ts: string | null;
   solde_mode: string;
   solde_date: string | null;
   solde_paye: boolean;
@@ -643,6 +646,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   solde_montant: 0,
   solde_montant_recu: 0,
   solde_entre_proches_oublie: false,
+  solde_encaisse_ts: null,
   solde_mode: "Espèces EUR",
   solde_date: null,
   solde_paye: false,

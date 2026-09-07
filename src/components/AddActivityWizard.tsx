@@ -1257,10 +1257,27 @@ export default function AddActivityWizard({
             value={r.date_debut ?? ""}
             onChange={(e) => {
               const newDate = e.target.value || null;
-              const attendu = catalogueItem ? hauteSaisonAttendu(newDate, catalogueItem) : null;
+              // Pré-remplissage utile à la création (le tarif catalogue par
+              // défaut n'a encore jamais été retouché) — mais en édition
+              // d'une réservation existante, un changement de date (ex.
+              // report client) ne doit jamais écraser en silence un prix déjà
+              // négocié/confirmé pour ce client. L'employée reste alertée du
+              // tarif haute saison attendu via le blocage de l'étape Tarifs
+              // (hauteSaisonMismatch plus bas) si besoin.
+              const attendu =
+                catalogueItem && !editReservationId ? hauteSaisonAttendu(newDate, catalogueItem) : null;
+              // Symétrique : si la nouvelle date sort de la haute saison, on
+              // revient au tarif normal du catalogue plutôt que de laisser le
+              // prix haute saison collé à la réservation (bug initial :
+              // hauteSaisonAttendu renvoie null en dehors de la période, donc
+              // rien ne réappliquait jamais le tarif normal).
+              const tarifSync =
+                catalogueItem && !editReservationId
+                  ? attendu || { pu_adulte: catalogueItem.pu_adulte, pu_enfant: catalogueItem.pu_enfant }
+                  : null;
               onUpdateReservation(r.id, {
                 date_debut: newDate,
-                ...(attendu ? { pu_adulte: attendu.pu_adulte, pu_enfant: attendu.pu_enfant } : {}),
+                ...(tarifSync ? { pu_adulte: tarifSync.pu_adulte, pu_enfant: tarifSync.pu_enfant } : {}),
                 // Le Caire en avion synchronise déjà sa date de billet via le
                 // popup Hossam plus loin — ici on couvre les autres cas
                 // (activité générique "Billets d'avion", circuits) qui n'ont

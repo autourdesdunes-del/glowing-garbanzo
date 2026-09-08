@@ -4,16 +4,50 @@ import { extractProspectInfoFromMessage, KommoExtractedInfo } from "@/lib/kommoE
 import { localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS } from "@/lib/constants";
 
-// "Infos demandées" (détecté par l'IA) correspond au statut CRM "Demande
-// d'infos envoyée" — seul cas où le libellé diffère entre les deux.
-// "Devis donné" et "Réservé" n'ont volontairement pas d'équivalent ici :
-// pas de statut "Devis donné" dans le pipeline CRM, et une confirmation ne
-// doit jamais être déclenchée par une simple détection IA sur un message
-// (ça reste une action humaine, via "Passer en client confirmé").
+// Seul "Programme envoyé" (détecté par l'IA sur un message du PROSPECT) a
+// un équivalent direct dans le pipeline CRM. "Devis donné" et "Réservé"
+// n'ont volontairement pas d'équivalent : pas de statut "Devis donné" dans
+// le pipeline CRM, et une confirmation ne doit jamais être déclenchée par
+// une simple détection IA sur un message (ça reste une action humaine, via
+// "Passer en client confirmé"). "Demande d'infos envoyée" n'est PAS ici :
+// ça ne veut pas dire "le prospect pose des questions" (ce que l'IA
+// détecte comme "Infos demandées") mais un événement précis et daté —
+// l'équipe a envoyé le message-type de collecte d'infos de réservation
+// (nom, pax, dates, hôtel, contact, passeports...) — voir
+// estMessageDemandeInfos ci-dessous, détecté sur les messages de l'ÉQUIPE.
 const ETAPE_DETECTEE_TO_STATUT: Record<string, string> = {
   "Programme envoyé": "Programme envoyé",
-  "Infos demandées": "Demande d'infos envoyée",
 };
+
+// Message-type envoyé par l'équipe pour collecter les infos nécessaires à
+// la validation d'une réservation (texte de référence donné par Mélanie le
+// 2026-09-08) — c'est CET envoi, et rien d'autre, qui définit le statut
+// "Demande d'infos envoyée". Détection par mots-clés (pas d'IA : c'est un
+// message-type copié-collé par l'équipe, pas un texte à interpréter) sur
+// au moins 3 marqueurs distinctifs, pour tolérer de petites variations de
+// formulation sans se déclencher sur un message qui n'a rien à voir.
+const DEMANDE_INFOS_MARKERS = [
+  "nombre de personnes",
+  "dates du sejour",
+  "pseudo instagram",
+  "photo des passeports",
+  "comment avez-vous connu",
+  "numero de chambre",
+  "numero egyptien",
+];
+
+function normalizeText(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’]/g, "")
+    .toLowerCase();
+}
+
+function estMessageDemandeInfos(text: string): boolean {
+  const normalized = normalizeText(text);
+  return DEMANDE_INFOS_MARKERS.filter((m) => normalized.includes(m)).length >= 3;
+}
 
 // Étape 2 (légère) de l'intégration Kommo : reçoit, message par message, le
 // texte des conversations WhatsApp/Instagram — via un scénario Salesbot
@@ -167,9 +201,28 @@ async function processMessage(
   // réponse — jamais d'appel IA dessus : l'extraction ne sert qu'à
   // comprendre ce que dit le PROSPECT, pas à analyser nos propres messages.
   // Ça divise par ~2 le nombre d'appels IA (voir project_kommo_etape_detectee).
+  // Exception : on regarde quand même (sans IA, juste des mots-clés) si CE
+  // message de l'équipe est le message-type de collecte d'infos — c'est
+  // l'unique déclencheur de "Demande d'infos envoyée".
   if (!text.trim() || direction === "out") {
-    if (Object.keys(echangePatch).length > 0) {
-      const patchRes = await admin.from("clients").update(echangePatch).eq("id", existing.id);
+    const statutPatch: Record<string, unknown> = {};
+    if (
+      direction === "out" &&
+      text.trim() &&
+      estMessageDemandeInfos(text) &&
+      PROSPECT_STATUTS.includes(existing.statut) &&
+      PROSPECT_STATUTS.indexOf("Demande d'infos envoyée") > PROSPECT_STATUTS.indexOf(existing.statut)
+    ) {
+      statutPatch.statut = "Demande d'infos envoyée";
+      if (!existing.kommo_demande_infos_envoyee_le) {
+        statutPatch.kommo_demande_infos_envoyee_le = localDateStr(new Date());
+      }
+    }
+    if (Object.keys(echangePatch).length > 0 || Object.keys(statutPatch).length > 0) {
+      const patchRes = await admin
+        .from("clients")
+        .update({ ...echangePatch, ...statutPatch })
+        .eq("id", existing.id);
       if (patchRes.error) throw new Error(`update echange dates failed: ${patchRes.error.message}`);
     }
     return existing.id;
@@ -200,12 +253,13 @@ async function processMessage(
   });
   if (!updated) return existing.id;
 
-  // Fait avancer le statut CRM directement depuis ce que dit le PROSPECT
-  // lui-même, sans dépendre d'un employé qui irait déplacer l'étape dans le
-  // pipeline Kommo (déplacement qui, en pratique, n'est presque jamais
-  // fait — voir l'audit Prospects). Uniquement en avant (jamais de retour
-  // en arrière), et seulement tant que le dossier est encore un prospect
-  // actif (jamais sur un client déjà confirmé/perdu/annulé).
+  // Fait avancer le statut CRM vers "Programme envoyé" directement depuis
+  // ce que dit le PROSPECT lui-même, sans dépendre d'un employé qui irait
+  // déplacer l'étape dans le pipeline Kommo (déplacement qui, en pratique,
+  // n'est presque jamais fait — voir l'audit Prospects). Uniquement en
+  // avant (jamais de retour en arrière), et seulement tant que le dossier
+  // est encore un prospect actif (jamais sur un client déjà
+  // confirmé/perdu/annulé).
   const statutPatch: Record<string, unknown> = {};
   const statutCible = updated.etape_detectee ? ETAPE_DETECTEE_TO_STATUT[updated.etape_detectee] : null;
   if (statutCible && PROSPECT_STATUTS.includes(existing.statut)) {
@@ -213,9 +267,6 @@ async function processMessage(
     const indexCible = PROSPECT_STATUTS.indexOf(statutCible);
     if (indexCible > indexActuel) {
       statutPatch.statut = statutCible;
-      if (statutCible === "Demande d'infos envoyée" && !existing.kommo_demande_infos_envoyee_le) {
-        statutPatch.kommo_demande_infos_envoyee_le = localDateStr(new Date());
-      }
     }
   }
 

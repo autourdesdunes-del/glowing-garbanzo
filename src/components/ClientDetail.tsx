@@ -1105,17 +1105,32 @@ export default function ClientDetail({
     }
   };
 
-  const updateOption = async (
-    resaId: string,
-    optId: string,
-    patch: Partial<ReservationOption>
-  ) => {
+  // Même correctif que updateCatalogueItem (AppShell.tsx) : le nom d'une
+  // option ou le libellé d'un tarif supplémentaire écrivaient en base à
+  // chaque lettre tapée, sans garantie d'ordre d'arrivée réseau — un texte
+  // tapé pouvait donc se retrouver tronqué en base malgré un affichage
+  // local correct. On regroupe les frappes rapprochées en une seule
+  // écriture, envoyée 600ms après la dernière.
+  const optionEcrituresEnAttente = useRef<Record<string, Partial<ReservationOption>>>({});
+  const optionMinuteries = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const updateOption = (resaId: string, optId: string, patch: Partial<ReservationOption>) => {
     setResaOptions((prev) => ({
       ...prev,
       [resaId]: (prev[resaId] || []).map((o) => (o.id === optId ? { ...o, ...patch } : o)),
     }));
-    const { error } = await supabase.from("reservation_options").update(patch).eq("id", optId);
-    if (error) toast("Échec de l'enregistrement.");
+    optionEcrituresEnAttente.current[optId] = {
+      ...(optionEcrituresEnAttente.current[optId] || {}),
+      ...patch,
+    };
+    if (optionMinuteries.current[optId]) clearTimeout(optionMinuteries.current[optId]);
+    optionMinuteries.current[optId] = setTimeout(async () => {
+      const aEcrire = optionEcrituresEnAttente.current[optId];
+      delete optionEcrituresEnAttente.current[optId];
+      delete optionMinuteries.current[optId];
+      if (!aEcrire) return;
+      const { error } = await supabase.from("reservation_options").update(aEcrire).eq("id", optId);
+      if (error) toast("Échec de l'enregistrement.");
+    }, 600);
   };
 
   const deleteOption = async (resaId: string, optId: string) => {
@@ -1148,13 +1163,27 @@ export default function ClientDetail({
     }
   };
 
-  const updateTarif = async (resaId: string, tarifId: string, patch: Partial<ReservationTarif>) => {
+  // Même correctif que updateOption ci-dessus.
+  const tarifEcrituresEnAttente = useRef<Record<string, Partial<ReservationTarif>>>({});
+  const tarifMinuteries = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const updateTarif = (resaId: string, tarifId: string, patch: Partial<ReservationTarif>) => {
     setResaTarifs((prev) => ({
       ...prev,
       [resaId]: (prev[resaId] || []).map((t) => (t.id === tarifId ? { ...t, ...patch } : t)),
     }));
-    const { error } = await supabase.from("reservation_tarifs").update(patch).eq("id", tarifId);
-    if (error) toast("Échec de l'enregistrement.");
+    tarifEcrituresEnAttente.current[tarifId] = {
+      ...(tarifEcrituresEnAttente.current[tarifId] || {}),
+      ...patch,
+    };
+    if (tarifMinuteries.current[tarifId]) clearTimeout(tarifMinuteries.current[tarifId]);
+    tarifMinuteries.current[tarifId] = setTimeout(async () => {
+      const aEcrire = tarifEcrituresEnAttente.current[tarifId];
+      delete tarifEcrituresEnAttente.current[tarifId];
+      delete tarifMinuteries.current[tarifId];
+      if (!aEcrire) return;
+      const { error } = await supabase.from("reservation_tarifs").update(aEcrire).eq("id", tarifId);
+      if (error) toast("Échec de l'enregistrement.");
+    }, 600);
   };
 
   const deleteTarif = async (resaId: string, tarifId: string) => {

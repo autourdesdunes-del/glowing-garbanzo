@@ -99,6 +99,12 @@ export const STATUT_PAIEMENT_OPTIONS: {
       // plus tard, PaiementResteFlow saute directement à la vue "déjà validé"
       // (heure/lieu vides) au lieu de redemander les infos du rendez-vous.
       solde_rdv_valide: false,
+      // Sans ce reset, un RDV marqué "finalisé" (solde_paye=true à ce
+      // moment-là) puis rebasculé sur un autre statut via ce menu gardait
+      // solde_rdv_finalise à true — s'il était un jour remarqué "Payé" par
+      // un autre biais, le badge réaffichait à tort "rendez-vous paiement
+      // finalisé" pour un règlement qui n'a rien à voir avec ce RDV.
+      solde_rdv_finalise: false,
       // Idem pour paiement_integral_mode (partagé avec l'étape Paiements,
       // voir RdvPaiementCreationModal/PaiementResteFlow) : sinon rouvrir
       // cette étape affichait encore le panneau RDV alors que ce menu
@@ -117,6 +123,12 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
       solde_rdv_valide: false,
+      // Sans ce reset, un RDV marqué "finalisé" (solde_paye=true à ce
+      // moment-là) puis rebasculé sur un autre statut via ce menu gardait
+      // solde_rdv_finalise à true — s'il était un jour remarqué "Payé" par
+      // un autre biais, le badge réaffichait à tort "rendez-vous paiement
+      // finalisé" pour un règlement qui n'a rien à voir avec ce RDV.
+      solde_rdv_finalise: false,
       paiement_integral_mode: "",
     }),
   },
@@ -145,6 +157,12 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
       solde_rdv_valide: false,
+      // Sans ce reset, un RDV marqué "finalisé" (solde_paye=true à ce
+      // moment-là) puis rebasculé sur un autre statut via ce menu gardait
+      // solde_rdv_finalise à true — s'il était un jour remarqué "Payé" par
+      // un autre biais, le badge réaffichait à tort "rendez-vous paiement
+      // finalisé" pour un règlement qui n'a rien à voir avec ce RDV.
+      solde_rdv_finalise: false,
       paiement_integral_mode: "",
     }),
   },
@@ -159,6 +177,12 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
       solde_rdv_valide: false,
+      // Sans ce reset, un RDV marqué "finalisé" (solde_paye=true à ce
+      // moment-là) puis rebasculé sur un autre statut via ce menu gardait
+      // solde_rdv_finalise à true — s'il était un jour remarqué "Payé" par
+      // un autre biais, le badge réaffichait à tort "rendez-vous paiement
+      // finalisé" pour un règlement qui n'a rien à voir avec ce RDV.
+      solde_rdv_finalise: false,
       paiement_integral_mode: "",
     }),
   },
@@ -173,6 +197,12 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
       solde_rdv_valide: false,
+      // Sans ce reset, un RDV marqué "finalisé" (solde_paye=true à ce
+      // moment-là) puis rebasculé sur un autre statut via ce menu gardait
+      // solde_rdv_finalise à true — s'il était un jour remarqué "Payé" par
+      // un autre biais, le badge réaffichait à tort "rendez-vous paiement
+      // finalisé" pour un règlement qui n'a rien à voir avec ce RDV.
+      solde_rdv_finalise: false,
       paiement_integral_mode: "",
     }),
   },

@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanKommoName, CRM_STATUT_TO_KOMMO_STATUS_ID, parseKommoFormBody } from "@/lib/kommoWebhook";
-import { updateKommoLeadStatus } from "@/lib/kommoApi";
+import { addKommoLeadNote, updateKommoLeadStatus } from "@/lib/kommoApi";
 import { extractProspectInfoFromMessage, KommoExtractedInfo } from "@/lib/kommoExtraction";
 import { localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS } from "@/lib/constants";
@@ -12,11 +12,15 @@ import { PROSPECT_STATUTS } from "@/lib/constants";
 // donc pousser CE changement vers Kommo aussi, pas seulement dans le CRM —
 // best-effort (jamais bloquant : le statut CRM reste posé même si l'appel
 // Kommo échoue, comme pushStatutToKommo côté navigateur dans AppShell.tsx).
-async function pousserStatutVersKommo(leadId: number | null, statut: string) {
+async function pousserStatutVersKommo(leadId: number | null, statut: string, note?: string) {
   if (!leadId) return;
   const statusId = CRM_STATUT_TO_KOMMO_STATUS_ID[statut];
   if (!statusId) return;
   await updateKommoLeadStatus(leadId, statusId);
+  // Note visible directement dans le fil Kommo (là où les employées
+  // travaillent) pour qu'elles comprennent pourquoi le lead vient de
+  // bouger de colonne sans qu'elles l'aient fait elles-mêmes.
+  if (note) await addKommoLeadNote(leadId, note);
 }
 
 // Seul "Programme envoyé" (détecté par l'IA sur un message du PROSPECT) a
@@ -240,7 +244,11 @@ async function processMessage(
         .eq("id", existing.id);
       if (patchRes.error) throw new Error(`update echange dates failed: ${patchRes.error.message}`);
       if (typeof statutPatch.statut === "string") {
-        await pousserStatutVersKommo(existing.kommo_lead_id, statutPatch.statut);
+        await pousserStatutVersKommo(
+          existing.kommo_lead_id,
+          statutPatch.statut,
+          "🤖 Message-type de demande d'infos détecté (nom, pax, dates, hôtel, contact, passeports...) → prospect déplacé automatiquement dans \"Demande d'infos envoyée\"."
+        );
       }
     }
     return existing.id;

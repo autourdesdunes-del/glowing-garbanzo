@@ -53,6 +53,31 @@ export async function updateKommoLeadStatus(leadId: number, statusId: number, na
   }
 }
 
+// Ajoute une note "système" dans le fil du lead côté Kommo — pour que les
+// employées voient, directement là où elles travaillent (Kommo, pas le
+// CRM), qu'un déplacement automatique vient d'avoir lieu et pourquoi
+// (ex. "Message-type de demande d'infos détecté → déplacé dans 'Demande
+// d'infos envoyée'"). Best-effort, comme updateKommoLeadStatus.
+export async function addKommoLeadNote(leadId: number, text: string): Promise<boolean> {
+    const base = kommoApiBase();
+    const token = process.env.KOMMO_ACCESS_TOKEN;
+    if (!base || !token) return false;
+
+  try {
+        const res = await fetch(`${base}/leads/notes`, {
+              method: "POST",
+              headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+              },
+              body: JSON.stringify([{ entity_id: leadId, note_type: "common", params: { text } }]),
+        });
+        return res.ok;
+  } catch {
+        return false;
+  }
+}
+
 // Va chercher le statut (et le nom) actuels d'un lead Kommo — utilisé par le
 // job de réconciliation (cf. /api/cron/kommo-reconcile) pour rattraper les
 // changements que le webhook classique n'a pas notifiés (constaté

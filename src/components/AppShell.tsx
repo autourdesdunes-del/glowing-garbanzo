@@ -1783,10 +1783,35 @@ function AppShellInner({
     }
   };
 
-  const updateCatalogueItem = async (id: string, patch: Partial<CatalogueItem>) => {
+  // Les champs texte du Catalogue écrivent en base à chaque frappe (value
+  // contrôlée par le prop + onChange -> onUpdate), sans aucun debounce —
+  // vécu concrètement : plusieurs textes retrouvés tronqués en pleine
+  // phrase ("Tous les jours" -> "Tous les jor", "INTERDIT AUX ENFANTS..." ->
+  // "INTE"). Cause : une écriture Supabase par lettre tapée, sans garantie
+  // d'ordre d'arrivée réseau — une requête envoyée tôt (donc avec une valeur
+  // encore courte) peut répondre APRÈS une requête envoyée plus tard,
+  // écrasant en base la version complète par une version à mi-frappe, sans
+  // aucune erreur visible puisque chaque écriture individuelle réussit.
+  // On regroupe maintenant toutes les frappes rapprochées en une seule
+  // écriture, envoyée 600ms après la dernière — l'état local (setCatalogue)
+  // reste instantané, seule l'écriture réseau est lissée.
+  const catalogueEcrituresEnAttente = useRef<Record<string, Partial<CatalogueItem>>>({});
+  const catalogueMinuteries = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const updateCatalogueItem = (id: string, patch: Partial<CatalogueItem>) => {
     setCatalogue((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)));
-    const { error } = await supabase.from("catalogue_activites").update(patch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement.");
+    catalogueEcrituresEnAttente.current[id] = {
+      ...(catalogueEcrituresEnAttente.current[id] || {}),
+      ...patch,
+    };
+    if (catalogueMinuteries.current[id]) clearTimeout(catalogueMinuteries.current[id]);
+    catalogueMinuteries.current[id] = setTimeout(async () => {
+      const aEcrire = catalogueEcrituresEnAttente.current[id];
+      delete catalogueEcrituresEnAttente.current[id];
+      delete catalogueMinuteries.current[id];
+      if (!aEcrire) return;
+      const { error } = await supabase.from("catalogue_activites").update(aEcrire).eq("id", id);
+      if (error) toast("Échec de l'enregistrement.");
+    }, 600);
   };
 
   // Glisser-déposer réservé à la Direction (voir canSeeMargins côté

@@ -16,7 +16,7 @@ export default function RdvPaiementCreationModal({
   onValider,
   onClose,
 }: {
-  onValider: (info: { date: string; heure: string; assigneA: string; mode: string }) => void;
+  onValider: (info: { date: string; heure: string; assigneA: string; mode: string; note: string }) => void;
   onClose: () => void;
 }) {
   const [date, setDate] = useState(todayStr());
@@ -24,6 +24,7 @@ export default function RdvPaiementCreationModal({
   const [assigneA, setAssigneA] = useState<string>("");
   const [assigneAutre, setAssigneAutre] = useState("");
   const [mode, setMode] = useState<string>(RDV_MODES[0]);
+  const [note, setNote] = useState("");
   const [error, setError] = useState(false);
 
   const valider = () => {
@@ -32,7 +33,7 @@ export default function RdvPaiementCreationModal({
       setError(true);
       return;
     }
-    onValider({ date, heure, assigneA: assigne, mode });
+    onValider({ date, heure, assigneA: assigne, mode, note: note.trim() });
   };
 
   return (
@@ -89,6 +90,14 @@ export default function RdvPaiementCreationModal({
                 </option>
               ))}
             </select>
+          </Field>
+          <Field label="Note (optionnel)">
+            <input
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Le lieu, c'est l'hôtel du client — précise ici si besoin (ex. devant la réception)"
+              className="input w-full"
+            />
           </Field>
           {error && (
             <p className="text-xs text-red-600">Date, heure et personne assignée sont obligatoires.</p>

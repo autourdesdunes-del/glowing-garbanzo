@@ -314,7 +314,7 @@ export function RdvPaiementModal({
             {fmtDate(c.solde_date)} {c.solde_rdv_heure && `— ${c.solde_rdv_heure}`}
           </div>
           <div>Hôtel : {c.hotel || "—"}</div>
-          {c.solde_rdv_lieu && <div>Lieu : {c.solde_rdv_lieu}</div>}
+          {c.solde_rdv_lieu && <div>Note : {c.solde_rdv_lieu}</div>}
           <div>👤 Assigné à : {c.solde_assigne_a || "Non assigné"}</div>
           <div className="font-medium text-[#171717]">Montant : {euros(montant)} €</div>
         </div>

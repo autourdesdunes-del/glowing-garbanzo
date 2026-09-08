@@ -668,11 +668,13 @@ export function ActivityDetailModal({
       {rdvCreationPending && (
         <RdvPaiementCreationModal
           onClose={() => setRdvCreationPending(false)}
-          onValider={async ({ date, heure, assigneA, mode }) => {
+          onValider={async ({ date, heure, assigneA, mode, note }) => {
             const patch: Partial<Client> = {
               solde_paye: false,
               solde_activite_id: null,
-              solde_rdv_lieu: "",
+              // Le lieu est toujours l'hôtel du client — ce champ ne sert
+              // qu'à une précision optionnelle (ex. "devant la réception").
+              solde_rdv_lieu: note,
               solde_date: date,
               solde_rdv_heure: heure,
               solde_assigne_a: assigneA,

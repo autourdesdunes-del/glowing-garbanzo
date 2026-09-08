@@ -1,8 +1,23 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { cleanKommoName, parseKommoFormBody } from "@/lib/kommoWebhook";
+import { cleanKommoName, CRM_STATUT_TO_KOMMO_STATUS_ID, parseKommoFormBody } from "@/lib/kommoWebhook";
+import { updateKommoLeadStatus } from "@/lib/kommoApi";
 import { extractProspectInfoFromMessage, KommoExtractedInfo } from "@/lib/kommoExtraction";
 import { localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS } from "@/lib/constants";
+
+// Sans ça, le statut avancé ici serait écrasé au prochain sync : le cron
+// kommo-reconcile et le webhook classique traitent Kommo comme la seule
+// source de vérité pour un lead lié (kommo_lead_id non nul) et réécrivent
+// le statut CRM depuis la vraie étape Kommo dès qu'ils la revoient. Il faut
+// donc pousser CE changement vers Kommo aussi, pas seulement dans le CRM —
+// best-effort (jamais bloquant : le statut CRM reste posé même si l'appel
+// Kommo échoue, comme pushStatutToKommo côté navigateur dans AppShell.tsx).
+async function pousserStatutVersKommo(leadId: number | null, statut: string) {
+  if (!leadId) return;
+  const statusId = CRM_STATUT_TO_KOMMO_STATUS_ID[statut];
+  if (!statusId) return;
+  await updateKommoLeadStatus(leadId, statusId);
+}
 
 // Seul "Programme envoyé" (détecté par l'IA sur un message du PROSPECT) a
 // un équivalent direct dans le pipeline CRM. "Devis donné" et "Réservé"
@@ -122,7 +137,7 @@ async function processMessage(
 
   const nowIso = new Date().toISOString();
   const SELECT_FIELDS =
-    "id, statut, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_activites_a_eviter, kommo_programme_envoye_resume, kommo_etape_detectee, kommo_premier_echange_le, kommo_demande_infos_envoyee_le";
+    "id, statut, kommo_lead_id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_activites_a_eviter, kommo_programme_envoye_resume, kommo_etape_detectee, kommo_premier_echange_le, kommo_demande_infos_envoyee_le";
 
   let query = admin.from("clients").select(SELECT_FIELDS);
   query = leadId ? query.eq("kommo_lead_id", leadId) : query.eq("kommo_contact_id", contactId);
@@ -224,6 +239,9 @@ async function processMessage(
         .update({ ...echangePatch, ...statutPatch })
         .eq("id", existing.id);
       if (patchRes.error) throw new Error(`update echange dates failed: ${patchRes.error.message}`);
+      if (typeof statutPatch.statut === "string") {
+        await pousserStatutVersKommo(existing.kommo_lead_id, statutPatch.statut);
+      }
     }
     return existing.id;
   }
@@ -290,6 +308,9 @@ async function processMessage(
     })
     .eq("id", existing.id);
   if (updateRes.error) throw new Error(`update client failed: ${updateRes.error.message}`);
+  if (typeof statutPatch.statut === "string") {
+    await pousserStatutVersKommo(existing.kommo_lead_id, statutPatch.statut);
+  }
 
   // Signalement en direct d'un incident détecté sur ce message — jusqu'ici
   // ce type d'info finissait perdu dans kommo_resume, invisible sans relire

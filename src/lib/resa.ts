@@ -1005,14 +1005,32 @@ export function packBadge(r: Reservation) {
 // mini-bus et Orange Bay). Le reste du prix pack (jamais négatif) continue
 // d'être réparti au prorata entre les activités choisies qui n'ont pas de
 // prix fixe.
+// Repris le 08/09/2026 avec les vrais montants donnés par Mélanie (les
+// anciens prix planchers — Louxor 160€, Orange Bay 50€, Spa 40€ — étaient
+// trop élevés : dès que "Louxor en mini-bus" était choisi dans Pack
+// Exploration ou Pack Détente, son prix plancher dépassait à lui seul le
+// prix du pack entier, faisant retomber le budget des autres activités à
+// 0€ et le total facturé bien au-dessus du prix annoncé). Toutes les
+// activités utilisées dans un pack ont maintenant un prix fixe (plus de
+// prorata en pratique), donc plus aucune combinaison ne peut dépasser le
+// prix du pack de plus de quelques euros.
 // Exporté pour AddPackModal.tsx : le prix enfant proposé ici n'est qu'une
 // suggestion pré-remplie — l'employée doit toujours la valider (ou
 // l'ajuster) elle-même à l'ajout du pack quand des enfants sont présents,
 // jamais appliquée en silence (demande de Mélanie le 07/09/2026).
 export const PACK_PRIX_FIXE: Record<string, { pu_adulte: number; pu_enfant: number }> = {
-  "Louxor en mini-bus": { pu_adulte: 160, pu_enfant: 80 },
-  "Orange Bay": { pu_adulte: 50, pu_enfant: 25 },
-  "Spa/Massage": { pu_adulte: 40, pu_enfant: 0 },
+  "Le Caire en mini-bus": { pu_adulte: 80, pu_enfant: 40 },
+  "Louxor en mini-bus": { pu_adulte: 80, pu_enfant: 40 },
+  "Maison des dauphins": { pu_adulte: 22.5, pu_enfant: 11.25 },
+  "Orange Bay": { pu_adulte: 25, pu_enfant: 12.5 },
+  "Paradise Island (côté Hula Hula)": { pu_adulte: 25, pu_enfant: 12.5 },
+  "Safari quad & dîner spectacle": { pu_adulte: 22.5, pu_enfant: 11.25 },
+  "Grand Safari Bédouin": { pu_adulte: 25, pu_enfant: 12.5 },
+  "Spa/Massage": { pu_adulte: 20, pu_enfant: 10 },
+  "Mahmya Island": { pu_adulte: 80, pu_enfant: 40 },
+  "Seascope": { pu_adulte: 15, pu_enfant: 7.5 },
+  "Spectacle dauphins (Dolphin World)": { pu_adulte: 15, pu_enfant: 7.5 },
+  "Mini Egypt": { pu_adulte: 25, pu_enfant: 12.5 },
 };
 
 // Répartit le prix du pack (prix_adulte/prix_enfant) sur chaque activité

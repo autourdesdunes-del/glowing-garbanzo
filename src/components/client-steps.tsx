@@ -131,6 +131,7 @@ export function ContactStep({
   onNeedsField,
   reservations,
   totalSejour,
+  dataLoaded = true,
   hotelsRef,
   taxesRef,
   onOpenHelp,
@@ -146,6 +147,13 @@ export function ContactStep({
   // là-haut avant un rechargement complet de la page.
   onClientHotelsChange?: (hotels: ClientHotel[]) => void;
   totalSejour?: number;
+  // false pendant que ClientDetail charge encore reservations/hotelsRef —
+  // le total et le statut hôtel affichent alors un squelette plutôt que
+  // "0 €"/"non répertorié" (montants réels pas encore arrivés, pas
+  // vraiment nuls). Par défaut true : QuickAddClient (création d'un
+  // nouveau client, où 0 €/aucun hôtel est la vraie valeur de départ) ne
+  // passe pas cette prop.
+  dataLoaded?: boolean;
   hotelsRef: HotelReference[];
   taxesRef: TransfertTaxe[];
   onOpenHelp: () => void;
@@ -273,6 +281,7 @@ export function ContactStep({
         client={client}
         onChange={onChange}
         hotelsRef={hotelsRef}
+        hotelsRefLoaded={dataLoaded}
         taxesRef={taxesRef}
         onOpenHelp={onOpenHelp}
         onAddHotelRef={onAddHotelRef}
@@ -418,9 +427,13 @@ export function ContactStep({
 
       {typeof totalSejour === "number" && (
         <PropertyRow label="Total du séjour" icon={<PropIcon name="wallet" />}>
-          <span className="font-heading text-sm font-semibold text-[#171717]">
-            {totalSejour.toLocaleString("fr-FR")} €
-          </span>
+          {dataLoaded ? (
+            <span className="font-heading text-sm font-semibold text-[#171717]">
+              {totalSejour.toLocaleString("fr-FR")} €
+            </span>
+          ) : (
+            <span className="inline-block h-4 w-14 animate-pulse rounded bg-neutral-200" />
+          )}
         </PropertyRow>
       )}
 

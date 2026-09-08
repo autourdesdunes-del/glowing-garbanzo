@@ -399,6 +399,12 @@ export default function ClientDetail({
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
   const [paiementsEtapes, setPaiementsEtapes] = useState<PaiementEtape[]>([]);
+  // Tant que false, le total séjour/badge Paiements/statut hôtel affichent
+  // un squelette plutôt que "0 €"/"aucune activité" — sans ça, à l'ouverture
+  // d'une fiche existante, reservations démarre à [] (fetch ci-dessous pas
+  // encore résolu) et ces montants s'affichaient un instant à zéro avant de
+  // se corriger, un flash trompeur si on regarde vite après un clic.
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [showIncidentsModal, setShowIncidentsModal] = useState(false);
   const [showDevisPaiementModal, setShowDevisPaiementModal] = useState(false);
   const [confirmationFormat, setConfirmationFormat] = useState<"pdf" | "png" | null>(null);
@@ -633,6 +639,7 @@ export default function ClientDetail({
 
   useEffect(() => {
     (async () => {
+      setDataLoaded(false);
       const { data: resas } = await supabase
         .from("reservations")
         .select("*")
@@ -691,6 +698,7 @@ export default function ClientDetail({
       } else {
         setCoutsMap({});
       }
+      setDataLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id, canSeeMargins]);
@@ -1696,6 +1704,7 @@ export default function ClientDetail({
           onChange={onChange}
           reservations={reservations}
           totalSejour={totalSejourHeader}
+          dataLoaded={dataLoaded}
           hotelsRef={hotelsRef}
           taxesRef={taxesRef}
           onOpenHelp={onOpenHelp}
@@ -1801,26 +1810,30 @@ export default function ClientDetail({
         className="flex cursor-pointer items-center justify-between rounded-[6px] border border-[#eaeaea] bg-white px-4 py-2.5 text-left hover:bg-[#fafafa]"
       >
         <span className="font-heading text-sm font-semibold text-[#171717]">Paiements</span>
-        <span
-          className={`flex items-center gap-1.5 rounded-full py-0.5 pl-2.5 pr-2 text-xs font-medium ${
-            paiementFullyPaid ? "bg-[#0F5C56]/10 text-[#0F5C56]" : "bg-[#F2E6D2] text-[#5C2A1D]"
-          }`}
-        >
-          <span className="font-amounts font-semibold">{euros(totalSejourHeader)} €</span>
-          <span className={paiementFullyPaid ? "text-[#0F5C56]/30" : "text-[#5C2A1D]/30"}>·</span>
-          <span className={`flex items-center gap-1 ${paiementFullyPaid ? "text-[#0F5C56]" : "text-[#C9973E]"}`}>
-            <span className="text-[8px]">●</span>
-            {paiementFullyPaid
-              ? "Payé"
-              : client.reprise_montant > 0
-                ? `En attente : ${euros(client.reprise_montant)} € (nouvelle activité)`
-                : totalPayeHeader > 0
-                  ? `Acompte payé (${euros(totalPayeHeader)} €) reste ${euros(
-                      totalSejourHeader - totalPayeHeader
-                    )} € — en attente`
-                  : "En attente"}
+        {dataLoaded ? (
+          <span
+            className={`flex items-center gap-1.5 rounded-full py-0.5 pl-2.5 pr-2 text-xs font-medium ${
+              paiementFullyPaid ? "bg-[#0F5C56]/10 text-[#0F5C56]" : "bg-[#F2E6D2] text-[#5C2A1D]"
+            }`}
+          >
+            <span className="font-amounts font-semibold">{euros(totalSejourHeader)} €</span>
+            <span className={paiementFullyPaid ? "text-[#0F5C56]/30" : "text-[#5C2A1D]/30"}>·</span>
+            <span className={`flex items-center gap-1 ${paiementFullyPaid ? "text-[#0F5C56]" : "text-[#C9973E]"}`}>
+              <span className="text-[8px]">●</span>
+              {paiementFullyPaid
+                ? "Payé"
+                : client.reprise_montant > 0
+                  ? `En attente : ${euros(client.reprise_montant)} € (nouvelle activité)`
+                  : totalPayeHeader > 0
+                    ? `Acompte payé (${euros(totalPayeHeader)} €) reste ${euros(
+                        totalSejourHeader - totalPayeHeader
+                      )} € — en attente`
+                    : "En attente"}
+            </span>
           </span>
-        </span>
+        ) : (
+          <span className="inline-block h-5 w-24 animate-pulse rounded-full bg-neutral-100" />
+        )}
       </div>
 
       {paiementsModalOpen && (

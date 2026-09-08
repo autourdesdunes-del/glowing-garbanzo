@@ -160,9 +160,16 @@ export default function ClientPreviewView({
   const [openPanel, setOpenPanel] = useState("sejour");
   const [search, setSearch] = useState("");
   const [interests, setInterests] = useState<Record<string, boolean>>({});
+  // Tant que false, "Mon séjour"/"Mes paiements" affichent un squelette
+  // plutôt que "0 €"/"aucune activité programmée" — sinon, au premier
+  // affichage ou en changeant de client dans le sélecteur, reservations
+  // démarre à [] (fetch ci-dessous pas encore résolu) et ces sections
+  // affichaient un instant un dossier vide qui n'est pas le vrai.
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
+      setDataLoaded(false);
       const { data: resas } = await supabase.from("reservations").select("*").eq("client_id", client.id);
       const list = (resas as Reservation[]) || [];
       setReservations(list);
@@ -197,6 +204,7 @@ export default function ClientPreviewView({
         setResaOptions({});
         setResaTarifs({});
       }
+      setDataLoaded(true);
     })();
   }, [client.id, supabase]);
 
@@ -371,16 +379,25 @@ export default function ClientPreviewView({
           </span>
           <span className="rounded-full bg-[#fafafa] px-2 py-1">{client.hotel || "Hôtel ?"}</span>
         </div>
-        {sortedResas.map((r) => (
-          <div key={r.id} className="flex justify-between py-1 text-sm">
-            <span className="font-amounts text-neutral-500">{fmtDate(r.date_debut)}</span>
-            <span>{r.nom_activite || "Activité"}</span>
+        {!dataLoaded ? (
+          <div className="space-y-1.5">
+            <div className="h-4 w-2/3 animate-pulse rounded bg-neutral-100" />
+            <div className="h-4 w-1/2 animate-pulse rounded bg-neutral-100" />
           </div>
-        ))}
-        {sortedResas.length === 0 && (
-          <div className="text-sm text-neutral-400">
-            Aucune activité programmée pour l&apos;instant.
-          </div>
+        ) : (
+          <>
+            {sortedResas.map((r) => (
+              <div key={r.id} className="flex justify-between py-1 text-sm">
+                <span className="font-amounts text-neutral-500">{fmtDate(r.date_debut)}</span>
+                <span>{r.nom_activite || "Activité"}</span>
+              </div>
+            ))}
+            {sortedResas.length === 0 && (
+              <div className="text-sm text-neutral-400">
+                Aucune activité programmée pour l&apos;instant.
+              </div>
+            )}
+          </>
         )}
       </NavPanel>
 
@@ -389,19 +406,28 @@ export default function ClientPreviewView({
         open={openPanel === "paiements"}
         onToggle={() => setOpenPanel(openPanel === "paiements" ? "" : "paiements")}
       >
-        <div className="flex items-baseline justify-between">
-          <span className="font-amounts text-lg font-semibold text-[#171717]">
-            {euros(total)} €
-          </span>
-          <span className="text-xs text-neutral-500">montant total du séjour</span>
-        </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-100">
-          <div className="h-full bg-[#171717]" style={{ width: pct + "%" }} />
-        </div>
-        <div className="mt-1 flex justify-between text-xs text-neutral-500">
-          <span>{euros(totalPaye)} € déjà payés</span>
-          <span className="text-[#f5a623]">{euros(reste)} € restants</span>
-        </div>
+        {!dataLoaded ? (
+          <div className="space-y-2">
+            <div className="h-6 w-24 animate-pulse rounded bg-neutral-100" />
+            <div className="h-2 w-full animate-pulse rounded-full bg-neutral-100" />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-baseline justify-between">
+              <span className="font-amounts text-lg font-semibold text-[#171717]">
+                {euros(total)} €
+              </span>
+              <span className="text-xs text-neutral-500">montant total du séjour</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-100">
+              <div className="h-full bg-[#171717]" style={{ width: pct + "%" }} />
+            </div>
+            <div className="mt-1 flex justify-between text-xs text-neutral-500">
+              <span>{euros(totalPaye)} € déjà payés</span>
+              <span className="text-[#f5a623]">{euros(reste)} € restants</span>
+            </div>
+          </>
+        )}
       </NavPanel>
 
       <NavPanel
@@ -409,7 +435,10 @@ export default function ClientPreviewView({
         open={openPanel === "activites"}
         onToggle={() => setOpenPanel(openPanel === "activites" ? "" : "activites")}
       >
-        {sortedResas.length === 0 && (
+        {!dataLoaded && (
+          <div className="h-4 w-2/3 animate-pulse rounded bg-neutral-100" />
+        )}
+        {dataLoaded && sortedResas.length === 0 && (
           <div className="text-sm text-neutral-400">
             Aucune activité programmée pour l&apos;instant.
           </div>

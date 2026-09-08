@@ -19,6 +19,7 @@ export default function HebergementSection({
   client,
   onChange,
   hotelsRef,
+  hotelsRefLoaded = true,
   taxesRef,
   onOpenHelp,
   onAddHotelRef,
@@ -27,6 +28,13 @@ export default function HebergementSection({
   client: Client;
   onChange: (patch: Partial<Client>) => void;
   hotelsRef: HotelReference[];
+  // false pendant que le parent (ClientDetail) charge encore hotels_reference
+  // pour ce client — le statut hôtel affiche alors un squelette plutôt que
+  // "non répertorié dans HELP", qui serait faux tant que la vraie liste
+  // n'est pas arrivée. Par défaut true : QuickAddClient (nouveau client) ne
+  // passe pas cette prop, et un hôtel saisi là n'a de toute façon jamais eu
+  // le temps d'être vérifié pendant qu'on le tape.
+  hotelsRefLoaded?: boolean;
   taxesRef: TransfertTaxe[];
   // Optionnel : le pop-up "+ Nouveau client" (QuickAddClient) n'a pas
   // d'onglet Help vers lequel basculer — le lien "Vérifier le montant" est
@@ -165,7 +173,9 @@ export default function HebergementSection({
 
       {clientHotels.length === 0 && client.type_hebergement !== "airbnb" && client.hotel.trim() && (
         <div className="-mt-1 pl-[180px] text-xs">
-          {hotelMatch ? (
+          {!hotelsRefLoaded ? (
+            <span className="inline-block h-3 w-48 animate-pulse rounded bg-neutral-200" />
+          ) : hotelMatch ? (
             hotelMatch.sur_hurghada ? (
               <span className="text-emerald-600">
                 ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.

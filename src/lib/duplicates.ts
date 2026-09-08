@@ -19,7 +19,7 @@ export function normText(s: string | null | undefined): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "");
 }
-function normPhone(s: string | null | undefined): string {
+export function normPhone(s: string | null | undefined): string {
   return (s || "").replace(/\D/g, "");
 }
 

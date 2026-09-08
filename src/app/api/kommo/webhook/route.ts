@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchKommoLeadContactInfo } from "@/lib/kommoApi";
 import { localDateStr } from "@/lib/dates";
-import { normText } from "@/lib/duplicates";
+import { normText, normPhone } from "@/lib/duplicates";
 import {
     cleanKommoName,
     detectKommoEventType,
@@ -31,6 +31,26 @@ async function findPossibleDuplicateByName(
   const { data } = await admin.from("clients").select("id, nom, statut").neq("statut", "Client annulé");
   const match = (data as { id: string; nom: string }[] | null)?.find((c) => normText(c.nom) === target);
   return match?.id ?? null;
+}
+
+// Rapprochement par téléphone, chiffres seulement — Kommo (ou une saisie
+// manuelle) peut renvoyer le même numéro avec un espacement différent
+// ("+33601048769" vs "+ 33 6 01 04 87 69"), et une comparaison stricte
+// (.eq() sur la colonne brute) les traite comme deux personnes différentes,
+// créant un doublon à chaque léger changement de formatage. Même logique de
+// normalisation que findDuplicateClients (création manuelle, src/lib/duplicates.ts)
+// — jusqu'ici jamais branchée côté webhook.
+async function findClientIdByPhone(
+  admin: ReturnType<typeof createAdminClient>,
+  telephone: string
+): Promise<{ id: string; statut: string } | null> {
+  const target = normPhone(telephone);
+  if (!target || target.length < 6) return null;
+  const { data } = await admin.from("clients").select("id, telephone, statut").not("telephone", "is", null);
+  const match = (data as { id: string; telephone: string; statut: string }[] | null)?.find(
+    (c) => normPhone(c.telephone) === target
+  );
+  return match ? { id: match.id, statut: match.statut } : null;
 }
 
 // Id du statut Kommo "Demande d'infos envoyée" (cf. KOMMO_STATUS_MAP) — sert
@@ -202,13 +222,9 @@ async function processLeadEvent(
               let matchedId: string | null = null;
               let matchedStatut: string | null = null;
               if (telephone) {
-                        const { data } = await admin
-                                    .from("clients")
-                                    .select("id, statut")
-                                    .eq("telephone", telephone)
-                                    .maybeSingle();
-                        matchedId = data?.id ?? null;
-                        matchedStatut = data?.statut ?? null;
+                        const found = await findClientIdByPhone(admin, telephone);
+                        matchedId = found?.id ?? null;
+                        matchedStatut = found?.statut ?? null;
               }
 
               if (matchedId) {
@@ -296,8 +312,8 @@ async function processContactEvent(
       // par téléphone/email avant de créer un doublon.
       let matchedId: string | null = null;
         if (phone) {
-                const { data } = await admin.from("clients").select("id").eq("telephone", phone).maybeSingle();
-                matchedId = data?.id ?? null;
+                const found = await findClientIdByPhone(admin, phone);
+                matchedId = found?.id ?? null;
         }
         if (!matchedId && email) {
                 const { data } = await admin.from("clients").select("id").eq("email", email).maybeSingle();

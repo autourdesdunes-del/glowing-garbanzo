@@ -43,6 +43,12 @@ export type CatalogueItem = {
   haute_saison_pu_adulte: number;
   haute_saison_pu_enfant: number;
   necessite_verif_hebergement_assouan: boolean;
+  // Activités où l'agence organise elle-même le transfert (chameau, cheval,
+  // city tour, Aqua Park, spa, Mini Egypt, parachute ascensionnel) : un
+  // client seul mobilise tout de même un véhicule entier, d'où ce
+  // supplément — voir migration 0129 et la Formation ADD "Nos produits".
+  supplement_solo_actif: boolean;
+  supplement_solo_prix: number;
   marge_pct: number;
   specificites: string;
   horaire_approx: string;

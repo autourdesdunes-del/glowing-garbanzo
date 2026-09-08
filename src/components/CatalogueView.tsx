@@ -564,6 +564,27 @@ export default function CatalogueView({
                     />
                   )}
                 </div>
+                <div className="flex items-end gap-2 pb-1.5">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={a.supplement_solo_actif}
+                      onChange={(e) => onUpdate(a.id, { supplement_solo_actif: e.target.checked })}
+                    />
+                    Supplément client seul (transfert organisé par l&apos;agence)
+                  </label>
+                  {a.supplement_solo_actif && (
+                    <input
+                      type="number"
+                      value={a.supplement_solo_prix}
+                      onChange={(e) =>
+                        onUpdate(a.id, { supplement_solo_prix: Number(e.target.value) })
+                      }
+                      className="input w-20"
+                      placeholder="€"
+                    />
+                  )}
+                </div>
                 {a.tarif_mode !== "groupe" ? (
                   <>
                     <Field label="PU adulte (€)">

@@ -1911,8 +1911,26 @@ export default function AddActivityWizard({
       setStep("options");
     };
 
+    // Sur certaines activités, l'agence organise elle-même le transfert
+    // (chameau, cheval, city tour, Aqua Park, spa, Mini Egypt, parachute
+    // ascensionnel) : un client seul mobilise quand même un véhicule
+    // entier, d'où un supplément (voir supplement_solo_actif, migration
+    // 0129) — jusqu'ici cette règle n'existait que dans la formation,
+    // jamais rappelée au moment de créer la réservation.
+    const soloClient = nbAd + nbEnf + nbBebe === 1 && nbAcc === 0;
+    const supplementSoloApplicable = !!catalogueItem?.supplement_solo_actif && soloClient;
+
     return wrap(
       <>
+        {supplementSoloApplicable && (
+          <div className="mb-3 rounded-md border border-[#C9973E]/40 bg-[#C9973E]/10 p-3">
+            <p className="text-xs text-[#8B4531]">
+              ⚠️ Client seul sur cette activité — l&apos;agence organise elle-même le transfert, un
+              supplément de {euros(catalogueItem?.supplement_solo_prix ?? 5)} € s&apos;applique. À
+              annoncer dans le devis, pas après.
+            </p>
+          </div>
+        )}
         {catalogueItem?.necessite_verif_hebergement_assouan && (
           <div className="mb-3 rounded-md border border-[#0F5C56]/30 bg-[#0F5C56]/5 p-3">
             <p className="text-xs text-[#0F5C56]">

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Client } from "@/lib/types";
-import { STATUT_COLORS } from "@/lib/constants";
+import { PROSPECT_STATUTS, STATUT_COLORS } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
 import { joursSansReponseProspect, prospectStagnant } from "@/lib/resa";
 
@@ -82,6 +82,7 @@ function ClientCard({
   onDragEnd,
   onOpenClient,
   showIncompleteBadge,
+  syncedFromKommo,
 }: {
   client: Client;
   draggable: boolean;
@@ -90,6 +91,7 @@ function ClientCard({
   onDragEnd: () => void;
   onOpenClient: (id: string) => void;
   showIncompleteBadge: boolean;
+  syncedFromKommo?: boolean;
 }) {
   const missingInfos = showIncompleteBadge
     ? (c.infos_manquantes || []).filter((s) => s !== "Complet")
@@ -149,6 +151,14 @@ function ClientCard({
       {stagnant && jours !== null && (
         <div className="mt-1 inline-block rounded-full bg-[#8B4531]/10 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
           {jours} j sans réponse
+        </div>
+      )}
+      {syncedFromKommo && (
+        <div
+          title="La colonne de ce prospect suit automatiquement sa vraie étape dans Kommo — un déplacement manuel ici serait annulé au prochain sync."
+          className="mt-1 inline-block rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500"
+        >
+          🔄 Suit Kommo automatiquement
         </div>
       )}
       {hasMiniInfo && (
@@ -303,18 +313,29 @@ export default function PipelineView({
             </div>
 
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
-              {items.map((c) => (
-                <ClientCard
-                  key={c.id}
-                  client={c}
-                  draggable
-                  dragging={dragId === c.id}
-                  onDragStart={() => setDragId(c.id)}
-                  onDragEnd={() => setDragId(null)}
-                  onOpenClient={onOpenClient}
-                  showIncompleteBadge={false}
-                />
-              ))}
+              {items.map((c) => {
+                // Un prospect lié à Kommo a son statut déjà auto-synchronisé
+                // (webhook + cron kommo-reconcile) depuis sa vraie étape
+                // Kommo — le déplacer manuellement ici serait sans effet
+                // durable, annulé au prochain sync. Uniquement pour les
+                // statuts actifs suivis par ce sync (voir ACTIVE_STATUSES
+                // dans kommo-reconcile) : "Client perdu" est une décision
+                // manuelle jamais touchée par le sync, donc reste déplaçable.
+                const syncedParKommo = !!c.kommo_lead_id && PROSPECT_STATUTS.includes(c.statut);
+                return (
+                  <ClientCard
+                    key={c.id}
+                    client={c}
+                    draggable={!syncedParKommo}
+                    dragging={dragId === c.id}
+                    onDragStart={() => setDragId(c.id)}
+                    onDragEnd={() => setDragId(null)}
+                    onOpenClient={onOpenClient}
+                    showIncompleteBadge={false}
+                    syncedFromKommo={syncedParKommo}
+                  />
+                );
+              })}
               {items.length === 0 && (
                 <div className="p-2 text-center text-xs text-neutral-300">Vide</div>
               )}

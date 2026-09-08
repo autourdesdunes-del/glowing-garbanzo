@@ -186,10 +186,15 @@ export default function DashboardView({
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
+    // Même cible que la lecture plus haut (viewAsUserId ?? user.id) — sans
+    // ça, éditer le shift en "Aperçu vu par" quelqu'un d'autre écrasait
+    // silencieusement le shift du compte réellement connecté au lieu de
+    // celui affiché à l'écran.
+    const targetId = viewAsUserId ?? user.id;
     await supabase
       .from("user_shifts")
-      .upsert({ user_id: user.id, shift_debut: shiftDebut, shift_fin: shiftFin });
-    setShift({ user_id: user.id, shift_debut: shiftDebut, shift_fin: shiftFin, updated_at: "" });
+      .upsert({ user_id: targetId, shift_debut: shiftDebut, shift_fin: shiftFin });
+    setShift({ user_id: targetId, shift_debut: shiftDebut, shift_fin: shiftFin, updated_at: "" });
     setEditingShift(false);
   };
 
@@ -207,8 +212,17 @@ export default function DashboardView({
     (c) => c.date_debut && c.date_fin && c.date_debut <= todayStr && todayStr <= c.date_fin
   );
 
+  // Même définition qu'un vrai RDV paiement (Suivis > RDV paiements,
+  // SuivisView.tsx) : sans (solde_rdv_heure || solde_rdv_lieu), un solde
+  // simplement daté à aujourd'hui mais réglé à distance (PayPal/virement,
+  // sans rendez-vous prévu) se comptait ici comme "RDV paiement" urgent
+  // alors qu'aucun rendez-vous n'existe réellement.
   const rdvToday = clients.filter(
-    (c) => !c.solde_activite_id && c.solde_date === todayStr && !c.solde_paye
+    (c) =>
+      !c.solde_activite_id &&
+      c.solde_date === todayStr &&
+      !c.solde_paye &&
+      (c.solde_rdv_heure || c.solde_rdv_lieu)
   );
   const { encaisses: paiementsEncaisses, aPayer: paiementsAPayer } = useMemo(
     () =>

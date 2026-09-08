@@ -196,11 +196,15 @@ export default function PipelineView({
   );
 
   if (groupBy === "timing") {
-    // Un client annulé n'a plus rien à voir avec la proximité de son
-    // séjour (souvent déjà passée ou sans intérêt) — colonne à part plutôt
-    // que mélangé aux clients actifs dans "Plus tard / date à définir".
+    // Un client annulé ou un prospect perdu n'a plus rien à voir avec la
+    // proximité d'un séjour (souvent déjà passée, sans intérêt, ou jamais
+    // fixée) — colonnes à part plutôt que mélangés aux clients actifs dans
+    // "Plus tard / date à définir".
     const clientsAnnules = filteredClients.filter((c) => c.statut === "Client annulé");
-    const clientsActifs = filteredClients.filter((c) => c.statut !== "Client annulé");
+    const clientsPerdus = filteredClients.filter((c) => c.statut === "Client perdu");
+    const clientsActifs = filteredClients.filter(
+      (c) => c.statut !== "Client annulé" && c.statut !== "Client perdu"
+    );
     const renderColumn = (key: string, label: string, items: Client[]) => (
       <div
         key={key}
@@ -234,6 +238,7 @@ export default function PipelineView({
           {TIMING_BUCKETS.map((bucket) =>
             renderColumn(bucket.key, bucket.label, clientsActifs.filter(bucket.match))
           )}
+          {renderColumn("perdu", "Client perdu", clientsPerdus)}
           {renderColumn("annule", "Client annulé", clientsAnnules)}
         </div>
       </div>

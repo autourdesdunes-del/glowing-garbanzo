@@ -69,6 +69,23 @@ export function prospectStagnant(c: Client): boolean {
   return jours >= seuil;
 }
 
+// Score de tri du Kanban Prospects : combine "depuis quand pas de
+// réponse" ET "à quelle vitesse approche le départ", sans inventer une
+// nouvelle formule — c'est exactement le dépassement du délai de relance
+// déjà utilisé par prospectStagnant (2/5/10 jours selon la proximité du
+// départ), juste renvoyé en continu plutôt qu'en oui/non. Plus le nombre
+// est grand, plus le prospect a dépassé son propre délai de relance.
+// Un départ déjà passé (plus de relance à faire, voir prospectStagnant)
+// est renvoyé tout en bas du tri, pas en haut.
+export function urgenceProspect(c: Client): number {
+  const jours = joursSansReponseProspect(c) ?? 0;
+  if (!c.date_debut) return jours - 10;
+  if (c.date_debut < todayStr()) return -Infinity;
+  const avant = Math.round((Date.parse(c.date_debut) - Date.parse(todayStr())) / 86400000);
+  const seuil = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
+  return jours - seuil;
+}
+
 // Le solde reste unique par séjour (règle métier — jamais un solde par
 // activité), mais l'équipe doit pouvoir choisir explicitement son statut de
 // paiement depuis n'importe quelle activité (les choses ne se passent pas

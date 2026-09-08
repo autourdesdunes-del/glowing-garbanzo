@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Client } from "@/lib/types";
 import { PROSPECT_STATUTS, STATUT_COLORS } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
-import { joursSansReponseProspect, prospectStagnant } from "@/lib/resa";
+import { joursSansReponseProspect, prospectStagnant, urgenceProspect } from "@/lib/resa";
 
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -283,7 +283,12 @@ export default function PipelineView({
       {searchBar}
       <div className="flex flex-1 gap-4 overflow-x-auto p-6">
       {statuts.map((statut) => {
-        const items = filteredClients.filter((c) => c.statut === statut);
+        // Les plus urgents en premier — combine l'ancienneté du silence et
+        // la proximité du départ (voir urgenceProspect, resa.ts) plutôt
+        // qu'un tri par date de création qui ne dit rien de l'urgence.
+        const items = filteredClients
+          .filter((c) => c.statut === statut)
+          .sort((a, b) => urgenceProspect(b) - urgenceProspect(a));
         return (
           <div
             key={statut}

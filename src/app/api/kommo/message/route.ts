@@ -23,20 +23,23 @@ async function pousserStatutVersKommo(leadId: number | null, statut: string, not
   if (note) await addKommoLeadNote(leadId, note);
 }
 
-// Seul "Programme envoyé" (détecté par l'IA sur un message du PROSPECT) a
-// un équivalent direct dans le pipeline CRM. "Devis donné" et "Réservé"
-// n'ont volontairement pas d'équivalent : pas de statut "Devis donné" dans
-// le pipeline CRM, et une confirmation ne doit jamais être déclenchée par
-// une simple détection IA sur un message (ça reste une action humaine, via
-// "Passer en client confirmé"). "Demande d'infos envoyée" n'est PAS ici :
-// ça ne veut pas dire "le prospect pose des questions" (ce que l'IA
-// détecte comme "Infos demandées") mais un événement précis et daté —
-// l'équipe a envoyé le message-type de collecte d'infos de réservation
-// (nom, pax, dates, hôtel, contact, passeports...) — voir
-// estMessageDemandeInfos ci-dessous, détecté sur les messages de l'ÉQUIPE.
-const ETAPE_DETECTEE_TO_STATUT: Record<string, string> = {
-  "Programme envoyé": "Programme envoyé",
-};
+// "Devis donné" et "Réservé" (étapes IA côté kommoExtraction.ts, sur les
+// messages du PROSPECT) n'ont volontairement pas d'équivalent de statut
+// CRM ici : pas de statut "Devis donné" dans le pipeline CRM, et une
+// confirmation ne doit jamais être déclenchée par une simple détection IA
+// sur un message (ça reste une action humaine, via "Passer en client
+// confirmé"). "Programme envoyé" et "Demande d'infos envoyée" ne sont PAS
+// déduits de ce que dit/comprend le prospect : ce sont des événements
+// précis et datés côté ÉQUIPE — l'envoi d'un message reconnaissable — voir
+// estMessageDemandeInfos et estMessageProgrammeEnvoye ci-dessous.
+
+function normalizeText(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/['’]/g, "")
+    .toLowerCase();
+}
 
 // Message-type envoyé par l'équipe pour collecter les infos nécessaires à
 // la validation d'une réservation (texte de référence donné par Mélanie le
@@ -55,17 +58,50 @@ const DEMANDE_INFOS_MARKERS = [
   "numero egyptien",
 ];
 
-function normalizeText(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/['’]/g, "")
-    .toLowerCase();
-}
-
 function estMessageDemandeInfos(text: string): boolean {
   const normalized = normalizeText(text);
   return DEMANDE_INFOS_MARKERS.filter((m) => normalized.includes(m)).length >= 3;
+}
+
+// Devis/programme envoyé par l'équipe (3 exemples réels donnés par
+// Mélanie le 2026-09-08, très différents en contenu mais partageant
+// toujours cette structure) — au moins 2 des 3 marqueurs suivants :
+// "Séjour du [date]", une ligne de total ("➡️Total : 880 euros" — la
+// flèche est habituelle mais pas garantie, certaines employées l'oublient
+// et écrivent juste "Total : ..."), et un prix détaillé par
+// adulte/enfant/personne.
+const TOTAL_AVEC_MONTANT_RE = /total\D{0,15}\d/;
+
+function estMessageProgrammeEnvoye(text: string): boolean {
+  const normalized = normalizeText(text);
+  let marqueurs = 0;
+  if (normalized.includes("sejour du")) marqueurs++;
+  if (TOTAL_AVEC_MONTANT_RE.test(normalized)) marqueurs++;
+  if (
+    normalized.includes("euros par adulte") ||
+    normalized.includes("euros par enfant") ||
+    normalized.includes("euros par personne")
+  ) {
+    marqueurs++;
+  }
+  return marqueurs >= 2;
+}
+
+// Un seul message peut en théorie matcher les deux déclencheurs (rare en
+// pratique, les marqueurs des deux visent des messages très différents) —
+// dans ce cas on avance vers l'étape la plus loin dans le pipeline, jamais
+// les deux à la fois ni en arrière.
+function statutCibleDepuisMessageEquipe(text: string): string | null {
+  const demandeInfos = estMessageDemandeInfos(text);
+  const programmeEnvoye = estMessageProgrammeEnvoye(text);
+  if (demandeInfos && programmeEnvoye) {
+    return PROSPECT_STATUTS.indexOf("Demande d'infos envoyée") > PROSPECT_STATUTS.indexOf("Programme envoyé")
+      ? "Demande d'infos envoyée"
+      : "Programme envoyé";
+  }
+  if (demandeInfos) return "Demande d'infos envoyée";
+  if (programmeEnvoye) return "Programme envoyé";
+  return null;
 }
 
 // Étape 2 (légère) de l'intégration Kommo : reçoit, message par message, le
@@ -221,20 +257,27 @@ async function processMessage(
   // comprendre ce que dit le PROSPECT, pas à analyser nos propres messages.
   // Ça divise par ~2 le nombre d'appels IA (voir project_kommo_etape_detectee).
   // Exception : on regarde quand même (sans IA, juste des mots-clés) si CE
-  // message de l'équipe est le message-type de collecte d'infos — c'est
-  // l'unique déclencheur de "Demande d'infos envoyée".
+  // message de l'équipe est un message reconnaissable — demande d'infos ou
+  // programme/devis — seul déclencheur de ces deux statuts.
   if (!text.trim() || direction === "out") {
     const statutPatch: Record<string, unknown> = {};
+    let noteKommo: string | undefined;
+    const statutCible = direction === "out" && text.trim() ? statutCibleDepuisMessageEquipe(text) : null;
     if (
-      direction === "out" &&
-      text.trim() &&
-      estMessageDemandeInfos(text) &&
+      statutCible &&
       PROSPECT_STATUTS.includes(existing.statut) &&
-      PROSPECT_STATUTS.indexOf("Demande d'infos envoyée") > PROSPECT_STATUTS.indexOf(existing.statut)
+      PROSPECT_STATUTS.indexOf(statutCible) > PROSPECT_STATUTS.indexOf(existing.statut)
     ) {
-      statutPatch.statut = "Demande d'infos envoyée";
-      if (!existing.kommo_demande_infos_envoyee_le) {
-        statutPatch.kommo_demande_infos_envoyee_le = localDateStr(new Date());
+      statutPatch.statut = statutCible;
+      if (statutCible === "Demande d'infos envoyée") {
+        if (!existing.kommo_demande_infos_envoyee_le) {
+          statutPatch.kommo_demande_infos_envoyee_le = localDateStr(new Date());
+        }
+        noteKommo =
+          "🤖 Message-type de demande d'infos détecté (nom, pax, dates, hôtel, contact, passeports...) → prospect déplacé automatiquement dans \"Demande d'infos envoyée\".";
+      } else if (statutCible === "Programme envoyé") {
+        noteKommo =
+          "🤖 Programme/devis détecté (séjour, prix détaillé par personne, total) → prospect déplacé automatiquement dans \"Programme envoyé\".";
       }
     }
     if (Object.keys(echangePatch).length > 0 || Object.keys(statutPatch).length > 0) {
@@ -244,11 +287,7 @@ async function processMessage(
         .eq("id", existing.id);
       if (patchRes.error) throw new Error(`update echange dates failed: ${patchRes.error.message}`);
       if (typeof statutPatch.statut === "string") {
-        await pousserStatutVersKommo(
-          existing.kommo_lead_id,
-          statutPatch.statut,
-          "🤖 Message-type de demande d'infos détecté (nom, pax, dates, hôtel, contact, passeports...) → prospect déplacé automatiquement dans \"Demande d'infos envoyée\"."
-        );
+        await pousserStatutVersKommo(existing.kommo_lead_id, statutPatch.statut, noteKommo);
       }
     }
     return existing.id;
@@ -279,28 +318,10 @@ async function processMessage(
   });
   if (!updated) return existing.id;
 
-  // Fait avancer le statut CRM vers "Programme envoyé" directement depuis
-  // ce que dit le PROSPECT lui-même, sans dépendre d'un employé qui irait
-  // déplacer l'étape dans le pipeline Kommo (déplacement qui, en pratique,
-  // n'est presque jamais fait — voir l'audit Prospects). Uniquement en
-  // avant (jamais de retour en arrière), et seulement tant que le dossier
-  // est encore un prospect actif (jamais sur un client déjà
-  // confirmé/perdu/annulé).
-  const statutPatch: Record<string, unknown> = {};
-  const statutCible = updated.etape_detectee ? ETAPE_DETECTEE_TO_STATUT[updated.etape_detectee] : null;
-  if (statutCible && PROSPECT_STATUTS.includes(existing.statut)) {
-    const indexActuel = PROSPECT_STATUTS.indexOf(existing.statut);
-    const indexCible = PROSPECT_STATUTS.indexOf(statutCible);
-    if (indexCible > indexActuel) {
-      statutPatch.statut = statutCible;
-    }
-  }
-
   const updateRes = await admin
     .from("clients")
     .update({
       ...echangePatch,
-      ...statutPatch,
       kommo_resume: updated.resume || "",
       kommo_sejour_debut_estime: updated.sejour_debut_estime,
       kommo_sejour_fin_estime: updated.sejour_fin_estime,
@@ -316,9 +337,6 @@ async function processMessage(
     })
     .eq("id", existing.id);
   if (updateRes.error) throw new Error(`update client failed: ${updateRes.error.message}`);
-  if (typeof statutPatch.statut === "string") {
-    await pousserStatutVersKommo(existing.kommo_lead_id, statutPatch.statut);
-  }
 
   // Signalement en direct d'un incident détecté sur ce message — jusqu'ici
   // ce type d'info finissait perdu dans kommo_resume, invisible sans relire

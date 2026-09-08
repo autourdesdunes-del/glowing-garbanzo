@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Client } from "@/lib/types";
 import { STATUT_COLORS } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
+import { joursSansReponseProspect, prospectStagnant } from "@/lib/resa";
 
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "—";
@@ -105,6 +106,8 @@ function ClientCard({
   const paxLabel = paxAdultes || paxEnfants ? `${paxAdultes}${paxEnfants ? `+${paxEnfants}` : ""} pax` : null;
   const hotelLabel = c.hotel || c.kommo_hotel_estime || null;
   const hasMiniInfo = moisLabel || paxLabel || hotelLabel;
+  const stagnant = prospectStagnant(c);
+  const jours = stagnant ? joursSansReponseProspect(c) : null;
 
   return (
     <div
@@ -127,6 +130,26 @@ function ClientCard({
       </div>
       {c.date_debut && (
         <div className="font-amounts mt-1 text-xs text-neutral-400">{fmtDate(c.date_debut)}</div>
+      )}
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-neutral-400">
+        <span>{c.canal}</span>
+        {c.telephone && <span>{c.telephone}</span>}
+        {c.kommo_lead_id && (
+          <a
+            href={`https://autourdesdunes.kommo.com/leads/detail/${c.kommo_lead_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="font-medium text-[#0F5C56] hover:underline"
+          >
+            Kommo →
+          </a>
+        )}
+      </div>
+      {stagnant && jours !== null && (
+        <div className="mt-1 inline-block rounded-full bg-[#8B4531]/10 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
+          {jours} j sans réponse
+        </div>
       )}
       {hasMiniInfo && (
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-neutral-400">

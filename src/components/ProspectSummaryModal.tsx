@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Client } from "@/lib/types";
+import { joursSansReponseProspect, prospectStagnant } from "@/lib/resa";
+import { todayStr } from "@/lib/dates";
+
+// "autourdesdunes" = sous-domaine Kommo de l'agence (KOMMO_SUBDOMAIN côté
+// serveur) — pas un secret, juste l'URL publique de l'espace Kommo, donc
+// répété ici en dur plutôt que de créer une variable d'env dédiée côté client.
+const KOMMO_SUBDOMAIN = "autourdesdunes";
 
 function fmtDateTime(dateStr: string | null) {
   if (!dateStr) return null;
@@ -48,6 +55,17 @@ export default function ProspectSummaryModal({
 
   const save = (patch: Partial<Client>) => onUpdateClient(patch);
 
+  const jours = joursSansReponseProspect(client);
+  const stagnant = prospectStagnant(client);
+
+  const marquerRelance = () =>
+    save({ dernier_contact_date: todayStr(), nb_relances: (client.nb_relances || 0) + 1 });
+
+  const marquerPerdu = () => {
+    save({ statut: "Client perdu" });
+    onClose();
+  };
+
   const derniereMaj = fmtDateTime(client.kommo_extraction_updated_at);
   const demandeInfosLe = fmtDate(client.kommo_demande_infos_envoyee_le);
   const premierEchange = fmtDateTime(client.kommo_premier_echange_le);
@@ -71,6 +89,27 @@ export default function ProspectSummaryModal({
             ✕
           </button>
         </div>
+
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
+          <span>{client.canal}{client.canal_autre ? ` (${client.canal_autre})` : ""}</span>
+          {client.telephone && <span>{client.telephone}</span>}
+          {client.kommo_lead_id && (
+            <a
+              href={`https://${KOMMO_SUBDOMAIN}.kommo.com/leads/detail/${client.kommo_lead_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-[#0F5C56] hover:underline"
+            >
+              Voir la conversation Kommo →
+            </a>
+          )}
+        </div>
+
+        {stagnant && jours !== null && (
+          <p className="mt-2 inline-block rounded-full bg-[#8B4531]/10 px-2 py-0.5 text-xs font-medium text-[#8B4531]">
+            {jours} jour{jours > 1 ? "s" : ""} sans réponse
+          </p>
+        )}
 
         <div className="mt-3 space-y-3">
           <Field label="Résumé">
@@ -214,7 +253,7 @@ export default function ProspectSummaryModal({
           </p>
         )}
 
-        <div className="mt-4">
+        <div className="mt-4 space-y-2">
           <button
             type="button"
             onClick={onConfirmClient}
@@ -222,6 +261,22 @@ export default function ProspectSummaryModal({
           >
             ✓ Passer en client confirmé
           </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={marquerRelance}
+              className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-[#171717] hover:bg-neutral-50"
+            >
+              Relancé aujourd&apos;hui
+            </button>
+            <button
+              type="button"
+              onClick={marquerPerdu}
+              className="flex-1 rounded-md border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-500 hover:bg-neutral-50"
+            >
+              Marquer perdu
+            </button>
+          </div>
         </div>
       </div>
     </div>

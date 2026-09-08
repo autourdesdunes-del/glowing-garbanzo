@@ -99,6 +99,11 @@ export const STATUT_PAIEMENT_OPTIONS: {
       // plus tard, PaiementResteFlow saute directement à la vue "déjà validé"
       // (heure/lieu vides) au lieu de redemander les infos du rendez-vous.
       solde_rdv_valide: false,
+      // Idem pour paiement_integral_mode (partagé avec l'étape Paiements,
+      // voir RdvPaiementCreationModal/PaiementResteFlow) : sinon rouvrir
+      // cette étape affichait encore le panneau RDV alors que ce menu
+      // rapide dit "En attente".
+      paiement_integral_mode: "",
     }),
   },
   {
@@ -112,6 +117,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
       solde_rdv_valide: false,
+      paiement_integral_mode: "",
     }),
   },
   {
@@ -139,6 +145,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
       solde_rdv_valide: false,
+      paiement_integral_mode: "",
     }),
   },
   {
@@ -152,6 +159,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
       solde_rdv_valide: false,
+      paiement_integral_mode: "",
     }),
   },
   {
@@ -165,6 +173,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
       solde_rdv_valide: false,
+      paiement_integral_mode: "",
     }),
   },
 ];

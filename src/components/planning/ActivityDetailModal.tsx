@@ -680,6 +680,12 @@ export function ActivityDetailModal({
               solde_assigne_a: assigneA,
               solde_mode: mode,
               solde_rdv_valide: true,
+              // Sans ça, l'étape Paiements (PaiementResteFlow) ne "voyait"
+              // pas ce RDV comme sélectionné — les boutons de mode
+              // s'affichaient tous non cochés, et cliquer à nouveau sur
+              // "Rendez-vous paiement planifié" depuis cet écran effaçait
+              // silencieusement l'heure/la validation qu'on venait de créer.
+              paiement_integral_mode: "rdv",
             };
             setRdvCreationPending(false);
             setSoldeOverride((prev) => ({ ...prev, ...patch }));

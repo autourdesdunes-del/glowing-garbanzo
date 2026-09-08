@@ -1023,6 +1023,10 @@ export default function ItineraryView({
               solde_assigne_a: assigneA,
               solde_mode: mode,
               solde_rdv_valide: true,
+              // Sans ça, l'étape Paiements (PaiementResteFlow) ne "voyait"
+              // pas ce RDV comme sélectionné, avec le risque d'effacer
+              // l'heure/la validation en re-cliquant sur ce mode là-bas.
+              paiement_integral_mode: "rdv",
             });
           }}
         />

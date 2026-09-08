@@ -35,6 +35,7 @@ import {
   Verification,
 } from "@/lib/types";
 import {
+  prospectStagnant,
   remboursementImpact,
   reservationsActives,
   reservationsVendues,
@@ -96,7 +97,7 @@ import {
   IconUsers,
   OutilEnConstruction,
 } from "@/components/appShell/AppShellIcons";
-import { fmtDate, prospectStagnantNav } from "@/lib/appShellNav";
+import { fmtDate } from "@/lib/appShellNav";
 
 type Mode =
   | "dashboard"
@@ -713,7 +714,7 @@ function AppShellInner({
   const managerActivitesCount = allReservations.filter((r) => r.statut_resa === "Brouillon").length;
   const managerCatalogueBrouillonCount = catalogue.filter((a) => !a.valide).length;
   const managerDoublonsCount = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite).length;
-  const managerProspectsStagnantsCount = clients.filter(prospectStagnantNav).length;
+  const managerProspectsStagnantsCount = clients.filter(prospectStagnant).length;
   // Badges par sous-menu (pas un total global) : "Gestion équipe" n'a pas
   // de badge, rien à traiter en urgence de ce côté.
   const managerSubCounts: Record<ManagerSub, number> = {
@@ -1858,10 +1859,21 @@ function AppShellInner({
     }
   };
 
-  const updatePack = async (id: string, patch: Partial<Pack>) => {
+  // Même correctif que updateCatalogueItem ci-dessus.
+  const packEcrituresEnAttente = useRef<Record<string, Partial<Pack>>>({});
+  const packMinuteries = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const updatePack = (id: string, patch: Partial<Pack>) => {
     setPacks((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-    const { error } = await supabase.from("packs").update(patch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement du pack.");
+    packEcrituresEnAttente.current[id] = { ...(packEcrituresEnAttente.current[id] || {}), ...patch };
+    if (packMinuteries.current[id]) clearTimeout(packMinuteries.current[id]);
+    packMinuteries.current[id] = setTimeout(async () => {
+      const aEcrire = packEcrituresEnAttente.current[id];
+      delete packEcrituresEnAttente.current[id];
+      delete packMinuteries.current[id];
+      if (!aEcrire) return;
+      const { error } = await supabase.from("packs").update(aEcrire).eq("id", id);
+      if (error) toast("Échec de l'enregistrement du pack.");
+    }, 600);
   };
 
   const deletePack = async (id: string) => {

@@ -19,13 +19,14 @@ import {
   cleanActivityTitle,
   missingChampsFor,
   paxSummary,
+  prospectStagnant,
   resaTotalMontant,
   reservationsActives,
   reservationsVendues,
 } from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
-import { PROSPECT_STATUTS, STATUTS, STATUT_COLORS } from "@/lib/constants";
+import { STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
 import QuickAddClient from "@/components/QuickAddClient";
 import PickClientModal from "@/components/PickClientModal";
@@ -296,26 +297,10 @@ export default function DashboardView({
       c.statut !== "Client annulé" && c.date_fin && addDays(c.date_fin, 7) === todayStr && !c.avis_envoye
   );
 
-  // "À relancer" se base sur le dernier contact réel (dernier_contact_date),
-  // pas sur l'ancienneté de la fiche — sinon un prospect qu'on vient de
-  // relancer reste marqué "à relancer" jusqu'à ce qu'il réponde. Le délai
-  // avant relance dépend de la proximité du séjour : un prospect qui arrive
-  // cette semaine se relance vite (2j sans contact), un prospect qui arrive
-  // dans plusieurs mois n'a pas besoin d'être harcelé tous les 2 jours.
-  const joursAvantArrivee = (dateStr: string) =>
-    Math.round((Date.parse(dateStr) - Date.parse(todayStr)) / 86400000);
-  const staleProspects = clients.filter((c) => {
-    if (!PROSPECT_STATUTS.includes(c.statut)) return false;
-    // Date de séjour pas encore connue (très fréquent en tout début de
-    // discussion) : ne doit jamais dispenser de relance — sans ce cas, la
-    // file "Prospects à relancer" restait vide malgré des dizaines de
-    // leads muets depuis des semaines, tous sans date de séjour connue.
-    if (!c.date_debut) return daysSince(c.dernier_contact_date || c.created_at) >= 10;
-    if (c.date_debut < todayStr) return false;
-    const avant = joursAvantArrivee(c.date_debut);
-    const seuilRelance = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
-    return daysSince(c.dernier_contact_date || c.created_at) >= seuilRelance;
-  });
+  // Voir prospectStagnant (resa.ts) pour la définition partagée — se base
+  // sur le dernier contact réel, PayPal/WhatsApp/Kommo compris (pas
+  // seulement dernier_contact_date), pas sur l'ancienneté de la fiche.
+  const staleProspects = clients.filter(prospectStagnant);
 
   const marquerRelance = (c: Client) => {
     onUpdateClient(c.id, {

@@ -21,10 +21,9 @@ import {
   catalogueItemPrixManquant,
   cleanActivityTitle,
   isFamilySafariBedouin,
+  prospectStagnant,
   resaTotalMontant,
 } from "@/lib/resa";
-import { todayStr } from "@/lib/dates";
-import { PROSPECT_STATUTS } from "@/lib/constants";
 
 function fmtDate(dateStr: string | null) {
   if (!dateStr) return "Date ?";
@@ -61,23 +60,6 @@ function derniereActiviteLabel(iso: string | null) {
   return `Il y a ${jours} jours`;
 }
 
-// Même seuil que "Relances prospects" ailleurs dans l'app (Actions rapides
-// du tableau de bord) : un prospect qui arrive bientôt se relance plus
-// vite qu'un prospect dont le séjour est encore loin.
-function joursAvantArrivee(dateStr: string) {
-  return Math.round((Date.parse(dateStr) - Date.parse(todayStr())) / 86400000);
-}
-function estProspectStagnant(c: Client) {
-  if (!PROSPECT_STATUTS.includes(c.statut)) return false;
-  // Date de séjour pas encore connue : ne doit jamais dispenser de relance
-  // — sinon un prospect muet depuis des semaines n'était jamais compté
-  // stagnant tant qu'aucune date de séjour n'avait été renseignée.
-  if (!c.date_debut) return daysSince(c.dernier_contact_date || c.created_at) >= 10;
-  if (c.date_debut < todayStr()) return false;
-  const avant = joursAvantArrivee(c.date_debut);
-  const seuilRelance = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
-  return daysSince(c.dernier_contact_date || c.created_at) >= seuilRelance;
-}
 
 type Autorisation = {
   id: string;
@@ -234,7 +216,7 @@ export default function ManagerView({
   const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);
 
   const prospectsStagnants = clients
-    .filter(estProspectStagnant)
+    .filter(prospectStagnant)
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
 
   // Comptage à partir de la mise en place de cree_par_id/cree_par_nom

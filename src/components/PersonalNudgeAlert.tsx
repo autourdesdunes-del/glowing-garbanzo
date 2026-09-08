@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Client, Verification } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/dates";
-import { PROSPECT_STATUTS } from "@/lib/constants";
-import { estDossierNonVerifie } from "@/lib/resa";
+import { estDossierNonVerifie, prospectStagnant } from "@/lib/resa";
 
 // Remplace l'idée de "responsable de la semaine" (relances / au revoir /
 // avis clients / vérif dossiers, voir Notion) : plutôt qu'une seule
@@ -16,22 +15,6 @@ import { estDossierNonVerifie } from "@/lib/resa";
 // plus urgente d'abord) — "Plus tard" fait passer à la suivante.
 function daysSince(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-}
-
-function joursAvantArrivee(dateStr: string) {
-  return Math.round((Date.parse(dateStr) - Date.parse(todayStr())) / 86400000);
-}
-
-function estProspectStagnant(c: Client) {
-  if (!PROSPECT_STATUTS.includes(c.statut)) return false;
-  // Date de séjour pas encore connue : ne doit jamais dispenser de relance
-  // — sinon un prospect muet depuis des semaines n'était jamais compté
-  // stagnant tant qu'aucune date de séjour n'avait été renseignée.
-  if (!c.date_debut) return daysSince(c.dernier_contact_date || c.created_at) >= 10;
-  if (c.date_debut < todayStr()) return false;
-  const avant = joursAvantArrivee(c.date_debut);
-  const seuilRelance = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
-  return daysSince(c.dernier_contact_date || c.created_at) >= seuilRelance;
 }
 
 function estAuRevoirEnAttente(c: Client) {
@@ -130,7 +113,7 @@ export default function PersonalNudgeAlert({
     {
       cle: "relances",
       derniere: dernierePar((c) => c.dernier_contact_par_id, (c) => c.dernier_contact_date),
-      count: clients.filter(estProspectStagnant).length,
+      count: clients.filter(prospectStagnant).length,
       seuil: SEUIL_INACTIVITE_JOURS,
       message: (j, n) =>
         `Depuis ${j} jour${j > 1 ? "s" : ""} tu n'as fait aucune relance. Il y a pourtant ${n} prospect${n > 1 ? "s" : ""} qui attend${n > 1 ? "ent" : ""} une relance — souhaites-tu t'en occuper ?`,

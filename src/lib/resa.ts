@@ -10,7 +10,7 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import { addDays, fmtAnnulationSuffix, todayStr, weekdayFr } from "@/lib/dates";
-import { CHAMPS_REQUIS_PRESETS } from "@/lib/constants";
+import { CHAMPS_REQUIS_PRESETS, PROSPECT_STATUTS } from "@/lib/constants";
 
 // Un client confirmé, séjour proche (dans les 14 jours, ou déjà en cours),
 // sans aucune ligne dans "verifications" — utilisé à la fois par le rappel
@@ -21,6 +21,52 @@ export function estDossierNonVerifie(c: Client, clientsVerifies: Set<string>) {
   if (c.date_debut > addDays(todayStr(), 14)) return false;
   if (c.date_fin && c.date_fin < todayStr()) return false;
   return !clientsVerifies.has(c.id);
+}
+
+// Date la plus récente parmi tous les signaux de contact réel avec un
+// prospect — dernier_contact_date (posé manuellement, bouton "Relancé
+// aujourd'hui") ET les deux dates auto-alimentées à chaque message Kommo
+// (kommo_last_team_reply_at/kommo_last_client_message_at, déjà utilisées
+// par Suivis > "Client sans réponse depuis 48h"). Se limiter au seul champ
+// manuel — comme le faisaient les 4 copies de cette logique avant d'être
+// fusionnées ici (DashboardView/PersonalNudgeAlert/ManagerView/
+// appShellNav) — faisait perdre toute relance faite directement sur
+// WhatsApp/Kommo : un prospect à qui l'équipe venait de répondre restait
+// compté "sans relance récente" tant que personne n'avait aussi cliqué le
+// bouton dans le CRM, ce qui n'arrivait presque jamais en pratique.
+export function derniereActiviteProspect(c: Client): string | null {
+  const dates = [c.dernier_contact_date, c.kommo_last_team_reply_at, c.kommo_last_client_message_at].filter(
+    (d): d is string => !!d
+  );
+  if (dates.length === 0) return null;
+  return dates.reduce((latest, d) => (Date.parse(d) > Date.parse(latest) ? d : latest));
+}
+
+function joursDepuis(iso: string) {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+
+// Nombre de jours depuis la dernière activité connue sur ce prospect — pour
+// un badge "X jours sans réponse" sur les cartes Kanban. null si jamais
+// aucun signal (ne devrait pas arriver, created_at sert toujours de repli).
+export function joursSansReponseProspect(c: Client): number | null {
+  const derniere = derniereActiviteProspect(c) || c.created_at;
+  return derniere ? joursDepuis(derniere) : null;
+}
+
+// Un prospect sans relance récente — le seuil dépend de la proximité du
+// séjour (2 jours si arrivée sous 7j, 5 si sous 30j, 10 sinon), sans jamais
+// dispenser un prospect dont la date de séjour n'est pas encore connue
+// (très fréquent en tout début de discussion — sans ce cas, la quasi-
+// totalité des prospects n'apparaissaient jamais comme "à relancer").
+export function prospectStagnant(c: Client): boolean {
+  if (!PROSPECT_STATUTS.includes(c.statut)) return false;
+  const jours = joursSansReponseProspect(c) ?? 0;
+  if (!c.date_debut) return jours >= 10;
+  if (c.date_debut < todayStr()) return false;
+  const avant = Math.round((Date.parse(c.date_debut) - Date.parse(todayStr())) / 86400000);
+  const seuil = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
+  return jours >= seuil;
 }
 
 // Le solde reste unique par séjour (règle métier — jamais un solde par

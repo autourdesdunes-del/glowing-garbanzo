@@ -62,9 +62,17 @@ export default function HebergementSection({
   }, [clientHotels]);
 
   const addHotelStep = async () => {
+    // max(ordre) + 1, jamais clientHotels.length — sinon, après la
+    // suppression d'une étape du milieu (ex. 3 étapes 0/1/2, on retire la
+    // 1), il ne reste que 2 lignes mais leurs ordre restent 0 et 2 :
+    // ajouter ensuite un nouvel hôtel avec ordre = length (2) entrait en
+    // collision avec l'étape déjà à ordre 2, rendant le tri du circuit
+    // instable (dépend de l'équipe Égypte, qui liste les étapes dans cet
+    // ordre).
+    const nextOrdre = clientHotels.length ? Math.max(...clientHotels.map((h) => h.ordre)) + 1 : 0;
     const { data, error } = await supabase
       .from("client_hotels")
-      .insert({ client_id: client.id, ordre: clientHotels.length })
+      .insert({ client_id: client.id, ordre: nextOrdre })
       .select()
       .single();
     if (!error && data) {

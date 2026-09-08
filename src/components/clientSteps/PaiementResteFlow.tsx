@@ -116,7 +116,7 @@ export const INTEGRAL_MODES = [
   { key: "cb", label: "Paiement par CB", className: "border-orange-300 bg-orange-50 text-orange-700" },
 ] as const;
 
-const RDV_MODES = ["Carte bleue", "Espèces EUR", "Espèces EGP"] as const;
+export const RDV_MODES = ["Carte bleue", "Espèces EUR", "Espèces EGP"] as const;
 
 const INTEGRAL_MODE_SOLDE_MODE: Record<string, string> = {
   activite_eur: "Espèces EUR",

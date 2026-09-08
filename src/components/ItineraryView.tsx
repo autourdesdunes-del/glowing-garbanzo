@@ -52,6 +52,7 @@ import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import AnnulerMontgolfiereModal from "@/components/AnnulerMontgolfiereModal";
 import RetirerParticipantsModal from "@/components/RetirerParticipantsModal";
 import AjouterRemboursementAvoirModal from "@/components/AjouterRemboursementAvoirModal";
+import RdvPaiementCreationModal from "@/components/RdvPaiementCreationModal";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
@@ -184,6 +185,10 @@ export default function ItineraryView({
   const choisirStatutPaiement = async (r: Reservation, key: string) => {
     const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key);
     if (!opt) return;
+    if (opt.key === "rdv_planifie") {
+      setRdvCreationPending(true);
+      return;
+    }
     if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(client)) {
       const ok = await confirm({
         title: "L'acompte n'a pas encore été marqué encaissé",
@@ -228,6 +233,10 @@ export default function ItineraryView({
   const [retirerParticipantsActiviteId, setRetirerParticipantsActiviteId] = useState<string | null>(null);
   const [egyptOpen, setEgyptOpen] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
+  // "RDV paiement planifié" choisi dans le menu rapide — voir le popup
+  // RdvPaiementCreationModal plus bas, même raison que dans
+  // planning/ActivityDetailModal.tsx.
+  const [rdvCreationPending, setRdvCreationPending] = useState(false);
   useEffect(() => {
     setEditingExpanded(false);
     setEgyptOpen(false);
@@ -997,6 +1006,25 @@ export default function ItineraryView({
             />
           );
         })()}
+
+      {rdvCreationPending && (
+        <RdvPaiementCreationModal
+          onClose={() => setRdvCreationPending(false)}
+          onValider={({ date, heure, assigneA, mode }) => {
+            setRdvCreationPending(false);
+            onUpdateClient({
+              solde_paye: false,
+              solde_activite_id: null,
+              solde_rdv_lieu: "",
+              solde_date: date,
+              solde_rdv_heure: heure,
+              solde_assigne_a: assigneA,
+              solde_mode: mode,
+              solde_rdv_valide: true,
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

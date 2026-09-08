@@ -45,6 +45,7 @@ import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { euros, fmtDate } from "@/lib/planningViewFormat";
 import { DetailRow } from "@/components/planning/PlanningCards";
+import RdvPaiementCreationModal from "@/components/RdvPaiementCreationModal";
 
 // Modale de détail d'une activité (Réservations) — extraite de
 // PlanningView.tsx pour l'alléger, sans changement de comportement.
@@ -79,6 +80,10 @@ export function ActivityDetailModal({
   const confirm = useConfirm();
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
+  // "RDV paiement planifié" choisi dans le menu rapide ci-dessous : sans ce
+  // popup, ce choix ne posait que solde_rdv_lieu="À définir" sans jamais
+  // demander date/heure/assigné, créant un RDV fantôme jamais complétable.
+  const [rdvCreationPending, setRdvCreationPending] = useState(false);
   const [photoVolUrl, setPhotoVolUrl] = useState("");
   // Séjour multi-hôtels (circuit) : pour que le bloc équipe Égypte de cette
   // activité précise affiche seulement l'hôtel où le client se trouve ce
@@ -421,6 +426,10 @@ export function ActivityDetailModal({
                 onChange={async (e) => {
                   const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
                   if (!opt) return;
+                  if (opt.key === "rdv_planifie") {
+                    setRdvCreationPending(true);
+                    return;
+                  }
                   if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(effectiveClient)) {
                     const ok = await confirm({
                       title: "L'acompte n'a pas encore été marqué encaissé",
@@ -655,6 +664,27 @@ export function ActivityDetailModal({
         </div>
         </div>
       </div>
+
+      {rdvCreationPending && (
+        <RdvPaiementCreationModal
+          onClose={() => setRdvCreationPending(false)}
+          onValider={async ({ date, heure, assigneA, mode }) => {
+            const patch: Partial<Client> = {
+              solde_paye: false,
+              solde_activite_id: null,
+              solde_rdv_lieu: "",
+              solde_date: date,
+              solde_rdv_heure: heure,
+              solde_assigne_a: assigneA,
+              solde_mode: mode,
+              solde_rdv_valide: true,
+            };
+            setRdvCreationPending(false);
+            setSoldeOverride((prev) => ({ ...prev, ...patch }));
+            await supabase.from("clients").update(patch).eq("id", client.id);
+          }}
+        />
+      )}
     </>
   );
 }

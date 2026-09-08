@@ -1127,10 +1127,15 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
-  const addTarif = async (resaId: string, seed?: { label: string; pu: number }) => {
+  const addTarif = async (resaId: string, seed?: { label: string; pu: number; quantite?: number }) => {
     const { data, error } = await supabase
       .from("reservation_tarifs")
-      .insert({ reservation_id: resaId, label: seed?.label || "", pu: seed?.pu || 0, quantite: 0 })
+      .insert({
+        reservation_id: resaId,
+        label: seed?.label || "",
+        pu: seed?.pu || 0,
+        quantite: seed?.quantite ?? 0,
+      })
       .select()
       .single();
     if (!error && data) {

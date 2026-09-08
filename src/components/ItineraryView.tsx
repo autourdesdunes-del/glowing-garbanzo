@@ -135,7 +135,7 @@ export default function ItineraryView({
   onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean; verrouille?: boolean }) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
-  onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
+  onAddTarif: (resaId: string, seed?: { label: string; pu: number; quantite?: number }) => void;
   onUpdateTarif: (resaId: string, tarifId: string, patch: Partial<ReservationTarif>) => void;
   onDeleteTarif: (resaId: string, tarifId: string) => void;
   onUpdateClient: (patch: Partial<Client>) => void;

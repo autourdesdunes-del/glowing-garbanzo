@@ -109,6 +109,12 @@ type Step =
   | "reduction"
   | "transfert";
 
+// Libellé exact de la ligne auto-ajoutée dans les Tarifs supplémentaires
+// quand un client seul réserve une activité à supplement_solo_actif — garde
+// ce même texte partout (effet d'auto-ajout, vérification "déjà ajouté",
+// affichage) pour ne jamais créer deux lignes différentes pour la même chose.
+const SUPPLEMENT_SOLO_LABEL = "Supplément transfert personne seule";
+
 const STEP_TITLES: Record<Step, string> = {
   choix: "Choisir une activité",
   specifs: "Informations requises",
@@ -194,7 +200,7 @@ export default function AddActivityWizard({
   onAddOption: (resaId: string, seed?: { nom: string; prix: number; quantite?: number; prix_compte_ailleurs?: boolean; verrouille?: boolean }) => void;
   onUpdateOption: (resaId: string, optId: string, patch: Partial<ReservationOption>) => void;
   onDeleteOption: (resaId: string, optId: string) => void;
-  onAddTarif: (resaId: string, seed?: { label: string; pu: number }) => void;
+  onAddTarif: (resaId: string, seed?: { label: string; pu: number; quantite?: number }) => void;
   onUpdateTarif: (resaId: string, tarifId: string, patch: Partial<ReservationTarif>) => void;
   onDeleteTarif: (resaId: string, tarifId: string) => void;
   reservations: Reservation[];
@@ -382,6 +388,41 @@ export default function AddActivityWizard({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, r?.id, r?.transfert_inclus, r?.transfert_montant, hotelHorsHurghadaEffectif, hotelVilleEffectif]);
+
+  // Client seul sur une activité où l'agence organise elle-même le
+  // transfert (chameau, cheval, city tour, Aqua Park, spa, Mini Egypt,
+  // parachute — voir supplement_solo_actif) : ajoute automatiquement la
+  // ligne de supplément dans les Tarifs supplémentaires dès que la
+  // condition est réunie, plutôt que de compter sur l'employée pour y
+  // penser (jamais retiré automatiquement si les participants changent
+  // ensuite — l'employée garde la main pour la supprimer elle-même).
+  useEffect(() => {
+    if (!r || !catalogueItem?.supplement_solo_actif) return;
+    const { nbAd, nbEnf, nbBebe, nbAcc } = participantsFor(r, client);
+    const solo = nbAd + nbEnf + nbBebe === 1 && nbAcc === 0;
+    if (!solo) return;
+    const dejaAjoute = tarifs.some((t) => t.label === SUPPLEMENT_SOLO_LABEL);
+    if (!dejaAjoute) {
+      onAddTarif(r.id, {
+        label: SUPPLEMENT_SOLO_LABEL,
+        pu: catalogueItem.supplement_solo_prix,
+        quantite: 1,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    r?.id,
+    r?.participants_mode,
+    r?.participants_adultes,
+    r?.participants_enfants,
+    r?.participants_bebes,
+    r?.participants_accompagnateurs,
+    client.adultes,
+    client.enfants,
+    client.bebes,
+    catalogueItem?.id,
+    tarifs.length,
+  ]);
 
   const startFromCatalogue = async (
     item: CatalogueItem,
@@ -1927,7 +1968,8 @@ export default function AddActivityWizard({
             <p className="text-xs text-[#8B4531]">
               ⚠️ Client seul sur cette activité — l&apos;agence organise elle-même le transfert, un
               supplément de {euros(catalogueItem?.supplement_solo_prix ?? 5)} € s&apos;applique. À
-              annoncer dans le devis, pas après.
+              annoncer dans le devis, pas après. La ligne « {SUPPLEMENT_SOLO_LABEL} » a été ajoutée
+              automatiquement ci-dessous, dans les Tarifs supplémentaires.
             </p>
           </div>
         )}

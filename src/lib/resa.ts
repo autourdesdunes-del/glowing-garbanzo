@@ -94,6 +94,11 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_activite_id: null,
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
+      // Sans ce reset, rebasculer un client d'un RDV déjà validé vers "En
+      // attente" laissait solde_rdv_valide à true — si "RDV" est resélectionné
+      // plus tard, PaiementResteFlow saute directement à la vue "déjà validé"
+      // (heure/lieu vides) au lieu de redemander les infos du rendez-vous.
+      solde_rdv_valide: false,
     }),
   },
   {
@@ -106,6 +111,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
       solde_activite_id: null,
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
+      solde_rdv_valide: false,
     }),
   },
   {
@@ -373,9 +379,20 @@ export function paiementBadge(
   // sur la prochaine activité à venir (prochaineActiviteActive se décale
   // seule dès qu'une date est dépassée) ; les autres cartes n'affichent
   // rien ici, l'info reste visible au bon endroit (étape Paiements).
-  if ((key === "attente" || key === "attente_paypal") && reservations) {
+  if ((key === "attente" || key === "attente_paypal" || key === "rdv_planifie") && reservations) {
     const cible = prochaineActiviteActive(reservations);
     if (cible && cible.id !== r.id) return null;
+  }
+
+  // Le RDV paiement (personne, pas à une activité) une fois sa date passée
+  // sans encaissement — sinon "RDV paiement planifié" restait affiché
+  // indéfiniment, un rendez-vous manqué devenant invisible pour l'équipe
+  // sans jamais alerter personne.
+  if (key === "rdv_planifie" && client.solde_date && client.solde_date < todayStr()) {
+    return {
+      label: `⚠️ ${fmtEuros(soldeRestant)} € en retard — rendez-vous paiement manqué`,
+      className: "bg-red-100 text-red-700",
+    };
   }
 
   // Le point de collecte désigné pour le solde, une fois sa date passée
@@ -396,7 +413,7 @@ export function paiementBadge(
   // trompeur si la quasi-totalité du séjour est déjà réglée — cette carte
   // précise n'attend rien de particulier.
   if (
-    (key === "attente" || key === "attente_paypal") &&
+    (key === "attente" || key === "attente_paypal" || key === "rdv_planifie") &&
     totalSejour > 0 &&
     totalPaye / totalSejour >= SEUIL_PRESQUE_PAYE
   ) {

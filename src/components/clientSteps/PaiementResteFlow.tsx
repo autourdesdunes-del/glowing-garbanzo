@@ -289,9 +289,15 @@ export function PaiementResteFlow({
       solde_paye: false,
       solde_rdv_finalise: false,
       solde_rdv_heure: "",
+      // solde_rdv_lieu oublié ici auparavant : s'il contenait une valeur,
+      // paiementStatutKey (resa.ts) continuait de détecter "rdv_planifie"
+      // rien qu'avec ce champ, faisant réapparaître le client dans Suivis >
+      // RDV paiements juste après l'avoir "supprimé".
+      solde_rdv_lieu: "",
       solde_activite_id: null,
       solde_mode: "Espèces EUR",
       solde_montant: 0,
+      paiement_integral_mode: "",
     });
   };
 

@@ -497,18 +497,15 @@ export default function DashboardView({
   // en Brouillon (prix pas finalisé) ne doit jamais gonfler le CA affiché
   // à la Direction (voir le commentaire sur cette fonction, resa.ts).
   const caTotal = isDirection
-    ? reservationsVendues(reservations)
-        .reduce(
-        (s, r) =>
-          s +
-          resaTotalMontant(
-            r,
-            clientById(r.client_id) as Client,
-            resaOptions[r.id] || [],
-            resaTarifs[r.id] || []
-          ),
-        0
-      )
+    ? reservationsVendues(reservations).reduce((s, r) => {
+        // Un client pas encore chargé (décalage de synchro entre les deux
+        // listes) faisait planter tout le tableau de bord (resaTotalMontant
+        // lisait client.adultes sur undefined) au lieu de simplement
+        // ignorer cette réservation le temps que tout se resynchronise.
+        const client = clientById(r.client_id);
+        if (!client) return s;
+        return s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+      }, 0)
     : 0;
 
   const firstName = displayFirstName || firstNameFromEmail(userEmail);

@@ -216,6 +216,12 @@ export default function SuivisView({
     .filter((c) => !c.solde_activite_id && !c.solde_paye && (c.solde_rdv_heure || c.solde_rdv_lieu))
     .sort((a, b) => (a.solde_date || "").localeCompare(b.solde_date || ""));
 
+  // RDV paiement dont la date est déjà passée sans être marqué payé — sans
+  // cette liste, un rendez-vous manqué disparaissait silencieusement (ni
+  // "aujourd'hui", ni "à venir"), invisible pour toute l'équipe tant que
+  // personne n'ouvrait le dossier client à la main.
+  const rdvEnRetardRows = rdvRows.filter((c) => (c.solde_date || "") < todayStr);
+
   // RDV paiement à l'hôtel prévu aujourd'hui : à envoyer le matin même —
   // rappel horaire au client, et hôtel + heure + montant à la personne
   // assignée (Bodé ou Sylvie) qui récupère le règlement.
@@ -692,6 +698,40 @@ export default function SuivisView({
                 />
               );
             })()}
+
+          {rdvEnRetardRows.length > 0 && (
+            <div>
+              <h3 className="font-heading mb-2 text-sm font-semibold text-red-700">
+                ⚠ RDV paiement en retard — non encaissé
+              </h3>
+              <div className="space-y-3">
+                {rdvEnRetardRows.map((c) => {
+                  const montant = soldeRestantFor(c);
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => setRdvModalClientId(c.id)}
+                      className="cursor-pointer rounded-md border border-red-600 bg-red-50 p-3 text-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-red-700">
+                          {fmtDate(c.solde_date as string)} à {c.solde_rdv_heure || "heure ?"}
+                        </span>
+                        <span>
+                          <ClientNameLink nom={c.nom} onClick={() => onOpenClient(c.id)} /> —{" "}
+                          {c.hotel || "Hôtel ?"}
+                        </span>
+                        <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#171717]">
+                          👤 {c.solde_assigne_a || "Non assigné"}
+                        </span>
+                        <span className="font-medium text-red-700">{euros(montant)} €</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {rdvTodayRows.length > 0 && (
             <div>

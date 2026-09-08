@@ -447,7 +447,8 @@ export default function DashboardView({
     paiementsAPayer.length +
     auRevoirToday.length +
     avisToday.length +
-    staleProspects.length;
+    staleProspects.length +
+    clientsEnAttenteConfirmation.length;
 
   // -- Priority queue: every client needing attention soon, ranked by departure date.
   type QueueRow = { client: Client; motifs: string[] };
@@ -782,7 +783,11 @@ export default function DashboardView({
         <Metric
           label="Prospects à relancer"
           value={String(staleProspects.length)}
-          sub="arrivée < 14 j"
+          // Pas de borne à 14 jours ici (contrairement à "Dossiers
+          // incomplets" juste après) — le seuil de relance dépend de la
+          // proximité du séjour (2/5/10 jours sans contact), sans plafond
+          // sur la date d'arrivée elle-même.
+          sub="sans relance récente"
           tone="default"
           onClick={staleProspects.length > 0 ? () => setProspectsModalOpen(true) : undefined}
         />

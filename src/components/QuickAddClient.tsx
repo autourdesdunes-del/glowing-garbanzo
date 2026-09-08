@@ -396,6 +396,17 @@ export default function QuickAddClient({
       }
       return;
     }
+    // L'étape affiche "Obligatoire pour passer le dossier en Client
+    // confirmé" mais rien ne l'imposait réellement — un dossier pouvait
+    // être créé confirmé avec un email vide, contredisant le message.
+    if (
+      step === "email" &&
+      (answers.statut ?? defaultStatut) === "Client confirmé" &&
+      !(answers.email || "").trim()
+    ) {
+      toast("Email obligatoire pour un dossier Client confirmé.");
+      return;
+    }
     if (step === "telephone" && (answers.telephone || "").trim()) {
       setDupMatches(findDuplicateClients({ telephone: answers.telephone }, clients, clientId));
     }

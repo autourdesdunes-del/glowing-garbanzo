@@ -2,6 +2,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanKommoName, parseKommoFormBody } from "@/lib/kommoWebhook";
 import { extractProspectInfoFromMessage, KommoExtractedInfo } from "@/lib/kommoExtraction";
 import { localDateStr } from "@/lib/dates";
+import { PROSPECT_STATUTS } from "@/lib/constants";
+
+// "Infos demandées" (détecté par l'IA) correspond au statut CRM "Demande
+// d'infos envoyée" — seul cas où le libellé diffère entre les deux.
+// "Devis donné" et "Réservé" n'ont volontairement pas d'équivalent ici :
+// pas de statut "Devis donné" dans le pipeline CRM, et une confirmation ne
+// doit jamais être déclenchée par une simple détection IA sur un message
+// (ça reste une action humaine, via "Passer en client confirmé").
+const ETAPE_DETECTEE_TO_STATUT: Record<string, string> = {
+  "Programme envoyé": "Programme envoyé",
+  "Infos demandées": "Demande d'infos envoyée",
+};
 
 // Étape 2 (légère) de l'intégration Kommo : reçoit, message par message, le
 // texte des conversations WhatsApp/Instagram — via un scénario Salesbot
@@ -76,7 +88,7 @@ async function processMessage(
 
   const nowIso = new Date().toISOString();
   const SELECT_FIELDS =
-    "id, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_activites_a_eviter, kommo_programme_envoye_resume, kommo_etape_detectee, kommo_premier_echange_le";
+    "id, statut, kommo_resume, kommo_sejour_debut_estime, kommo_sejour_fin_estime, kommo_hotel_estime, kommo_nb_adultes_estime, kommo_nb_enfants_estime, kommo_ages_enfants_estime, kommo_activites_interet, kommo_activites_a_eviter, kommo_programme_envoye_resume, kommo_etape_detectee, kommo_premier_echange_le, kommo_demande_infos_envoyee_le";
 
   let query = admin.from("clients").select(SELECT_FIELDS);
   query = leadId ? query.eq("kommo_lead_id", leadId) : query.eq("kommo_contact_id", contactId);
@@ -188,10 +200,30 @@ async function processMessage(
   });
   if (!updated) return existing.id;
 
+  // Fait avancer le statut CRM directement depuis ce que dit le PROSPECT
+  // lui-même, sans dépendre d'un employé qui irait déplacer l'étape dans le
+  // pipeline Kommo (déplacement qui, en pratique, n'est presque jamais
+  // fait — voir l'audit Prospects). Uniquement en avant (jamais de retour
+  // en arrière), et seulement tant que le dossier est encore un prospect
+  // actif (jamais sur un client déjà confirmé/perdu/annulé).
+  const statutPatch: Record<string, unknown> = {};
+  const statutCible = updated.etape_detectee ? ETAPE_DETECTEE_TO_STATUT[updated.etape_detectee] : null;
+  if (statutCible && PROSPECT_STATUTS.includes(existing.statut)) {
+    const indexActuel = PROSPECT_STATUTS.indexOf(existing.statut);
+    const indexCible = PROSPECT_STATUTS.indexOf(statutCible);
+    if (indexCible > indexActuel) {
+      statutPatch.statut = statutCible;
+      if (statutCible === "Demande d'infos envoyée" && !existing.kommo_demande_infos_envoyee_le) {
+        statutPatch.kommo_demande_infos_envoyee_le = localDateStr(new Date());
+      }
+    }
+  }
+
   const updateRes = await admin
     .from("clients")
     .update({
       ...echangePatch,
+      ...statutPatch,
       kommo_resume: updated.resume || "",
       kommo_sejour_debut_estime: updated.sejour_debut_estime,
       kommo_sejour_fin_estime: updated.sejour_fin_estime,

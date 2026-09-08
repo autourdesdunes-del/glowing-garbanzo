@@ -1915,24 +1915,37 @@ export function PaiementsStep({
               )}
             </div>
 
-            <div>
-              <h4 className="mb-1 text-xs font-medium text-neutral-500">
-                Reste à l&apos;arrivée : <strong>{euros(resteApresAcompte)} €</strong>
-              </h4>
-              <PaiementResteFlow
-                client={client}
-                onChange={onChange}
-                reservations={reservations}
-                montantACouvrir={resteApresAcompte}
-                totalSejour={totalSejour}
-                montantActiviteAttenduPrevu={montantActiviteAttenduPrevu}
-                montantActiviteAttenduReel={montantActiviteAttenduReel}
-                confirm={confirm}
-                toast={toast}
-                isDirection={isDirection}
-                onEncaissementDifferent={ouvrirEncaissementDifferent}
-              />
-            </div>
+            {client.acompte_valide ? (
+              <div>
+                <h4 className="mb-1 text-xs font-medium text-neutral-500">
+                  Reste à l&apos;arrivée : <strong>{euros(resteApresAcompte)} €</strong>
+                </h4>
+                <PaiementResteFlow
+                  client={client}
+                  onChange={onChange}
+                  reservations={reservations}
+                  montantACouvrir={resteApresAcompte}
+                  totalSejour={totalSejour}
+                  montantActiviteAttenduPrevu={montantActiviteAttenduPrevu}
+                  montantActiviteAttenduReel={montantActiviteAttenduReel}
+                  confirm={confirm}
+                  toast={toast}
+                  isDirection={isDirection}
+                  onEncaissementDifferent={ouvrirEncaissementDifferent}
+                />
+              </div>
+            ) : (
+              // Tant que l'acompte n'est pas validé, resteApresAcompte vaut
+              // encore le total du séjour (voir plus haut) — choisir ici où
+              // encaisser le solde afficherait un montant qui ne déduit pas
+              // l'acompte en cours de saisie (ex. acompte 20€ saisi mais pas
+              // validé + solde affiché à 60€ au lieu de 40€ sur un séjour à
+              // 60€). On bloque donc ce choix tant que "Valider" ci-dessus
+              // n'a pas été cliqué.
+              <p className="text-xs italic text-neutral-500">
+                Valide d&apos;abord l&apos;acompte ci-dessus pour choisir où encaisser le solde.
+              </p>
+            )}
           </div>
         )}
 

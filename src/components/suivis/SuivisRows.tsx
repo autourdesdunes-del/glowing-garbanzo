@@ -276,8 +276,15 @@ export function RdvPaiementModal({
   onOpenClient: (id: string) => void;
   onClose: () => void;
 }) {
-  const clientMsg = `Bonjour ${c.nom || ""}, petit rappel pour aujourd'hui : rendez-vous à ${c.solde_rdv_heure || "l'heure convenue"} devant l'hôtel ${c.hotel || "—"} (à l'extérieur) pour le règlement du solde de ${euros(montant)} €. À tout à l'heure !`;
-  const teamMsg = `Payment appointment — ${c.nom || "No name"} — Hotel ${c.hotel || "—"} — ${c.solde_rdv_heure || "time ?"} — Amount to collect: ${euros(montant)} €`;
+  // Ce modal sert aussi pour un RDV en retard (section rouge, SuivisView)
+  // — "petit rappel pour aujourd'hui" serait alors trompeur pour un
+  // rendez-vous déjà manqué depuis plusieurs jours ou pas encore d'actualité.
+  const enRetard = !!c.solde_date && c.solde_date < todayStr();
+  const quandLabel = enRetard
+    ? `le ${fmtDate(c.solde_date)} (non encore réglé)`
+    : "aujourd'hui";
+  const clientMsg = `Bonjour ${c.nom || ""}, petit rappel pour ${quandLabel} : rendez-vous à ${c.solde_rdv_heure || "l'heure convenue"} devant l'hôtel ${c.hotel || "—"} (à l'extérieur) pour le règlement du solde de ${euros(montant)} €. À tout à l'heure !`;
+  const teamMsg = `Payment appointment${enRetard ? " (overdue)" : ""} — ${c.nom || "No name"} — Hotel ${c.hotel || "—"} — ${c.solde_rdv_heure || "time ?"} — Amount to collect: ${euros(montant)} €`;
 
   return (
     <div

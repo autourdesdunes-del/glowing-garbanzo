@@ -171,16 +171,32 @@ export default function AnnulerClientModal({
       ...(remboursementChoix === "rembourse" && paypalEmail.trim() && paypalEmail.trim() !== client.paypal_email
         ? { paypal_email: paypalEmail.trim() }
         : {}),
-      ...(client.solde_activite_id && idsAnnules.has(client.solde_activite_id)
-        ? {
-            paiement_integral_mode: "",
-            solde_activite_id: null,
-            solde_rdv_heure: "",
-            solde_rdv_lieu: "",
-            solde_rdv_valide: false,
-            solde_rdv_finalise: false,
-          }
-        : {}),
+      // Un vrai RDV paiement (rendez-vous en personne) a justement
+      // solde_activite_id à null par définition — il n'est rattaché à
+      // aucune activité précise. Sans ce deuxième cas, annuler tout le
+      // client laissait ce RDV intact : le client continuait d'apparaître
+      // indéfiniment dans Suivis > RDV paiements (aujourd'hui/en retard/à
+      // venir) pour un rendez-vous qui n'a plus lieu d'être.
+      ...(client.solde_activite_id
+        ? idsAnnules.has(client.solde_activite_id)
+          ? {
+              paiement_integral_mode: "",
+              solde_activite_id: null,
+              solde_rdv_heure: "",
+              solde_rdv_lieu: "",
+              solde_rdv_valide: false,
+              solde_rdv_finalise: false,
+            }
+          : {}
+        : client.solde_rdv_heure || client.solde_rdv_lieu || client.solde_rdv_valide
+          ? {
+              paiement_integral_mode: "",
+              solde_rdv_heure: "",
+              solde_rdv_lieu: "",
+              solde_rdv_valide: false,
+              solde_rdv_finalise: false,
+            }
+          : {}),
       ...(client.reprise_activite_id && idsAnnules.has(client.reprise_activite_id)
         ? {
             reprise_montant: 0,

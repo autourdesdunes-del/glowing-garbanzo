@@ -213,7 +213,13 @@ export default function SuivisView({
   const pastDeadline = now.getHours() >= 18;
 
   const rdvRows = clients
-    .filter((c) => !c.solde_activite_id && !c.solde_paye && (c.solde_rdv_heure || c.solde_rdv_lieu))
+    .filter(
+      (c) =>
+        c.statut !== "Client annulé" &&
+        !c.solde_activite_id &&
+        !c.solde_paye &&
+        (c.solde_rdv_heure || c.solde_rdv_lieu)
+    )
     .sort((a, b) => (a.solde_date || "").localeCompare(b.solde_date || ""));
 
   // RDV paiement dont la date est déjà passée sans être marqué payé — sans

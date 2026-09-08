@@ -292,7 +292,12 @@ export default function DashboardView({
     Math.round((Date.parse(dateStr) - Date.parse(todayStr)) / 86400000);
   const staleProspects = clients.filter((c) => {
     if (!PROSPECT_STATUTS.includes(c.statut)) return false;
-    if (!c.date_debut || c.date_debut < todayStr) return false;
+    // Date de séjour pas encore connue (très fréquent en tout début de
+    // discussion) : ne doit jamais dispenser de relance — sans ce cas, la
+    // file "Prospects à relancer" restait vide malgré des dizaines de
+    // leads muets depuis des semaines, tous sans date de séjour connue.
+    if (!c.date_debut) return daysSince(c.dernier_contact_date || c.created_at) >= 10;
+    if (c.date_debut < todayStr) return false;
     const avant = joursAvantArrivee(c.date_debut);
     const seuilRelance = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
     return daysSince(c.dernier_contact_date || c.created_at) >= seuilRelance;

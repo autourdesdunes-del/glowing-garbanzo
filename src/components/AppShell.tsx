@@ -727,7 +727,11 @@ function AppShellInner({
   const activeStatuts =
     mode === "prospects"
       ? prospectsSub === "toutes"
-        ? PROSPECT_STATUTS
+        // "Client perdu" en plus des étapes actives : sans lui, aucune
+        // colonne du Kanban ne permettait de faire glisser un prospect
+        // stagnant vers ce statut — seul Kommo pouvait le déclencher
+        // automatiquement, aucun moyen manuel n'existait dans l'app.
+        ? [...PROSPECT_STATUTS, "Client perdu"]
         : [prospectsSub]
       : CLIENT_STATUTS;
   const scoped = clients.filter((c) => activeStatuts.includes(c.statut));

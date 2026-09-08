@@ -24,7 +24,11 @@ function joursAvantArrivee(dateStr: string) {
 
 function estProspectStagnant(c: Client) {
   if (!PROSPECT_STATUTS.includes(c.statut)) return false;
-  if (!c.date_debut || c.date_debut < todayStr()) return false;
+  // Date de séjour pas encore connue : ne doit jamais dispenser de relance
+  // — sinon un prospect muet depuis des semaines n'était jamais compté
+  // stagnant tant qu'aucune date de séjour n'avait été renseignée.
+  if (!c.date_debut) return daysSince(c.dernier_contact_date || c.created_at) >= 10;
+  if (c.date_debut < todayStr()) return false;
   const avant = joursAvantArrivee(c.date_debut);
   const seuilRelance = avant <= 7 ? 2 : avant <= 30 ? 5 : 10;
   return daysSince(c.dernier_contact_date || c.created_at) >= seuilRelance;

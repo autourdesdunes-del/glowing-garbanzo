@@ -24,6 +24,28 @@ function monthYearLabel(dateStr: string) {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+// Même repli que la mini-info affichée sur la carte (date réelle, sinon
+// l'estimation IA déduite de la conversation Kommo) — pour que le
+// sous-classement par mois corresponde à ce que l'utilisatrice voit sur
+// chaque carte plutôt que de diverger silencieusement.
+function moisSejour(c: Client): string | null {
+  return c.date_debut || c.kommo_sejour_debut_estime || null;
+}
+
+function groupByMonth(items: Client[]): { key: string; label: string; items: Client[] }[] {
+  const groups = new Map<string, { label: string; items: Client[] }>();
+  for (const c of items) {
+    const mois = moisSejour(c);
+    const key = mois ? mois.slice(0, 7) : "9999-99";
+    const label = mois ? monthYearLabel(mois) : "Date à définir";
+    if (!groups.has(key)) groups.set(key, { label, items: [] });
+    groups.get(key)!.items.push(c);
+  }
+  return Array.from(groups.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([key, v]) => ({ key, ...v }));
+}
+
 // Pour les clients confirmés, le statut seul (Confirmé/Perdu) ne distingue
 // rien d'utile — tout le monde termine dans la même colonne. On regroupe
 // plutôt par proximité du séjour : c'est ce qui détermine l'urgence
@@ -278,6 +300,67 @@ export default function PipelineView({
     );
   }
 
+  // Vue "une seule étape" (sidebar : un statut précis plutôt que "Toutes les
+  // étapes") — une seule colonne à l'écran, donc la place gagnée sert à
+  // étaler les mois côte à côte plutôt qu'à les empiler en sous-titres.
+  if (statuts.length === 1) {
+    const statut = statuts[0];
+    const items = filteredClients
+      .filter((c) => c.statut === statut)
+      .sort((a, b) => urgenceProspect(b) - urgenceProspect(a));
+    const groups = groupByMonth(items);
+    return (
+      <div className="flex h-full flex-col">
+        {searchBar}
+        <div className="flex-1 overflow-x-auto p-6">
+          <div className="mb-3 flex items-center gap-2 px-1">
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: STATUT_COLORS[statut] }}
+            />
+            <span className="text-sm font-semibold text-[#171717]">{statut}</span>
+            <span className="ml-auto text-xs text-neutral-400">{items.length}</span>
+          </div>
+          <div className="flex gap-3">
+            {groups.map((g) => {
+              const syncedParKommo = (c: Client) =>
+                !!c.kommo_lead_id && PROSPECT_STATUTS.includes(c.statut);
+              return (
+                <div
+                  key={g.key}
+                  className="flex w-56 flex-shrink-0 flex-col gap-2 rounded-lg border border-[#666666]/15 bg-[#fafafa]/30 p-2"
+                >
+                  <div className="flex items-baseline justify-between border-b border-dashed border-[#666666]/20 px-1 pb-1">
+                    <span className="font-amounts text-[10px] font-semibold uppercase tracking-wide text-[#0F5C56]">
+                      {g.label}
+                    </span>
+                    <span className="text-[10px] text-neutral-400">{g.items.length}</span>
+                  </div>
+                  {g.items.map((c) => (
+                    <ClientCard
+                      key={c.id}
+                      client={c}
+                      draggable={false}
+                      dragging={false}
+                      onDragStart={() => {}}
+                      onDragEnd={() => {}}
+                      onOpenClient={onOpenClient}
+                      showIncompleteBadge={false}
+                      syncedFromKommo={syncedParKommo(c)}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+            {groups.length === 0 && (
+              <div className="p-2 text-center text-xs text-neutral-300">Vide</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
       {searchBar}
@@ -289,6 +372,10 @@ export default function PipelineView({
         const items = filteredClients
           .filter((c) => c.statut === statut)
           .sort((a, b) => urgenceProspect(b) - urgenceProspect(a));
+        // "Toutes les étapes" affiche déjà 5+ colonnes côte à côte : les mois
+        // sont ici de simples sous-titres à l'intérieur de la colonne plutôt
+        // que de nouvelles colonnes, pour ne pas multiplier la largeur.
+        const groups = groupByMonth(items);
         return (
           <div
             key={statut}
@@ -318,29 +405,36 @@ export default function PipelineView({
             </div>
 
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto">
-              {items.map((c) => {
-                // Un prospect lié à Kommo a son statut déjà auto-synchronisé
-                // (webhook + cron kommo-reconcile) depuis sa vraie étape
-                // Kommo — le déplacer manuellement ici serait sans effet
-                // durable, annulé au prochain sync. Uniquement pour les
-                // statuts actifs suivis par ce sync (voir ACTIVE_STATUSES
-                // dans kommo-reconcile) : "Client perdu" est une décision
-                // manuelle jamais touchée par le sync, donc reste déplaçable.
-                const syncedParKommo = !!c.kommo_lead_id && PROSPECT_STATUTS.includes(c.statut);
-                return (
-                  <ClientCard
-                    key={c.id}
-                    client={c}
-                    draggable={!syncedParKommo}
-                    dragging={dragId === c.id}
-                    onDragStart={() => setDragId(c.id)}
-                    onDragEnd={() => setDragId(null)}
-                    onOpenClient={onOpenClient}
-                    showIncompleteBadge={false}
-                    syncedFromKommo={syncedParKommo}
-                  />
-                );
-              })}
+              {groups.map((g) => (
+                <div key={g.key} className="flex flex-col gap-2">
+                  <div className="font-amounts px-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-[#0F5C56]">
+                    {g.label}
+                  </div>
+                  {g.items.map((c) => {
+                    // Un prospect lié à Kommo a son statut déjà auto-synchronisé
+                    // (webhook + cron kommo-reconcile) depuis sa vraie étape
+                    // Kommo — le déplacer manuellement ici serait sans effet
+                    // durable, annulé au prochain sync. Uniquement pour les
+                    // statuts actifs suivis par ce sync (voir ACTIVE_STATUSES
+                    // dans kommo-reconcile) : "Client perdu" est une décision
+                    // manuelle jamais touchée par le sync, donc reste déplaçable.
+                    const syncedParKommo = !!c.kommo_lead_id && PROSPECT_STATUTS.includes(c.statut);
+                    return (
+                      <ClientCard
+                        key={c.id}
+                        client={c}
+                        draggable={!syncedParKommo}
+                        dragging={dragId === c.id}
+                        onDragStart={() => setDragId(c.id)}
+                        onDragEnd={() => setDragId(null)}
+                        onOpenClient={onOpenClient}
+                        showIncompleteBadge={false}
+                        syncedFromKommo={syncedParKommo}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
               {items.length === 0 && (
                 <div className="p-2 text-center text-xs text-neutral-300">Vide</div>
               )}

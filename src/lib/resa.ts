@@ -87,12 +87,13 @@ export function urgenceProspect(c: Client): number {
 }
 
 // Sous-ensemble de prospectStagnant à donner à relancer concrètement à
-// l'équipe : un séjour déjà en cours, ou une arrivée dans les 15 jours.
-// prospectStagnant seul remonte 500+ dossiers (y compris "date à définir"
-// ou des départs dans 6 mois) — ingérable comme liste de tâches
-// quotidienne ; celle-ci ne garde que ce qui mérite vraiment une relance
-// aujourd'hui. Les autres restent visibles dans le Kanban/le total, juste
-// pas dans la file de travail de l'équipe.
+// l'équipe : un séjour déjà en cours, une arrivée dans les 15 jours, ou un
+// message précis resté sans réponse plus de 48h ("Programme envoyé" /
+// "Demande d'infos envoyée"). prospectStagnant seul remonte 500+ dossiers
+// (y compris "date à définir" ou des départs dans 6 mois) — ingérable
+// comme liste de tâches quotidienne ; celle-ci ne garde que ce qui mérite
+// vraiment une relance aujourd'hui. Les autres restent visibles dans le
+// Kanban/le total, juste pas dans la file de travail de l'équipe.
 // `date_debut` est presque toujours vide pour un prospect (champ rempli à
 // la main, seulement une fois le séjour confirmé) — sans le repli sur
 // l'estimation IA déduite de la conversation Kommo
@@ -100,6 +101,14 @@ export function urgenceProspect(c: Client): number {
 // cette fonction ne remontait jamais aucun résultat, y compris sur les
 // vraies données.
 export function prospectRelanceUrgente(c: Client): boolean {
+  // Programme/devis envoyé ou demande d'infos envoyée : on attend une
+  // réponse à un message précis, pas une relance générique — 48h
+  // suffisent pour justifier l'action, peu importe la proximité du séjour
+  // (encore une estimation la plupart du temps à ce stade).
+  if (c.statut === "Programme envoyé" || c.statut === "Demande d'infos envoyée") {
+    return (joursSansReponseProspect(c) ?? 0) >= 2;
+  }
+
   if (!prospectStagnant(c)) return false;
   const debut = c.date_debut || c.kommo_sejour_debut_estime;
   if (!debut) return false;

@@ -352,7 +352,7 @@ function ConfirmationTemplate({
                 borderTop: client.paiement_type === "acompte" ? "1px solid rgba(33,28,22,0.12)" : "none",
               }}
             >
-              <span>{soldeInfo.isPaypal || soldeInfo.mode === "virement" || soldeInfo.mode === "cb" ? "Solde à régler" : "Solde à régler sur place"}</span>
+              <span>{soldeInfo.isPaypal || soldeInfo.mode === "virement" ? "Solde à régler" : "Solde à régler sur place"}</span>
               <span>{euros(soldeMontant)}</span>
             </div>
             <div style={{ fontSize: 13.5, color: "#5C5342", lineHeight: 1.7, marginTop: 6 }}>
@@ -438,7 +438,8 @@ function ConfirmationTemplate({
                 </>
               ) : soldeInfo.mode === "cb" ? (
                 <>
-                  <strong>Par carte bancaire</strong> — le lien de paiement vous sera communiqué séparément.
+                  <strong>Par carte bancaire</strong>, avec le terminal de paiement de notre équipe — lors d&apos;une
+                  activité ou directement à votre hôtel.
                 </>
               ) : (
                 <>

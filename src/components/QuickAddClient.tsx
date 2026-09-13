@@ -1076,6 +1076,7 @@ export default function QuickAddClient({
                   canSeeMargins={false}
                   hotelHorsHurghada={hotelHorsHurghada}
                   hotelVille={hotelMatch?.ville}
+                  hotelsRef={hotelsRef}
                   taxesRef={taxesRef}
                   coutsMap={{}}
                   onUpdateCoutReel={() => {}}

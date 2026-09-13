@@ -301,11 +301,21 @@ export default function AddActivityWizard({
     clientHotels && clientHotels.length > 0 && r?.date_debut
       ? hotelNomPourActivite(clientHotels, r.date_debut, client.hotel)
       : client.hotel;
-  const hotelMatchEffectif = hotelsRef ? matchHotel(hotelNomEffectif, hotelsRef) : null;
-  const hotelHorsHurghadaEffectif = hotelsRef
+  // hotelsRef est parfois passé vide ([]) plutôt qu'omis (QuickAddClient,
+  // GuidedActivityModal) — un tableau vide reste "truthy" en JS, donc un
+  // simple `hotelsRef ? ... : hotelHorsHurghada` retombait toujours sur la
+  // branche "correspondance trouvée dans hotelsRef" (qui échoue avec un
+  // tableau vide, donc hotelMatchEffectif = null) au lieu d'utiliser le
+  // prop hotelHorsHurghada déjà calculé par l'appelant — un client dont
+  // l'hôtel n'est pas sur Hurghada se voyait alors afficher à tort
+  // "✔️ Cet hôtel est bien situé sur Hurghada" et aucune taxe de transfert
+  // suggérée.
+  const hotelsRefUtilisable = hotelsRef && hotelsRef.length > 0;
+  const hotelMatchEffectif = hotelsRefUtilisable ? matchHotel(hotelNomEffectif, hotelsRef) : null;
+  const hotelHorsHurghadaEffectif = hotelsRefUtilisable
     ? !!hotelMatchEffectif && !hotelMatchEffectif.sur_hurghada
     : hotelHorsHurghada;
-  const hotelVilleEffectif = hotelsRef ? hotelMatchEffectif?.ville || hotelVille : hotelVille;
+  const hotelVilleEffectif = hotelsRefUtilisable ? hotelMatchEffectif?.ville || hotelVille : hotelVille;
   const options = draftId ? resaOptions[draftId] || [] : [];
   const tarifs = draftId ? resaTarifs[draftId] || [] : [];
   const catalogueItem = r?.catalogue_item_id ? catalogue.find((a) => a.id === r.catalogue_item_id) : null;

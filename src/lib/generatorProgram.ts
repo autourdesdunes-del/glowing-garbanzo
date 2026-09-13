@@ -426,7 +426,8 @@ export function buildRedactionText(
   hotel: string,
   lignes: Ligne[],
   catalogue: CatalogueItem[],
-  agesEnfants: string = ""
+  agesEnfants: string = "",
+  villeClient: string = ""
 ) {
   const parts: string[] = [];
   parts.push("Voici le programme de visite que nous pouvons vous proposer :");
@@ -452,7 +453,7 @@ export function buildRedactionText(
       const item = catalogue.find((a) => a.id === l.catalogueItemId);
       parts.push(`📍${libelleJourIndefini(item, jourIndefiniCompteur)}`);
     }
-    parts.push(l.creneau ? `${l.nom} (${l.creneau})` : l.nom);
+    parts.push(`→ ${l.creneau ? `${l.nom} (${l.creneau})` : l.nom}`);
     if (l.estTaxeSeule) {
       // Rien de plus : le total en bas suffit, pas de "X€ par personne" ni
       // de ligne "+ Taxe de transfert" qui doublonnerait le même montant.
@@ -481,7 +482,7 @@ export function buildRedactionText(
         bebe: "bébé",
       };
       l.repartition.forEach((r) => {
-        parts.push(`${NOM_TRANCHE[r.tranche]} : ${eurosVirgule(r.pu)} (x${r.nb})`);
+        parts.push(`${eurosVirgule(r.pu)} par ${NOM_TRANCHE[r.tranche]} (x${r.nb})`);
       });
     } else {
       parts.push(`${eurosVirgule(l.prixParPersonne)} par personne`);
@@ -494,8 +495,10 @@ export function buildRedactionText(
       }
     });
     if (l.remise > 0) parts.push(`Remise -${eurosVirgule(l.remise)} (${l.remiseLabel || "geste commercial"})`);
-    if (l.taxeTransfert > 0 && !l.estTaxeSeule) parts.push(`+ Taxe de transfert : ${eurosVirgule(l.taxeTransfert)}`);
-    parts.push(`➡️Total : ${eurosVirgule(ligneTotal(l))}`);
+    if (l.taxeTransfert > 0 && !l.estTaxeSeule) {
+      parts.push(`Taxe de transfert${villeClient ? ` ${villeClient}` : ""} : ${eurosVirgule(l.taxeTransfert)}`);
+    }
+    parts.push(`➡️ Total : ${eurosVirgule(ligneTotal(l))}`);
   });
 
   // Toujours terminer le message par une question ouverte — demandé par

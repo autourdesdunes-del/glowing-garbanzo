@@ -3150,7 +3150,7 @@ function AppShellInner({
                 </button>
               </div>
               {generateurSub === "redaction" ? (
-                <RedactionProgramView catalogue={catalogue} clients={clients} />
+                <RedactionProgramView catalogue={catalogue} clients={clients} catalogueOptions={catalogueOptions} />
               ) : (
                 <GeneratorView catalogue={catalogue} clients={clients} />
               )}

@@ -46,6 +46,17 @@ export function moisLabelFromDates(dates: string[]) {
 
 const WEEKDAY_FR = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 
+// Même chose que fmtDDMonth, avec le jour de la semaine devant — demandé par
+// Mélanie le 2026-09-13 pour la Rédaction de programme, pour que l'employée
+// (et le client) voie tout de suite si une date proposée tombe un jour où
+// l'activité ne circule pas (ex. minibus Le Caire uniquement mardi/jeudi/
+// dimanche) sans avoir à ouvrir un calendrier.
+export function fmtDDMonthAvecJour(dateStr: string) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  return `${WEEKDAY_FR[d.getDay()]} ${d.getDate()} ${capitalize(d.toLocaleDateString("fr-FR", { month: "long" }))}`;
+}
+
 export function datesInRange(debut: string, fin: string): string[] {
   const dates: string[] = [];
   if (!debut || !fin) return dates;
@@ -160,6 +171,32 @@ export function nextLigneId(): string {
   return `l${ligneSeq}`;
 }
 
+// Option/supplément ajouté à une ligne de la Rédaction de programme (ex.
+// Montgolfière, 2ème île, Privatif) — même vocabulaire que CatalogueOption/
+// ReservationOption (src/lib/types.ts), mais en mémoire seulement tant que
+// le devis n'est pas ajouté au dossier. mode "personne" : prix × quantite
+// (nombre de participants concernés, pas forcément tout le groupe — ex. un
+// supplément solo) ; mode "groupe" : prix fixe, quantite ignorée.
+export type LigneOption = {
+  id: string;
+  nom: string;
+  prix: number;
+  mode: "personne" | "groupe";
+  quantite: number;
+};
+
+// Une tranche tarifaire du catalogue (adulte / enfant / enfant 3 ans /
+// bébé) appliquée à une ligne — remplace prixParPersonne × nbPersonnes
+// quand le groupe mélange plusieurs tranches d'âge à des prix différents.
+// `label` reprend le texte "_age" du catalogue (ex. "4 à 10 ans") pour que
+// le message envoyé au client précise à qui s'applique chaque prix.
+export type RepartitionLigne = {
+  tranche: "adulte" | "enfant" | "enfant_3ans" | "bebe";
+  label: string;
+  pu: number;
+  nb: number;
+};
+
 export type Ligne = {
   id: string;
   catalogueItemId: string;
@@ -170,7 +207,114 @@ export type Ligne = {
   remise: number;
   remiseLabel: string;
   taxeTransfert: number;
+  // Optionnel : la Génération auto (GeneratorView/suggererProgramme) ne
+  // gère pas les options et ne remplit jamais ce champ, seule la Rédaction
+  // manuelle (RedactionProgramView) le fait.
+  options?: LigneOption[];
+  // Optionnel, même limitation : présent seulement quand la Rédaction a
+  // dû répartir des enfants sur plusieurs tranches de prix (cf.
+  // repartirAgesEnfants) — remplace alors prixParPersonne/nbPersonnes pour
+  // le calcul du total et l'affichage dans le message.
+  repartition?: RepartitionLigne[];
 };
+
+export function optionsTotal(l: Ligne): number {
+  return (l.options || []).reduce(
+    (s, o) => s + (Number(o.prix) || 0) * (o.mode === "personne" ? Number(o.quantite) || 0 : 1),
+    0
+  );
+}
+
+export function ligneBase(l: Ligne): number {
+  if (l.repartition && l.repartition.length > 0) {
+    return l.repartition.reduce((s, r) => s + r.pu * r.nb, 0);
+  }
+  return l.prixParPersonne * l.nbPersonnes;
+}
+
+export function ligneTotal(l: Ligne): number {
+  return Math.max(ligneBase(l) - (l.remise || 0) + (l.taxeTransfert || 0) + optionsTotal(l), 0);
+}
+
+// Découpe un texte libre "_age" du catalogue (ex. "4 à 10 ans", "0 à 3 ans",
+// "11 ans et +") en tranche [min, max] — best-effort seulement : ces champs
+// sont du texte libre saisi par Direction, aucun champ numérique structuré
+// n'existe sur le catalogue pour les tranches d'âge (vérifié le
+// 2026-09-13). Retourne null si rien d'exploitable n'est trouvé, auquel cas
+// l'employée reste seule juge (comme aujourd'hui pour tout le reste de
+// l'app) plutôt que de risquer un mauvais classement silencieux.
+export function parseTrancheAge(texte: string): { min: number; max: number } | null {
+  if (!texte) return null;
+  const nums = (texte.match(/\d{1,2}/g) || []).map(Number);
+  if (nums.length === 0) return null;
+  if (nums.length === 1) {
+    // "11 ans et +" / "ou plus" : borne basse seulement. Sinon (ex. "moins
+    // de 3 ans") un seul nombre veut dire une borne haute.
+    if (/\+|et plus|ou plus/i.test(texte)) return { min: nums[0], max: 999 };
+    return { min: 0, max: nums[0] };
+  }
+  return { min: Math.min(...nums), max: Math.max(...nums) };
+}
+
+// Répartit une liste d'âges d'enfants sur les tranches tarifaires
+// distinctes d'une activité (bébé / enfant 3 ans / enfant), du prix le plus
+// spécifique au plus générique — un âge qui ne matche aucune tranche
+// connue (texte "_age" absent ou pas de nombre dedans) retombe sur le tarif
+// enfant générique plutôt que de disparaître du calcul (jamais 0€
+// silencieux). N'est appelé que si l'activité distingue vraiment ses prix
+// (cf. RedactionProgramView) ; les adultes ne sont jamais dans cette liste,
+// leur tranche est ajoutée séparément par l'appelant.
+export function repartirAgesEnfants(item: CatalogueItem, ages: number[]): RepartitionLigne[] {
+  const bebeRange = item.pu_bebe > 0 ? parseTrancheAge(item.pu_bebe_age) : null;
+  const enfantRange = item.pu_enfant > 0 ? parseTrancheAge(item.pu_enfant_age) : null;
+  const compteurs: Record<"enfant_3ans" | "bebe" | "enfant", number> = { enfant_3ans: 0, bebe: 0, enfant: 0 };
+  ages.forEach((age) => {
+    if (bebeRange && age >= bebeRange.min && age <= bebeRange.max) {
+      compteurs.bebe += 1;
+    } else if (item.pu_enfant_3ans > 0 && !enfantRange && age <= 3) {
+      // Pas de champ "_age" pour pu_enfant_3ans (n'existe pas sur le
+      // catalogue) — seul repli raisonnable : un enfant de 3 ans ou moins
+      // qui ne matche pas déjà la tranche bébé.
+      compteurs.enfant_3ans += 1;
+    } else if (enfantRange && (age < enfantRange.min || age > enfantRange.max) && item.pu_enfant_3ans > 0 && age <= 3) {
+      compteurs.enfant_3ans += 1;
+    } else {
+      compteurs.enfant += 1;
+    }
+  });
+  const tranches: RepartitionLigne[] = [];
+  if (compteurs.bebe > 0) tranches.push({ tranche: "bebe", label: item.pu_bebe_age || "Bébé", pu: item.pu_bebe, nb: compteurs.bebe });
+  if (compteurs.enfant_3ans > 0)
+    tranches.push({ tranche: "enfant_3ans", label: "Enfant 3 ans", pu: item.pu_enfant_3ans, nb: compteurs.enfant_3ans });
+  if (compteurs.enfant > 0)
+    tranches.push({ tranche: "enfant", label: item.pu_enfant_age || "Enfant", pu: item.pu_enfant, nb: compteurs.enfant });
+  return tranches;
+}
+
+// Propose la première date libre du séjour pour cette activité — respecte
+// ses jours de disponibilité catalogue (ex. minibus Le Caire uniquement
+// mardi/jeudi/dimanche) et évite les dates déjà prises par une autre ligne
+// du programme. Ne devine rien de plus : pas de gestion de durée multi-jours
+// ni d'alternance mer/désert ici (contrairement à suggererProgramme, pensé
+// pour la génération auto complète) — la Rédaction reste un ajout manuel
+// activité par activité, juste débarrassé du calcul de date à la main.
+// Retourne "" si le séjour n'est pas connu ou si aucune date ne convient
+// (l'employée choisit alors elle-même).
+export function suggererDateLigne(
+  item: CatalogueItem,
+  joursSejour: string[],
+  datesDejaUtilisees: Set<string>
+): string {
+  if (joursSejour.length === 0) return "";
+  const joursItem = normalizeJoursDisponibles(item.jours_disponibles);
+  const contrainte = joursItem.length > 0 && joursItem.length < 7;
+  const candidat = joursSejour.find((d) => {
+    if (datesDejaUtilisees.has(d)) return false;
+    if (!contrainte) return true;
+    return joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()]);
+  });
+  return candidat || "";
+}
 
 // Construit le message texte envoyé au client tel quel (copié-collé
 // WhatsApp) — le format a été fourni par Mélanie et ne doit pas être
@@ -261,20 +405,33 @@ export function buildRedactionText(
 
   let jourIndefiniCompteur = 0;
   sorted.forEach((l) => {
-    const total = Math.max(l.prixParPersonne * l.nbPersonnes - (l.remise || 0) + (l.taxeTransfert || 0), 0);
     parts.push("");
     if (l.date) {
-      parts.push(`📍${fmtDDMonth(l.date)}`);
+      parts.push(`📍${fmtDDMonthAvecJour(l.date)}`);
     } else {
       jourIndefiniCompteur += 1;
       const item = catalogue.find((a) => a.id === l.catalogueItemId);
       parts.push(`📍${libelleJourIndefini(item, jourIndefiniCompteur)}`);
     }
     parts.push(l.nom);
-    parts.push(`${eurosVirgule(l.prixParPersonne)} par personne`);
+    if (l.repartition && l.repartition.length > 0) {
+      l.repartition.forEach((r) => {
+        const nomTranche = r.tranche === "adulte" ? "Adulte" : r.label || "Enfant";
+        parts.push(`${nomTranche} : ${eurosVirgule(r.pu)} x ${r.nb} = ${eurosVirgule(r.pu * r.nb)}`);
+      });
+    } else {
+      parts.push(`${eurosVirgule(l.prixParPersonne)} par personne`);
+    }
+    (l.options || []).forEach((o) => {
+      if (o.mode === "personne") {
+        parts.push(`+ ${o.nom} : ${eurosVirgule(o.prix)} x ${o.quantite} = ${eurosVirgule(o.prix * o.quantite)}`);
+      } else {
+        parts.push(`+ ${o.nom} : ${eurosVirgule(o.prix)}`);
+      }
+    });
     if (l.remise > 0) parts.push(`Remise -${eurosVirgule(l.remise)} (${l.remiseLabel || "geste commercial"})`);
     if (l.taxeTransfert > 0) parts.push(`+ Taxe de transfert : ${eurosVirgule(l.taxeTransfert)}`);
-    parts.push(`➡️Total : ${eurosVirgule(total)}`);
+    parts.push(`➡️Total : ${eurosVirgule(ligneTotal(l))}`);
   });
 
   return parts.join("\n");

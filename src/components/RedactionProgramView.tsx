@@ -2,25 +2,46 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, Client, HotelReference, TransfertTaxe } from "@/lib/types";
+import { CatalogueItem, CatalogueOption, Client, HotelReference, TransfertTaxe } from "@/lib/types";
 import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
+import { normalizeJoursDisponibles } from "@/lib/resa";
 import { deaccent } from "@/lib/deaccent";
 import { useToast } from "@/components/ToastProvider";
-import { buildRedactionText, eurosVirgule, fmtDDMonth, Ligne, moisLabelFromDates, nextLigneId } from "@/lib/generatorProgram";
+import {
+  buildRedactionText,
+  datesInRange,
+  eurosVirgule,
+  extractAges,
+  fmtDDMonth,
+  Ligne,
+  LigneOption,
+  ligneTotal,
+  moisLabelFromDates,
+  nextLigneId,
+  repartirAgesEnfants,
+  RepartitionLigne,
+  suggererDateLigne,
+} from "@/lib/generatorProgram";
 
 // Onglet "Rédaction d'un programme" — flux manuel demandé par Mélanie le
 // 2026-09-13, en complément de la Génération auto (GeneratorView) : recherche
 // du lead, confirmation des dates/du nombre de personnes déjà connues,
 // recherche libre dans le catalogue activité par activité, calcul du prix
-// (par personne, taxe de transfert, total) au fil de l'eau. Ne devine rien —
-// contrairement à suggererProgramme, aucune activité n'est ajoutée toute
-// seule, l'employée choisit tout.
+// (par personne — ou par tranche d'âge quand le catalogue distingue un prix
+// enfant/bébé —, de la taxe de transfert, des options et du total au fil de
+// l'eau. Ne devine rien qui ne soit pas vérifiable : contrairement à
+// suggererProgramme (génération auto complète), aucune activité n'est
+// ajoutée toute seule, seule la date proposée pour une activité déjà
+// choisie par l'employée respecte automatiquement ses jours de
+// disponibilité catalogue.
 export default function RedactionProgramView({
   catalogue,
   clients,
+  catalogueOptions,
 }: {
   catalogue: CatalogueItem[];
   clients: Client[];
+  catalogueOptions: Record<string, CatalogueOption[]>;
 }) {
   const supabase = createClient();
   const toast = useToast();
@@ -33,6 +54,7 @@ export default function RedactionProgramView({
   const [dateFin, setDateFin] = useState("");
   const [adultes, setAdultes] = useState(2);
   const [enfants, setEnfants] = useState(0);
+  const [agesEnfants, setAgesEnfants] = useState("");
   const [hotel, setHotel] = useState("");
 
   const [activiteQuery, setActiviteQuery] = useState("");
@@ -56,6 +78,7 @@ export default function RedactionProgramView({
 
   const clientSelectionne = clients.find((c) => c.id === clientId);
   const nbPersonnes = adultes + enfants;
+  const joursSejour = useMemo(() => datesInRange(dateDebut, dateFin), [dateDebut, dateFin]);
 
   const qClient = deaccent(clientQuery.trim().toLowerCase());
   const clientsFiltres = useMemo(() => {
@@ -89,6 +112,7 @@ export default function RedactionProgramView({
     setDateFin(c.date_fin || c.kommo_sejour_fin_estime || "");
     setAdultes(c.adultes || c.kommo_nb_adultes_estime || 2);
     setEnfants(c.enfants ?? c.kommo_nb_enfants_estime ?? 0);
+    setAgesEnfants(c.ages_enfants || c.kommo_ages_enfants_estime || "");
     setHotel(c.hotel || c.kommo_hotel_estime || "");
   };
 
@@ -107,19 +131,58 @@ export default function RedactionProgramView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogue, rechercheNette]);
 
+  // Construit la répartition par tranche d'âge d'une ligne quand l'activité
+  // distingue vraiment un prix enfant/bébé — sinon (activité à prix unique,
+  // ou aucun enfant) on garde le calcul simple prixParPersonne × nbPersonnes
+  // (repartition reste undefined).
+  const construireRepartition = (item: CatalogueItem): RepartitionLigne[] | undefined => {
+    const distingue = item.pu_enfant !== item.pu_adulte || item.pu_bebe > 0 || item.pu_enfant_3ans > 0;
+    if (enfants === 0 || !distingue) return undefined;
+    const tranches: RepartitionLigne[] = [];
+    if (adultes > 0) tranches.push({ tranche: "adulte", label: item.pu_adulte_age || "Adulte", pu: item.pu_adulte, nb: adultes });
+    const ages = extractAges(agesEnfants);
+    if (ages.length > 0) {
+      if (ages.length !== enfants) {
+        toast(
+          `${enfants} enfant(s) mais ${ages.length} âge(s) trouvé(s) dans "Âges enfants" — vérifie la répartition des prix.`
+        );
+      }
+      tranches.push(...repartirAgesEnfants(item, ages));
+    } else {
+      // Pas d'âge connu du tout : impossible de distinguer bébé/3 ans/enfant
+      // — repli sur le tarif enfant générique du catalogue plutôt que de
+      // deviner un âge, avec un rappel explicite pour que l'employée pense à
+      // préciser les âges si elle veut le prix exact.
+      toast('Âges des enfants inconnus — tarif enfant générique appliqué. Renseigne "Âges enfants" pour affiner.');
+      tranches.push({ tranche: "enfant", label: item.pu_enfant_age || "Enfant", pu: item.pu_enfant || item.pu_adulte, nb: enfants });
+    }
+    return tranches;
+  };
+
   const addLigne = (item: CatalogueItem) => {
+    const datesDejaUtilisees = new Set(lignes.map((l) => l.date).filter(Boolean));
+    const dateSuggeree = suggererDateLigne(item, joursSejour, datesDejaUtilisees);
+    if (joursSejour.length > 0 && !dateSuggeree) {
+      const joursDispo = normalizeJoursDisponibles(item.jours_disponibles);
+      if (joursDispo.length > 0 && joursDispo.length < 7) {
+        toast(`Aucun jour du séjour ne tombe un jour de circulation de "${item.nom}" (${joursDispo.join(", ")}) — date à choisir à la main.`);
+      }
+    }
+    const repartition = construireRepartition(item);
     setLignes((prev) => [
       ...prev,
       {
         id: nextLigneId(),
         catalogueItemId: item.id,
         nom: item.nom,
-        date: "",
+        date: dateSuggeree,
         prixParPersonne: item.pu_adulte || 0,
         nbPersonnes: nbPersonnes || 2,
         remise: 0,
         remiseLabel: "",
         taxeTransfert: taxeTransfertMontant,
+        options: [],
+        repartition,
       },
     ]);
     setActiviteQuery("");
@@ -129,8 +192,50 @@ export default function RedactionProgramView({
     setLignes((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
   };
 
+  const updateRepartitionRow = (ligneId: string, index: number, patch: Partial<RepartitionLigne>) => {
+    setLignes((prev) =>
+      prev.map((l) => {
+        if (l.id !== ligneId || !l.repartition) return l;
+        const repartition = l.repartition.map((r, i) => (i === index ? { ...r, ...patch } : r));
+        return { ...l, repartition };
+      })
+    );
+  };
+
   const removeLigne = (id: string) => {
     setLignes((prev) => prev.filter((l) => l.id !== id));
+  };
+
+  const nbPersonnesLigne = (l: Ligne) =>
+    l.repartition && l.repartition.length > 0 ? l.repartition.reduce((s, r) => s + r.nb, 0) : l.nbPersonnes;
+
+  const addOption = (ligneId: string, co: CatalogueOption) => {
+    const ligne = lignes.find((l) => l.id === ligneId);
+    if (!ligne) return;
+    const nouvelleOption: LigneOption = {
+      id: nextLigneId(),
+      nom: co.nom,
+      prix: co.prix,
+      mode: co.mode,
+      quantite: co.mode === "personne" ? nbPersonnesLigne(ligne) || 1 : 1,
+    };
+    updateLigne(ligneId, { options: [...(ligne.options || []), nouvelleOption] });
+  };
+
+  const updateOption = (ligneId: string, optionId: string, patch: Partial<LigneOption>) => {
+    setLignes((prev) =>
+      prev.map((l) =>
+        l.id === ligneId
+          ? { ...l, options: (l.options || []).map((o) => (o.id === optionId ? { ...o, ...patch } : o)) }
+          : l
+      )
+    );
+  };
+
+  const removeOption = (ligneId: string, optionId: string) => {
+    setLignes((prev) =>
+      prev.map((l) => (l.id === ligneId ? { ...l, options: (l.options || []).filter((o) => o.id !== optionId) } : l))
+    );
   };
 
   const moisLabel =
@@ -143,10 +248,7 @@ export default function RedactionProgramView({
     [moisLabel, adultes, enfants, hotel, lignes, catalogue]
   );
 
-  const totalGeneral = lignes.reduce(
-    (s, l) => s + Math.max(l.prixParPersonne * l.nbPersonnes - (l.remise || 0) + (l.taxeTransfert || 0), 0),
-    0
-  );
+  const totalGeneral = lignes.reduce((s, l) => s + ligneTotal(l), 0);
 
   const copyTexte = async () => {
     try {
@@ -182,34 +284,68 @@ export default function RedactionProgramView({
     }
     for (const l of lignes) {
       const item = catalogue.find((a) => a.id === l.catalogueItemId);
-      const puEffectif =
-        l.remise > 0 ? Math.max(l.prixParPersonne - l.remise / Math.max(l.nbPersonnes, 1), 0) : l.prixParPersonne;
-      const { error } = await supabase.from("reservations").insert({
-        client_id: clientId,
-        nom_activite: l.nom,
-        catalogue_item_id: l.catalogueItemId || null,
-        pu_adulte: puEffectif,
-        participants_mode: "custom",
-        participants_adultes: l.nbPersonnes,
-        pax_override: `${l.nbPersonnes} personnes`,
-        horaire_approx: item?.horaire_approx || "",
-        inclus: (item?.inclus_liste || []).join(", ") || item?.inclus || "",
-        non_inclus: (item?.non_inclus_liste || []).join(", ") || item?.non_inclus || "",
-        a_prevoir: (item?.a_prevoir_liste || []).join(", ") || item?.a_prevoir || "",
-        point_rdv: item?.point_rdv || "",
-        photo_path: item?.photo_path || "",
-        date_debut: l.date || null,
-        transfert_inclus: !(l.taxeTransfert > 0),
-        transfert_montant: l.taxeTransfert || 0,
-        zone_transfert: villeClient,
-        cree_par_id: user?.id || null,
-        cree_par_nom: creeParNom,
-        statut_resa: clientSelectionne?.statut === "Client confirmé" ? "Confirmée" : "Brouillon",
-      });
-      if (error) {
+      const totalPersonnesLigne = Math.max(nbPersonnesLigne(l), 1);
+      const remisePersonne = l.remise > 0 ? l.remise / totalPersonnesLigne : 0;
+      const parAdulte = l.repartition?.find((r) => r.tranche === "adulte");
+      const parEnfant = l.repartition?.find((r) => r.tranche === "enfant");
+      const parEnfant3 = l.repartition?.find((r) => r.tranche === "enfant_3ans");
+      const parBebe = l.repartition?.find((r) => r.tranche === "bebe");
+      const champsRepartition = l.repartition
+        ? {
+            participants_adultes: parAdulte?.nb || 0,
+            participants_enfants: parEnfant?.nb || 0,
+            participants_bebes: parBebe?.nb || 0,
+            participants_enfants_3ans: parEnfant3?.nb || 0,
+            pu_adulte: Math.max((parAdulte?.pu || 0) - remisePersonne, 0),
+            pu_enfant: Math.max((parEnfant?.pu || 0) - remisePersonne, 0),
+            pu_bebe: Math.max((parBebe?.pu || 0) - remisePersonne, 0),
+            pu_enfant_3ans: Math.max((parEnfant3?.pu || 0) - remisePersonne, 0),
+            pax_override: "",
+          }
+        : {
+            participants_adultes: l.nbPersonnes,
+            pu_adulte: l.remise > 0 ? Math.max(l.prixParPersonne - l.remise / Math.max(l.nbPersonnes, 1), 0) : l.prixParPersonne,
+            pax_override: `${l.nbPersonnes} personnes`,
+          };
+      const { data: inserted, error } = await supabase
+        .from("reservations")
+        .insert({
+          client_id: clientId,
+          nom_activite: l.nom,
+          catalogue_item_id: l.catalogueItemId || null,
+          participants_mode: "custom",
+          ...champsRepartition,
+          horaire_approx: item?.horaire_approx || "",
+          inclus: (item?.inclus_liste || []).join(", ") || item?.inclus || "",
+          non_inclus: (item?.non_inclus_liste || []).join(", ") || item?.non_inclus || "",
+          a_prevoir: (item?.a_prevoir_liste || []).join(", ") || item?.a_prevoir || "",
+          point_rdv: item?.point_rdv || "",
+          photo_path: item?.photo_path || "",
+          date_debut: l.date || null,
+          transfert_inclus: !(l.taxeTransfert > 0),
+          transfert_montant: l.taxeTransfert || 0,
+          zone_transfert: villeClient,
+          cree_par_id: user?.id || null,
+          cree_par_nom: creeParNom,
+          statut_resa: clientSelectionne?.statut === "Client confirmé" ? "Confirmée" : "Brouillon",
+        })
+        .select()
+        .single();
+      if (error || !inserted) {
         toast("Échec de l'ajout d'une activité.");
         setSaving(false);
         return;
+      }
+      for (const o of l.options || []) {
+        const { error: optError } = await supabase.from("reservation_options").insert({
+          reservation_id: inserted.id,
+          nom: o.nom,
+          prix: o.prix,
+          quantite: o.mode === "personne" ? o.quantite : 1,
+          prix_compte_ailleurs: false,
+          verrouille: false,
+        });
+        if (optError) toast(`Activité ajoutée mais échec de l'option "${o.nom}".`);
       }
     }
     setSaving(false);
@@ -222,8 +358,9 @@ export default function RedactionProgramView({
         <h2 className="font-heading text-xl font-semibold text-[#171717]">Rédaction d&apos;un programme</h2>
         <p className="mt-1 text-sm text-neutral-500">
           Cherche le lead, confirme ses dates et le nombre de participants, puis ajoute les activités une par
-          une depuis le catalogue — le prix par personne, la taxe de transfert et le total se calculent tout
-          seuls, prêt à copier-coller.
+          une depuis le catalogue — la date proposée respecte les jours de disponibilité de l&apos;activité, et
+          le prix par personne (ou par tranche d&apos;âge), la taxe de transfert, les options et le total se
+          calculent tout seuls, prêt à copier-coller.
         </p>
       </div>
 
@@ -294,6 +431,18 @@ export default function RedactionProgramView({
               className="input mt-1"
             />
           </label>
+          {enfants > 0 && (
+            <label className="col-span-2 text-xs text-neutral-500 sm:col-span-4">
+              Âges enfants (ex. 6, 9 et 14 ans) — sert à appliquer le bon tarif catalogue par tranche d&apos;âge
+              <input
+                type="text"
+                value={agesEnfants}
+                onChange={(e) => setAgesEnfants(e.target.value)}
+                placeholder="ex. 2, 6 et 9 ans"
+                className="input mt-1"
+              />
+            </label>
+          )}
           <label className="col-span-2 text-xs text-neutral-500 sm:col-span-4">
             Hôtel
             <input type="text" value={hotel} onChange={(e) => setHotel(e.target.value)} className="input mt-1" />
@@ -341,93 +490,192 @@ export default function RedactionProgramView({
 
         {lignes.length > 0 && (
           <div className="mt-3 space-y-2">
-            {lignes.map((l) => (
-              <div key={l.id} className="rounded-md border border-neutral-200 p-2.5">
-                <div className="flex items-start gap-2">
-                  <input
-                    type="text"
-                    value={l.nom}
-                    onChange={(e) => updateLigne(l.id, { nom: e.target.value })}
-                    className="input flex-1 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeLigne(l.id)}
-                    className="shrink-0 text-xs text-red-600 hover:underline"
-                  >
-                    Retirer
-                  </button>
-                </div>
-                {/\ben bus\b/i.test(l.nom) && (
-                  <p className="mt-1 text-xs font-medium text-red-600">
-                    Déconseillé — formule mini-bus recommandée par l&apos;agence.
-                  </p>
-                )}
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <label className="text-[11px] text-neutral-500">
-                    Date
-                    <input
-                      type="date"
-                      value={l.date}
-                      onChange={(e) => updateLigne(l.id, { date: e.target.value })}
-                      className="input mt-0.5 text-sm"
-                    />
-                  </label>
-                  <label className="text-[11px] text-neutral-500">
-                    Prix / personne (€)
-                    <input
-                      type="number"
-                      min={0}
-                      value={l.prixParPersonne}
-                      onChange={(e) => updateLigne(l.id, { prixParPersonne: Math.max(0, Number(e.target.value)) })}
-                      className="input mt-0.5 text-sm"
-                    />
-                  </label>
-                  <label className="text-[11px] text-neutral-500">
-                    Nb personnes (ligne)
-                    <input
-                      type="number"
-                      min={0}
-                      value={l.nbPersonnes}
-                      onChange={(e) => updateLigne(l.id, { nbPersonnes: Math.max(0, Number(e.target.value)) })}
-                      className="input mt-0.5 text-sm"
-                    />
-                  </label>
-                  <label className="text-[11px] text-neutral-500">
-                    Taxe de transfert (€)
-                    <input
-                      type="number"
-                      min={0}
-                      value={l.taxeTransfert}
-                      onChange={(e) => updateLigne(l.id, { taxeTransfert: Math.max(0, Number(e.target.value)) })}
-                      className="input mt-0.5 text-sm"
-                    />
-                  </label>
-                </div>
-                <label className="mt-2 block text-[11px] text-neutral-500">
-                  Remise (€)
-                  <input
-                    type="number"
-                    min={0}
-                    value={l.remise}
-                    onChange={(e) => updateLigne(l.id, { remise: Math.max(0, Number(e.target.value)) })}
-                    className="input mt-0.5 text-sm"
-                  />
-                </label>
-                {l.remise > 0 && (
-                  <label className="mt-2 block text-[11px] text-neutral-500">
-                    Motif de la remise
+            {lignes.map((l) => {
+              const item = catalogue.find((a) => a.id === l.catalogueItemId);
+              const joursDispo = item ? normalizeJoursDisponibles(item.jours_disponibles) : [];
+              const contrainteJours = joursDispo.length > 0 && joursDispo.length < 7;
+              const catOptions = item ? catalogueOptions[item.id] || [] : [];
+              const optionsDisponibles = catOptions.filter((co) => !(l.options || []).some((o) => o.nom === co.nom));
+              return (
+                <div key={l.id} className="rounded-md border border-neutral-200 p-2.5">
+                  <div className="flex items-start gap-2">
                     <input
                       type="text"
-                      value={l.remiseLabel}
-                      onChange={(e) => updateLigne(l.id, { remiseLabel: e.target.value })}
-                      placeholder="geste commercial"
+                      value={l.nom}
+                      onChange={(e) => updateLigne(l.id, { nom: e.target.value })}
+                      className="input flex-1 text-sm"
+                    />
+                    <span className="shrink-0 self-center font-amounts text-xs font-medium text-[#0F5C56]">
+                      {eurosVirgule(ligneTotal(l))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeLigne(l.id)}
+                      className="shrink-0 text-xs text-red-600 hover:underline"
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                  {/\ben bus\b/i.test(l.nom) && (
+                    <p className="mt-1 text-xs font-medium text-red-600">
+                      Déconseillé — formule mini-bus recommandée par l&apos;agence.
+                    </p>
+                  )}
+                  <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <label className="text-[11px] text-neutral-500">
+                      Date
+                      <input
+                        type="date"
+                        value={l.date}
+                        onChange={(e) => updateLigne(l.id, { date: e.target.value })}
+                        className="input mt-0.5 text-sm"
+                      />
+                      {contrainteJours && (
+                        <span className="mt-0.5 block text-[10px] text-[#8B4531]">
+                          Circule uniquement : {joursDispo.join(", ")}
+                        </span>
+                      )}
+                    </label>
+                    {!l.repartition && (
+                      <>
+                        <label className="text-[11px] text-neutral-500">
+                          Prix / personne (€)
+                          <input
+                            type="number"
+                            min={0}
+                            value={l.prixParPersonne}
+                            onChange={(e) => updateLigne(l.id, { prixParPersonne: Math.max(0, Number(e.target.value)) })}
+                            className="input mt-0.5 text-sm"
+                          />
+                        </label>
+                        <label className="text-[11px] text-neutral-500">
+                          Nb personnes (ligne)
+                          <input
+                            type="number"
+                            min={0}
+                            value={l.nbPersonnes}
+                            onChange={(e) => updateLigne(l.id, { nbPersonnes: Math.max(0, Number(e.target.value)) })}
+                            className="input mt-0.5 text-sm"
+                          />
+                        </label>
+                      </>
+                    )}
+                    <label className="text-[11px] text-neutral-500">
+                      Taxe de transfert (€)
+                      <input
+                        type="number"
+                        min={0}
+                        value={l.taxeTransfert}
+                        onChange={(e) => updateLigne(l.id, { taxeTransfert: Math.max(0, Number(e.target.value)) })}
+                        className="input mt-0.5 text-sm"
+                      />
+                    </label>
+                  </div>
+
+                  {l.repartition && l.repartition.length > 0 && (
+                    <div className="mt-2 space-y-1 rounded-md bg-[#fafafa] p-2">
+                      <p className="text-[11px] font-medium text-neutral-500">Répartition par tranche d&apos;âge</p>
+                      {l.repartition.map((r, idx) => (
+                        <div key={idx} className="flex flex-wrap items-center gap-2 text-xs">
+                          <span className="w-28 shrink-0 font-medium text-[#171717]">
+                            {r.tranche === "adulte" ? "Adulte" : r.label || "Enfant"}
+                          </span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={r.pu}
+                            onChange={(e) => updateRepartitionRow(l.id, idx, { pu: Math.max(0, Number(e.target.value)) })}
+                            className="input w-20 text-xs"
+                          />
+                          <span className="text-neutral-400">€ ×</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={r.nb}
+                            onChange={(e) => updateRepartitionRow(l.id, idx, { nb: Math.max(0, Number(e.target.value)) })}
+                            className="input w-16 text-xs"
+                          />
+                          <span className="text-neutral-500">= {eurosVirgule(r.pu * r.nb)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-2">
+                    <p className="text-[11px] text-neutral-500">Options / suppléments</p>
+                    {(l.options || []).map((o) => (
+                      <div key={o.id} className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-medium text-[#171717]">{o.nom}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={o.prix}
+                          onChange={(e) => updateOption(l.id, o.id, { prix: Math.max(0, Number(e.target.value)) })}
+                          className="input w-20 text-xs"
+                        />
+                        <span className="text-neutral-400">€</span>
+                        {o.mode === "personne" && (
+                          <>
+                            <span className="text-neutral-400">×</span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={o.quantite}
+                              onChange={(e) => updateOption(l.id, o.id, { quantite: Math.max(0, Number(e.target.value)) })}
+                              className="input w-16 text-xs"
+                            />
+                            <span className="text-neutral-500">= {eurosVirgule(o.prix * o.quantite)}</span>
+                          </>
+                        )}
+                        <button type="button" onClick={() => removeOption(l.id, o.id)} className="text-red-600">
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {optionsDisponibles.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {optionsDisponibles.map((co) => (
+                          <button
+                            key={co.id}
+                            type="button"
+                            onClick={() => addOption(l.id, co)}
+                            className="rounded-full border border-dashed border-neutral-300 px-2.5 py-1 text-[11px] text-neutral-500 hover:border-[#171717] hover:text-[#171717]"
+                          >
+                            + {co.nom} ({eurosVirgule(co.prix)} {co.mode === "groupe" ? "groupe" : "/pers."})
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {optionsDisponibles.length === 0 && (l.options || []).length === 0 && (
+                      <p className="mt-1 text-[11px] text-neutral-400">Aucune option pour cette activité.</p>
+                    )}
+                  </div>
+
+                  <label className="mt-2 block text-[11px] text-neutral-500">
+                    Remise (€)
+                    <input
+                      type="number"
+                      min={0}
+                      value={l.remise}
+                      onChange={(e) => updateLigne(l.id, { remise: Math.max(0, Number(e.target.value)) })}
                       className="input mt-0.5 text-sm"
                     />
                   </label>
-                )}
-              </div>
-            ))}
+                  {l.remise > 0 && (
+                    <label className="mt-2 block text-[11px] text-neutral-500">
+                      Motif de la remise
+                      <input
+                        type="text"
+                        value={l.remiseLabel}
+                        onChange={(e) => updateLigne(l.id, { remiseLabel: e.target.value })}
+                        placeholder="geste commercial"
+                        className="input mt-0.5 text-sm"
+                      />
+                    </label>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

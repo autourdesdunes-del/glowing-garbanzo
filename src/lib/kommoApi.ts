@@ -178,3 +178,58 @@ export async function fetchKommoLeadContactInfo(
           return null;
     }
 }
+
+// Kommo n'expose le canal réel (WhatsApp/Instagram/...) nulle part sur le
+// lead ou le contact via l'API classique — vérifié en direct sur un lead
+// Instagram confirmé (badge visible dans l'UI Kommo) : custom_fields_values
+// et source_id sont vides des deux côtés. Le seul endroit qui le donne est
+// /leads/unsorted (gratuit, inclus dans l'abonnement standard, aucun lien
+// avec l'API Chats payante) via metadata.service ("waba", "instagram_business"...),
+// tant que l'item reste dans sa fenêtre de rétention (~quelques jours,
+// une cinquantaine d'items observés). Best-effort : un lead plus ancien que
+// cette fenêtre, ou créé manuellement, n'y sera simplement pas — canal
+// retombe alors sur le défaut existant, pas d'erreur.
+const KOMMO_SERVICE_TO_CANAL: Record<string, string> = {
+    waba: "WhatsApp",
+    whatsapp: "WhatsApp",
+    instagram_business: "Instagram",
+    instagram: "Instagram",
+    tiktok_business: "TikTok",
+    tiktok: "TikTok",
+};
+
+export async function fetchKommoUnsortedCanal(): Promise<{
+    byLeadId: Map<number, string>;
+    byContactId: Map<number, string>;
+}> {
+    const byLeadId = new Map<number, string>();
+    const byContactId = new Map<number, string>();
+    try {
+          const data = (await kommoFetch("/leads/unsorted?limit=250")) as
+                  | {
+                                  _embedded?: {
+                                                unsorted?: {
+                                                              metadata?: { service?: string };
+                                                              _embedded?: {
+                                                                            leads?: { id?: number }[];
+                                                                            contacts?: { id?: number }[];
+                                                              };
+                                                }[];
+                                  };
+                    }
+            | null;
+          const items = data?._embedded?.unsorted ?? [];
+          for (const item of items) {
+                    const service = item.metadata?.service;
+                    const canal = service ? KOMMO_SERVICE_TO_CANAL[service] : undefined;
+                    if (!canal) continue;
+                    const leadId = item._embedded?.leads?.[0]?.id;
+                    const contactId = item._embedded?.contacts?.[0]?.id;
+                    if (leadId) byLeadId.set(leadId, canal);
+                    if (contactId) byContactId.set(contactId, canal);
+          }
+    } catch {
+          // best-effort — ne doit jamais empêcher la création/synchro normale du lead.
+    }
+    return { byLeadId, byContactId };
+}

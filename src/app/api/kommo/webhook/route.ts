@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchKommoLeadContactInfo } from "@/lib/kommoApi";
+import { fetchKommoLeadContactInfo, fetchKommoUnsortedCanal } from "@/lib/kommoApi";
 import { localDateStr } from "@/lib/dates";
 import { normText, normPhone } from "@/lib/duplicates";
 import {
@@ -140,7 +140,12 @@ async function processLeadEvent(
     ): Promise<string | null> {
       const entries = extractLeadEntries(payload);
       let lastClientId: string | null = null;
-    
+      // Un seul appel pour tout le batch, pas un par lead — voir
+      // fetchKommoUnsortedCanal (kommoApi.ts) pour pourquoi c'est le seul
+      // endroit gratuit où Kommo donne le vrai canal (WhatsApp vs
+      // Instagram...) d'un lead qui vient d'être créé.
+      const { byLeadId: canalParLeadId } = await fetchKommoUnsortedCanal();
+
       for (const entry of entries) {
               const leadId = Number(entry.id);
               if (!leadId) continue;
@@ -248,6 +253,7 @@ async function processLeadEvent(
                         lastClientId = matchedId;
               } else {
                         const doublonPossibleId = await findPossibleDuplicateByName(admin, nom);
+                        const canalDetecte = canalParLeadId.get(leadId);
                         const { data: created } = await admin
                                     .from("clients")
                                     .insert({
@@ -260,6 +266,7 @@ async function processLeadEvent(
                                                   kommo_pipeline_status_nom: statusNom,
                                                   kommo_synced_at: new Date().toISOString(),
                                                   doublon_possible_id: doublonPossibleId,
+                                                  ...(canalDetecte ? { canal: canalDetecte } : {}),
                                                   ...(mapped?.statutCrm === "Client confirmé"
                                                         ? { confirmation_a_traiter: true }
                                                         : {}),
@@ -279,6 +286,7 @@ async function processContactEvent(
   ): Promise<string | null> {
     const entries = extractContactEntries(payload);
     let lastClientId: string | null = null;
+    const { byContactId: canalParContactId } = await fetchKommoUnsortedCanal();
 
   for (const entry of entries) {
         const contactId = Number(entry.id);
@@ -332,6 +340,7 @@ async function processContactEvent(
               lastClientId = matchedId;
       } else {
               const doublonPossibleId = await findPossibleDuplicateByName(admin, nom);
+              const canalDetecte = canalParContactId.get(contactId);
               const { data: created } = await admin
                 .from("clients")
                 .insert({
@@ -342,6 +351,7 @@ async function processContactEvent(
                             kommo_contact_id: contactId,
                             kommo_synced_at: new Date().toISOString(),
                             doublon_possible_id: doublonPossibleId,
+                            ...(canalDetecte ? { canal: canalDetecte } : {}),
                 })
                 .select("id")
                 .single();

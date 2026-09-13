@@ -40,12 +40,16 @@ export default function DevisPaiementModal({
   const solde = Math.max(totalSejour - acompte, 0);
 
   const handleConfirm = () => {
-    onUpdateClient({
-      paiement_type: "acompte",
-      acompte_montant: acompte,
-      acompte_mode: acompteMode,
-      solde_mode: soldeMode,
-    });
+    // Un devis généré sans acompte (montant laissé à 0 — cas d'un simple
+    // prospect qui veut juste un prix) ne doit jamais forcer le dossier sur
+    // le circuit "acompte + solde" : ça laissait ensuite l'étape Paiements
+    // coincée sur un acompte fantôme de 0 € à valider, bloquant même le
+    // choix du mode de règlement du solde (voir commit 840a7a3).
+    onUpdateClient(
+      acompte > 0
+        ? { paiement_type: "acompte", acompte_montant: acompte, acompte_mode: acompteMode, solde_mode: soldeMode }
+        : { solde_mode: soldeMode }
+    );
     onConfirm();
     onClose();
   };

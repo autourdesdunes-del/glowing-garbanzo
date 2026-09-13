@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
-import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
+import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { agesLabel, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { PAYPAL_ME_LINK, PAYPAL_EMAIL } from "@/lib/constants";
 import { PAYPAL_ENTRE_PROCHES_1, PAYPAL_ENTRE_PROCHES_2 } from "@/lib/paypalScreenshots";
@@ -112,6 +112,7 @@ function ConfirmationTemplate({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   hotelVille,
   qrDataUrl,
 }: {
@@ -119,6 +120,7 @@ function ConfirmationTemplate({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   hotelVille?: string;
   qrDataUrl?: string | null;
 }) {
@@ -136,7 +138,15 @@ function ConfirmationTemplate({
     0
   );
   const { acompteMontant, acomptePaypal, url: paypalUrl } = acomptePaypalInfo(client);
-  const soldeMontant = Math.max(totalSejour - acompteMontant, 0);
+  // Un bon régénéré après un règlement partiel supplémentaire ("+ Ajouter
+  // une étape", même mécanisme que resteApresAcompte dans client-steps.tsx)
+  // ou un avoir déjà appliqué à une activité doit en tenir compte, sinon le
+  // solde annoncé au client est surévalué — il paraît devoir encore tout le
+  // "solde initial" alors qu'une partie a déjà été réglée ou couverte par
+  // un avoir.
+  const etapesSum = paiementsEtapes.reduce((s, e) => s + (Number(e.montant) || 0), 0);
+  const avoirUtilise = actives.reduce((s, r) => s + (Number(r.avoir_utilise) || 0), 0);
+  const soldeMontant = Math.max(totalSejour - acompteMontant - etapesSum - avoirUtilise, 0);
   const soldeRdv = soldeRdvInfo(client);
   // `actives`, pas `reservations` brut : sinon un solde_activite_id
   // pointant vers une activité Brouillon/Annulée (donc absente du
@@ -458,6 +468,7 @@ export default function ConfirmationDocumentStage({
   reservations,
   resaOptions,
   resaTarifs,
+  paiementsEtapes = [],
   hotelVille,
   format,
   onDone,
@@ -466,6 +477,7 @@ export default function ConfirmationDocumentStage({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
   hotelVille?: string;
   format: "pdf" | "png" | null;
   onDone: () => void;
@@ -608,6 +620,7 @@ export default function ConfirmationDocumentStage({
           reservations={reservations}
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
           hotelVille={hotelVille}
           qrDataUrl={qrDataUrl}
         />

@@ -2288,6 +2288,7 @@ export default function ClientDetail({
         reservations={reservations}
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
+        paiementsEtapes={paiementsEtapes}
         hotelVille={hotelMatch?.ville}
         format={confirmationFormat}
         onDone={() => {

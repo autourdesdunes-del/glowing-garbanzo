@@ -23,6 +23,7 @@ import {
   TransfertTaxe,
 } from "@/lib/types";
 import { matchHotel } from "@/lib/hotelHelp";
+import { infoManquanteLabel } from "@/lib/infosManquantes";
 import { DuplicateMatch, findDuplicateClients } from "@/lib/duplicates";
 
 type StepId =
@@ -901,7 +902,7 @@ export default function QuickAddClient({
                             checked={(answers.infos_manquantes || []).includes(opt)}
                             onChange={() => toggleInfoManquante(opt)}
                           />
-                          {opt}
+                          {infoManquanteLabel(opt)}
                         </label>
                       ))}
                     </div>

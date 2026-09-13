@@ -24,7 +24,7 @@ import {
   reservationsActives,
   reservationsVendues,
 } from "@/lib/resa";
-import { infosManquantesToutes } from "@/lib/infosManquantes";
+import { infosManquantesToutes, infoManquanteLabel } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
 import { STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
@@ -415,7 +415,9 @@ export default function DashboardView({
   const incompleteRows = incompleteUpcoming.map((c) => ({
     key: c.id,
     name: c.nom || "Sans nom",
-    reason: `Manque : ${infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).join(", ")}`,
+    reason: `Manque : ${infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || [])
+      .map(infoManquanteLabel)
+      .join(", ")}`,
     actionLabel: "Compléter la fiche",
     onAction: () => {
       setIncompleteModalOpen(false);

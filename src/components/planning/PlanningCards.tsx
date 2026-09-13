@@ -31,7 +31,7 @@ import {
   taxeTransfertManquante,
   volBadge,
 } from "@/lib/resa";
-import { infosManquantesToutes } from "@/lib/infosManquantes";
+import { infosManquantesToutes, infoManquanteLabel } from "@/lib/infosManquantes";
 import { euros, fmtDate } from "@/lib/planningViewFormat";
 
 // Carte résumé d'une activité (Réservations) et petite ligne label/valeur
@@ -99,7 +99,7 @@ export function ReservationSummaryCard({
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
   const infosManquantes = infosManquantesToutes(client, reservations, hotelsRef, clientHotels);
   const infoComplet = infosManquantes.length === 0;
-  const infoStatut = infoComplet ? null : infosManquantes[0];
+  const infoStatut = infoComplet ? null : infoManquanteLabel(infosManquantes[0]);
 
   if (size === "medium") {
     return (

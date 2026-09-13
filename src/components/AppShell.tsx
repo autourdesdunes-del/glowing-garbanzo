@@ -901,17 +901,33 @@ function AppShellInner({
     [supabase, toast]
   );
 
+  // Enregistrement optimiste + différé, avec reprise automatique en cas
+  // d'échec (voir flushSave ci-dessus) — partagé par tous les points d'écriture
+  // sur un client (updateSelected pour la fiche ouverte, updateClientById
+  // pour tous les autres : création, Pipeline, cascade d'annulation...).
+  // Avant ce partage, seul updateSelected en bénéficiait ; updateClientById
+  // écrivait en un seul essai et perdait silencieusement la saisie en cas
+  // d'incident réseau/Supabase transitoire (vécu : un numéro de téléphone
+  // saisi à la création d'un prospect, disparu après un "Échec de
+  // l'enregistrement" sans reprise).
+  const queuePatch = useCallback(
+    (id: string, patch: Partial<Client>) => {
+      setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+      pendingPatches.current[id] = { ...pendingPatches.current[id], ...patch };
+      if (saveTimers.current[id]) clearTimeout(saveTimers.current[id]);
+      if (retryTimers.current[id]) clearTimeout(retryTimers.current[id]);
+      saveTimers.current[id] = setTimeout(() => flushSave(id), 600);
+    },
+    [flushSave]
+  );
+
   const updateSelected = (patch: Partial<Client>) => {
     if (!selected) return;
     const id = selected.id;
     if (patch.statut && patch.statut !== selected.statut) {
       pushStatutToKommo(selected.kommo_lead_id, patch.statut, patch.nom ?? selected.nom);
     }
-    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    pendingPatches.current[id] = { ...pendingPatches.current[id], ...patch };
-    if (saveTimers.current[id]) clearTimeout(saveTimers.current[id]);
-    if (retryTimers.current[id]) clearTimeout(retryTimers.current[id]);
-    saveTimers.current[id] = setTimeout(() => flushSave(id), 600);
+    queuePatch(id, patch);
   };
 
   // Rafraîchissement automatique de tous les onglets, toutes les 25s, pour
@@ -1278,9 +1294,7 @@ function AppShellInner({
     if (patch.avis_envoye_le) {
       finalPatch = { ...finalPatch, avis_envoye_par_id: userId, avis_envoye_par_nom: monPrenom() };
     }
-    setClients((prev) => prev.map((c) => (c.id === id ? { ...c, ...finalPatch } : c)));
-    const { error } = await supabase.from("clients").update(finalPatch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement.");
+    queuePatch(id, finalPatch);
 
     // Un client annulé sans que ses activités le soient rendrait le total du
     // séjour et le calendrier incohérents — on annule donc en cascade,

@@ -17,6 +17,7 @@ import {
 } from "@/lib/types";
 import {
   cleanActivityTitle,
+  joursSansReponseProspect,
   missingChampsFor,
   paxSummary,
   prospectRelanceUrgente,
@@ -29,6 +30,7 @@ import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
 import { STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
+import ProspectSummaryModal from "@/components/ProspectSummaryModal";
 import QuickAddClient from "@/components/QuickAddClient";
 import PickClientModal from "@/components/PickClientModal";
 import PaiementsDuJourModal, { computePaiementsDuJour } from "@/components/PaiementsDuJourModal";
@@ -148,6 +150,7 @@ export default function DashboardView({
   const [expandedEgyptClientId, setExpandedEgyptClientId] = useState<string | null>(null);
   const [urgentModalOpen, setUrgentModalOpen] = useState(false);
   const [prospectsModalOpen, setProspectsModalOpen] = useState(false);
+  const [prospectSummaryId, setProspectSummaryId] = useState<string | null>(null);
   const [incompleteModalOpen, setIncompleteModalOpen] = useState(false);
   const [pickupsModalOpen, setPickupsModalOpen] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
@@ -313,10 +316,19 @@ export default function DashboardView({
   // prochains jours ou qui sont déjà sur place (voir prospectRelanceUrgente,
   // resa.ts). Le reste des prospects stagnants reste visible dans le Kanban
   // pour la vue d'ensemble, juste pas dans cette liste à traiter aujourd'hui.
-  // Triés par urgence (silence + proximité du départ, voir urgenceProspect).
-  const staleProspects = clients
-    .filter(prospectRelanceUrgente)
-    .sort((a, b) => urgenceProspect(b) - urgenceProspect(a));
+  // Classés par date de séjour d'abord (arrivée la plus proche en tête,
+  // repli sur l'estimation Kommo puisque date_debut est presque toujours
+  // vide pour un prospect) — c'est ce qui dit concrètement "qui appeler en
+  // premier aujourd'hui", pas un score abstrait. Les dossiers sans aucune
+  // date (typiquement Programme envoyé / Demande d'infos sans estimation)
+  // sont classés après, par ancienneté de silence décroissante.
+  const dateTriRelance = (c: Client) => c.date_debut || c.kommo_sejour_debut_estime || "9999-99-99";
+  const staleProspects = clients.filter(prospectRelanceUrgente).sort((a, b) => {
+    const da = dateTriRelance(a);
+    const db = dateTriRelance(b);
+    if (da !== db) return da.localeCompare(db);
+    return urgenceProspect(b) - urgenceProspect(a);
+  });
 
   const marquerRelance = (c: Client) => {
     onUpdateClient(c.id, {
@@ -418,15 +430,23 @@ export default function DashboardView({
     })),
   ];
 
-  const prospectRows = staleProspects.map((c) => ({
-    key: c.id,
-    name: c.nom || "Sans nom",
-    reason: c.dernier_contact_date
-      ? `Dernier contact il y a ${daysSince(c.dernier_contact_date)} j — arrivée le ${fmtDate(c.date_debut)}`
-      : `Jamais recontacté depuis la création — arrivée le ${fmtDate(c.date_debut)}`,
-    actionLabel: "Marquer comme relancé",
-    onAction: () => marquerRelance(c),
-  }));
+  // Pourquoi CE dossier précis est dans la liste — un motif générique
+  // "à relancer" ne dit rien de l'urgence réelle (départ imminent vs
+  // message précis resté sans réponse), voir prospectRelanceUrgente.
+  const motifRelance = (c: Client): string => {
+    if (c.statut === "Programme envoyé" || c.statut === "Demande d'infos envoyée") {
+      const j = joursSansReponseProspect(c) ?? 0;
+      return `${c.statut} depuis ${j} j sans réponse`;
+    }
+    const debut = c.date_debut || c.kommo_sejour_debut_estime;
+    const fin = c.date_fin || c.kommo_sejour_fin_estime;
+    if (debut && fin && debut <= todayStr && todayStr <= fin) return "En Égypte actuellement";
+    if (debut) {
+      const j = Math.round((Date.parse(debut) - Date.parse(todayStr)) / 86400000);
+      return j <= 0 ? "Arrivée aujourd'hui" : `Arrive dans ${j} j`;
+    }
+    return "Sans date connue";
+  };
 
   const incompleteRows = incompleteUpcoming.map((c) => ({
     key: c.id,
@@ -726,12 +746,95 @@ export default function DashboardView({
         <InfoListModal title="Cas urgents" rows={urgentRows} onClose={() => setUrgentModalOpen(false)} />
       )}
       {prospectsModalOpen && (
-        <InfoListModal
-          title="Prospects à relancer"
-          rows={prospectRows}
-          onClose={() => setProspectsModalOpen(false)}
-        />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setProspectsModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-heading text-base font-semibold text-[#171717]">
+                Prospects à relancer ({staleProspects.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => setProspectsModalOpen(false)}
+                className="text-neutral-400 hover:text-[#171717]"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-3 space-y-2">
+              {staleProspects.length === 0 && (
+                <p className="text-sm text-neutral-500">Rien à signaler.</p>
+              )}
+              {staleProspects.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => setProspectSummaryId(c.id)}
+                  className="cursor-pointer rounded-md border border-neutral-100 px-3 py-2 text-sm hover:border-neutral-300 hover:bg-[#fafafa]"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="h-2 w-2 flex-shrink-0 rounded-full"
+                        style={{ backgroundColor: STATUT_COLORS[c.statut] }}
+                      />
+                      <p className="font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
+                    </div>
+                    <span className="flex-shrink-0 rounded-full bg-[#8B4531]/10 px-2 py-0.5 text-[11px] font-medium text-[#8B4531]">
+                      {motifRelance(c)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-500">
+                    <span>{c.canal}</span>
+                    {c.telephone && <span>{c.telephone}</span>}
+                    {c.kommo_lead_id && (
+                      <a
+                        href={`https://autourdesdunes.kommo.com/leads/detail/${c.kommo_lead_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-medium text-[#0F5C56] hover:underline"
+                      >
+                        Kommo →
+                      </a>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      marquerRelance(c);
+                    }}
+                    className="mt-1.5 text-xs font-medium text-[#0F5C56] hover:underline"
+                  >
+                    Marquer comme relancé →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
+      {prospectSummaryId &&
+        (() => {
+          const c = clients.find((cl) => cl.id === prospectSummaryId);
+          if (!c) return null;
+          return (
+            <ProspectSummaryModal
+              client={c}
+              onClose={() => setProspectSummaryId(null)}
+              onUpdateClient={(patch) => onUpdateClient(c.id, patch)}
+              onConfirmClient={() => {
+                onUpdateClient(c.id, { statut: "Client confirmé" });
+                setProspectSummaryId(null);
+              }}
+            />
+          );
+        })()}
       {incompleteModalOpen && (
         <InfoListModal
           title="Dossiers incomplets"

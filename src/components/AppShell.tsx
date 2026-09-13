@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAllRows } from "@/lib/supabase/fetchAll";
 import {
   AcompteAlerte,
   AssouanVerification,
@@ -421,7 +422,7 @@ function AppShellInner({
         { data: incidents },
         { data: verifs },
       ] = await Promise.all([
-        supabase.from("clients").select("*").order("created_at", { ascending: false }),
+        fetchAllRows<Client>(supabase, "clients", "*", "created_at", false),
         supabase
           .from("catalogue_activites")
           .select("*")
@@ -973,7 +974,7 @@ function AppShellInner({
         { data: incidents },
         { data: verifs },
       ] = await Promise.all([
-        supabase.from("clients").select("*").order("created_at", { ascending: false }),
+        fetchAllRows<Client>(supabase, "clients", "*", "created_at", false),
         supabase.from("catalogue_activites").select("*").order("ordre", { ascending: true }),
         supabase.from("catalogue_tarifs").select("*"),
         supabase.from("transfert_tarifs").select("*").order("ordre", { ascending: true }),

@@ -95,6 +95,21 @@ export default function RedactionProgramView({
 
   const [activiteQuery, setActiviteQuery] = useState("");
   const [lignes, setLignes] = useState<Ligne[]>(draftInitial?.lignes || []);
+  // Chaque activité repliée par défaut — seul le nom, la date et le total
+  // restent visibles tant qu'on ne clique pas dessus, pour ne pas noyer
+  // l'employée sous tous les détails d'un programme à plusieurs activités.
+  // Une activité qu'on vient d'ajouter s'ouvre automatiquement (cf.
+  // addLigne/addTaxeSeule) : c'est le moment où elle a le plus besoin d'être
+  // vérifiée/ajustée.
+  const [lignesOuvertes, setLignesOuvertes] = useState<Set<string>>(new Set());
+  const toggleLigneOuverte = (id: string) => {
+    setLignesOuvertes((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hotels, setHotels] = useState<HotelReference[]>([]);
@@ -237,10 +252,12 @@ export default function RedactionProgramView({
     const repartition = construireRepartition(item);
     const groupe = construireGroupe(item);
     const creneauRequis = (item.champs_requis_liste || []).includes(CRENEAU_REQUIS);
+    const id = nextLigneId();
+    setLignesOuvertes((prev) => new Set(prev).add(id));
     setLignes((prev) => [
       ...prev,
       {
-        id: nextLigneId(),
+        id,
         catalogueItemId: item.id,
         nom: item.nom,
         date: dateSuggeree,
@@ -263,10 +280,12 @@ export default function RedactionProgramView({
   // HELP), juste sous forme de ligne autonome pour un devis qui n'en a pas
   // besoin ailleurs.
   const addTaxeSeule = () => {
+    const id = nextLigneId();
+    setLignesOuvertes((prev) => new Set(prev).add(id));
     setLignes((prev) => [
       ...prev,
       {
-        id: nextLigneId(),
+        id,
         catalogueItemId: "",
         nom: "Taxe de transfert",
         date: joursSejour[0] || "",
@@ -301,6 +320,45 @@ export default function RedactionProgramView({
 
   const nbPersonnesLigne = (l: Ligne) =>
     l.repartition && l.repartition.length > 0 ? l.repartition.reduce((s, r) => s + r.nb, 0) : l.nbPersonnes;
+
+  // Un accompagnateur (plongée, quad...) ne se déduit jamais des
+  // adultes/enfants du séjour — toujours ajouté au cas par cas, comme
+  // partout ailleurs dans l'app (participants_accompagnateurs). On le
+  // retire d'un adulte du groupe (repli le plus fréquent : c'est
+  // généralement un adulte qui accompagne sans participer) plutôt que de
+  // gonfler l'effectif total sans que l'employée s'en aperçoive — reste
+  // ajustable à la main ensuite.
+  const addAccompagnateur = (ligneId: string, item: CatalogueItem) => {
+    setLignes((prev) =>
+      prev.map((l) => {
+        if (l.id !== ligneId) return l;
+        if (l.repartition?.some((r) => r.tranche === "accompagnateur")) return l;
+        const base: RepartitionLigne[] =
+          l.repartition && l.repartition.length > 0
+            ? l.repartition
+            : [{ tranche: "adulte", label: item.pu_adulte_age || "Adulte", pu: item.pu_adulte, nb: nbPersonnesLigne(l) }];
+        const adulteIdx = base.findIndex((r) => r.tranche === "adulte");
+        const repartition = base.map((r, i) => (i === adulteIdx ? { ...r, nb: Math.max(r.nb - 1, 0) } : r));
+        repartition.push({
+          tranche: "accompagnateur",
+          label: item.pu_accompagnateur_age || "Accompagnateur",
+          pu: item.pu_accompagnateur,
+          nb: 1,
+        });
+        return { ...l, repartition };
+      })
+    );
+  };
+
+  const removeAccompagnateur = (ligneId: string) => {
+    setLignes((prev) =>
+      prev.map((l) =>
+        l.id === ligneId && l.repartition
+          ? { ...l, repartition: l.repartition.filter((r) => r.tranche !== "accompagnateur") }
+          : l
+      )
+    );
+  };
 
   const addOption = (ligneId: string, co: CatalogueOption) => {
     const ligne = lignes.find((l) => l.id === ligneId);
@@ -388,6 +446,7 @@ export default function RedactionProgramView({
       const parEnfant = l.repartition?.find((r) => r.tranche === "enfant");
       const parEnfant3 = l.repartition?.find((r) => r.tranche === "enfant_3ans");
       const parBebe = l.repartition?.find((r) => r.tranche === "bebe");
+      const parAccompagnateur = l.repartition?.find((r) => r.tranche === "accompagnateur");
       const champsRepartition = l.estTaxeSeule
         ? {
             tarif_mode: "personne" as const,
@@ -413,10 +472,12 @@ export default function RedactionProgramView({
             participants_enfants: parEnfant?.nb || 0,
             participants_bebes: parBebe?.nb || 0,
             participants_enfants_3ans: parEnfant3?.nb || 0,
+            participants_accompagnateurs: parAccompagnateur?.nb || 0,
             pu_adulte: Math.max((parAdulte?.pu || 0) - remisePersonne, 0),
             pu_enfant: Math.max((parEnfant?.pu || 0) - remisePersonne, 0),
             pu_bebe: Math.max((parBebe?.pu || 0) - remisePersonne, 0),
             pu_enfant_3ans: Math.max((parEnfant3?.pu || 0) - remisePersonne, 0),
+            pu_accompagnateur: Math.max((parAccompagnateur?.pu || 0) - remisePersonne, 0),
             pax_override: "",
           }
         : {
@@ -637,25 +698,43 @@ export default function RedactionProgramView({
               const contrainteJours = joursDispo.length > 0 && joursDispo.length < 7;
               const catOptions = item ? catalogueOptions[item.id] || [] : [];
               const optionsDisponibles = catOptions.filter((co) => !(l.options || []).some((o) => o.nom === co.nom));
+              const ouverte = lignesOuvertes.has(l.id);
               return (
                 <div key={l.id} className="rounded-md border border-neutral-200 p-2.5">
-                  <div className="flex items-start gap-2">
+                  <div
+                    className="flex cursor-pointer items-center gap-2"
+                    onClick={() => toggleLigneOuverte(l.id)}
+                  >
+                    <span className="shrink-0 text-neutral-400">{ouverte ? "▼" : "▶"}</span>
+                    <span className="flex-1 truncate text-sm font-medium text-[#171717]">
+                      {l.nom || "Activité"}
+                    </span>
+                    {l.date && (
+                      <span className="shrink-0 text-xs text-neutral-400">{fmtDDMonth(l.date)}</span>
+                    )}
+                    <span className="shrink-0 font-amounts text-xs font-medium text-[#0F5C56]">
+                      {eurosVirgule(ligneTotal(l))}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeLigne(l.id);
+                      }}
+                      className="shrink-0 text-xs text-red-600 hover:underline"
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                  {ouverte && (
+                  <>
+                  <div className="mt-2 flex items-start gap-2">
                     <input
                       type="text"
                       value={l.nom}
                       onChange={(e) => updateLigne(l.id, { nom: e.target.value })}
                       className="input flex-1 text-sm"
                     />
-                    <span className="shrink-0 self-center font-amounts text-xs font-medium text-[#0F5C56]">
-                      {eurosVirgule(ligneTotal(l))}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => removeLigne(l.id)}
-                      className="shrink-0 text-xs text-red-600 hover:underline"
-                    >
-                      Retirer
-                    </button>
                   </div>
                   {/\ben bus\b/i.test(l.nom) && (
                     <p className="mt-1 text-xs font-medium text-red-600">
@@ -737,7 +816,11 @@ export default function RedactionProgramView({
                       {l.repartition.map((r, idx) => (
                         <div key={idx} className="flex flex-wrap items-center gap-2 text-xs">
                           <span className="w-28 shrink-0 font-medium text-[#171717]">
-                            {r.tranche === "adulte" ? "Adulte" : r.label || "Enfant"}
+                            {r.tranche === "adulte"
+                              ? "Adulte"
+                              : r.tranche === "accompagnateur"
+                              ? "Accompagnateur"
+                              : r.label || "Enfant"}
                           </span>
                           <input
                             type="number"
@@ -755,10 +838,32 @@ export default function RedactionProgramView({
                             className="input w-16 text-xs"
                           />
                           <span className="text-neutral-500">= {eurosVirgule(r.pu * r.nb)}</span>
+                          {r.tranche === "accompagnateur" && (
+                            <button
+                              type="button"
+                              onClick={() => removeAccompagnateur(l.id)}
+                              className="text-red-600"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
+                  {item &&
+                    item.pu_accompagnateur > 0 &&
+                    !l.groupe &&
+                    !l.estTaxeSeule &&
+                    !l.repartition?.some((r) => r.tranche === "accompagnateur") && (
+                      <button
+                        type="button"
+                        onClick={() => addAccompagnateur(l.id, item)}
+                        className="mt-2 rounded-full border border-dashed border-neutral-300 px-2.5 py-1 text-[11px] text-neutral-500 hover:border-[#171717] hover:text-[#171717]"
+                      >
+                        + Accompagnateur ({eurosVirgule(item.pu_accompagnateur)})
+                      </button>
+                    )}
 
                   {l.groupe && (
                     <div className="mt-2 space-y-1 rounded-md bg-[#fafafa] p-2 text-xs">
@@ -888,6 +993,8 @@ export default function RedactionProgramView({
                         className="input mt-0.5 text-sm"
                       />
                     </label>
+                  )}
+                  </>
                   )}
                 </div>
               );

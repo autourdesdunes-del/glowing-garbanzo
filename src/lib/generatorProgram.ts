@@ -191,7 +191,11 @@ export type LigneOption = {
 // `label` reprend le texte "_age" du catalogue (ex. "4 à 10 ans") pour que
 // le message envoyé au client précise à qui s'applique chaque prix.
 export type RepartitionLigne = {
-  tranche: "adulte" | "enfant" | "enfant_3ans" | "bebe";
+  // "accompagnateur" : quelqu'un présent mais qui ne participe pas
+  // (plongée, quad...) — jamais déduit des adultes/enfants du séjour,
+  // toujours ajouté au cas par cas (même règle que participants_accompagnateurs
+  // dans resa.ts).
+  tranche: "adulte" | "enfant" | "enfant_3ans" | "bebe" | "accompagnateur";
   label: string;
   pu: number;
   nb: number;
@@ -480,10 +484,16 @@ export function buildRedactionText(
         enfant: "enfant",
         enfant_3ans: "enfant 3 ans",
         bebe: "bébé",
+        accompagnateur: "accompagnateur",
       };
-      l.repartition.forEach((r) => {
-        parts.push(`${eurosVirgule(r.pu)} par ${NOM_TRANCHE[r.tranche]} (x${r.nb})`);
-      });
+      // Une tranche à 0 (ex. accompagnateur ajouté puis retiré en repassant
+      // son compteur à 0 plutôt que via le ✕) ne doit jamais apparaître
+      // dans le message — rien à facturer, rien à écrire.
+      l.repartition
+        .filter((r) => r.nb > 0)
+        .forEach((r) => {
+          parts.push(`${eurosVirgule(r.pu)} par ${NOM_TRANCHE[r.tranche]} (x${r.nb})`);
+        });
     } else {
       parts.push(`${eurosVirgule(l.prixParPersonne)} par personne`);
     }

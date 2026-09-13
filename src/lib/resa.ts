@@ -887,6 +887,13 @@ export function isCroisiere(nom: string): boolean {
   return (nom || "").toLowerCase().includes("croisière au fil du nil");
 }
 
+// Villes de destination lointaines : le client y séjourne ou y excursionne
+// pour son propre compte, ce n'est jamais un aller-retour facturé depuis
+// Hurghada — donc jamais de taxe de transfert, même si l'hôtel du client y
+// est situé (contrairement à un hôtel proche mais hors de la bande Hurghada
+// comme Sahl Hasheesh, Makadi, El Gouna, Soma Bay, Safaga, El Qoseir…).
+export const VILLES_SANS_TAXE_TRANSFERT = ["Le Caire", "Louxor", "Siwa", "Alexandrie", "Assouan", "Marsa Alam"];
+
 // Séjours de plusieurs jours où le client est déjà sur place (Le Caire,
 // Louxor, croisière, Siwa) ou n'implique pas de trajet depuis Hurghada
 // (Abu Simbel/Assouan) — aucune taxe de transfert ne s'applique, jamais à

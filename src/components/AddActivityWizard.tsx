@@ -35,6 +35,7 @@ import {
   isPlongee,
   isCroisiere,
   noTaxeTransfert,
+  VILLES_SANS_TAXE_TRANSFERT,
   isDiscouragedBusActivity,
   dureeJoursActivite,
   isTitreLibreActivity,
@@ -312,10 +313,21 @@ export default function AddActivityWizard({
   // suggérée.
   const hotelsRefUtilisable = hotelsRef && hotelsRef.length > 0;
   const hotelMatchEffectif = hotelsRefUtilisable ? matchHotel(hotelNomEffectif, hotelsRef) : null;
-  const hotelHorsHurghadaEffectif = hotelsRefUtilisable
-    ? !!hotelMatchEffectif && !hotelMatchEffectif.sur_hurghada
-    : hotelHorsHurghada;
   const hotelVilleEffectif = hotelsRefUtilisable ? hotelMatchEffectif?.ville || hotelVille : hotelVille;
+  // Destinations lointaines (Caire, Louxor, Assouan, Siwa, Alexandrie, Marsa
+  // Alam) : jamais de taxe de transfert, même quand l'hôtel n'est pas "sur
+  // Hurghada" — ce ne sont pas des allers-retours facturés depuis Hurghada
+  // mais des séjours/excursions à part entière (même logique que le numéro
+  // de chambre non requis pour ces villes, voir VILLES_CHAMBRE_NON_REQUISE
+  // dans infosManquantes.ts). La taxe ne concerne que les hôtels proches
+  // mais hors de la bande Hurghada (Sahl Hasheesh, Makadi, El Gouna,
+  // Soma Bay, Safaga, El Qoseir…).
+  const villeSansTaxeTransfert = !!hotelVilleEffectif && VILLES_SANS_TAXE_TRANSFERT.some(
+    (v) => v.trim().toLowerCase() === hotelVilleEffectif.trim().toLowerCase()
+  );
+  const hotelHorsHurghadaEffectif =
+    !villeSansTaxeTransfert &&
+    (hotelsRefUtilisable ? !!hotelMatchEffectif && !hotelMatchEffectif.sur_hurghada : hotelHorsHurghada);
   const options = draftId ? resaOptions[draftId] || [] : [];
   const tarifs = draftId ? resaTarifs[draftId] || [] : [];
   const catalogueItem = r?.catalogue_item_id ? catalogue.find((a) => a.id === r.catalogue_item_id) : null;

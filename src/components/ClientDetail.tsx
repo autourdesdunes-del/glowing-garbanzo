@@ -160,10 +160,19 @@ export default function ClientDetail({
 
   useEffect(() => {
     if (autoOpenSection) {
-      setOpen((prev) => ({ ...prev, [autoOpenSection]: true }));
-      requestAnimationFrame(() => {
-        document.getElementById(`section-${autoOpenSection}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
+      // "Paiements" n'est plus un accordéon inline comme les autres
+      // sections (voir SECTIONS/open) mais une pop-up à part
+      // (paiementsModalOpen) — sans ce cas séparé, l'ouvrir depuis
+      // "Paiements du jour" (DashboardView) ne faisait que scroller
+      // jusqu'à un bandeau resté fermé.
+      if (autoOpenSection === "Paiements") {
+        setPaiementsModalOpen(true);
+      } else {
+        setOpen((prev) => ({ ...prev, [autoOpenSection]: true }));
+        requestAnimationFrame(() => {
+          document.getElementById(`section-${autoOpenSection}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
       onAutoOpenSectionHandled?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -65,6 +65,7 @@ import ManagerView from "@/components/ManagerView";
 import HelpView from "@/components/HelpView";
 import PlanningRHView from "@/components/PlanningRHView";
 import GeneratorView from "@/components/GeneratorView";
+import RedactionProgramView from "@/components/RedactionProgramView";
 import ConfirmProvider, { useConfirm } from "@/components/ConfirmProvider";
 import ToastProvider, { useToast } from "@/components/ToastProvider";
 import Spinner from "@/components/Spinner";
@@ -262,6 +263,7 @@ function AppShellInner({
   const [planningSub, setPlanningSub] = useState<PlanningSub>("aujourdhui");
   const [directionSub, setDirectionSub] = useState<DirectionSub>("dashboard");
   const [helpSub, setHelpSub] = useState<HelpSub>("hotels");
+  const [generateurSub, setGenerateurSub] = useState<"redaction" | "generation">("redaction");
   const [rdvAutoOpenClientId, setRdvAutoOpenClientId] = useState<string | null>(null);
   const [focusReservationId, setFocusReservationId] = useState<string | null>(null);
   const [billetAutoOpenId, setBilletAutoOpenId] = useState<string | null>(null);
@@ -3120,9 +3122,39 @@ function AppShellInner({
       )}
 
       {mode === "generateur" && (
-        <div className="flex flex-1 overflow-y-auto">
+        <div className="flex flex-1 flex-col overflow-y-auto">
           {effectiveIsDirection ? (
-            <GeneratorView catalogue={catalogue} clients={clients} />
+            <>
+              <div className="mx-auto mt-4 flex w-full max-w-3xl gap-2 px-6">
+                <button
+                  type="button"
+                  onClick={() => setGenerateurSub("redaction")}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                    generateurSub === "redaction"
+                      ? "bg-[#171717] text-white"
+                      : "border border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
+                  }`}
+                >
+                  1. Rédaction d&apos;un programme
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenerateurSub("generation")}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                    generateurSub === "generation"
+                      ? "bg-[#171717] text-white"
+                      : "border border-neutral-300 text-neutral-600 hover:bg-[#fafafa]"
+                  }`}
+                >
+                  2. Génération d&apos;un programme
+                </button>
+              </div>
+              {generateurSub === "redaction" ? (
+                <RedactionProgramView catalogue={catalogue} clients={clients} />
+              ) : (
+                <GeneratorView catalogue={catalogue} clients={clients} />
+              )}
+            </>
           ) : (
             <OutilEnConstruction />
           )}

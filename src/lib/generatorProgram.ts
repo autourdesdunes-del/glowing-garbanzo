@@ -8,6 +8,16 @@ export function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
+// Format demandé par Mélanie spécifiquement pour la Rédaction de programme
+// (onglet manuel) : "25,00€" — symbole € collé au nombre, toujours 2
+// décimales, contrairement à euros() ("25") utilisé par la Génération auto.
+export function eurosVirgule(n: number) {
+  return `${(Number(n) || 0).toLocaleString("fr-FR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}€`;
+}
+
 export function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -215,6 +225,56 @@ export function buildProgrammeText(
     if (l.remise > 0) parts.push(`Remise -${euros(l.remise)} euros (${l.remiseLabel || "geste commercial"})`);
     if (l.taxeTransfert > 0) parts.push(`+ Taxe de transfert : ${euros(l.taxeTransfert)} euros`);
     parts.push(`➡️Total : ${euros(total)} euros`);
+  });
+
+  return parts.join("\n");
+}
+
+// Message de la Rédaction de programme (onglet manuel, RedactionProgramView)
+// — format donné explicitement par Mélanie le 2026-09-13, distinct de
+// buildProgrammeText (onglet Génération auto) : en-tête différent, "X
+// adultes[, Y enfants]" au lieu de "X personnes", "hôtel : X" avec préfixe,
+// et eurosVirgule ("25,00€") au lieu de euros ("25 euros"). Même logique de
+// tri chronologique et de libellé "Jour N" quand la date d'une ligne est
+// inconnue (cf. buildProgrammeText).
+export function buildRedactionText(
+  moisLabel: string,
+  nbAdultes: number,
+  nbEnfants: number,
+  hotel: string,
+  lignes: Ligne[],
+  catalogue: CatalogueItem[]
+) {
+  const parts: string[] = [];
+  parts.push("Voici le programme de visite que nous pouvons vous proposer :");
+  parts.push("");
+  parts.push(`Séjour ${moisLabel || "—"} :`);
+  const personnesLabel =
+    `${nbAdultes} adulte${nbAdultes > 1 ? "s" : ""}` +
+    (nbEnfants > 0 ? `, ${nbEnfants} enfant${nbEnfants > 1 ? "s" : ""}` : "");
+  parts.push(personnesLabel);
+  if (hotel) parts.push(`hôtel : ${hotel}`);
+
+  const sorted = [...lignes]
+    .filter((l) => l.nom.trim())
+    .sort((a, b) => (a.date || "9999-99-99").localeCompare(b.date || "9999-99-99"));
+
+  let jourIndefiniCompteur = 0;
+  sorted.forEach((l) => {
+    const total = Math.max(l.prixParPersonne * l.nbPersonnes - (l.remise || 0) + (l.taxeTransfert || 0), 0);
+    parts.push("");
+    if (l.date) {
+      parts.push(`📍${fmtDDMonth(l.date)}`);
+    } else {
+      jourIndefiniCompteur += 1;
+      const item = catalogue.find((a) => a.id === l.catalogueItemId);
+      parts.push(`📍${libelleJourIndefini(item, jourIndefiniCompteur)}`);
+    }
+    parts.push(l.nom);
+    parts.push(`${eurosVirgule(l.prixParPersonne)} par personne`);
+    if (l.remise > 0) parts.push(`Remise -${eurosVirgule(l.remise)} (${l.remiseLabel || "geste commercial"})`);
+    if (l.taxeTransfert > 0) parts.push(`+ Taxe de transfert : ${eurosVirgule(l.taxeTransfert)}`);
+    parts.push(`➡️Total : ${eurosVirgule(total)}`);
   });
 
   return parts.join("\n");

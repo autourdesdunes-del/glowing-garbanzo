@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { agesLabel, reservationsActives, resaTotalMontant } from "@/lib/resa";
-import { PAYPAL_ME_LINK, PAYPAL_EMAIL } from "@/lib/constants";
+import { PAYPAL_ME_LINK, PAYPAL_EMAIL, BANK_DETAILS } from "@/lib/constants";
 import { PAYPAL_ENTRE_PROCHES_1, PAYPAL_ENTRE_PROCHES_2 } from "@/lib/paypalScreenshots";
 import { INTEGRAL_MODES } from "@/components/clientSteps/PaiementResteFlow";
 
@@ -234,6 +234,30 @@ function ConfirmationTemplate({
                   </span>
                   <span style={{ fontWeight: 700 }}>{euros(acompteMontant)}</span>
                 </div>
+                {client.acompte_mode === "Virement bancaire" && (
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#5C5342",
+                      lineHeight: 1.8,
+                      background: "#FFFFFF",
+                      borderRadius: 6,
+                      padding: "11px 13px",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <div>Bank Name : {BANK_DETAILS.bankName}</div>
+                    <div>Branch : {BANK_DETAILS.branch}</div>
+                    <div>Customer Name : {BANK_DETAILS.customerName}</div>
+                    <div>
+                      IBAN – EUR Account : <strong>{BANK_DETAILS.ibanEur}</strong>
+                    </div>
+                    <div>Swift Code : {BANK_DETAILS.swiftCode}</div>
+                    <div style={{ marginTop: 6 }}>
+                      ☺️ Merci de bien sélectionner la ligne <strong>IBAN – EUR Account</strong>.
+                    </div>
+                  </div>
+                )}
                 {acomptePaypal && (
                   <>
                     {paypalUrl ? (
@@ -389,7 +413,28 @@ function ConfirmationTemplate({
                 </>
               ) : soldeInfo.mode === "virement" ? (
                 <>
-                  <strong>Par virement bancaire</strong> — le RIB de l&apos;agence vous sera communiqué séparément.
+                  <strong>Par virement bancaire</strong> — voici le RIB de l&apos;agence :
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#5C5342",
+                      lineHeight: 1.8,
+                      background: "#FFFFFF",
+                      borderRadius: 6,
+                      padding: "11px 13px",
+                      marginTop: 8,
+                      marginBottom: 8,
+                    }}
+                  >
+                    <div>Bank Name : {BANK_DETAILS.bankName}</div>
+                    <div>Branch : {BANK_DETAILS.branch}</div>
+                    <div>Customer Name : {BANK_DETAILS.customerName}</div>
+                    <div>
+                      IBAN – EUR Account : <strong>{BANK_DETAILS.ibanEur}</strong>
+                    </div>
+                    <div>Swift Code : {BANK_DETAILS.swiftCode}</div>
+                  </div>
+                  ☺️ Merci de bien sélectionner la ligne <strong>IBAN – EUR Account</strong>.
                 </>
               ) : soldeInfo.mode === "cb" ? (
                 <>

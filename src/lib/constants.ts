@@ -52,6 +52,18 @@ export const PAYPAL_ME_LINK = "https://paypal.me/autourdesduneshurgha";
 // les clients (ex. conversation Mathieu Pistre du 2026-09-01).
 export const PAYPAL_EMAIL = "autourdesdunespaiements@gmail.com";
 
+// RIB de l'agence pour un règlement par virement bancaire (fourni par
+// Mélanie le 2026-09-13, capture du compte NBK) — utilisé sur le bon de
+// confirmation. Toujours donner la ligne EUR (pas EGP) : c'est le rappel
+// "☺️" que Mélanie ajoute systématiquement au RIB envoyé en manuel.
+export const BANK_DETAILS = {
+  bankName: "National Bank of Kuwait - Egypt",
+  branch: "Hurghada",
+  customerName: "AUTOUR DES DUNES HURGHADA",
+  ibanEur: "EG290023003303317619972062000",
+  swiftCode: "WABAEGCXXXX",
+};
+
 export const MODES_PAIEMENT = [
   "PayPal",
   "Espèces EUR",

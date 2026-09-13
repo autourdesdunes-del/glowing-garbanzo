@@ -23,6 +23,7 @@ import {
   resaTotalMontant,
   reservationsActives,
   reservationsVendues,
+  urgenceProspect,
 } from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
 import { addDays, localDateStr } from "@/lib/dates";
@@ -300,7 +301,11 @@ export default function DashboardView({
   // Voir prospectStagnant (resa.ts) pour la définition partagée — se base
   // sur le dernier contact réel, PayPal/WhatsApp/Kommo compris (pas
   // seulement dernier_contact_date), pas sur l'ancienneté de la fiche.
-  const staleProspects = clients.filter(prospectStagnant);
+  // Triés par urgence (silence + proximité du départ, voir urgenceProspect)
+  // plutôt que par ordre d'arrivée en base — même logique que le Kanban
+  // Prospects, pour que les 500+ dossiers en attente donnent d'abord ceux
+  // qui comptent vraiment.
+  const staleProspects = clients.filter(prospectStagnant).sort((a, b) => urgenceProspect(b) - urgenceProspect(a));
 
   const marquerRelance = (c: Client) => {
     onUpdateClient(c.id, {

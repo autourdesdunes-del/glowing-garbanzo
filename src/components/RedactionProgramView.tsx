@@ -160,6 +160,20 @@ export default function RedactionProgramView({
   );
   const taxeTransfertMontant = taxeResultat.type === "montant" ? taxeResultat.montant : 0;
 
+  // Une activité ajoutée avant que l'hôtel ne soit renseigné (ou avant que
+  // la référence hôtels ait fini de charger) recevait une taxe de transfert
+  // figée à 0€ pour toujours — rien ne la recalculait ensuite, même une fois
+  // l'hôtel tapé. Dès qu'un montant de taxe devient disponible, on rattrape
+  // toutes les lignes encore à 0€ (jamais celles déjà à un montant non nul,
+  // pour ne pas écraser une correction manuelle volontaire — ex. transfert
+  // déjà inclus par ailleurs).
+  useEffect(() => {
+    if (taxeTransfertMontant <= 0) return;
+    setLignes((prev) =>
+      prev.map((l) => (!l.estTaxeSeule && l.taxeTransfert === 0 ? { ...l, taxeTransfert: taxeTransfertMontant } : l))
+    );
+  }, [taxeTransfertMontant]);
+
   const selectClient = (c: Client) => {
     setClientId(c.id);
     setClientQuery("");

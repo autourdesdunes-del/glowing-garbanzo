@@ -86,6 +86,28 @@ export function urgenceProspect(c: Client): number {
   return jours - seuil;
 }
 
+// Sous-ensemble de prospectStagnant à donner à relancer concrètement à
+// l'équipe : un séjour déjà en cours, ou une arrivée dans les 15 jours.
+// prospectStagnant seul remonte 500+ dossiers (y compris "date à définir"
+// ou des départs dans 6 mois) — ingérable comme liste de tâches
+// quotidienne ; celle-ci ne garde que ce qui mérite vraiment une relance
+// aujourd'hui. Les autres restent visibles dans le Kanban/le total, juste
+// pas dans la file de travail de l'équipe.
+// `date_debut` est presque toujours vide pour un prospect (champ rempli à
+// la main, seulement une fois le séjour confirmé) — sans le repli sur
+// l'estimation IA déduite de la conversation Kommo
+// (kommo_sejour_debut_estime, même logique que sur les cartes du Kanban),
+// cette fonction ne remontait jamais aucun résultat, y compris sur les
+// vraies données.
+export function prospectRelanceUrgente(c: Client): boolean {
+  if (!prospectStagnant(c)) return false;
+  const debut = c.date_debut || c.kommo_sejour_debut_estime;
+  if (!debut) return false;
+  const fin = c.date_fin || c.kommo_sejour_fin_estime;
+  if (fin && debut <= todayStr() && todayStr() <= fin) return true; // en Égypte
+  return debut >= todayStr() && debut <= addDays(todayStr(), 15);
+}
+
 // Le solde reste unique par séjour (règle métier — jamais un solde par
 // activité), mais l'équipe doit pouvoir choisir explicitement son statut de
 // paiement depuis n'importe quelle activité (les choses ne se passent pas

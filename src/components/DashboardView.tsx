@@ -19,7 +19,7 @@ import {
   cleanActivityTitle,
   missingChampsFor,
   paxSummary,
-  prospectStagnant,
+  prospectRelanceUrgente,
   resaTotalMontant,
   reservationsActives,
   reservationsVendues,
@@ -298,14 +298,16 @@ export default function DashboardView({
       c.statut !== "Client annulé" && c.date_fin && addDays(c.date_fin, 7) === todayStr && !c.avis_envoye
   );
 
-  // Voir prospectStagnant (resa.ts) pour la définition partagée — se base
-  // sur le dernier contact réel, PayPal/WhatsApp/Kommo compris (pas
-  // seulement dernier_contact_date), pas sur l'ancienneté de la fiche.
-  // Triés par urgence (silence + proximité du départ, voir urgenceProspect)
-  // plutôt que par ordre d'arrivée en base — même logique que le Kanban
-  // Prospects, pour que les 500+ dossiers en attente donnent d'abord ceux
-  // qui comptent vraiment.
-  const staleProspects = clients.filter(prospectStagnant).sort((a, b) => urgenceProspect(b) - urgenceProspect(a));
+  // File de travail réelle de l'équipe : pas tous les prospects sans
+  // relance récente (prospectStagnant seul remonte 500+ dossiers,
+  // ingérable au quotidien), seulement ceux qui arrivent dans les 15
+  // prochains jours ou qui sont déjà sur place (voir prospectRelanceUrgente,
+  // resa.ts). Le reste des prospects stagnants reste visible dans le Kanban
+  // pour la vue d'ensemble, juste pas dans cette liste à traiter aujourd'hui.
+  // Triés par urgence (silence + proximité du départ, voir urgenceProspect).
+  const staleProspects = clients
+    .filter(prospectRelanceUrgente)
+    .sort((a, b) => urgenceProspect(b) - urgenceProspect(a));
 
   const marquerRelance = (c: Client) => {
     onUpdateClient(c.id, {

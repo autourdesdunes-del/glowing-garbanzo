@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Client, Verification } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/dates";
-import { estDossierNonVerifie, prospectStagnant } from "@/lib/resa";
+import { estDossierNonVerifie, prospectRelanceUrgente } from "@/lib/resa";
 
 // Remplace l'idée de "responsable de la semaine" (relances / au revoir /
 // avis clients / vérif dossiers, voir Notion) : plutôt qu'une seule
@@ -113,7 +113,10 @@ export default function PersonalNudgeAlert({
     {
       cle: "relances",
       derniere: dernierePar((c) => c.dernier_contact_par_id, (c) => c.dernier_contact_date),
-      count: clients.filter(prospectStagnant).length,
+      // Seulement les relances vraiment urgentes (arrivée <15j ou déjà sur
+      // place) — pas tous les prospects stagnants, sinon le rappel personnel
+      // brandit un chiffre à 500+ ingérable au lieu d'une vraie priorité.
+      count: clients.filter(prospectRelanceUrgente).length,
       seuil: SEUIL_INACTIVITE_JOURS,
       message: (j, n) =>
         `Depuis ${j} jour${j > 1 ? "s" : ""} tu n'as fait aucune relance. Il y a pourtant ${n} prospect${n > 1 ? "s" : ""} qui attend${n > 1 ? "ent" : ""} une relance — souhaites-tu t'en occuper ?`,

@@ -44,7 +44,7 @@ import {
   reservationsActives,
   STATUT_PAIEMENT_OPTIONS,
 } from "@/lib/resa";
-import { infosManquantesAuto, infoManquanteLabel } from "@/lib/infosManquantes";
+import { infosManquantesAuto } from "@/lib/infosManquantes";
 import { matchHotel, hotelDisplayForEgypt, hotelsEgyptLines } from "@/lib/hotelHelp";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr, localDateStr } from "@/lib/dates";
@@ -719,7 +719,7 @@ export function ContactStep({
                   title="Détecté automatiquement depuis la fiche — se retire tout seul une fois complété"
                   className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
                 >
-                  🔒 {infoManquanteLabel(s)}
+                  🔒 {s}
                 </span>
               ))}
               {manualTagsAffichees.map((s) => (
@@ -727,7 +727,7 @@ export function ContactStep({
                   key={s}
                   className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-xs text-[#666666]"
                 >
-                  {infoManquanteLabel(s)}
+                  {s}
                   <button
                     type="button"
                     onClick={() => toggleInfoManquante(s)}
@@ -762,7 +762,7 @@ export function ContactStep({
                       checked={client.infos_manquantes.includes(opt)}
                       onChange={() => toggleInfoManquante(opt)}
                     />
-                    {infoManquanteLabel(opt)}
+                    {opt}
                   </label>
                 ))}
               </div>

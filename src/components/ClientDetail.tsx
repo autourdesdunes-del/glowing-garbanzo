@@ -44,7 +44,7 @@ import {
   soldeRestantSejour,
 } from "@/lib/resa";
 import { todayStr } from "@/lib/dates";
-import { infosManquantesAuto, infoManquanteLabel } from "@/lib/infosManquantes";
+import { infosManquantesAuto } from "@/lib/infosManquantes";
 import {
   ActivitesStep,
   ContactStep,
@@ -1482,7 +1482,7 @@ export default function ClientDetail({
                     title="Détecté automatiquement depuis la fiche — se retire tout seul une fois complété"
                     className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-red-700"
                   >
-                    🔒 {infoManquanteLabel(s)}
+                    🔒 {s}
                   </span>
                 ))}
                 {manuelInfosManquantes.map((s) => (
@@ -1490,7 +1490,7 @@ export default function ClientDetail({
                     key={s}
                     className="flex items-center gap-1 rounded-full bg-[#C9973E]/15 px-2 py-0.5 text-[#666666]"
                   >
-                    {infoManquanteLabel(s)}
+                    {s}
                   </span>
                 ))}
               </div>

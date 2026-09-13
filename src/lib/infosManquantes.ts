@@ -24,20 +24,6 @@ export const INFO_MANQUANTE_AUTO_PASSEPORT = "Passeport";
 export const INFO_MANQUANTE_AUTO_VOL_TRANSFERT = "Flight ticket info";
 export const INFO_MANQUANTE_AUTO_RELATION = "Relation grâce à";
 
-// Certains libellés historiques (stockés tels quels en base, dans
-// infos_manquantes_options et dans clients.infos_manquantes) sont en
-// anglais — on ne peut pas juste les traduire à la source sans casser les
-// tags déjà enregistrés sur des dossiers existants. On ne traduit donc que
-// l'affichage, jamais la valeur stockée/comparée.
-const LABELS_AFFICHAGE: Record<string, string> = {
-  "Room number": "Numéro de chambre",
-  "Flight ticket info": "Infos billet d'avion",
-};
-
-export function infoManquanteLabel(tag: string): string {
-  return LABELS_AFFICHAGE[tag] || tag;
-}
-
 export function infosManquantesAuto(
   client: Client,
   reservations: Reservation[],

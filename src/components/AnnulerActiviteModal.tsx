@@ -14,6 +14,7 @@ import { nowHHMM, todayStr } from "@/lib/dates";
 import { fmtDateDMY } from "@/lib/contactStepFormat";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
+import { useConfirm } from "@/components/ConfirmProvider";
 import PaypalEmailPromptModal from "@/components/PaypalEmailPromptModal";
 
 function euros(n: number) {
@@ -73,6 +74,7 @@ export default function AnnulerActiviteModal({
   onClose: () => void;
 }) {
   const toast = useToast();
+  const confirm = useConfirm();
   const estMontgolfiere = isMontgolfiereActivity(r.nom_activite);
   // Une Montgolfière annulée l'est presque toujours par les autorités pour
   // météo — présélectionné pour éviter de le ressaisir à chaque fois,
@@ -150,6 +152,19 @@ export default function AnnulerActiviteModal({
   // demandé explicitement plutôt que déplacé/effacé en silence.
   const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
   const repriseIci = !soldeIci && client.reprise_activite_id === r.id && Number(client.reprise_montant) > 0;
+  // Un RDV de paiement planifié pour tout le séjour (pas rattaché à une
+  // activité précise, voir client.solde_activite_id ci-dessus) ne remonte
+  // jamais dans reglementIci — mais s'il ne reste plus aucune autre
+  // activité active une fois celle-ci annulée, ce RDV n'a plus rien à
+  // encaisser. Demandé explicitement plutôt qu'annulé ou laissé en silence
+  // (l'employée peut avoir une bonne raison de le garder, ex. un geste
+  // commercial à discuter quand même ce jour-là).
+  const autresActivitesActives = reservations.filter((rr) => rr.id !== r.id && rr.statut_resa !== "Annulée");
+  const rdvSejourDevientObsolete =
+    client.paiement_integral_mode === "rdv" &&
+    client.solde_rdv_valide &&
+    !client.solde_paye &&
+    autresActivitesActives.length === 0;
   // client.solde_montant reste à 0 tant que le solde n'a jamais été marqué
   // payé (voir soldeRestantSejour) — le vrai montant en attente est calculé
   // à la volée, jamais lu directement sur ce champ. Exclut r du total : une
@@ -176,7 +191,7 @@ export default function AnnulerActiviteModal({
   const [reglementCibleId, setReglementCibleId] = useState("");
   const [reglementMontant, setReglementMontant] = useState(reglementIci?.montant || 0);
   const [reglementModeAutre, setReglementModeAutre] = useState("PayPal");
-  const autresActivites = reservations.filter((rr) => rr.id !== r.id && rr.statut_resa !== "Annulée");
+  const autresActivites = autresActivitesActives;
   // Bloque la confirmation tant que la question n'a pas été tranchée (et,
   // pour "déplacer", tant qu'une activité cible n'a pas été choisie).
   const reglementIncomplet =
@@ -342,7 +357,7 @@ export default function AnnulerActiviteModal({
     onClose();
   };
 
-  const confirmer = () => {
+  const confirmer = async () => {
     if (raison === "Autre" && !raisonAutre.trim()) {
       toast("Précisez la raison de l'annulation.");
       return;
@@ -362,6 +377,28 @@ export default function AnnulerActiviteModal({
     if (remboursementPossible && remboursementChoix === "rembourse" && !paypalEmail.trim()) {
       setShowPaypalPrompt(true);
       return;
+    }
+    if (rdvSejourDevientObsolete) {
+      const annulerAussi = await confirm({
+        title: "RDV de paiement prévu",
+        message: `Un rendez-vous de paiement est prévu le ${fmtDateDMY(client.solde_date)}${
+          client.solde_rdv_heure ? ` à ${client.solde_rdv_heure}` : ""
+        } pour ce séjour. « ${r.nom_activite || "Cette activité"} » était la dernière activité active — il n'y aura plus rien à encaisser. Annuler aussi ce rendez-vous ?`,
+        confirmLabel: "Annuler aussi le RDV",
+        cancelLabel: "Garder le RDV",
+      });
+      if (annulerAussi) {
+        onUpdateClient?.({
+          paiement_integral_mode: "",
+          solde_activite_id: null,
+          solde_rdv_heure: "",
+          solde_rdv_lieu: "",
+          solde_rdv_valide: false,
+          solde_rdv_finalise: false,
+          solde_mode: "Espèces EUR",
+          solde_montant: 0,
+        });
+      }
     }
     doConfirm(paypalEmail);
   };

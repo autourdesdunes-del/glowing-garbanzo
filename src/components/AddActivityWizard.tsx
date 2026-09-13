@@ -3012,7 +3012,7 @@ export default function AddActivityWizard({
           onClick={finishClick}
           className="flex-1 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
         >
-          Ajouter l&apos;activité
+          {editReservationId ? "Enregistrer les modifications" : "Ajouter l'activité"}
         </button>
       </div>
 

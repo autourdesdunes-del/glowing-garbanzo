@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CatalogueItem, CatalogueOption, Client, HotelReference, TransfertTaxe } from "@/lib/types";
 import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
-import { normalizeJoursDisponibles } from "@/lib/resa";
+import { groupeExtraCounts, normalizeJoursDisponibles } from "@/lib/resa";
+import { CRENEAUX_ACTIVITE } from "@/lib/constants";
 import { deaccent } from "@/lib/deaccent";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -13,6 +14,7 @@ import {
   eurosVirgule,
   extractAges,
   fmtDDMonth,
+  GroupeLigne,
   Ligne,
   LigneOption,
   ligneTotal,
@@ -22,6 +24,29 @@ import {
   RepartitionLigne,
   suggererDateLigne,
 } from "@/lib/generatorProgram";
+
+// Même règle que AddActivityWizard : une activité de demi-journée
+// (excursion à la carte, coucher de soleil...) doit préciser le créneau
+// (matin/après-midi/coucher de soleil) — sinon rien n'empêche de la
+// réserver deux fois le même jour sans que personne ne le voie.
+const CRENEAU_REQUIS = "Créneau (matin / après-midi / coucher de soleil)";
+
+// Brouillon persistant : l'employée peut changer d'onglet ou de page sans
+// perdre le programme en cours — demandé par Mélanie le 2026-09-13 après
+// avoir perdu un devis en quittant l'écran par erreur. Volontairement
+// propre au navigateur (pas de table Supabase) : c'est un brouillon de
+// travail, pas un document à partager entre postes.
+const DRAFT_KEY = "redactionProgramme:draft";
+type Draft = {
+  clientId: string;
+  dateDebut: string;
+  dateFin: string;
+  adultes: number;
+  enfants: number;
+  agesEnfants: string;
+  hotel: string;
+  lignes: Ligne[];
+};
 
 // Onglet "Rédaction d'un programme" — flux manuel demandé par Mélanie le
 // 2026-09-13, en complément de la Génération auto (GeneratorView) : recherche
@@ -46,19 +71,30 @@ export default function RedactionProgramView({
   const supabase = createClient();
   const toast = useToast();
 
-  const [clientId, setClientId] = useState("");
+  const loadDraft = (): Draft | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = window.localStorage.getItem(DRAFT_KEY);
+      return raw ? (JSON.parse(raw) as Draft) : null;
+    } catch {
+      return null;
+    }
+  };
+  const draftInitial = loadDraft();
+
+  const [clientId, setClientId] = useState(draftInitial?.clientId || "");
   const [clientQuery, setClientQuery] = useState("");
   const [clientFocused, setClientFocused] = useState(false);
 
-  const [dateDebut, setDateDebut] = useState("");
-  const [dateFin, setDateFin] = useState("");
-  const [adultes, setAdultes] = useState(2);
-  const [enfants, setEnfants] = useState(0);
-  const [agesEnfants, setAgesEnfants] = useState("");
-  const [hotel, setHotel] = useState("");
+  const [dateDebut, setDateDebut] = useState(draftInitial?.dateDebut || "");
+  const [dateFin, setDateFin] = useState(draftInitial?.dateFin || "");
+  const [adultes, setAdultes] = useState(draftInitial?.adultes ?? 2);
+  const [enfants, setEnfants] = useState(draftInitial?.enfants ?? 0);
+  const [agesEnfants, setAgesEnfants] = useState(draftInitial?.agesEnfants || "");
+  const [hotel, setHotel] = useState(draftInitial?.hotel || "");
 
   const [activiteQuery, setActiviteQuery] = useState("");
-  const [lignes, setLignes] = useState<Ligne[]>([]);
+  const [lignes, setLignes] = useState<Ligne[]>(draftInitial?.lignes || []);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hotels, setHotels] = useState<HotelReference[]>([]);
@@ -75,6 +111,15 @@ export default function RedactionProgramView({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const draft: Draft = { clientId, dateDebut, dateFin, adultes, enfants, agesEnfants, hotel, lignes };
+    try {
+      window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // stockage indisponible (navigation privée...), tant pis pour la persistance
+    }
+  }, [clientId, dateDebut, dateFin, adultes, enfants, agesEnfants, hotel, lignes]);
 
   const clientSelectionne = clients.find((c) => c.id === clientId);
   const nbPersonnes = adultes + enfants;
@@ -135,7 +180,28 @@ export default function RedactionProgramView({
   // distingue vraiment un prix enfant/bébé — sinon (activité à prix unique,
   // ou aucun enfant) on garde le calcul simple prixParPersonne × nbPersonnes
   // (repartition reste undefined).
+  // Forfait "groupe" catalogue (speedboat privé, yacht...) : le prix n'est
+  // jamais par personne, pu_adulte vaut 0 dans ce mode — l'utiliser aurait
+  // affiché 0€ ou un faux prix par personne (ex. un forfait 2 pers. à 150€
+  // multiplié à tort par le nombre de participants). extra1/extraEnfants
+  // sont pré-remplis par groupeExtraCounts (même règle que partout ailleurs
+  // dans l'app) mais restent éditables : rien n'empêche par ex. un groupe
+  // de 2 adultes tenant dans le forfait de base sans aucun supplément.
+  const construireGroupe = (item: CatalogueItem): GroupeLigne | undefined => {
+    if (item.tarif_mode !== "groupe") return undefined;
+    const extra = groupeExtraCounts(adultes, enfants, item.prix_groupe_base_pax);
+    return {
+      base: item.prix_groupe_base || 0,
+      basePax: item.prix_groupe_base_pax || 0,
+      extra1: extra.extra1,
+      prixExtra1: item.prix_groupe_extra1 || 0,
+      extraEnfants: extra.extraEnfants,
+      prixExtraEnfant: item.prix_groupe_extra_enfant || 0,
+    };
+  };
+
   const construireRepartition = (item: CatalogueItem): RepartitionLigne[] | undefined => {
+    if (item.tarif_mode === "groupe") return undefined;
     const distingue = item.pu_enfant !== item.pu_adulte || item.pu_bebe > 0 || item.pu_enfant_3ans > 0;
     if (enfants === 0 || !distingue) return undefined;
     const tranches: RepartitionLigne[] = [];
@@ -169,6 +235,8 @@ export default function RedactionProgramView({
       }
     }
     const repartition = construireRepartition(item);
+    const groupe = construireGroupe(item);
+    const creneauRequis = (item.champs_requis_liste || []).includes(CRENEAU_REQUIS);
     setLignes((prev) => [
       ...prev,
       {
@@ -183,9 +251,34 @@ export default function RedactionProgramView({
         taxeTransfert: taxeTransfertMontant,
         options: [],
         repartition,
+        groupe,
+        ...(creneauRequis ? { creneau: "" } : {}),
       },
     ]);
     setActiviteQuery("");
+  };
+
+  // Taxe de transfert vendue seule, sans activité — même montant que celui
+  // ajouté automatiquement à chaque activité (matchTransfertTaxe, référence
+  // HELP), juste sous forme de ligne autonome pour un devis qui n'en a pas
+  // besoin ailleurs.
+  const addTaxeSeule = () => {
+    setLignes((prev) => [
+      ...prev,
+      {
+        id: nextLigneId(),
+        catalogueItemId: "",
+        nom: "Taxe de transfert",
+        date: joursSejour[0] || "",
+        prixParPersonne: 0,
+        nbPersonnes: nbPersonnes || 2,
+        remise: 0,
+        remiseLabel: "",
+        taxeTransfert: taxeTransfertMontant,
+        options: [],
+        estTaxeSeule: true,
+      },
+    ]);
   };
 
   const updateLigne = (id: string, patch: Partial<Ligne>) => {
@@ -269,6 +362,11 @@ export default function RedactionProgramView({
       toast("Ajoute au moins une activité au programme.");
       return;
     }
+    const ligneSansCreneau = lignes.find((l) => l.creneau !== undefined && !l.creneau);
+    if (ligneSansCreneau) {
+      toast(`Choisis le créneau (matin / après-midi / coucher de soleil) de "${ligneSansCreneau.nom}" avant d'ajouter au dossier.`);
+      return;
+    }
     setSaving(true);
     const {
       data: { user },
@@ -290,8 +388,27 @@ export default function RedactionProgramView({
       const parEnfant = l.repartition?.find((r) => r.tranche === "enfant");
       const parEnfant3 = l.repartition?.find((r) => r.tranche === "enfant_3ans");
       const parBebe = l.repartition?.find((r) => r.tranche === "bebe");
-      const champsRepartition = l.repartition
+      const champsRepartition = l.estTaxeSeule
         ? {
+            tarif_mode: "personne" as const,
+            participants_adultes: 0,
+            pu_adulte: 0,
+            pax_override: "Taxe de transfert",
+          }
+        : l.groupe
+        ? {
+            tarif_mode: "groupe" as const,
+            participants_adultes: nbPersonnesLigne(l),
+            prix_groupe_base: Math.max(l.groupe.base - l.remise, 0),
+            prix_groupe_extra1: l.groupe.prixExtra1,
+            prix_groupe_extra_enfant: l.groupe.prixExtraEnfant,
+            participants_extra1: l.groupe.extra1,
+            participants_extra_enfants: l.groupe.extraEnfants,
+            pax_override: `${nbPersonnesLigne(l)} personnes`,
+          }
+        : l.repartition
+        ? {
+            tarif_mode: "personne" as const,
             participants_adultes: parAdulte?.nb || 0,
             participants_enfants: parEnfant?.nb || 0,
             participants_bebes: parBebe?.nb || 0,
@@ -303,6 +420,7 @@ export default function RedactionProgramView({
             pax_override: "",
           }
         : {
+            tarif_mode: "personne" as const,
             participants_adultes: l.nbPersonnes,
             pu_adulte: l.remise > 0 ? Math.max(l.prixParPersonne - l.remise / Math.max(l.nbPersonnes, 1), 0) : l.prixParPersonne,
             pax_override: `${l.nbPersonnes} personnes`,
@@ -320,6 +438,7 @@ export default function RedactionProgramView({
           non_inclus: (item?.non_inclus_liste || []).join(", ") || item?.non_inclus || "",
           a_prevoir: (item?.a_prevoir_liste || []).join(", ") || item?.a_prevoir || "",
           point_rdv: item?.point_rdv || "",
+          creneau: l.creneau || "",
           photo_path: item?.photo_path || "",
           date_debut: l.date || null,
           transfert_inclus: !(l.taxeTransfert > 0),
@@ -350,6 +469,15 @@ export default function RedactionProgramView({
     }
     setSaving(false);
     toast(`${lignes.length} activité(s) ajoutée(s) au dossier.`, "success");
+    // Une fois enregistré dans le vrai dossier, le brouillon local n'a plus
+    // de raison d'être repris — sinon la prochaine ouverture de l'onglet
+    // réafficherait un programme déjà traité.
+    setLignes([]);
+    try {
+      window.localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // tant pis
+    }
   };
 
   return (
@@ -455,6 +583,15 @@ export default function RedactionProgramView({
                   `Zone ${villeClient} — aucune tranche de taxe connue pour ce groupe (voir HELP).`}
               </span>
             )}
+            {taxeResultat.type === "montant" && (
+              <button
+                type="button"
+                onClick={addTaxeSeule}
+                className="mt-1.5 text-[11px] font-medium text-[#0F5C56] hover:underline"
+              >
+                + Ajouter la taxe de transfert seule ({eurosVirgule(taxeTransfertMontant)})
+              </button>
+            )}
           </label>
         </div>
       </div>
@@ -480,7 +617,11 @@ export default function RedactionProgramView({
                     className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-[#fafafa]"
                   >
                     <span className="font-medium text-[#171717]">{a.nom}</span>
-                    <span className="ml-2 text-xs text-neutral-400">{eurosVirgule(a.pu_adulte || 0)}</span>
+                    <span className="ml-2 text-xs text-neutral-400">
+                      {a.tarif_mode === "groupe"
+                        ? `Forfait ${eurosVirgule(a.prix_groupe_base || 0)} (${a.prix_groupe_base_pax || 0} pers.)`
+                        : eurosVirgule(a.pu_adulte || 0)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -536,7 +677,25 @@ export default function RedactionProgramView({
                         </span>
                       )}
                     </label>
-                    {!l.repartition && (
+                    {l.creneau !== undefined && (
+                      <label className="text-[11px] text-neutral-500">
+                        Créneau *
+                        <select
+                          value={l.creneau}
+                          onChange={(e) => updateLigne(l.id, { creneau: e.target.value })}
+                          className={`input mt-0.5 text-sm ${!l.creneau ? "border-red-300" : ""}`}
+                        >
+                          <option value="">— Choisir —</option>
+                          {CRENEAUX_ACTIVITE.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                        {!l.creneau && <span className="mt-0.5 block text-[10px] text-red-600">Obligatoire</span>}
+                      </label>
+                    )}
+                    {!l.repartition && !l.groupe && !l.estTaxeSeule && (
                       <>
                         <label className="text-[11px] text-neutral-500">
                           Prix / personne (€)
@@ -598,6 +757,63 @@ export default function RedactionProgramView({
                           <span className="text-neutral-500">= {eurosVirgule(r.pu * r.nb)}</span>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {l.groupe && (
+                    <div className="mt-2 space-y-1 rounded-md bg-[#fafafa] p-2 text-xs">
+                      <p className="text-[11px] font-medium text-neutral-500">
+                        Forfait groupe — {l.groupe.basePax} pers. incluse(s)
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="w-36 shrink-0 font-medium text-[#171717]">Forfait de base</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={l.groupe.base}
+                          onChange={(e) => updateLigne(l.id, { groupe: { ...l.groupe!, base: Math.max(0, Number(e.target.value)) } })}
+                          className="input w-20 text-xs"
+                        />
+                        <span className="text-neutral-400">€</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="w-36 shrink-0 font-medium text-[#171717]">Adulte(s) suppl.</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={l.groupe.extra1}
+                          onChange={(e) => updateLigne(l.id, { groupe: { ...l.groupe!, extra1: Math.max(0, Number(e.target.value)) } })}
+                          className="input w-16 text-xs"
+                        />
+                        <span className="text-neutral-400">×</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={l.groupe.prixExtra1}
+                          onChange={(e) => updateLigne(l.id, { groupe: { ...l.groupe!, prixExtra1: Math.max(0, Number(e.target.value)) } })}
+                          className="input w-20 text-xs"
+                        />
+                        <span className="text-neutral-500">€ = {eurosVirgule(l.groupe.extra1 * l.groupe.prixExtra1)}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="w-36 shrink-0 font-medium text-[#171717]">Enfant(s) suppl.</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={l.groupe.extraEnfants}
+                          onChange={(e) => updateLigne(l.id, { groupe: { ...l.groupe!, extraEnfants: Math.max(0, Number(e.target.value)) } })}
+                          className="input w-16 text-xs"
+                        />
+                        <span className="text-neutral-400">×</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={l.groupe.prixExtraEnfant}
+                          onChange={(e) => updateLigne(l.id, { groupe: { ...l.groupe!, prixExtraEnfant: Math.max(0, Number(e.target.value)) } })}
+                          className="input w-20 text-xs"
+                        />
+                        <span className="text-neutral-500">€ = {eurosVirgule(l.groupe.extraEnfants * l.groupe.prixExtraEnfant)}</span>
+                      </div>
                     </div>
                   )}
 

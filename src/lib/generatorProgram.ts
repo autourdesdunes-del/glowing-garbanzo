@@ -197,6 +197,21 @@ export type RepartitionLigne = {
   nb: number;
 };
 
+// Forfait "groupe" (tarif_mode catalogue = "groupe" — speedboat privé,
+// yacht...) : le prix n'est pas par personne mais un forfait de base pour
+// basePax personnes, plus un tarif par adulte et par enfant supplémentaire —
+// même modèle que resaBrutMontant (src/lib/resa.ts) pour qu'une activité
+// ajoutée ici se facture pareil qu'ailleurs dans l'app. pu_adulte du
+// catalogue vaut toujours 0 dans ce mode, il ne doit jamais servir de prix.
+export type GroupeLigne = {
+  base: number;
+  basePax: number;
+  extra1: number;
+  prixExtra1: number;
+  extraEnfants: number;
+  prixExtraEnfant: number;
+};
+
 export type Ligne = {
   id: string;
   catalogueItemId: string;
@@ -216,6 +231,23 @@ export type Ligne = {
   // repartirAgesEnfants) — remplace alors prixParPersonne/nbPersonnes pour
   // le calcul du total et l'affichage dans le message.
   repartition?: RepartitionLigne[];
+  // Créneau (Matin / Après-midi / Coucher de soleil) — obligatoire côté
+  // Rédaction quand l'activité a "Créneau (matin / après-midi / coucher de
+  // soleil)" dans champs_requis_liste (même règle que AddActivityWizard) :
+  // une activité de demi-journée sans créneau précisé peut se réserver deux
+  // fois le même jour sans que personne ne s'en aperçoive. "" tant que non
+  // choisi ; undefined si l'activité ne le demande pas du tout.
+  creneau?: string;
+  // Présent uniquement pour une activité au tarif_mode catalogue "groupe" —
+  // remplace prixParPersonne/nbPersonnes ET repartition (les deux modèles
+  // sont mutuellement exclusifs, une activité catalogue est soit "personne"
+  // soit "groupe", jamais les deux).
+  groupe?: GroupeLigne;
+  // Ligne spéciale "Taxe de transfert seule" (RedactionProgramView) — pas
+  // une vraie activité catalogue : seul le montant de taxeTransfert compte,
+  // jamais de "X€ par personne" ni de ligne "+ Taxe de transfert" en plus
+  // (qui doublonnerait le même montant dans le message).
+  estTaxeSeule?: boolean;
 };
 
 export function optionsTotal(l: Ligne): number {
@@ -225,7 +257,13 @@ export function optionsTotal(l: Ligne): number {
   );
 }
 
+export function groupeBase(g: GroupeLigne): number {
+  return g.base + g.extra1 * g.prixExtra1 + g.extraEnfants * g.prixExtraEnfant;
+}
+
 export function ligneBase(l: Ligne): number {
+  if (l.estTaxeSeule) return 0;
+  if (l.groupe) return groupeBase(l.groupe);
   if (l.repartition && l.repartition.length > 0) {
     return l.repartition.reduce((s, r) => s + r.pu * r.nb, 0);
   }
@@ -413,8 +451,23 @@ export function buildRedactionText(
       const item = catalogue.find((a) => a.id === l.catalogueItemId);
       parts.push(`📍${libelleJourIndefini(item, jourIndefiniCompteur)}`);
     }
-    parts.push(l.nom);
-    if (l.repartition && l.repartition.length > 0) {
+    parts.push(l.creneau ? `${l.nom} (${l.creneau})` : l.nom);
+    if (l.estTaxeSeule) {
+      // Rien de plus : le total en bas suffit, pas de "X€ par personne" ni
+      // de ligne "+ Taxe de transfert" qui doublonnerait le même montant.
+    } else if (l.groupe) {
+      parts.push(`Forfait de base (${l.groupe.basePax} pers.) : ${eurosVirgule(l.groupe.base)}`);
+      if (l.groupe.extra1 > 0) {
+        parts.push(
+          `+ ${eurosVirgule(l.groupe.prixExtra1)} x ${l.groupe.extra1} pers. supp. = ${eurosVirgule(l.groupe.extra1 * l.groupe.prixExtra1)}`
+        );
+      }
+      if (l.groupe.extraEnfants > 0) {
+        parts.push(
+          `+ ${eurosVirgule(l.groupe.prixExtraEnfant)} x ${l.groupe.extraEnfants} enfant(s) supp. = ${eurosVirgule(l.groupe.extraEnfants * l.groupe.prixExtraEnfant)}`
+        );
+      }
+    } else if (l.repartition && l.repartition.length > 0) {
       l.repartition.forEach((r) => {
         const nomTranche = r.tranche === "adulte" ? "Adulte" : r.label || "Enfant";
         parts.push(`${nomTranche} : ${eurosVirgule(r.pu)} x ${r.nb} = ${eurosVirgule(r.pu * r.nb)}`);
@@ -430,7 +483,7 @@ export function buildRedactionText(
       }
     });
     if (l.remise > 0) parts.push(`Remise -${eurosVirgule(l.remise)} (${l.remiseLabel || "geste commercial"})`);
-    if (l.taxeTransfert > 0) parts.push(`+ Taxe de transfert : ${eurosVirgule(l.taxeTransfert)}`);
+    if (l.taxeTransfert > 0 && !l.estTaxeSeule) parts.push(`+ Taxe de transfert : ${eurosVirgule(l.taxeTransfert)}`);
     parts.push(`➡️Total : ${eurosVirgule(ligneTotal(l))}`);
   });
 

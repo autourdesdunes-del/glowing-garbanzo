@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
@@ -477,10 +477,52 @@ export default function QuickAddClient({
     return null;
   };
 
-  const updateReservation = async (id: string, resaPatch: Partial<Reservation>) => {
+  // Le pas-à-pas "Activités" (AddActivityWizard) enchaîne beaucoup de patchs
+  // rapides sur la même réservation (prix, participants, options…) puis
+  // passe à l'étape suivante en quelques centaines de ms. Un simple
+  // update() par patch, sans retry, laissait un échec réseau ponctuel
+  // disparaître silencieusement (l'état local optimiste continuait
+  // d'afficher le prix saisi, mais la base gardait 0€) — même mécanisme
+  // d'accumulation + retry avec backoff que reservationPendingPatch dans
+  // ClientDetail.tsx (le "+" sur une fiche existante), pour que le champ le
+  // plus récent soit toujours celui qui finit par être écrit, et qu'aucun
+  // ne soit perdu si une requête échoue.
+  const reservationPendingPatch = useRef<Record<string, Partial<Reservation>>>({});
+  const reservationRetryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const reservationErrorToastShown = useRef<Record<string, boolean>>({});
+
+  const flushReservation = useCallback(
+    async (id: string, attempt = 0) => {
+      const patch = reservationPendingPatch.current[id];
+      if (!patch || Object.keys(patch).length === 0) return;
+      const { error } = await supabase.from("reservations").update(patch).eq("id", id);
+      if (!error) {
+        const current = reservationPendingPatch.current[id];
+        if (current) {
+          Object.keys(patch).forEach((k) => delete (current as Record<string, unknown>)[k]);
+        }
+        reservationErrorToastShown.current[id] = false;
+        return;
+      }
+      if (!reservationErrorToastShown.current[id]) {
+        toast("Échec de l'enregistrement — nouvelle tentative en cours…");
+        reservationErrorToastShown.current[id] = true;
+      }
+      if (attempt === 0) {
+        await supabase.auth.refreshSession();
+      }
+      const delay = Math.min(2000 * 2 ** attempt, 15000);
+      if (reservationRetryTimers.current[id]) clearTimeout(reservationRetryTimers.current[id]);
+      reservationRetryTimers.current[id] = setTimeout(() => flushReservation(id, attempt + 1), delay);
+    },
+    [supabase, toast]
+  );
+
+  const updateReservation = (id: string, resaPatch: Partial<Reservation>) => {
     setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...resaPatch } : r)));
-    const { error } = await supabase.from("reservations").update(resaPatch).eq("id", id);
-    if (error) toast("Échec de l'enregistrement.");
+    reservationPendingPatch.current[id] = { ...reservationPendingPatch.current[id], ...resaPatch };
+    if (reservationRetryTimers.current[id]) clearTimeout(reservationRetryTimers.current[id]);
+    flushReservation(id);
   };
 
   const deleteReservation = async (id: string) => {

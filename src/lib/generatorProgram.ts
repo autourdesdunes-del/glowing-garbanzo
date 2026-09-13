@@ -1,5 +1,5 @@
 import { CatalogueItem } from "@/lib/types";
-import { normalizeJoursDisponibles } from "@/lib/resa";
+import { agesLabel, normalizeJoursDisponibles } from "@/lib/resa";
 
 // Moteur de suggestion du Générateur de programme (GeneratorView.tsx) —
 // extrait pour alléger ce fichier, sans changement de comportement.
@@ -425,7 +425,8 @@ export function buildRedactionText(
   nbEnfants: number,
   hotel: string,
   lignes: Ligne[],
-  catalogue: CatalogueItem[]
+  catalogue: CatalogueItem[],
+  agesEnfants: string = ""
 ) {
   const parts: string[] = [];
   parts.push("Voici le programme de visite que nous pouvons vous proposer :");
@@ -433,7 +434,7 @@ export function buildRedactionText(
   parts.push(`Séjour ${moisLabel || "—"} :`);
   const personnesLabel =
     `${nbAdultes} adulte${nbAdultes > 1 ? "s" : ""}` +
-    (nbEnfants > 0 ? `, ${nbEnfants} enfant${nbEnfants > 1 ? "s" : ""}` : "");
+    (nbEnfants > 0 ? `, ${nbEnfants} enfant${nbEnfants > 1 ? "s" : ""}${agesLabel(agesEnfants)}` : "");
   parts.push(personnesLabel);
   if (hotel) parts.push(`hôtel : ${hotel}`);
 
@@ -468,9 +469,19 @@ export function buildRedactionText(
         );
       }
     } else if (l.repartition && l.repartition.length > 0) {
+      // Nom générique de la tranche (pas le libellé "_age" du catalogue,
+      // ex. "4 à 10 ans") : les âges précis sont déjà donnés une seule fois
+      // dans l'en-tête du séjour — les répéter à chaque activité (et avec
+      // des bornes différentes d'une activité à l'autre pour les mêmes
+      // enfants) prêtait à confusion plutôt que d'aider.
+      const NOM_TRANCHE: Record<RepartitionLigne["tranche"], string> = {
+        adulte: "adulte",
+        enfant: "enfant",
+        enfant_3ans: "enfant 3 ans",
+        bebe: "bébé",
+      };
       l.repartition.forEach((r) => {
-        const nomTranche = r.tranche === "adulte" ? "Adulte" : r.label || "Enfant";
-        parts.push(`${nomTranche} : ${eurosVirgule(r.pu)} x ${r.nb} = ${eurosVirgule(r.pu * r.nb)}`);
+        parts.push(`${NOM_TRANCHE[r.tranche]} : ${eurosVirgule(r.pu)} (x${r.nb})`);
       });
     } else {
       parts.push(`${eurosVirgule(l.prixParPersonne)} par personne`);
@@ -486,6 +497,13 @@ export function buildRedactionText(
     if (l.taxeTransfert > 0 && !l.estTaxeSeule) parts.push(`+ Taxe de transfert : ${eurosVirgule(l.taxeTransfert)}`);
     parts.push(`➡️Total : ${eurosVirgule(ligneTotal(l))}`);
   });
+
+  // Toujours terminer le message par une question ouverte — demandé par
+  // Mélanie le 2026-09-13 : le programme est une proposition à ajuster
+  // avec le client, pas un devis figé, et une relance sans question
+  // ouverte reste souvent sans réponse.
+  parts.push("");
+  parts.push("Qu'en pensez-vous ?");
 
   return parts.join("\n");
 }

@@ -337,8 +337,8 @@ export default function RedactionProgramView({
     moisLabelFromDates([dateDebut, dateFin]);
 
   const texte = useMemo(
-    () => buildRedactionText(moisLabel, adultes, enfants, hotel, lignes, catalogue),
-    [moisLabel, adultes, enfants, hotel, lignes, catalogue]
+    () => buildRedactionText(moisLabel, adultes, enfants, hotel, lignes, catalogue, agesEnfants),
+    [moisLabel, adultes, enfants, hotel, lignes, catalogue, agesEnfants]
   );
 
   const totalGeneral = lignes.reduce((s, l) => s + ligneTotal(l), 0);

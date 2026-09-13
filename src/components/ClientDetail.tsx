@@ -101,7 +101,7 @@ export default function ClientDetail({
   // Ouvre directement une section précise en arrivant sur la fiche — utilisé
   // par "Annuler une activité" (section Activités, pour choisir laquelle) et
   // "Ajouter un remboursement/avoir" (section Suivi) depuis le dashboard.
-  autoOpenSection?: "Activités" | "Suivi";
+  autoOpenSection?: "Activités" | "Suivi" | "Paiements";
   onAutoOpenSectionHandled?: () => void;
   // Prévient AppShell qu'un incident vient de changer depuis cette fiche —
   // le badge "Incidents ouverts" du Dashboard lit sa propre copie

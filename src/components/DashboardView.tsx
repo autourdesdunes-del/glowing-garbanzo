@@ -52,6 +52,7 @@ export default function DashboardView({
   onOpenClientForNewActivity,
   onOpenClientForCancelActivity,
   onOpenClientForRemboursement,
+  onOpenClientForPaiements,
   onOpenRemboursements,
   onOpenRdvPaiements,
   onOpenPickupsChambres,
@@ -65,6 +66,7 @@ export default function DashboardView({
   onCreateClient,
   onUpdateClient,
   onMarquerRepriseReglee,
+  onReporterReste,
   onDeleteClient,
   catalogue,
   incidents,
@@ -89,6 +91,7 @@ export default function DashboardView({
   onOpenClientForNewActivity: (id: string) => void;
   onOpenClientForCancelActivity: (id: string) => void;
   onOpenClientForRemboursement: (id: string) => void;
+  onOpenClientForPaiements: (id: string) => void;
   onOpenRemboursements: () => void;
   onOpenRdvPaiements: () => void;
   onOpenPickupsChambres: () => void;
@@ -107,6 +110,10 @@ export default function DashboardView({
   }) => Promise<Client | null>;
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
   onMarquerRepriseReglee: (clientId: string, date: string) => void;
+  onReporterReste: (
+    clientId: string,
+    p: { montant: number; montantEgp: number; mode: string; date: string; activiteNom: string; prochaineActiviteId: string }
+  ) => void;
   onDeleteClient: (id: string) => Promise<boolean>;
   catalogue: CatalogueItem[];
   incidents: Incident[];
@@ -236,7 +243,8 @@ export default function DashboardView({
         paiementsEtapes,
         todayStr,
         onUpdateClient,
-        onMarquerRepriseReglee
+        onMarquerRepriseReglee,
+        onReporterReste
       ),
     [
       clients,
@@ -247,6 +255,7 @@ export default function DashboardView({
       todayStr,
       onUpdateClient,
       onMarquerRepriseReglee,
+      onReporterReste,
     ]
   );
   const callsToday = clients
@@ -1260,6 +1269,10 @@ export default function DashboardView({
           onOpenClient={(id) => {
             setShowPaiementsDuJourModal(false);
             onOpenClient(id);
+          }}
+          onOpenClientForPaiements={(id) => {
+            setShowPaiementsDuJourModal(false);
+            onOpenClientForPaiements(id);
           }}
           onClose={() => setShowPaiementsDuJourModal(false)}
         />

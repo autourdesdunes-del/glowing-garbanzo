@@ -266,9 +266,10 @@ function AppShellInner({
   const [focusReservationId, setFocusReservationId] = useState<string | null>(null);
   const [billetAutoOpenId, setBilletAutoOpenId] = useState<string | null>(null);
   const [activityAutoOpenClientId, setActivityAutoOpenClientId] = useState<string | null>(null);
-  const [sectionAutoOpen, setSectionAutoOpen] = useState<{ clientId: string; section: "Activités" | "Suivi" } | null>(
-    null
-  );
+  const [sectionAutoOpen, setSectionAutoOpen] = useState<{
+    clientId: string;
+    section: "Activités" | "Suivi" | "Paiements";
+  } | null>(null);
   const [prospectsSub, setProspectsSub] = useState<ProspectsSub>("toutes");
   const [managerSub, setManagerSub] = useState<ManagerSub>("attente");
   const [clients, setClients] = useState<Client[]>([]);
@@ -782,6 +783,14 @@ function AppShellInner({
   const openClientForRemboursement = (clientId: string) => {
     openClient(clientId);
     setSectionAutoOpen({ clientId, section: "Suivi" });
+  };
+
+  // Depuis "Paiements du jour" (DashboardView) : ouvrir directement la
+  // section Paiements du dossier plutôt que de laisser l'employée la
+  // rechercher elle-même une fois la fiche ouverte.
+  const openClientForPaiements = (clientId: string) => {
+    openClient(clientId);
+    setSectionAutoOpen({ clientId, section: "Paiements" });
   };
 
   const openPickupsChambres = () => {
@@ -1623,6 +1632,40 @@ function AppShellInner({
       reprise_mixte_eur: 0,
       reprise_mixte_egp: 0,
       solde_montant: totalSejourReprise,
+    });
+  };
+
+  // Depuis "Paiements du jour" : régler seulement l'activité du jour (une
+  // étape de paiement pour son montant) et reporter le reste du solde à une
+  // prochaine activité — même geste que assignerActivite (PaiementResteFlow)
+  // pour le report, mais déclenchable depuis le dashboard qui n'a pas accès
+  // au contexte complet d'une fiche client.
+  const reporterResteAProchaineActiviteGlobal = async (
+    clientId: string,
+    p: { montant: number; montantEgp: number; mode: string; date: string; activiteNom: string; prochaineActiviteId: string }
+  ) => {
+    const { data, error } = await supabase
+      .from("paiements_etapes")
+      .insert({
+        client_id: clientId,
+        montant: p.montant,
+        mode: p.mode,
+        date: p.date,
+        note: "Réglé à l'activité du jour — reste du solde reporté à l'activité suivante",
+        activite_nom: p.activiteNom,
+        montant_egp: p.montantEgp,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast("Impossible d'enregistrer ce règlement.");
+      return;
+    }
+    setAllPaiementsEtapes((prev) => [...prev, data as PaiementEtape]);
+    await updateClientById(clientId, {
+      solde_activite_id: p.prochaineActiviteId,
+      solde_rdv_heure: "",
+      solde_rdv_lieu: "",
     });
   };
 
@@ -2700,6 +2743,7 @@ function AppShellInner({
               onOpenClientForNewActivity={openClientForNewActivity}
               onOpenClientForCancelActivity={openClientForCancelActivity}
               onOpenClientForRemboursement={openClientForRemboursement}
+              onOpenClientForPaiements={openClientForPaiements}
               onOpenRemboursements={openRemboursements}
               onOpenRdvPaiements={openRdvPaiements}
               onOpenPickupsChambres={openPickupsChambres}
@@ -2713,6 +2757,7 @@ function AppShellInner({
               onCreateClient={addClient}
               onUpdateClient={updateClientById}
               onMarquerRepriseReglee={marquerRepriseRegleeGlobal}
+              onReporterReste={reporterResteAProchaineActiviteGlobal}
               onDeleteClient={deleteClient}
               catalogue={catalogue}
               incidents={allIncidents}

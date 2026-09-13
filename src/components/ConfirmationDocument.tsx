@@ -8,6 +8,7 @@ import { Client, Reservation, ReservationOption, ReservationTarif } from "@/lib/
 import { agesLabel, reservationsActives, resaTotalMontant } from "@/lib/resa";
 import { PAYPAL_ME_LINK, PAYPAL_EMAIL } from "@/lib/constants";
 import { PAYPAL_ENTRE_PROCHES_1, PAYPAL_ENTRE_PROCHES_2 } from "@/lib/paypalScreenshots";
+import { INTEGRAL_MODES } from "@/components/clientSteps/PaiementResteFlow";
 
 // Un PNG (Instagram) est une image plate — aucun lien ne peut jamais y être
 // cliquable, quel que soit l'outil utilisé. Le QR code est le contournement
@@ -19,6 +20,22 @@ function acomptePaypalInfo(client: Client) {
   const acomptePaypal = client.paiement_type === "acompte" && client.acompte_mode === "PayPal";
   const url = acomptePaypal && PAYPAL_ME_LINK ? `${PAYPAL_ME_LINK}/${acompteMontant.toFixed(2)}` : null;
   return { acompteMontant, acomptePaypal, url };
+}
+
+// Le mode de règlement du solde (RDV planifié / activité en €, en EGP ou
+// mixte / PayPal / virement / CB) est le même champ (paiement_integral_mode,
+// voir PaiementResteFlow) qu'on règle tout le séjour en intégral ou
+// seulement le reste après un acompte — le bon de confirmation doit donc
+// s'y référer dans les deux cas plutôt que de supposer un règlement en
+// espèces en euros par défaut, sans quoi un solde convenu par PayPal,
+// virement, CB ou en EGP affichait quand même "en espèces, en euros" au
+// client (vécu : un solde de 11 915 EGP annoncé comme "en euros" ici).
+function soldePaiementInfo(client: Client, soldeMontant: number) {
+  const mode = client.paiement_integral_mode || null;
+  const modeInfo = mode ? INTEGRAL_MODES.find((m) => m.key === mode) : null;
+  const isPaypal = mode === "paypal";
+  const url = isPaypal && PAYPAL_ME_LINK ? `${PAYPAL_ME_LINK}/${soldeMontant.toFixed(2)}` : null;
+  return { mode, label: modeInfo?.label || null, isPaypal, url };
 }
 
 // Bon de confirmation envoyé au client une fois son séjour réservé —
@@ -130,6 +147,10 @@ function ConfirmationTemplate({
     ? actives.find((r) => r.id === client.solde_activite_id) || null
     : null;
   const soldeDate = soldeRdv?.date || soldeActivite?.date_debut || null;
+  const soldeInfo = soldePaiementInfo(client, soldeMontant);
+  const soldeEgp = soldeInfo.mode === "activite_egp";
+  const soldeMixte = soldeInfo.mode === "activite_mixte";
+  const soldeDevise = soldeEgp ? "en livres égyptiennes (EGP)" : soldeMixte ? "en euros et en livres égyptiennes (EGP)" : "en euros";
 
   return (
     <div
@@ -297,7 +318,7 @@ function ConfirmationTemplate({
                 borderTop: client.paiement_type === "acompte" ? "1px solid rgba(33,28,22,0.12)" : "none",
               }}
             >
-              <span>Solde à régler sur place</span>
+              <span>{soldeInfo.isPaypal || soldeInfo.mode === "virement" || soldeInfo.mode === "cb" ? "Solde à régler" : "Solde à régler sur place"}</span>
               <span>{euros(soldeMontant)}</span>
             </div>
             <div style={{ fontSize: 13.5, color: "#5C5342", lineHeight: 1.7, marginTop: 6 }}>
@@ -327,13 +348,42 @@ function ConfirmationTemplate({
                 </>
               ) : soldeActivite ? (
                 <>
-                  <strong>En espèces, en euros,</strong> auprès de notre équipe lors de l&apos;activité{" "}
+                  <strong>En espèces, {soldeDevise},</strong> auprès de notre équipe lors de l&apos;activité{" "}
                   <u>
                     « {soldeActivite.nom_activite || "Activité"} »
                     {soldeActivite.date_debut ? ` le ${fmtDateLong(soldeActivite.date_debut)}` : ""}
                   </u>
-                  . Les <u>distributeurs égyptiens ne délivrent pas d&apos;euros</u> —{" "}
-                  <strong>à prévoir avant le départ.</strong>
+                  {!soldeEgp && (
+                    <>
+                      . Les <u>distributeurs égyptiens ne délivrent pas d&apos;euros</u> —{" "}
+                      <strong>à prévoir avant le départ.</strong>
+                    </>
+                  )}
+                </>
+              ) : soldeInfo.isPaypal ? (
+                <>
+                  <strong>Via PayPal</strong>
+                  {soldeInfo.url ? (
+                    <>
+                      {" "}
+                      —{" "}
+                      <a href={soldeInfo.url} style={{ color: "#8B7F63" }}>
+                        payer {euros(soldeMontant)} sur PayPal ↗
+                      </a>
+                    </>
+                  ) : (
+                    <> — adresse PayPal : {PAYPAL_EMAIL}</>
+                  )}
+                  . Pensez à sélectionner <strong>« paiement entre proches »</strong> pour éviter une taxe de 3,1 %
+                  (voir les questions fréquentes ci-dessous).
+                </>
+              ) : soldeInfo.mode === "virement" ? (
+                <>
+                  <strong>Par virement bancaire</strong> — le RIB de l&apos;agence vous sera communiqué séparément.
+                </>
+              ) : soldeInfo.mode === "cb" ? (
+                <>
+                  <strong>Par carte bancaire</strong> — le lien de paiement vous sera communiqué séparément.
                 </>
               ) : (
                 <>
@@ -364,7 +414,7 @@ function ConfirmationTemplate({
           </div>
         </Section>
 
-        {acomptePaypal && (
+        {(acomptePaypal || soldeInfo.isPaypal) && (
           <Section label="Questions fréquentes">
             <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 5 }}>

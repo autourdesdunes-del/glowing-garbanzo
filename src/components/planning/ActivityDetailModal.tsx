@@ -355,12 +355,12 @@ export function ActivityDetailModal({
           <div className="mt-1 flex flex-wrap gap-2">
             {acompteWarning && (
               <span className="text-xs font-medium text-yellow-700">
-                ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
+                ⚠️ Acompte en attente : {euros(acompteWarning.montant)}€ ({acompteWarning.mode})
               </span>
             )}
             {paiementWarning && (
               <span className="text-xs font-medium text-red-600">
-                ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} to pay to activity
+                ⚠️ {euros(paiementWarning.amount)} {paiementWarning.devise} à régler sur cette activité
               </span>
             )}
           </div>

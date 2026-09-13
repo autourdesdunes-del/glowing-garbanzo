@@ -132,7 +132,7 @@ export function ReservationSummaryCard({
           )}
           {acompteWarning && (
             <span className="whitespace-nowrap text-[10px] font-medium text-yellow-700">
-              ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
+              ⚠️ Acompte en attente : {euros(acompteWarning.montant)}€ ({acompteWarning.mode})
             </span>
           )}
           {momentBadge(r) && (
@@ -225,7 +225,7 @@ export function ReservationSummaryCard({
         {(paiementWarning || (!infoComplet && infoStatut)) && (
           <p className="mt-1.5 text-xs font-medium leading-tight text-red-600">
             {paiementWarning
-              ? `⚠️ ${paiementWarningLabel(paiementWarning, euros)} to pay`
+              ? `⚠️ ${paiementWarningLabel(paiementWarning, euros)} à régler`
               : `⚠️ ${infoStatut}`}
           </p>
         )}
@@ -335,7 +335,7 @@ export function ReservationSummaryCard({
         )}
         {acompteWarning && (
           <span className="text-xs font-medium text-yellow-700">
-            ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
+            ⚠️ Acompte en attente : {euros(acompteWarning.montant)}€ ({acompteWarning.mode})
           </span>
         )}
         {momentBadge(r) && (
@@ -396,7 +396,7 @@ export function ReservationSummaryCard({
         )}
         {paiementWarning && (
           <span className="text-xs font-medium text-red-600">
-            ⚠️ {paiementWarningLabel(paiementWarning, euros)} to pay to activity
+            ⚠️ {paiementWarningLabel(paiementWarning, euros)} à régler sur cette activité
           </span>
         )}
       </div>

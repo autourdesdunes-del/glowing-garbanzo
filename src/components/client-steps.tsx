@@ -1054,6 +1054,7 @@ export function ActivitesStep({
 
       {addingPack && (
         <AddPackModal
+          client={client}
           catalogue={catalogue}
           packs={packs}
           hotelHorsHurghada={hotelHorsHurghada}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CatalogueItem, Pack, Reservation, TransfertTaxe } from "@/lib/types";
+import { CatalogueItem, Client, Pack, Reservation, TransfertTaxe } from "@/lib/types";
 import { noTaxeTransfert, packSlotPrix, PACK_PRIX_FIXE } from "@/lib/resa";
 import { matchTransfertTaxe } from "@/lib/hotelHelp";
 import { isSpaMassage, SPA_HEURES, SPA_MINUTES } from "@/lib/addActivityWizardHelpers";
@@ -15,6 +15,7 @@ import { useToast } from "@/components/ToastProvider";
 // (calculée au prorata, voir packSlotPrix), pour qu'une annulation
 // individuelle plus tard se comporte comme une réservation normale.
 export default function AddPackModal({
+  client,
   catalogue,
   packs,
   hotelHorsHurghada,
@@ -25,6 +26,7 @@ export default function AddPackModal({
   onClose,
   onAdded,
 }: {
+  client: Client;
   catalogue: CatalogueItem[];
   packs: Pack[];
   hotelHorsHurghada?: boolean;
@@ -43,8 +45,13 @@ export default function AddPackModal({
   const [packId, setPackId] = useState<string | null>(null);
   const [choix, setChoix] = useState<Record<number, string>>({});
   const [dates, setDates] = useState<Record<number, string>>({});
-  const [adultes, setAdultes] = useState(2);
-  const [enfants, setEnfants] = useState(0);
+  // Préremplis avec les vrais voyageurs du séjour — avant ce correctif,
+  // "Adultes" restait toujours à 2 et "Enfants" à 0 par défaut, quel que
+  // soit le nombre réel saisi sur la fiche client (ex. une famille de 2
+  // adultes + 2 enfants se voyait proposer le pack sans le demi-tarif
+  // enfant, sauf si l'employée pensait à corriger le champ à la main).
+  const [adultes, setAdultes] = useState(client.adultes || 2);
+  const [enfants, setEnfants] = useState(client.enfants || 0);
   const [submitting, setSubmitting] = useState(false);
   const [taxeAlerte, setTaxeAlerte] = useState<{ nbActivites: number; montantParActivite: number; note: string } | null>(
     null

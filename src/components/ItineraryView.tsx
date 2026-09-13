@@ -385,12 +385,12 @@ export default function ItineraryView({
           )}
           {acompteWarning && (
             <span className="text-xs font-medium text-yellow-700">
-              ⚠️waiting {euros(acompteWarning.montant)}€ {acompteWarning.mode}
+              ⚠️ Acompte en attente : {euros(acompteWarning.montant)}€ ({acompteWarning.mode})
             </span>
           )}
           {paiementWarning && (
             <span className="text-xs font-medium text-red-600">
-              ⚠️ {paiementWarningLabel(paiementWarning, euros)} to pay to activity
+              ⚠️ {paiementWarningLabel(paiementWarning, euros)} à régler sur cette activité
             </span>
           )}
           {r.avoir_utilise > 0 && (

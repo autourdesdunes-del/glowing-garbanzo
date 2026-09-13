@@ -16,6 +16,58 @@ function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
+// Prénom seul (premier mot du nom complet) — utilisé pour le message Bodé,
+// qui doit rester court et direct.
+function prenom(nomComplet: string) {
+  return (nomComplet || "").trim().split(/\s+/)[0] || "Client";
+}
+
+// Premier mot du libellé d'activité (une fois le préfixe interne "Solde à
+// l'activité — "/"Reprise à l'activité — " retiré) : le catalogue nomme la
+// plupart des activités par leur mot-clé en premier ("Speedboat privé...",
+// "Buggy Sunset", "Parachute ascensionnel"...), ce qui suffit à identifier
+// l'activité dans un message Bodé sans le recopier en entier. Le message
+// reste à copier/coller, donc ajustable à la main si ce raccourci tombe mal.
+function activiteMot(libelle: string) {
+  const nom = libelle
+    .replace(/^Solde à l'activité — /, "")
+    .replace(/^Reprise à l'activité — /, "")
+    .replace(/^RDV solde$/, "RDV");
+  return nom.trim().split(/\s+/)[0] || "";
+}
+
+// Montant à afficher dans la devise réellement prévue pour l'encaissement —
+// pas toujours des euros. Un solde réglé "à la première activité en EGP"
+// (ou en mixte €+EGP) a son montant EGP déjà calculé au taux du jour dans
+// egp_montant/solde_mixte_egp (voir PaiementResteFlow) : avant ce
+// correctif, "Paiements du jour" affichait toujours l'équivalent en euros
+// avec un "€" figé, ce qui ne dit rien du montant EGP réellement à
+// récupérer sur place.
+function montantAffiche(ligne: Ligne) {
+  const c = ligne.client;
+  if (c.solde_mode === "Espèces EGP" && c.egp_montant > 0) {
+    return `${c.egp_montant.toLocaleString("fr-FR")} EGP`;
+  }
+  if (c.solde_mode === "Modes différents" && c.solde_mixte_egp > 0) {
+    return `${euros(c.solde_mixte_eur)} € + ${c.solde_mixte_egp.toLocaleString("fr-FR")} EGP`;
+  }
+  return `${euros(ligne.montant)} €`;
+}
+
+// Message type envoyé à Bodé (équipe Égypte, en anglais — voir
+// feedback_anglais_voulu_equipe_egypte) pour lui faire confirmer les
+// paiements du jour un par un plutôt que de les lui décrire un par un à la
+// main. Même format de montant que montantAffiche, condensé sans espace
+// avant "€" (ex. "180€") et avec "egp" en minuscules (ex. "3600 egp"),
+// repris tel quel de l'exemple donné par Mélanie le 13/09.
+export function bodePaiementsMessage(aPayer: Ligne[]) {
+  const lignes = aPayer.map((l) => {
+    const montant = montantAffiche(l).replace(/ €$/, "€").replace(/ EGP$/, " egp").replace(" € + ", "€ + ");
+    return `- ${prenom(l.client.nom)} ${activiteMot(l.libelle)} ${montant}`.trim();
+  });
+  return `Can you confirm payments of the day ?\n${lignes.join("\n")}`;
+}
+
 // Même calcul que soldeRestantFor (SuivisView) : total du séjour moins
 // l'acompte déjà encaissé, les règlements intermédiaires et les avoirs
 // consommés — c'est aussi le montant du solde une fois qu'il est marqué payé
@@ -160,6 +212,7 @@ export default function PaiementsDuJourModal({
   onClose: () => void;
 }) {
   const [dateModal, setDateModal] = useState<{ ligne: Ligne; date: string } | null>(null);
+  const [copiedBode, setCopiedBode] = useState(false);
   const confirm = useConfirm();
 
   const Row = ({ ligne }: { ligne: Ligne }) => (
@@ -173,7 +226,7 @@ export default function PaiementsDuJourModal({
         </button>
         <p className="text-xs text-neutral-500">{ligne.libelle}</p>
       </div>
-      <span className="font-amounts flex-shrink-0 text-sm text-[#171717]">{euros(ligne.montant)} €</span>
+      <span className="font-amounts flex-shrink-0 text-sm text-[#171717]">{montantAffiche(ligne)}</span>
       <button
         onClick={async () => {
           if (ligne.paye) {
@@ -219,9 +272,23 @@ export default function PaiementsDuJourModal({
           </button>
         </div>
 
-        <h4 className="mb-2 text-sm font-semibold text-neutral-700">
-          À payer aujourd&apos;hui {aPayer.length > 0 && `(${aPayer.length})`}
-        </h4>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h4 className="text-sm font-semibold text-neutral-700">
+            À payer aujourd&apos;hui {aPayer.length > 0 && `(${aPayer.length})`}
+          </h4>
+          {aPayer.length > 0 && (
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(bodePaiementsMessage(aPayer));
+                setCopiedBode(true);
+                setTimeout(() => setCopiedBode(false), 2000);
+              }}
+              className="flex-shrink-0 rounded-md border border-[#171717]/20 px-2.5 py-1 text-xs font-medium text-[#171717] hover:bg-[#fafafa]"
+            >
+              {copiedBode ? "Copié ✓" : "Copier le message pour Bodé"}
+            </button>
+          )}
+        </div>
         {aPayer.length === 0 ? (
           <p className="mb-4 text-sm text-neutral-400">Rien en attente.</p>
         ) : (

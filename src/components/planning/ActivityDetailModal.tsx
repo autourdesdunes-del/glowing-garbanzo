@@ -26,7 +26,6 @@ import {
   optionsBadge,
   packBadge,
   paiementBadge,
-  paiementStatutKey,
   participantsFor,
   paxLine,
   pointureBadge,
@@ -35,18 +34,13 @@ import {
   resaTotalMontant,
   reservationsActives,
   siteCaireBadge,
-  soldeInclutAcompteImpaye,
-  STATUT_PAIEMENT_OPTIONS,
   taxeTransfertManquante,
   volBadge,
 } from "@/lib/resa";
 import { fmtAnnulationSuffix } from "@/lib/dates";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
-import { useConfirm } from "@/components/ConfirmProvider";
-import { useToast } from "@/components/ToastProvider";
 import { euros, fmtDate } from "@/lib/planningViewFormat";
 import { DetailRow } from "@/components/planning/PlanningCards";
-import RdvPaiementCreationModal from "@/components/RdvPaiementCreationModal";
 
 // Modale de détail d'une activité (Réservations) — extraite de
 // PlanningView.tsx pour l'alléger, sans changement de comportement.
@@ -78,14 +72,8 @@ export function ActivityDetailModal({
   onBack?: () => void;
 }) {
   const supabase = createClient();
-  const confirm = useConfirm();
-  const toast = useToast();
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
-  // "RDV paiement planifié" choisi dans le menu rapide ci-dessous : sans ce
-  // popup, ce choix ne posait que solde_rdv_lieu="À définir" sans jamais
-  // demander date/heure/assigné, créant un RDV fantôme jamais complétable.
-  const [rdvCreationPending, setRdvCreationPending] = useState(false);
   const [photoVolUrl, setPhotoVolUrl] = useState("");
   // Séjour multi-hôtels (circuit) : pour que le bloc équipe Égypte de cette
   // activité précise affiche seulement l'hôtel où le client se trouve ce
@@ -102,12 +90,6 @@ export function ActivityDetailModal({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
-  // Le client vient d'une liste tenue par le parent (rafraîchie par polling)
-  // — sans état local, changer le statut de paiement ici mettrait à jour la
-  // base mais l'affichage resterait sur l'ancien statut jusqu'au prochain
-  // rafraîchissement.
-  const [soldeOverride, setSoldeOverride] = useState<Partial<Client> | null>(null);
-  const effectiveClient = soldeOverride ? { ...client, ...soldeOverride } : client;
   useEffect(() => {
     const supabase = createClient();
     (async () => {
@@ -145,7 +127,7 @@ export function ActivityDetailModal({
   const badge =
     r.statut_resa === "Annulée"
       ? badgeAnnulation(r)
-      : paiementBadge(effectiveClient, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
+      : paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
   // Le solde peut être en attente de règlement sur une AUTRE activité déjà
   // identifiée (solde_activite_id pointe ailleurs) — dans ce cas on
   // renseigne où et quand, plutôt que de ne rien dire du tout.
@@ -409,82 +391,20 @@ export function ActivityDetailModal({
           )}
           <DetailRow label="PAX">{paxLine(r, client)}</DetailRow>
           <DetailRow label="Paiement">
-            {r.statut_resa === "Annulée" ? (
-              // Le menu déroulant "en direct" reste caché sur une activité
-              // annulée — sinon on peut la remarquer "Payé" par erreur alors
-              // que le vrai statut à retenir est celui décidé à l'annulation
-              // (remboursée / avoir créé / non remboursée).
-              (() => {
-                const b = badgeAnnulation(r);
-                return (
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.className}`}>
-                    {b.label}
-                  </span>
-                );
-              })()
-            ) : (
-              <select
-                value={paiementStatutKey(effectiveClient, r)}
-                onChange={async (e) => {
-                  const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === e.target.value);
-                  if (!opt) return;
-                  if (opt.key === "rdv_planifie") {
-                    setRdvCreationPending(true);
-                    return;
-                  }
-                  // Même garde-fou que ItineraryView.tsx : "Payé - ..."
-                  // efface la reprise en attente (voir plus bas) — vécu sur
-                  // Carine LELOIR, 180 € de reprise effacés en marquant juste
-                  // une AUTRE activité payée depuis ce même menu.
-                  if (opt.key.startsWith("paye_") && Number(effectiveClient.reprise_montant) > 0) {
-                    toast(
-                      `Un règlement de ${euros(effectiveClient.reprise_montant)} € (${effectiveClient.reprise_mode || "mode non précisé"}) est encore en attente sur ce dossier. Réglez-le d'abord depuis l'onglet Paiements du client ("Marquer réglé" ou "Modifier") avant de marquer le séjour payé ici — sinon ce montant disparaît du dossier.`
-                    );
-                    return;
-                  }
-                  if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(effectiveClient)) {
-                    const ok = await confirm({
-                      title: "L'acompte n'a pas encore été marqué encaissé",
-                      message: `L'acompte de ${euros(effectiveClient.acompte_montant)} € (${effectiveClient.acompte_mode}) est toujours "en attente". En continuant, tout le séjour — acompte compris — sera considéré comme payé partout dans le dossier. Le montant collecté couvre-t-il bien aussi cet acompte ?`,
-                      confirmLabel: "Oui, l'acompte est inclus",
-                      cancelLabel: "Non, annuler",
-                    });
-                    if (!ok) return;
-                  }
-                  const patch = opt.patch(r);
-                  // Le solde_montant doit toujours figer le total séjour au
-                  // moment où on marque payé — sinon une activité ajoutée
-                  // plus tard grossit le total sans que rien ne détecte que
-                  // ce surplus n'a jamais été réglé (voir paiementProgress).
-                  if (opt.key.startsWith("paye_")) {
-                    patch.solde_montant = totalSejourClient;
-                    patch.reprise_montant = 0;
-                    patch.reprise_mode = "";
-                    patch.reprise_activite_id = null;
-                    patch.reprise_activite_ids = [];
-                  }
-                  setSoldeOverride((prev) => ({ ...prev, ...patch }));
-                  await supabase.from("clients").update(patch).eq("id", client.id);
-                }}
-                className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${
-                  // badge peut être null ici : cette carte n'est pas la
-                  // "prochaine activité" choisie pour porter le badge visuel
-                  // (voir paiementBadge, resa.ts) quand le solde est réglé à
-                  // distance — le select garde quand même la couleur du
-                  // statut réel, ce menu servant justement à le modifier.
-                  badge?.className ||
-                  STATUT_PAIEMENT_OPTIONS.find((o) => o.key === paiementStatutKey(effectiveClient, r))
-                    ?.className ||
-                  ""
-                }`}
-              >
-                {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            )}
+            {/* Affichage seul, plus de menu ici — un menu par activité
+                donnait l'impression de régler CETTE activité, alors qu'il
+                n'existe qu'un seul solde par client : choisir "Payé"
+                marquait tout le séjour réglé et effaçait en silence une
+                reprise encore en attente sur une AUTRE activité (vécu sur
+                Carine LELOIR). Le seul endroit pour changer un paiement est
+                désormais l'onglet Paiements de la fiche client. */}
+            {(() => {
+              const b = r.statut_resa === "Annulée" ? badgeAnnulation(r) : badge;
+              if (!b) return null;
+              return (
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.className}`}>{b.label}</span>
+              );
+            })()}
           </DetailRow>
           <DetailRow label="Total">{euros(total)} €</DetailRow>
         </div>
@@ -677,35 +597,6 @@ export function ActivityDetailModal({
         </div>
         </div>
       </div>
-
-      {rdvCreationPending && (
-        <RdvPaiementCreationModal
-          onClose={() => setRdvCreationPending(false)}
-          onValider={async ({ date, heure, assigneA, mode, note }) => {
-            const patch: Partial<Client> = {
-              solde_paye: false,
-              solde_activite_id: null,
-              // Le lieu est toujours l'hôtel du client — ce champ ne sert
-              // qu'à une précision optionnelle (ex. "devant la réception").
-              solde_rdv_lieu: note,
-              solde_date: date,
-              solde_rdv_heure: heure,
-              solde_assigne_a: assigneA,
-              solde_mode: mode,
-              solde_rdv_valide: true,
-              // Sans ça, l'étape Paiements (PaiementResteFlow) ne "voyait"
-              // pas ce RDV comme sélectionné — les boutons de mode
-              // s'affichaient tous non cochés, et cliquer à nouveau sur
-              // "Rendez-vous paiement planifié" depuis cet écran effaçait
-              // silencieusement l'heure/la validation qu'on venait de créer.
-              paiement_integral_mode: "rdv",
-            };
-            setRdvCreationPending(false);
-            setSoldeOverride((prev) => ({ ...prev, ...patch }));
-            await supabase.from("clients").update(patch).eq("id", client.id);
-          }}
-        />
-      )}
     </>
   );
 }

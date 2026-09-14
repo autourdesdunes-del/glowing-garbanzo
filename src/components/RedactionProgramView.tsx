@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CatalogueItem, CatalogueOption, CatalogueTransfertTarif, Client, HotelReference, TransfertTaxe } from "@/lib/types";
 import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
-import { groupeExtraCounts, normalizeJoursDisponibles } from "@/lib/resa";
-import { CRENEAUX_ACTIVITE } from "@/lib/constants";
+import { creneauxDisponiblesPour, groupeExtraCounts, normalizeJoursDisponibles } from "@/lib/resa";
 import { deaccent } from "@/lib/deaccent";
 import { useToast } from "@/components/ToastProvider";
 import {
@@ -981,7 +980,7 @@ export default function RedactionProgramView({
                           className={`input mt-0.5 text-sm ${!l.creneau ? "border-red-300" : ""}`}
                         >
                           <option value="">— Choisir —</option>
-                          {CRENEAUX_ACTIVITE.map((c) => (
+                          {creneauxDisponiblesPour(l.nom || "").map((c) => (
                             <option key={c} value={c}>
                               {c}
                             </option>

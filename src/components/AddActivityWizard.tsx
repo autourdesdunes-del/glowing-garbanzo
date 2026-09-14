@@ -19,7 +19,6 @@ import {
 import { hotelNomPourActivite, matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import {
   CHAMPS_REQUIS_PRESETS,
-  CRENEAUX_ACTIVITE,
   OPTIONS_PRESETS,
   SITES_CAIRE,
   VEHICULES_TRANSFERT,
@@ -45,6 +44,7 @@ import {
   needsBilletInterneGenerique,
   isMontgolfiereActivity,
   creneauCoucherDeSoleilCible,
+  creneauxDisponiblesPour,
   estBaseAvecFormuleCoucherDeSoleil,
   isQuad,
   isSpeedboatPriveMaisonDauphins,
@@ -1055,7 +1055,7 @@ export default function AddActivityWizard({
                 }`}
               >
                 <option value="">—</option>
-                {CRENEAUX_ACTIVITE.map((c) => (
+                {creneauxDisponiblesPour(catalogueItem?.nom || "").map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </select>

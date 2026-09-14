@@ -10,7 +10,7 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import { addDays, fmtAnnulationSuffix, todayStr, weekdayFr } from "@/lib/dates";
-import { CHAMPS_REQUIS_PRESETS, PROSPECT_STATUTS } from "@/lib/constants";
+import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, PROSPECT_STATUTS } from "@/lib/constants";
 
 // Un client confirmé, séjour proche (dans les 14 jours, ou déjà en cours),
 // sans aucune ligne dans "verifications" — utilisé à la fois par le rappel
@@ -1754,6 +1754,16 @@ export function creneauCoucherDeSoleilCible(nom: string): string | null {
 // après-midi) — le switch gère le titre du créneau soleil couchant lui-même.
 export function estBaseAvecFormuleCoucherDeSoleil(nom: string): boolean {
   return creneauCoucherDeSoleilCible(nom) !== null;
+}
+
+// Mini Egypt n'a pas de formule "coucher de soleil" (demande de Mélanie,
+// 14/09) — les autres activités utilisant le créneau standard gardent les
+// 3 choix.
+export function creneauxDisponiblesPour(nom: string): readonly string[] {
+  if ((nom || "").trim().toLowerCase() === "mini egypt") {
+    return CRENEAUX_ACTIVITE.filter((c) => c !== "Coucher de soleil");
+  }
+  return CRENEAUX_ACTIVITE;
 }
 
 // Seuls items du catalogue dont le prix est légitimement variable au cas

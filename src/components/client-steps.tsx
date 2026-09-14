@@ -60,6 +60,7 @@ import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import RibScreenshotUpload from "@/components/RibScreenshotUpload";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
+import SoldePayeConfirmModal from "@/components/SoldePayeConfirmModal";
 import RemboursementSummaryCard from "@/components/RemboursementSummaryCard";
 import HebergementSection from "@/components/clientSteps/HebergementSection";
 import { contactViaSummary, datesSummary, euros, fmtDateDMY, whatsappSummary } from "@/lib/contactStepFormat";
@@ -1282,6 +1283,10 @@ export function PaiementsStep({
   // l'employée ferme le pop-up sans répondre.
   const [residuelAgencePropose, setResiduelAgencePropose] = useState<number | null>(null);
   const residuelAgenceVuRef = useRef<number | null>(null);
+  // Même garde-fou que partout ailleurs (voir SoldePayeConfirmModal) : ce
+  // "Oui" marque aussi tout le séjour payé, donc on montre ce qui va
+  // changer avant d'appliquer, au lieu de l'appliquer dès le premier clic.
+  const [residuelAgenceConfirm, setResiduelAgenceConfirm] = useState<number | null>(null);
 
   // Le texte inclut le montant réel — recalculé au moment d'enregistrer
   // (voir ajouterEtape/confirmerEtapeActivite) pour rester juste même si le
@@ -2452,14 +2457,7 @@ export function PaiementsStep({
                 onClick={() => {
                   const montant = residuelAgencePropose;
                   setResiduelAgencePropose(null);
-                  onChange({ solde_paye: true, solde_montant: totalSejour });
-                  onAddPaiementEtape(
-                    montant,
-                    "Agence",
-                    todayStr(),
-                    "Pris en charge par l'agence (montant résiduel, client prévenu)",
-                    ""
-                  );
+                  setResiduelAgenceConfirm(montant);
                 }}
                 className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
               >
@@ -2474,6 +2472,30 @@ export function PaiementsStep({
             </div>
           </div>
         </div>
+      )}
+
+      {residuelAgenceConfirm !== null && (
+        <SoldePayeConfirmModal
+          client={client}
+          reservations={reservations}
+          resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
+          newLabel="Payé - pris en charge par l'agence"
+          onCancel={() => setResiduelAgenceConfirm(null)}
+          onConfirm={() => {
+            const montant = residuelAgenceConfirm;
+            setResiduelAgenceConfirm(null);
+            onChange({ solde_paye: true, solde_montant: totalSejour });
+            onAddPaiementEtape(
+              montant,
+              "Agence",
+              todayStr(),
+              "Pris en charge par l'agence (montant résiduel, client prévenu)",
+              ""
+            );
+          }}
+        />
       )}
 
       {etapeActiviteConfirm && (

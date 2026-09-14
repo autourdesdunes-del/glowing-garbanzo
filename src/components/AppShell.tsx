@@ -51,6 +51,7 @@ import DashboardView from "@/components/DashboardView";
 import GlobalSearch from "@/components/GlobalSearch";
 import PipelineView from "@/components/PipelineView";
 import ProspectSummaryModal from "@/components/ProspectSummaryModal";
+import SoldePayeConfirmModal from "@/components/SoldePayeConfirmModal";
 import ChangePasswordButton from "@/components/ChangePasswordButton";
 import QuickAddClient from "@/components/QuickAddClient";
 import CatalogueView from "@/components/CatalogueView";
@@ -1444,6 +1445,16 @@ function AppShellInner({
   // que "étape" dans ce cas (voir PaypalPaiementRappel/PaypalPaiementRow),
   // ce blocage est la sécurité côté fonction si jamais appelé quand même.
   // "étape" n'écrase jamais rien (simple ajout d'un règlement).
+  // Rattacher un paiement PayPal comme "solde" marque tout le séjour payé
+  // (un seul solde par client) — même règle que partout ailleurs : on montre
+  // d'abord ce qui va changer (voir SoldePayeConfirmModal), la garde
+  // "solde déjà renseigné" juste au-dessus reste la protection contre
+  // l'écrasement, ceci n'est qu'une confirmation visuelle avant d'appliquer.
+  const [soldePaypalConfirm, setSoldePaypalConfirm] = useState<{
+    clientId: string;
+    patch: Partial<Client>;
+  } | null>(null);
+
   const rattacherPaypalPaiement = async (
     paiementId: string,
     clientId: string,
@@ -1510,12 +1521,15 @@ function AppShellInner({
         (sum, r) => sum + resaTotalMontant(r, client, allResaOptions[r.id] || [], allResaTarifs[r.id] || []),
         0
       );
-      await updateClientById(clientId, {
-        solde_paye: true,
-        solde_mode: "PayPal",
-        solde_montant: totalSejour,
-        solde_date: paiement.paypal_recu_le.slice(0, 10),
-        solde_rdv_valide: true,
+      setSoldePaypalConfirm({
+        clientId,
+        patch: {
+          solde_paye: true,
+          solde_mode: "PayPal",
+          solde_montant: totalSejour,
+          solde_date: paiement.paypal_recu_le.slice(0, 10),
+          solde_rdv_valide: true,
+        },
       });
     } else if (type === "reprise") {
       // Même geste que marquerRepriseReglee (client-steps.tsx) — sans lui,
@@ -2588,6 +2602,29 @@ function AppShellInner({
               onConfirmClient={async () => {
                 await updateClientById(c.id, { statut: "Client confirmé" });
                 setProspectSummaryId(null);
+              }}
+            />
+          );
+        })()}
+      {soldePaypalConfirm &&
+        (() => {
+          const c = clients.find((cl) => cl.id === soldePaypalConfirm.clientId);
+          if (!c) {
+            setSoldePaypalConfirm(null);
+            return null;
+          }
+          return (
+            <SoldePayeConfirmModal
+              client={c}
+              reservations={allReservations.filter((r) => r.client_id === c.id)}
+              resaOptions={allResaOptions}
+              resaTarifs={allResaTarifs}
+              paiementsEtapes={allPaiementsEtapes.filter((e) => e.client_id === c.id)}
+              newLabel="Payé - PayPal ✅"
+              onCancel={() => setSoldePaypalConfirm(null)}
+              onConfirm={async () => {
+                await updateClientById(soldePaypalConfirm.clientId, soldePaypalConfirm.patch);
+                setSoldePaypalConfirm(null);
               }}
             />
           );

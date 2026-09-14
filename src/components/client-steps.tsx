@@ -503,13 +503,25 @@ export function ContactStep({
       )}
 
       <PropertyRow label="Contact via" icon={<PropIcon name="megaphone" />}>
-        <button
-          type="button"
-          onClick={() => setContactModalOpen(true)}
-          className="text-left text-sm text-[#171717] hover:underline"
-        >
-          {contactViaSummary(client)}
-        </button>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <button
+            type="button"
+            onClick={() => setContactModalOpen(true)}
+            className="text-left text-sm text-[#171717] hover:underline"
+          >
+            {contactViaSummary(client)}
+          </button>
+          {client.kommo_lead_id && (
+            <a
+              href={`https://autourdesdunes.kommo.com/leads/detail/${client.kommo_lead_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-[#0F5C56] hover:underline"
+            >
+              Kommo →
+            </a>
+          )}
+        </div>
       </PropertyRow>
 
       {contactModalOpen && (

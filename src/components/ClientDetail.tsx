@@ -795,17 +795,38 @@ export default function ClientDetail({
     opts?: { skipAvoirPrompt?: boolean },
     attempt = 0
   ): Promise<string | null> => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // "Qui a créé cette activité" (cree_par_id/cree_par_nom) n'est qu'une
+    // info d'audit, jamais bloquante pour la création elle-même — avant ce
+    // fix, supabase.auth.getUser() (qui revalide le JWT auprès du serveur
+    // Auth, contrairement à getSession() qui lit la session déjà en
+    // mémoire) pouvait à lui seul bloquer TOUT le clic pendant 2-3 minutes
+    // en cas d'incident réseau/Auth (vécu le 2026-09-14 sur plusieurs
+    // activités — Safari quad, Quad Sunset, plongée, speedboat — alors que
+    // le timeout ajouté plus bas sur l'insert lui-même n'y changeait rien,
+    // puisque le blocage avait lieu avant de l'atteindre). getSession() +
+    // un timeout de 4s en repli : si ça traîne, on continue sans "créé
+    // par", jamais en bloquant la création de l'activité pour ça.
+    const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> =>
+      Promise.race([p, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
+    let userId: string | null = null;
     let creeParNom = "";
-    if (user) {
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("prenom, email")
-        .eq("id", user.id)
-        .single();
-      creeParNom = prof?.prenom || (prof?.email || "").split("@")[0] || "";
+    try {
+      const sessionResult = await withTimeout(supabase.auth.getSession(), 4000);
+      userId = sessionResult?.data?.session?.user?.id || null;
+      if (userId) {
+        const profController = new AbortController();
+        const profTimeoutId = setTimeout(() => profController.abort(), 4000);
+        const profResult = await supabase
+          .from("profiles")
+          .select("prenom, email")
+          .eq("id", userId)
+          .abortSignal(profController.signal)
+          .single();
+        clearTimeout(profTimeoutId);
+        creeParNom = profResult.data?.prenom || (profResult.data?.email || "").split("@")[0] || "";
+      }
+    } catch {
+      // Best-effort — voir commentaire ci-dessus.
     }
     // Sans limite de temps, une requête bloquée par un incident réseau
     // (vécu plusieurs fois avec Supabase le 2026-09-14 : CORS/503
@@ -825,7 +846,7 @@ export default function ClientDetail({
       .insert({
         client_id: client.id,
         transfert_inclus: !hotelHorsHurghada,
-        cree_par_id: user?.id || null,
+        cree_par_id: userId,
         cree_par_nom: creeParNom,
         // Une activité ajoutée à un client déjà "Client confirmé" est
         // confirmée d'office — sinon elle reste en Brouillon pour toujours
@@ -867,7 +888,7 @@ export default function ClientDetail({
     // Un token d'auth silencieusement expiré échoue une seule fois — on le
     // rafraîchit et on retente avant d'afficher un échec à l'employée.
     if (attempt === 0) {
-      await supabase.auth.refreshSession();
+      await withTimeout(supabase.auth.refreshSession(), 4000);
       return addReservation(opts, 1);
     }
     console.error("addReservation", error);

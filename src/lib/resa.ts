@@ -434,6 +434,28 @@ export function repriseActiviteCible(client: Client, reservations: Reservation[]
   return [...actives].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0] || null;
 }
 
+// Ensemble des activités dont le badge principal doit refléter la reprise en
+// attente — repriseActiviteCible() ne renvoie QU'UNE seule activité (le
+// rappel détaillé "⚠️ montant mode" à côté du titre, voir
+// acompteWaitingWarning, ne doit apparaître qu'une fois), mais en PayPal/
+// virement plusieurs activités ajoutées après le solde figé peuvent
+// composer ce même montant : les afficher TOUTES en "En attente" est plus
+// juste que d'en laisser une repasser "Payé" par défaut. Vécu sur Carine
+// LELOIR le 2026-09-14 : reprise PayPal de 180€ = Le Caire en bus (130€) +
+// Safari quad (50€) ; ne cibler que la plus récente laissait l'autre
+// afficher "Payé - en espèces en €" à tort, alors qu'aucune des deux n'est
+// réglée. Mode espèces/CB/EGP (ou virement avec activité choisie à la
+// main) : un seul point de collecte désigné, comme pour le solde —
+// comportement inchangé, une seule activité renvoyée.
+export function repriseActivitesCibles(client: Client, reservations: Reservation[]): Reservation[] {
+  if (!(Number(client.reprise_montant) > 0)) return [];
+  if (client.reprise_mode !== "PayPal" && client.reprise_mode !== "Virement bancaire") {
+    const cible = repriseActiviteCible(client, reservations);
+    return cible ? [cible] : [];
+  }
+  return reservationsActives(reservations).filter((r) => r.id !== client.solde_activite_id);
+}
+
 // Activité active la plus proche à venir (aujourd'hui compris), sinon la
 // plus récente déjà passée — sert à choisir UNE carte de référence quand un
 // règlement (reprise, ou solde réglé à distance en PayPal/virement — voir
@@ -478,7 +500,7 @@ export function paiementBadge(
   resaTarifs?: Record<string, ReservationTarif[]>,
   etapes?: PaiementEtape[]
 ): { label: string; className: string } | null {
-  if (reservations && repriseActiviteCible(client, reservations)?.id === r.id) {
+  if (reservations && repriseActivitesCibles(client, reservations).some((rr) => rr.id === r.id)) {
     const repriseKey = REPRISE_MODE_TO_KEY[client.reprise_mode] || "attente";
     const repriseOpt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === repriseKey)!;
     return { label: repriseOpt.label, className: repriseOpt.className };

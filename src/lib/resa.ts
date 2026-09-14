@@ -415,49 +415,42 @@ const SEUIL_PRESQUE_PAYE = 0.9;
 // reste réglé, seule la nouveauté suit ce nouveau paiement).
 export function repriseActiviteCible(client: Client, reservations: Reservation[]): Reservation | null {
   if (!(Number(client.reprise_montant) > 0)) return null;
-  if (client.reprise_mode !== "PayPal" && client.reprise_mode !== "Virement bancaire" && client.reprise_activite_id) {
-    return reservations.find((r) => r.id === client.reprise_activite_id) || null;
+  // L'activité choisie à la main dans le pop-up (reprise_activite_id,
+  // toujours demandée depuis le 2026-09-14, y compris en PayPal/virement —
+  // voir confirmerReprise dans ClientDetail.tsx) est prioritaire dans TOUS
+  // les modes : c'est elle qui décide où affiche le rappel détaillé "⚠️
+  // montant mode", jamais une devinette après coup. Sans cette priorité,
+  // choisir explicitement "Le Caire en bus" dans le pop-up n'empêchait pas
+  // le rappel de retomber sur la plus récemment créée (Safari quad) —
+  // vécu sur Carine LELOIR le 2026-09-14.
+  if (client.reprise_activite_id) {
+    const cible = reservationsActives(reservations).find((r) => r.id === client.reprise_activite_id);
+    if (cible) return cible;
   }
-  // PayPal/virement : pas d'activité de rattachement précise choisie à la
-  // main — on cible la plus récemment AJOUTÉE (jamais celle qui porte déjà
-  // le solde figé, solde_activite_id, elle est réglée par définition),
-  // plutôt que la plus proche par date de séjour. Sinon une toute nouvelle
-  // activité ajoutée par-dessus une reprise déjà en cours (ce qui vient
-  // justement de l'agrandir, cf. confirmerReprise) peut tomber derrière une
-  // activité plus ancienne mais plus proche dans le calendrier, et
-  // s'afficher à tort "Payé" alors que sa part de la reprise n'est pas
-  // collectée — vécu sur Carine LELOIR le 2026-09-14 (badge "Payé en
-  // espèces en €" sur Safari quad juste après l'avoir ajoutée, alors que
-  // "Le Caire en bus", ajoutée avant elle mais plus tôt dans le séjour,
-  // gardait le badge "En attente - PayPal").
+  // Repli pour les dossiers créés avant que l'activité soit systématiquement
+  // demandée (reprise_activite_id vide malgré une reprise en attente) : on
+  // cible la plus récemment AJOUTÉE (jamais celle qui porte déjà le solde
+  // figé, solde_activite_id, elle est réglée par définition), plutôt que la
+  // plus proche par date de séjour.
   const actives = reservationsActives(reservations).filter((r) => r.id !== client.solde_activite_id);
   return [...actives].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0] || null;
 }
 
-// Ensemble des activités dont le badge principal doit refléter la reprise en
-// attente. reprise_activite_ids (voir migration 0130) est rempli
-// explicitement au fil des pop-up de reprise (une activité choisie à la main
-// à chaque fois, voir confirmerReprise dans ClientDetail.tsx) — c'est la
-// source de vérité dès qu'elle est renseignée, plus fiable qu'une devinette
-// après coup. Pour les dossiers créés avant cette colonne (tableau vide mais
-// reprise_montant > 0), on retombe sur l'ancienne heuristique : repriseActiviteCible()
-// ne renvoie QU'UNE seule activité (le rappel détaillé "⚠️ montant mode" à
-// côté du titre, voir acompteWaitingWarning, ne doit apparaître qu'une fois),
-// mais en PayPal/virement plusieurs activités ajoutées après le solde figé
-// peuvent composer ce même montant : les afficher TOUTES en "En attente" est
-// plus juste que d'en laisser une repasser "Payé" par défaut. Vécu sur
-// Carine LELOIR le 2026-09-14 : reprise PayPal de 180€ = Le Caire en bus
-// (130€) + Safari quad (50€) ; ne cibler que la plus récente laissait
-// l'autre afficher "Payé - en espèces en €" à tort, alors qu'aucune des deux
-// n'est réglée.
+// Ensemble des activités dont le badge PRINCIPAL doit passer "En attente".
+// Ne se base JAMAIS sur la seule activité choisie pour le rappel détaillé
+// (repriseActiviteCible) en PayPal/virement : cette activité-là ne reçoit
+// qu'UN rappel visuel en plus, elle ne "couvre" pas les autres. Sans point
+// de collecte physique, la seule règle qui ne montre jamais à tort "Payé"
+// sur une activité réellement impayée est de traiter TOUTES les activités
+// actives hors solde comme en attente. Vécu deux fois sur Carine LELOIR le
+// 2026-09-14 : d'abord en ciblant la plus récente, puis en ciblant
+// uniquement l'activité choisie à la main dans le pop-up (Le Caire en bus)
+// — dans les deux cas l'autre activité (Safari quad) retombait à tort sur
+// "Payé - en espèces en €" alors que son coût n'est pas réglé. Mode
+// espèces/CB/EGP (point de collecte physique explicite) : comportement
+// inchangé, une seule activité renvoyée.
 export function repriseActivitesCibles(client: Client, reservations: Reservation[]): Reservation[] {
   if (!(Number(client.reprise_montant) > 0)) return [];
-  if (client.reprise_activite_ids && client.reprise_activite_ids.length > 0) {
-    const actives = reservationsActives(reservations);
-    return client.reprise_activite_ids
-      .map((id) => actives.find((r) => r.id === id))
-      .filter((r): r is Reservation => !!r);
-  }
   if (client.reprise_mode !== "PayPal" && client.reprise_mode !== "Virement bancaire") {
     const cible = repriseActiviteCible(client, reservations);
     return cible ? [cible] : [];

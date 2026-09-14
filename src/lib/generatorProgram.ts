@@ -221,6 +221,10 @@ export type Ligne = {
   catalogueItemId: string;
   nom: string;
   date: string;
+  // Date de fin, uniquement pour une activité sur plusieurs jours (croisière,
+  // Louxor/Le Caire 2 jours, Siwa...) — "" ou égale à `date` pour une
+  // activité d'un seul jour (rien de spécial à afficher).
+  dateFin?: string;
   prixParPersonne: number;
   nbPersonnes: number;
   remise: number;
@@ -342,20 +346,66 @@ export function repartirAgesEnfants(item: CatalogueItem, ages: number[]): Repart
 // activité par activité, juste débarrassé du calcul de date à la main.
 // Retourne "" si le séjour n'est pas connu ou si aucune date ne convient
 // (l'employée choisit alors elle-même).
+// `joursCandidats` porte déjà les seules dates éligibles (l'appelant y a
+// retiré le premier/dernier jour du séjour avant d'appeler — cf.
+// RedactionProgramView, ce sont presque toujours les vraies dates d'arrivée
+// et de départ du client, pas des jours d'excursion) ; reste une liste de
+// dates calendaires consécutives pour que dureeJours (croisière, Louxor 2
+// jours...) réserve un vrai bloc de jours qui se suivent, pas des dates
+// éparses.
 export function suggererDateLigne(
   item: CatalogueItem,
-  joursSejour: string[],
-  datesDejaUtilisees: Set<string>
-): string {
-  if (joursSejour.length === 0) return "";
+  joursCandidats: string[],
+  datesDejaUtilisees: Set<string>,
+  dureeJours: number = 1
+): { debut: string; fin: string } | null {
+  if (joursCandidats.length === 0 || dureeJours < 1) return null;
   const joursItem = normalizeJoursDisponibles(item.jours_disponibles);
   const contrainte = joursItem.length > 0 && joursItem.length < 7;
-  const candidat = joursSejour.find((d) => {
-    if (datesDejaUtilisees.has(d)) return false;
-    if (!contrainte) return true;
-    return joursItem.includes(WEEKDAY_FR[new Date(d + "T00:00:00").getDay()]);
-  });
-  return candidat || "";
+  for (let idx = 0; idx + dureeJours <= joursCandidats.length; idx++) {
+    // La contrainte de jour ("Lundi, Samedi"...) porte sur le jour de
+    // DÉPART uniquement — une croisière de 5 jours ne peut évidemment pas
+    // tomber un lundi ET un samedi à la fois pour chacun de ses 5 jours ;
+    // même règle que trouverDateLibre dans suggererProgramme.
+    if (contrainte && !joursItem.includes(WEEKDAY_FR[new Date(joursCandidats[idx] + "T00:00:00").getDay()])) {
+      continue;
+    }
+    let ok = true;
+    for (let k = 0; k < dureeJours; k++) {
+      const d = joursCandidats[idx + k];
+      if (datesDejaUtilisees.has(d)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return { debut: joursCandidats[idx], fin: joursCandidats[idx + dureeJours - 1] };
+  }
+  return null;
+}
+
+// Une activité "Séjour multi-jours" (croisière, circuit, Le Caire/Louxor
+// 2 jours, Siwa...) qui part déjà d'une autre ville que Hurghada — ou qui
+// est de toute façon prise en charge par son propre transfert dédié —
+// n'a jamais besoin de la petite taxe de transfert hôtel↔point de
+// rendez-vous côté Hurghada. Ne l'exclut jamais pour une excursion qui
+// part bien de Hurghada (ex. "Louxor 2 jours Montgolfière (aller-retour
+// Hurghada)"), où la taxe s'applique normalement.
+export function excluTaxeTransfertHurghada(item: CatalogueItem): boolean {
+  const nom = item.nom || "";
+  // Le transfert catalogue EST déjà le trajet facturé — jamais de taxe de
+  // pickup Hurghada en plus par-dessus.
+  if (item.categorie === "Transfert") return true;
+  if (/déjà sur place/i.test(nom)) return true;
+  if (/croisière/i.test(nom)) return true;
+  if ((item.tags || []).includes("Siwa")) return true;
+  if ((item.tags || []).includes("Circuits")) return true;
+  // "(depuis Louxor et transfert vers Hurghada)" : départ précis annoncé
+  // avant tout retour éventuel vers Hurghada — priorité sur le motif plus
+  // large ci-dessous qui capturerait sinon toute la fin de la parenthèse.
+  const departPuisRetour = nom.match(/\(depuis\s+(.+?)\s+et\s+transfert\s+vers/i);
+  const departSeul = nom.match(/\(depuis\s+([^)]+)\)/i);
+  const ville = departPuisRetour?.[1] || departSeul?.[1] || "";
+  return !!ville && !/hurghada/i.test(ville);
 }
 
 // Construit le message texte envoyé au client tel quel (copié-collé
@@ -450,7 +500,9 @@ export function buildRedactionText(
   let jourIndefiniCompteur = 0;
   sorted.forEach((l) => {
     parts.push("");
-    if (l.date) {
+    if (l.date && l.dateFin && l.dateFin !== l.date) {
+      parts.push(`📍Du ${fmtDDMonthAvecJour(l.date)} au ${fmtDDMonthAvecJour(l.dateFin)}`);
+    } else if (l.date) {
       parts.push(`📍${fmtDDMonthAvecJour(l.date)}`);
     } else {
       jourIndefiniCompteur += 1;

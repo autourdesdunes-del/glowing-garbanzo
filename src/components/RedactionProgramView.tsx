@@ -12,6 +12,7 @@ import {
   buildRedactionText,
   datesInRange,
   eurosVirgule,
+  excluTaxeTransfertHurghada,
   extractAges,
   fmtDDMonth,
   GroupeLigne,
@@ -20,6 +21,7 @@ import {
   ligneTotal,
   moisLabelFromDates,
   nextLigneId,
+  parseDureeJours,
   repartirAgesEnfants,
   RepartitionLigne,
   suggererDateLigne,
@@ -170,9 +172,18 @@ export default function RedactionProgramView({
   useEffect(() => {
     if (taxeTransfertMontant <= 0) return;
     setLignes((prev) =>
-      prev.map((l) => (!l.estTaxeSeule && l.taxeTransfert === 0 ? { ...l, taxeTransfert: taxeTransfertMontant } : l))
+      prev.map((l) => {
+        if (l.estTaxeSeule || l.taxeTransfert !== 0) return l;
+        const item = catalogue.find((a) => a.id === l.catalogueItemId);
+        // Une activité qui part de Louxor/Le Caire/Assouan/Siwa/Abu Simbel
+        // (ou un transfert catalogue à part) reste volontairement à 0€ —
+        // la taxe hôtel↔point de rendez-vous côté Hurghada ne la concerne
+        // jamais, cf. excluTaxeTransfertHurghada.
+        if (item && excluTaxeTransfertHurghada(item)) return l;
+        return { ...l, taxeTransfert: taxeTransfertMontant };
+      })
     );
-  }, [taxeTransfertMontant]);
+  }, [taxeTransfertMontant, catalogue]);
 
   const selectClient = (c: Client) => {
     setClientId(c.id);
@@ -255,17 +266,41 @@ export default function RedactionProgramView({
   };
 
   const addLigne = (item: CatalogueItem) => {
-    const datesDejaUtilisees = new Set(lignes.map((l) => l.date).filter(Boolean));
-    const dateSuggeree = suggererDateLigne(item, joursSejour, datesDejaUtilisees);
-    if (joursSejour.length > 0 && !dateSuggeree) {
+    // Toutes les dates déjà couvertes par une autre ligne, y compris les
+    // jours intermédiaires d'une activité sur plusieurs jours (croisière,
+    // Louxor 2 jours...) — sinon rien n'empêchait de proposer une seconde
+    // activité en plein milieu d'une croisière déjà en cours.
+    const datesDejaUtilisees = new Set<string>();
+    lignes.forEach((l) => {
+      if (!l.date) return;
+      if (l.dateFin && l.dateFin !== l.date) {
+        datesInRange(l.date, l.dateFin).forEach((d) => datesDejaUtilisees.add(d));
+      } else {
+        datesDejaUtilisees.add(l.date);
+      }
+    });
+    // Le premier et le dernier jour du séjour sont presque toujours les
+    // vraies dates d'arrivée/de départ du client (vol, transfert...), pas
+    // des jours disponibles pour une excursion — on ne les propose jamais
+    // par défaut, même si l'employée peut toujours les choisir à la main.
+    const joursCandidats = joursSejour.length > 2 ? joursSejour.slice(1, -1) : joursSejour;
+    const dureeJours = item.categorie === "Séjour multi-jours" ? parseDureeJours(item.nom) || 1 : 1;
+    const suggestion = suggererDateLigne(item, joursCandidats, datesDejaUtilisees, dureeJours);
+    if (joursSejour.length > 0 && !suggestion) {
       const joursDispo = normalizeJoursDisponibles(item.jours_disponibles);
       if (joursDispo.length > 0 && joursDispo.length < 7) {
         toast(`Aucun jour du séjour ne tombe un jour de circulation de "${item.nom}" (${joursDispo.join(", ")}) — date à choisir à la main.`);
+      } else if (dureeJours > 1) {
+        toast(`Pas assez de jours consécutifs libres dans le séjour pour "${item.nom}" (${dureeJours} jours) — dates à choisir à la main.`);
       }
     }
     const repartition = construireRepartition(item);
     const groupe = construireGroupe(item);
     const creneauRequis = (item.champs_requis_liste || []).includes(CRENEAU_REQUIS);
+    // Certaines excursions ne partent pas de Hurghada (déjà sur place à
+    // Louxor/Le Caire, croisières, Siwa...) — jamais la taxe hôtel↔point de
+    // rendez-vous Hurghada dans ce cas, quelle que soit la zone de l'hôtel.
+    const taxeApplicable = excluTaxeTransfertHurghada(item) ? 0 : taxeTransfertMontant;
     const id = nextLigneId();
     setLignesOuvertes((prev) => new Set(prev).add(id));
     setLignes((prev) => [
@@ -274,12 +309,13 @@ export default function RedactionProgramView({
         id,
         catalogueItemId: item.id,
         nom: item.nom,
-        date: dateSuggeree,
+        date: suggestion?.debut || "",
+        ...(dureeJours > 1 ? { dateFin: suggestion?.fin || "" } : {}),
         prixParPersonne: item.pu_adulte || 0,
         nbPersonnes: nbPersonnes || 2,
         remise: 0,
         remiseLabel: "",
-        taxeTransfert: taxeTransfertMontant,
+        taxeTransfert: taxeApplicable,
         options: [],
         repartition,
         groupe,
@@ -516,6 +552,7 @@ export default function RedactionProgramView({
           creneau: l.creneau || "",
           photo_path: item?.photo_path || "",
           date_debut: l.date || null,
+          date_fin: l.dateFin && l.dateFin !== l.date ? l.dateFin : null,
           transfert_inclus: !(l.taxeTransfert > 0),
           transfert_montant: l.taxeTransfert || 0,
           zone_transfert: villeClient,
@@ -724,7 +761,11 @@ export default function RedactionProgramView({
                       {l.nom || "Activité"}
                     </span>
                     {l.date && (
-                      <span className="shrink-0 text-xs text-neutral-400">{fmtDDMonth(l.date)}</span>
+                      <span className="shrink-0 text-xs text-neutral-400">
+                        {l.dateFin && l.dateFin !== l.date
+                          ? `${fmtDDMonth(l.date)} → ${fmtDDMonth(l.dateFin)}`
+                          : fmtDDMonth(l.date)}
+                      </span>
                     )}
                     <span className="shrink-0 font-amounts text-xs font-medium text-[#0F5C56]">
                       {eurosVirgule(ligneTotal(l))}
@@ -770,6 +811,17 @@ export default function RedactionProgramView({
                         </span>
                       )}
                     </label>
+                    {l.dateFin !== undefined && (
+                      <label className="text-[11px] text-neutral-500">
+                        Date de fin
+                        <input
+                          type="date"
+                          value={l.dateFin}
+                          onChange={(e) => updateLigne(l.id, { dateFin: e.target.value })}
+                          className="input mt-0.5 text-sm"
+                        />
+                      </label>
+                    )}
                     {l.creneau !== undefined && (
                       <label className="text-[11px] text-neutral-500">
                         Créneau *

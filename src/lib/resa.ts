@@ -418,7 +418,20 @@ export function repriseActiviteCible(client: Client, reservations: Reservation[]
   if (client.reprise_mode !== "PayPal" && client.reprise_mode !== "Virement bancaire" && client.reprise_activite_id) {
     return reservations.find((r) => r.id === client.reprise_activite_id) || null;
   }
-  return prochaineActiviteActive(reservations);
+  // PayPal/virement : pas d'activité de rattachement précise choisie à la
+  // main — on cible la plus récemment AJOUTÉE (jamais celle qui porte déjà
+  // le solde figé, solde_activite_id, elle est réglée par définition),
+  // plutôt que la plus proche par date de séjour. Sinon une toute nouvelle
+  // activité ajoutée par-dessus une reprise déjà en cours (ce qui vient
+  // justement de l'agrandir, cf. confirmerReprise) peut tomber derrière une
+  // activité plus ancienne mais plus proche dans le calendrier, et
+  // s'afficher à tort "Payé" alors que sa part de la reprise n'est pas
+  // collectée — vécu sur Carine LELOIR le 2026-09-14 (badge "Payé en
+  // espèces en €" sur Safari quad juste après l'avoir ajoutée, alors que
+  // "Le Caire en bus", ajoutée avant elle mais plus tôt dans le séjour,
+  // gardait le badge "En attente - PayPal").
+  const actives = reservationsActives(reservations).filter((r) => r.id !== client.solde_activite_id);
+  return [...actives].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0] || null;
 }
 
 // Activité active la plus proche à venir (aujourd'hui compris), sinon la

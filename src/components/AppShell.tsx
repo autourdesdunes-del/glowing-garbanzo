@@ -3154,6 +3154,13 @@ function AppShellInner({
                 <GeneratorView catalogue={catalogue} clients={clients} />
               )}
             </>
+          ) : effectiveIsManager ? (
+            // Sylvie (manager) rédige les programmes elle-même : elle accède à
+            // la Rédaction, mais pas à la Génération auto, qui propose des
+            // activités que personne n'a choisies — un programme envoyé au
+            // client ne doit contenir que ce qui a été décidé. Pas de barre de
+            // sous-onglets ici : il n'y a qu'un outil à lui montrer.
+            <RedactionProgramView catalogue={catalogue} clients={clients} catalogueOptions={catalogueOptions} />
           ) : (
             <OutilEnConstruction />
           )}

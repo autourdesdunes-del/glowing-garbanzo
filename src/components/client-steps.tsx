@@ -1197,6 +1197,12 @@ export function PaiementsStep({
   // Repliable pour désencombrer une fois le type de paiement réglé — le
   // Résumé des paiements, lui, reste toujours visible (voir plus bas).
   const [repriseDateModal, setRepriseDateModal] = useState<string | null>(null);
+  // Corrige le montant/mode d'une reprise déjà en attente — sans repasser
+  // par "Annuler" (efface tout, y compris le lien à l'activité) ni
+  // "Marquer réglé" (clôture comme payé) : juste réviser la prévision, ex.
+  // le client dit finalement PayPal au lieu d'espèces (demande de Mélanie,
+  // 14/09).
+  const [repriseEditModal, setRepriseEditModal] = useState<{ montant: string; mode: string } | null>(null);
   const [typeDePaiementOpen, setTypeDePaiementOpen] = useState(true);
   const typeDePaiementAutoReplieRef = useRef(false);
   const [etapeMontant, setEtapeMontant] = useState("");
@@ -2112,18 +2118,7 @@ export function PaiementsStep({
                     <div className="flex flex-col items-end gap-0.5 text-xs text-neutral-500">
                       <span className="flex items-center gap-2">
                         {ligne.when}
-                        {paypalMatch && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setPaypalDetailOuvert((id) => (id === ligne.id ? null : ligne.id))
-                            }
-                            title="Voir qui a envoyé ce paiement PayPal"
-                            className="text-[#0F5C56] underline decoration-dotted hover:no-underline"
-                          >
-                            à {formatHeurePaypal(paypalMatch.paypal_recu_le)}
-                          </button>
-                        )}
+                        {paypalMatch && <span>à {formatHeurePaypal(paypalMatch.paypal_recu_le)}</span>}
                         {ligne.etapeId && (
                           <button
                             onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
@@ -2246,6 +2241,17 @@ export function PaiementsStep({
               </span>
               <div className="flex shrink-0 gap-2">
                 <button
+                  onClick={() =>
+                    setRepriseEditModal({
+                      montant: String(client.reprise_montant),
+                      mode: client.reprise_mode || MODES_PAIEMENT[0] || "Espèces EUR",
+                    })
+                  }
+                  className="rounded-md bg-white px-2 py-1 font-medium text-red-700 underline hover:no-underline"
+                >
+                  Modifier
+                </button>
+                <button
                   onClick={() => setRepriseDateModal(activiteLiee?.date_debut || todayStr())}
                   className="rounded-md bg-white px-2 py-1 font-medium text-red-700 underline hover:no-underline"
                 >
@@ -2261,6 +2267,65 @@ export function PaiementsStep({
             </div>
           );
         })()}
+
+      {repriseEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+            <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
+              Modifier ce règlement prévu
+            </h2>
+            <p className="mb-4 text-sm text-neutral-600">
+              Change juste le montant et/ou le mode — l&apos;activité liée reste la même.
+            </p>
+            <div className="mb-3">
+              <label className="mb-1 block text-xs font-medium text-neutral-500">Montant</label>
+              <input
+                type="number"
+                step="0.01"
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                value={repriseEditModal.montant}
+                onChange={(e) => setRepriseEditModal({ ...repriseEditModal, montant: e.target.value })}
+              />
+            </div>
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-medium text-neutral-500">Mode de règlement</label>
+              <select
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                value={repriseEditModal.mode}
+                onChange={(e) => setRepriseEditModal({ ...repriseEditModal, mode: e.target.value })}
+              >
+                {MODES_PAIEMENT.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  const montant = Number(repriseEditModal.montant) || 0;
+                  if (montant <= 0) {
+                    toast("Renseigne un montant avant de valider.");
+                    return;
+                  }
+                  onChange({ reprise_montant: montant, reprise_mode: repriseEditModal.mode });
+                  setRepriseEditModal(null);
+                }}
+                className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Enregistrer
+              </button>
+              <button
+                onClick={() => setRepriseEditModal(null)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {repriseDateModal !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">

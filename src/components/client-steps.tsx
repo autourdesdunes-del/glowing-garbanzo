@@ -17,6 +17,7 @@ import {
   Incident,
   PaiementEtape,
   Pack,
+  PaypalPaiement,
   Remboursement,
   Reservation,
   ReservationOption,
@@ -1138,6 +1139,7 @@ export function PaiementsStep({
   isDirection = false,
   onAcompteAlerte,
   onAdjustAvoir,
+  paypalPaiements = [],
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -1165,6 +1167,10 @@ export function PaiementsStep({
     nomActivite: string,
     reservationId: string | null
   ) => Promise<void>;
+  // Paiements PayPal rattachés à ce client — sert à retrouver, pour une
+  // ligne du "Résumé des paiements" réglée en PayPal, l'heure exacte de
+  // réception et l'identité du payeur (voir matchPaypalPaiement plus bas).
+  paypalPaiements?: PaypalPaiement[];
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -1184,6 +1190,10 @@ export function PaiementsStep({
   const [billetHossamReminder, setBilletHossamReminder] = useState<Reservation | null>(null);
   const [copiedHossamReminder, setCopiedHossamReminder] = useState(false);
   const [addingEtape, setAddingEtape] = useState(false);
+  // Ligne du "Résumé des paiements" dont on affiche le détail du payeur
+  // PayPal (voir matchPaypalPaiement plus bas) — un seul dépliage à la
+  // fois, refermé en recliquant la même ligne.
+  const [paypalDetailOuvert, setPaypalDetailOuvert] = useState<string | null>(null);
   // Repliable pour désencombrer une fois le type de paiement réglé — le
   // Résumé des paiements, lui, reste toujours visible (voir plus bas).
   const [repriseDateModal, setRepriseDateModal] = useState<string | null>(null);
@@ -1471,6 +1481,7 @@ export function PaiementsStep({
     etapeId?: string;
     note?: string;
     activite?: string;
+    mode?: string;
   };
   const paiementsChronologiques: PaiementLigne[] = [];
   if (client.acompte_paye) {
@@ -1482,6 +1493,7 @@ export function PaiementsStep({
       when: fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts) || "—",
       sortKey: client.acompte_date_encaissement || "",
       note: "Acompte prévu pour valider la réservation",
+      mode: client.acompte_mode,
     });
   }
   etapesTriees.forEach((e) => {
@@ -1504,6 +1516,7 @@ export function PaiementsStep({
       etapeId: e.id,
       note: e.note,
       activite: e.activite_nom,
+      mode: e.mode,
     });
   });
   // Si l'acompte + les étapes couvraient déjà tout le séjour au moment où le
@@ -1539,9 +1552,31 @@ export function PaiementsStep({
               client.solde_entre_proches_oublie ? "oubli « Entre proches »" : "montant ajusté"
             })`
           : ""),
+      mode: client.solde_mode,
     });
   }
   paiementsChronologiques.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  // Retrouve, pour une ligne réglée en PayPal, le paiement PayPal rattaché
+  // correspondant (payeur_nom/payeur_email/heure exacte de réception,
+  // déjà connus dans paypal_paiements depuis le rattachement mais jamais
+  // affichés une fois absorbés dans acompte_*/solde_*/paiements_etapes —
+  // demandé par Mélanie le 2026-09-14). Apparié par montant net (fiable :
+  // les frais PayPal rendent ce montant quasi unique) puis, s'il y a
+  // ambiguïté, par la date la plus proche de celle affichée sur la ligne.
+  const matchPaypalPaiement = (ligne: PaiementLigne) => {
+    if (ligne.mode !== "PayPal") return null;
+    const candidats = paypalPaiements.filter((p) => Math.abs((p.montant_net || 0) - ligne.montant) < 0.01);
+    if (candidats.length === 0) return null;
+    if (candidats.length === 1) return candidats[0];
+    const ancre = ligne.sortKey ? Date.parse(`${ligne.sortKey}T12:00:00`) : Date.now();
+    return [...candidats].sort(
+      (a, b) => Math.abs(Date.parse(a.paypal_recu_le) - ancre) - Math.abs(Date.parse(b.paypal_recu_le) - ancre)
+    )[0];
+  };
+  const formatHeurePaypal = (ts: string) => {
+    const dt = new Date(ts);
+    return `${String(dt.getHours()).padStart(2, "0")}h${String(dt.getMinutes()).padStart(2, "0")}`;
+  };
   // Replie automatiquement "Type de paiement" dès que le résumé compte 2
   // lignes ou plus, pour désencombrer — une seule fois (si l'employée le
   // rouvre ensuite, on ne le referme plus tout seul dans son dos).
@@ -2059,37 +2094,59 @@ export function PaiementsStep({
         <div className="rounded-md border border-neutral-200 bg-white p-3">
           <h3 className="mb-1.5 text-sm font-semibold text-[#171717]">Résumé des paiements</h3>
           <div className="space-y-1">
-            {paiementsChronologiques.map((ligne) => (
-              <div key={ligne.id} className="rounded-md bg-[#fafafa] px-2.5 py-1.5 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[#171717]">
-                    {ligne.label}
-                    {ligne.montant !== 0 ? ` — ${euros(ligne.montant)} €` : ""}
-                    {ligne.montantEgp ? (
-                      <span className="text-neutral-400"> (≈ {euros(ligne.montantEgp)} EGP)</span>
-                    ) : (
-                      ""
-                    )}
-                  </span>
-                  <div className="flex flex-col items-end gap-0.5 text-xs text-neutral-500">
-                    <span className="flex items-center gap-2">
-                      {ligne.when}
-                      {ligne.etapeId && (
-                        <button
-                          onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
-                          title="Retirer cette étape"
-                          className="text-red-500 hover:text-red-600"
-                        >
-                          🗑
-                        </button>
+            {paiementsChronologiques.map((ligne) => {
+              const paypalMatch = matchPaypalPaiement(ligne);
+              const detailOuvert = paypalMatch && paypalDetailOuvert === ligne.id;
+              return (
+                <div key={ligne.id} className="rounded-md bg-[#fafafa] px-2.5 py-1.5 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[#171717]">
+                      {ligne.label}
+                      {ligne.montant !== 0 ? ` — ${euros(ligne.montant)} €` : ""}
+                      {ligne.montantEgp ? (
+                        <span className="text-neutral-400"> (≈ {euros(ligne.montantEgp)} EGP)</span>
+                      ) : (
+                        ""
                       )}
                     </span>
-                    {ligne.activite && <span>({ligne.activite})</span>}
+                    <div className="flex flex-col items-end gap-0.5 text-xs text-neutral-500">
+                      <span className="flex items-center gap-2">
+                        {ligne.when}
+                        {paypalMatch && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPaypalDetailOuvert((id) => (id === ligne.id ? null : ligne.id))
+                            }
+                            title="Voir qui a envoyé ce paiement PayPal"
+                            className="text-[#0F5C56] underline decoration-dotted hover:no-underline"
+                          >
+                            à {formatHeurePaypal(paypalMatch.paypal_recu_le)}
+                          </button>
+                        )}
+                        {ligne.etapeId && (
+                          <button
+                            onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
+                            title="Retirer cette étape"
+                            className="text-red-500 hover:text-red-600"
+                          >
+                            🗑
+                          </button>
+                        )}
+                      </span>
+                      {ligne.activite && <span>({ligne.activite})</span>}
+                    </div>
                   </div>
+                  {ligne.note && <div className="mt-0.5 text-xs italic text-[#8B4531]">{ligne.note}</div>}
+                  {detailOuvert && paypalMatch && (
+                    <div className="mt-1 rounded-md bg-[#0F5C56]/10 px-2 py-1 text-xs text-[#0F5C56]">
+                      Envoyé par {paypalMatch.payeur_nom || "un payeur non identifié"}
+                      {paypalMatch.payeur_email ? ` — ${paypalMatch.payeur_email}` : ""}
+                    </div>
+                  )}
                 </div>
-                {ligne.note && <div className="mt-0.5 text-xs italic text-[#8B4531]">{ligne.note}</div>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

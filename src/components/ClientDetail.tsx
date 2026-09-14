@@ -16,6 +16,7 @@ import {
   Incident,
   PaiementEtape,
   Pack,
+  PaypalPaiement,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -470,6 +471,25 @@ export default function ClientDetail({
         .eq("client_id", client.id)
         .order("created_at", { ascending: true });
       setPaiementsEtapes((data as PaiementEtape[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  // Paiements PayPal rattachés à ce client (acompte, étape ou solde) — sert
+  // uniquement à retrouver l'heure exacte de réception et l'identité du
+  // payeur (payeur_nom/payeur_email) pour le "Résumé des paiements" : ces
+  // infos existent déjà dans paypal_paiements depuis le rattachement, mais
+  // n'étaient affichées nulle part une fois le paiement absorbé dans
+  // acompte_*/solde_*/paiements_etapes (demandé par Mélanie le 2026-09-14).
+  const [paypalPaiementsClient, setPaypalPaiementsClient] = useState<PaypalPaiement[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("paypal_paiements")
+        .select("*")
+        .eq("rattache_client_id", client.id)
+        .order("paypal_recu_le", { ascending: true });
+      setPaypalPaiementsClient((data as PaypalPaiement[]) || []);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
@@ -2018,6 +2038,7 @@ export default function ClientDetail({
               isDirection={canSeeMargins}
               onAcompteAlerte={handleAcompteAlerte}
               onAdjustAvoir={adjustAvoirOnReservation}
+              paypalPaiements={paypalPaiementsClient}
             />
           </div>
         </div>

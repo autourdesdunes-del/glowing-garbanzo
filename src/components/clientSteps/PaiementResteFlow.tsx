@@ -34,17 +34,34 @@ export function EncaisseButton({
   // reste le même, seul le montant réellement reçu diffère de celui prévu
   // (ex. frais PayPal déduits) — sans cette 3e option, rien ne permettait
   // de le signaler pour le solde, contrairement à l'acompte qui l'a déjà.
+  // Utilisée aussi une fois payé (voir ci-dessous) pour CORRIGER le montant
+  // après coup, sans avoir à décocher "Encaissé" puis tout refaire.
   onMontantDifferent?: () => void;
   montantDifferentLabel?: string;
 }) {
   if (paye) {
     return (
-      <button
-        onClick={onAnnuler}
-        className="whitespace-nowrap rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
-      >
-        Encaissé ✅
-      </button>
+      <div className="flex flex-col items-end gap-1">
+        <button
+          onClick={onAnnuler}
+          className="whitespace-nowrap rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+        >
+          Encaissé ✅
+        </button>
+        {onMontantDifferent && (
+          // Corriger après coup (ex. le client a finalement payé moins que
+          // prévu ce jour-là) sans devoir d'abord annuler "Encaissé" puis
+          // tout refaire — vécu sur Séverine SORANZO le 2026-09-14 : 650€
+          // réellement reçus au lieu des 700€ attendus, découvert après
+          // avoir déjà marqué le paiement encaissé.
+          <button
+            onClick={onMontantDifferent}
+            className="whitespace-nowrap text-[10px] font-medium text-neutral-500 underline hover:text-neutral-700"
+          >
+            Modifier le montant
+          </button>
+        )}
+      </div>
     );
   }
   return (
@@ -732,6 +749,27 @@ export function PaiementResteFlow({
                       estMixte
                         ? `${euros(client.solde_mixte_eur)} € + ${client.solde_mixte_egp.toLocaleString("fr-FR")} EGP encaissés ici`
                         : `${euros(montantACouvrir)} € encaissés ici`
+                    }
+                    // Le mixte a déjà "Modifier la répartition" (€+EGP)
+                    // au-dessus — ce raccourci ne concerne que le montant
+                    // simple en €/EGP, jamais la répartition mixte.
+                    onMontantDifferent={
+                      estMixte
+                        ? undefined
+                        : () =>
+                            setEncaisseDateModal({
+                              mode: soldeMode,
+                              date: client.solde_paye ? client.solde_date || todayStr() : chosenResa.date_debut || todayStr(),
+                              time: "",
+                              step: "choix",
+                              montant: String(
+                                client.solde_paye && client.solde_montant_recu > 0
+                                  ? client.solde_montant_recu
+                                  : montantACouvrir
+                              ),
+                              montantDifferent: true,
+                              entreProchesOublie: client.solde_entre_proches_oublie,
+                            })
                     }
                   />
                   {isDirection && (

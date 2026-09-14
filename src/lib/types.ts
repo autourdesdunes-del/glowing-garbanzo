@@ -529,6 +529,12 @@ export type Client = {
   reprise_montant: number;
   reprise_mode: string;
   reprise_activite_id: string | null;
+  // Chaque activité explicitement reliée à la reprise en cours (une par
+  // pop-up confirmé, voir confirmerReprise dans ClientDetail.tsx) — permet
+  // d'afficher "En attente" sur TOUTES les activités concernées, pas
+  // seulement reprise_activite_id (la dernière), quand plusieurs activités
+  // composent le même montant en attente (voir repriseActivitesCibles).
+  reprise_activite_ids: string[];
   // Répartition réelle quand reprise_mode = "Modes différents" (paiement
   // mixte €+EGP) — même principe que solde_mixte_eur/solde_mixte_egp,
   // reprise_montant reste le total dû en € indépendamment de ces deux
@@ -689,6 +695,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   reprise_montant: 0,
   reprise_mode: "",
   reprise_activite_id: null,
+  reprise_activite_ids: [],
   reprise_mixte_eur: 0,
   reprise_mixte_egp: 0,
   egp_taux: 0,

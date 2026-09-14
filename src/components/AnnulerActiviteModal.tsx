@@ -151,7 +151,23 @@ export default function AnnulerActiviteModal({
   // avec un paiement "prévu" sur une activité qui n'existe plus. Toujours
   // demandé explicitement plutôt que déplacé/effacé en silence.
   const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
-  const repriseIci = !soldeIci && client.reprise_activite_id === r.id && Number(client.reprise_montant) > 0;
+  // Une reprise partagée entre plusieurs activités (voir
+  // reprise_activite_ids, migration 0130) ne propose ce choix que si CETTE
+  // activité est la SEULE encore rattachée — sinon reglementIci.montant (le
+  // total de la reprise) ne correspond pas qu'à celle qu'on annule, et
+  // "Annuler ce règlement" effacerait à tort l'argent encore dû par les
+  // autres activités restées en attente.
+  const repriseIdsActuels =
+    Array.isArray(client.reprise_activite_ids) && client.reprise_activite_ids.length > 0
+      ? client.reprise_activite_ids
+      : client.reprise_activite_id
+        ? [client.reprise_activite_id]
+        : [];
+  const repriseIci =
+    !soldeIci &&
+    repriseIdsActuels.length === 1 &&
+    repriseIdsActuels[0] === r.id &&
+    Number(client.reprise_montant) > 0;
   // Un RDV de paiement planifié pour tout le séjour (pas rattaché à une
   // activité précise, voir client.solde_activite_id ci-dessus) ne remonte
   // jamais dans reglementIci — mais s'il ne reste plus aucune autre
@@ -295,6 +311,7 @@ export default function AnnulerActiviteModal({
           : {
               reprise_montant: 0,
               reprise_activite_id: null,
+              reprise_activite_ids: [],
               reprise_mode: "",
               reprise_mixte_eur: 0,
               reprise_mixte_egp: 0,
@@ -317,6 +334,15 @@ export default function AnnulerActiviteModal({
             // exacte.
             {
               reprise_activite_id: reglementCibleId,
+              // Remplace r.id par la nouvelle cible dans la liste (au lieu
+              // de l'écraser) : une reprise partagée entre plusieurs
+              // activités (voir reprise_activite_ids, migration 0130) ne
+              // doit perdre que celle qu'on déplace, pas les autres déjà
+              // en attente.
+              reprise_activite_ids: (Array.isArray(client.reprise_activite_ids)
+                ? client.reprise_activite_ids
+                : []
+              ).map((id) => (id === r.id ? reglementCibleId : id)),
               reprise_montant: reglementMontant,
               reprise_mixte_eur: 0,
               reprise_mixte_egp: 0,
@@ -328,6 +354,13 @@ export default function AnnulerActiviteModal({
           ? { solde_activite_id: null, solde_mode: reglementModeAutre }
           : {
               reprise_activite_id: null,
+              // Cette activité annulée sort de la liste — les autres
+              // activités éventuellement couvertes par la même reprise
+              // restent, elles, en attente (voir reprise_activite_ids).
+              reprise_activite_ids: (Array.isArray(client.reprise_activite_ids)
+                ? client.reprise_activite_ids
+                : []
+              ).filter((id) => id !== r.id),
               reprise_mode: reglementModeAutre,
               reprise_montant: reglementMontant,
               // reglementModeAutre vient d'un sélecteur MODES_PAIEMENT

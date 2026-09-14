@@ -212,6 +212,7 @@ export default function ItineraryView({
       patch.reprise_montant = 0;
       patch.reprise_mode = "";
       patch.reprise_activite_id = null;
+      patch.reprise_activite_ids = [];
     }
     onUpdateClient(patch);
   };

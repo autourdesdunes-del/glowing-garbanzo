@@ -1375,6 +1375,7 @@ export function PaiementsStep({
       reprise_montant: 0,
       reprise_mode: "",
       reprise_activite_id: null,
+      reprise_activite_ids: [],
       reprise_mixte_eur: 0,
       reprise_mixte_egp: 0,
       // Reclôture le séjour au total actuel — sert de nouvelle base pour
@@ -1410,6 +1411,7 @@ export function PaiementsStep({
       reprise_montant: 0,
       reprise_mode: "",
       reprise_activite_id: null,
+      reprise_activite_ids: [],
       reprise_mixte_eur: 0,
       reprise_mixte_egp: 0,
     });
@@ -2683,6 +2685,7 @@ export function PaiementsStep({
                       reprise_montant: 0,
                       reprise_mode: "",
                       reprise_activite_id: null,
+                      reprise_activite_ids: [],
                       reprise_mixte_eur: 0,
                       reprise_mixte_egp: 0,
                     });

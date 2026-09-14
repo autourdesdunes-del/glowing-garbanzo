@@ -435,20 +435,29 @@ export function repriseActiviteCible(client: Client, reservations: Reservation[]
 }
 
 // Ensemble des activités dont le badge principal doit refléter la reprise en
-// attente — repriseActiviteCible() ne renvoie QU'UNE seule activité (le
-// rappel détaillé "⚠️ montant mode" à côté du titre, voir
-// acompteWaitingWarning, ne doit apparaître qu'une fois), mais en PayPal/
-// virement plusieurs activités ajoutées après le solde figé peuvent
-// composer ce même montant : les afficher TOUTES en "En attente" est plus
-// juste que d'en laisser une repasser "Payé" par défaut. Vécu sur Carine
-// LELOIR le 2026-09-14 : reprise PayPal de 180€ = Le Caire en bus (130€) +
-// Safari quad (50€) ; ne cibler que la plus récente laissait l'autre
-// afficher "Payé - en espèces en €" à tort, alors qu'aucune des deux n'est
-// réglée. Mode espèces/CB/EGP (ou virement avec activité choisie à la
-// main) : un seul point de collecte désigné, comme pour le solde —
-// comportement inchangé, une seule activité renvoyée.
+// attente. reprise_activite_ids (voir migration 0130) est rempli
+// explicitement au fil des pop-up de reprise (une activité choisie à la main
+// à chaque fois, voir confirmerReprise dans ClientDetail.tsx) — c'est la
+// source de vérité dès qu'elle est renseignée, plus fiable qu'une devinette
+// après coup. Pour les dossiers créés avant cette colonne (tableau vide mais
+// reprise_montant > 0), on retombe sur l'ancienne heuristique : repriseActiviteCible()
+// ne renvoie QU'UNE seule activité (le rappel détaillé "⚠️ montant mode" à
+// côté du titre, voir acompteWaitingWarning, ne doit apparaître qu'une fois),
+// mais en PayPal/virement plusieurs activités ajoutées après le solde figé
+// peuvent composer ce même montant : les afficher TOUTES en "En attente" est
+// plus juste que d'en laisser une repasser "Payé" par défaut. Vécu sur
+// Carine LELOIR le 2026-09-14 : reprise PayPal de 180€ = Le Caire en bus
+// (130€) + Safari quad (50€) ; ne cibler que la plus récente laissait
+// l'autre afficher "Payé - en espèces en €" à tort, alors qu'aucune des deux
+// n'est réglée.
 export function repriseActivitesCibles(client: Client, reservations: Reservation[]): Reservation[] {
   if (!(Number(client.reprise_montant) > 0)) return [];
+  if (client.reprise_activite_ids && client.reprise_activite_ids.length > 0) {
+    const actives = reservationsActives(reservations);
+    return client.reprise_activite_ids
+      .map((id) => actives.find((r) => r.id === id))
+      .filter((r): r is Reservation => !!r);
+  }
   if (client.reprise_mode !== "PayPal" && client.reprise_mode !== "Virement bancaire") {
     const cible = repriseActiviteCible(client, reservations);
     return cible ? [cible] : [];

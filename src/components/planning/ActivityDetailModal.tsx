@@ -449,6 +449,7 @@ export function ActivityDetailModal({
                     patch.reprise_montant = 0;
                     patch.reprise_mode = "";
                     patch.reprise_activite_id = null;
+                    patch.reprise_activite_ids = [];
                   }
                   setSoldeOverride((prev) => ({ ...prev, ...patch }));
                   await supabase.from("clients").update(patch).eq("id", client.id);

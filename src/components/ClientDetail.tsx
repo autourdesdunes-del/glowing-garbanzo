@@ -1086,7 +1086,20 @@ export default function ClientDetail({
   const deleteReservation = async (id: string) => {
     const r = reservations.find((rr) => rr.id === id);
     const soldeIci = client.solde_activite_id === id && !client.solde_paye;
-    const repriseIci = !soldeIci && client.reprise_activite_id === id && Number(client.reprise_montant) > 0;
+    // Ne propose ce choix que si "id" est la SEULE activité encore rattachée
+    // à la reprise (voir reprise_activite_ids, migration 0130) — sinon
+    // montant (le total de la reprise) ne correspond pas qu'à celle-ci, et
+    // "annuler" effacerait à tort l'argent encore dû par les autres
+    // activités restées en attente. Même garde-fou que repriseIci dans
+    // AnnulerActiviteModal.
+    const repriseIdsActuels =
+      Array.isArray(client.reprise_activite_ids) && client.reprise_activite_ids.length > 0
+        ? client.reprise_activite_ids
+        : client.reprise_activite_id
+          ? [client.reprise_activite_id]
+          : [];
+    const repriseIci =
+      !soldeIci && repriseIdsActuels.length === 1 && repriseIdsActuels[0] === id && Number(client.reprise_montant) > 0;
     if (soldeIci || repriseIci) {
       const montant = soldeIci
         ? soldeRestantSejour(
@@ -1157,6 +1170,7 @@ export default function ClientDetail({
           : {
               reprise_montant: 0,
               reprise_activite_id: null,
+              reprise_activite_ids: [],
               reprise_mode: "",
               reprise_mixte_eur: 0,
               reprise_mixte_egp: 0,
@@ -1171,6 +1185,7 @@ export default function ClientDetail({
             // retombe donc toujours sur un mode simple, jamais mixte.
             {
               reprise_activite_id: m.cibleId,
+              reprise_activite_ids: [m.cibleId],
               reprise_montant: montant,
               reprise_mode: m.mode,
               reprise_mixte_eur: 0,
@@ -1380,19 +1395,19 @@ export default function ClientDetail({
     const derniereActivite = [...reservationsActives(reservations)].sort((a, b) =>
       (a.created_at || "").localeCompare(b.created_at || "")
     ).pop();
-    // Une reprise déjà en attente a déjà un mode et (parfois) une activité
-    // de rattachement choisis — les reproposer par défaut plutôt que de
-    // repartir de zéro à chaque nouvelle activité, sinon rien n'indique
-    // qu'on peut simplement continuer sur le même PayPal/la même activité
-    // déjà prévus (demandé par Mélanie le 2026-09-14). Toujours modifiable
-    // avant de valider si cette activité-ci doit être réglée autrement.
+    // Une reprise déjà en attente a déjà un mode choisi — le reproposer par
+    // défaut plutôt que de repartir de zéro à chaque nouvelle activité,
+    // sinon rien n'indique qu'on peut simplement continuer sur le même
+    // PayPal déjà prévu (demandé par Mélanie le 2026-09-14). L'activité, en
+    // revanche, est TOUJOURS celle qui vient d'être ajoutée par défaut —
+    // c'est elle qui déclenche ce pop-up précis, jamais l'ancienne cible
+    // d'une reprise précédente (chaque activité doit pouvoir être reliée
+    // explicitement, voir reprise_activite_ids).
     const repriseExistante = Number(client.reprise_montant) > 0;
-    const activiteRepriseExistanteValide =
-      repriseExistante && reservationsActives(reservations).some((r) => r.id === client.reprise_activite_id);
     setRepriseModal({
       montant: String(diff),
       mode: repriseExistante ? client.reprise_mode || MODES_PAIEMENT[0] || "Espèces EUR" : MODES_PAIEMENT[0] || "Espèces EUR",
-      activiteId: activiteRepriseExistanteValide ? client.reprise_activite_id || "" : derniereActivite?.id || "",
+      activiteId: derniereActivite?.id || "",
       mixteEur: "",
       mixteEgp: "",
       mixteRate: client.egp_taux || 0,
@@ -1422,22 +1437,28 @@ export default function ClientDetail({
       toast("Renseigne au moins un montant (€ ou EGP) pour ce règlement mixte.");
       return;
     }
-    const modeSansActivite = repriseModal.mode === "PayPal" || repriseModal.mode === "Virement bancaire";
-    if (!modeSansActivite && !repriseModal.activiteId) {
+    if (!repriseModal.activiteId) {
       toast("Choisis à quelle activité relier ce paiement.");
       return;
     }
     // S'ajoute à une reprise déjà en attente plutôt que de l'écraser — sinon
     // valider cette reprise-ci effacerait le montant d'une précédente
-    // encore non réglée. Le mode/l'activité affichés restent ceux de cette
-    // reprise-ci (limite connue : un seul mode/une seule activité mémorisés
-    // pour la reprise totale, même si plusieurs activités aux règlements
-    // différents s'accumulent avant d'être réglées).
+    // encore non réglée. reprise_activite_ids accumule CHAQUE activité
+    // explicitement reliée au fil des pop-up successifs (une par activité
+    // ajoutée) — c'est cette liste, pas une seule activité devinée après
+    // coup, qui décide quels badges passent "en attente" (voir
+    // repriseActivitesCibles dans resa.ts). reprise_activite_id garde la
+    // dernière choisie, pour le rappel unique affiché à côté du titre.
     const montantCumule = Math.round(((Number(client.reprise_montant) || 0) + montant) * 100) / 100;
+    const idsExistants = Array.isArray(client.reprise_activite_ids) ? client.reprise_activite_ids : [];
+    const idsCumules = idsExistants.includes(repriseModal.activiteId)
+      ? idsExistants
+      : [...idsExistants, repriseModal.activiteId];
     onChange({
       reprise_montant: montantCumule,
       reprise_mode: repriseModal.mode,
-      reprise_activite_id: modeSansActivite ? null : repriseModal.activiteId,
+      reprise_activite_id: repriseModal.activiteId,
+      reprise_activite_ids: idsCumules,
       // Remis à 0 quand le mode n'est pas mixte, pour ne jamais laisser une
       // ancienne répartition €+EGP traîner sur un règlement redevenu simple.
       reprise_mixte_eur: estMixte ? mixteEurVal : 0,
@@ -2036,13 +2057,17 @@ export default function ClientDetail({
             </p>
             {Number(client.reprise_montant) > 0 && (
               <p className="mb-4 rounded-md bg-[#C9973E]/10 p-2.5 text-xs text-[#8B4531]">
-                Une reprise de {euros(Number(client.reprise_montant))} € ({client.reprise_mode}
-                {client.reprise_activite_id
-                  ? ` — ${reservations.find((r) => r.id === client.reprise_activite_id)?.nom_activite || "activité liée"}`
+                Une reprise de {euros(Number(client.reprise_montant))} € ({client.reprise_mode}) est déjà en
+                attente pour ce client
+                {client.reprise_activite_ids && client.reprise_activite_ids.length > 0
+                  ? ` — déjà reliée à : ${client.reprise_activite_ids
+                      .map((id) => reservations.find((r) => r.id === id)?.nom_activite)
+                      .filter(Boolean)
+                      .join(", ")}`
                   : ""}
-                ) est déjà en attente pour ce client — le mode et l&apos;activité ci-dessous en repartent par
-                défaut pour continuer sur la même, mais tu peux changer si cette activité-ci doit être réglée
-                autrement. Le montant ci-dessous s&apos;y ajoutera automatiquement.
+                . Le mode ci-dessous en repart par défaut pour continuer sur le même, mais tu peux changer si
+                cette activité-ci doit être réglée autrement. Le montant s&apos;ajoutera automatiquement, et
+                cette activité-ci viendra s&apos;ajouter à la liste des activités en attente.
               </p>
             )}
             <div className="mb-3">
@@ -2154,26 +2179,31 @@ export default function ClientDetail({
                   </p>
                 );
               })()}
-            {repriseModal.mode !== "PayPal" && repriseModal.mode !== "Virement bancaire" && (
-              <div className="mb-4">
-                <label className="mb-1 block text-xs font-medium text-neutral-500">
-                  À quelle activité relier ce paiement ?
-                </label>
-                <select
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                  value={repriseModal.activiteId}
-                  onChange={(e) => setRepriseModal({ ...repriseModal, activiteId: e.target.value })}
-                >
-                  <option value="">— Choisir —</option>
-                  {reservationsActives(reservations).map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.nom_activite || "Activité sans nom"}
-                      {r.date_debut ? ` — ${fmtDate(r.date_debut)}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            {/* Toujours demandé, y compris en PayPal/virement — sans point de
+                collecte physique, deviner après coup laquelle des activités
+                actives est concernée a déjà fait afficher "Payé" à tort sur
+                une activité en réalité impayée (vécu sur Carine LELOIR le
+                2026-09-14). Poser explicitement la question ici garantit que
+                le bon badge passe "en attente", jamais une devinette par
+                date/ordre de création. */}
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-medium text-neutral-500">
+                À quelle activité relier ce paiement ?
+              </label>
+              <select
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                value={repriseModal.activiteId}
+                onChange={(e) => setRepriseModal({ ...repriseModal, activiteId: e.target.value })}
+              >
+                <option value="">— Choisir —</option>
+                {reservationsActives(reservations).map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.nom_activite || "Activité sans nom"}
+                    {r.date_debut ? ` — ${fmtDate(r.date_debut)}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex flex-col gap-2">
               <button
                 onClick={confirmerReprise}

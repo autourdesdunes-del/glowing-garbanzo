@@ -197,10 +197,12 @@ export default function AnnulerClientModal({
               solde_rdv_finalise: false,
             }
           : {}),
-      ...(client.reprise_activite_id && idsAnnules.has(client.reprise_activite_id)
+      ...((client.reprise_activite_id && idsAnnules.has(client.reprise_activite_id)) ||
+      (Array.isArray(client.reprise_activite_ids) && client.reprise_activite_ids.some((id) => idsAnnules.has(id)))
         ? {
             reprise_montant: 0,
             reprise_activite_id: null,
+            reprise_activite_ids: [],
             reprise_mode: "",
             reprise_mixte_eur: 0,
             reprise_mixte_egp: 0,

@@ -305,7 +305,15 @@ export default function RedactionProgramView({
     // des jours disponibles pour une excursion — on ne les propose jamais
     // par défaut, même si l'employée peut toujours les choisir à la main.
     const joursCandidats = joursSejour.length > 2 ? joursSejour.slice(1, -1) : joursSejour;
-    const dureeJours = item.categorie === "Séjour multi-jours" ? parseDureeJours(item.nom) || 1 : 1;
+    const estMultiJours = item.categorie === "Séjour multi-jours";
+    // Un circuit multi-villes (ex. "Circuit Découverte & Mer Rouge (Le
+    // Caire / Louxor / Hurghada)") ne mentionne pas toujours son nombre de
+    // jours dans le nom — sans ça, parseDureeJours renvoie null. On
+    // n'invente jamais une durée : le champ Date de fin reste proposé
+    // (l'employée la complète elle-même) mais aucune date de fin n'est
+    // suggérée automatiquement (durée inconnue = pas de fin calculable).
+    const dureeJoursParsee = estMultiJours ? parseDureeJours(item.nom) : null;
+    const dureeJours = dureeJoursParsee || 1;
     const suggestion = suggererDateLigne(item, joursCandidats, datesDejaUtilisees, dureeJours);
     if (joursSejour.length > 0 && !suggestion) {
       const joursDispo = normalizeJoursDisponibles(item.jours_disponibles);
@@ -314,6 +322,9 @@ export default function RedactionProgramView({
       } else if (dureeJours > 1) {
         toast(`Pas assez de jours consécutifs libres dans le séjour pour "${item.nom}" (${dureeJours} jours) — dates à choisir à la main.`);
       }
+    }
+    if (estMultiJours && dureeJoursParsee === null) {
+      toast(`Durée de "${item.nom}" inconnue (pas de nombre de jours dans son nom) — complète la date de fin toi-même.`);
     }
     const repartition = construireRepartition(item);
     const groupe = construireGroupe(item);
@@ -331,7 +342,10 @@ export default function RedactionProgramView({
         catalogueItemId: item.id,
         nom: item.nom,
         date: suggestion?.debut || "",
-        ...(dureeJours > 1 ? { dateFin: suggestion?.fin || "" } : {}),
+        // Durée inconnue : jamais une fin égale au début qui laisserait
+        // croire à tort à un circuit d'un seul jour — champ vide, à
+        // l'employée de la renseigner elle-même.
+        ...(estMultiJours ? { dateFin: dureeJoursParsee ? suggestion?.fin || "" : "" } : {}),
         prixParPersonne: item.pu_adulte || 0,
         nbPersonnes: nbPersonnes || 2,
         remise: 0,

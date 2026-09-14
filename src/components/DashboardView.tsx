@@ -6,7 +6,6 @@ import {
   CatalogueItem,
   Client,
   ClientHotel,
-  Incident,
   PaiementEtape,
   PlanningShift,
   Profile,
@@ -70,8 +69,6 @@ export default function DashboardView({
   onReporterReste,
   onDeleteClient,
   catalogue,
-  incidents,
-  onOpenIncidents,
   showTeamShiftsToday,
   teamPlanningShifts,
   teamProfiles,
@@ -116,8 +113,6 @@ export default function DashboardView({
   ) => void;
   onDeleteClient: (id: string) => Promise<boolean>;
   catalogue: CatalogueItem[];
-  incidents: Incident[];
-  onOpenIncidents: () => void;
   // Équipe Égypte (Hossam, Bodé) : pas d'accès à Planning équipe, donc pas
   // d'autre moyen de savoir qui contacter aujourd'hui — ce petit récap
   // compense en listant les shifts du jour directement sur le tableau de
@@ -215,8 +210,6 @@ export default function DashboardView({
   const in14Days = addDays(todayStr, 14);
 
   const clientById = (id: string) => clients.find((c) => c.id === id);
-
-  const incidentsOuverts = incidents.filter((i) => i.statut === "Ouvert");
 
   const clientsInEgypt = clients.filter(
     (c) => c.date_debut && c.date_fin && c.date_debut <= todayStr && todayStr <= c.date_fin
@@ -475,7 +468,6 @@ export default function DashboardView({
   // en haut de la section pour voir d'un coup d'œil s'il y a quelque chose à
   // traiter, sans avoir à dérouler toute la liste.
   const actionsRapidesTotal =
-    incidentsOuverts.length +
     callsToday.length +
     roomsMissingTomorrow.length +
     pickupsMissingTomorrow.length +
@@ -1102,18 +1094,6 @@ export default function DashboardView({
               )}
             </div>
             <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-              {incidentsOuverts.length > 0 && (
-                <ActionRow
-                  icon="alert"
-                  title="Incidents ouverts"
-                  sub={incidentsOuverts
-                    .slice(0, 3)
-                    .map((i) => `${clients.find((cl) => cl.id === i.client_id)?.nom || "?"} — ${i.titre}`)
-                    .join(" · ") + (incidentsOuverts.length > 3 ? "…" : "")}
-                  count={incidentsOuverts.length}
-                  onClick={onOpenIncidents}
-                />
-              )}
               {callsToday.map((c) => (
                 <ActionRow
                   key={"call-" + c.id}

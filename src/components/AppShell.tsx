@@ -18,7 +18,6 @@ import {
   Client,
   ClientHotel,
   EMPTY_CLIENT,
-  Incident,
   JourEscalation,
   PaiementEtape,
   Pack,
@@ -307,7 +306,6 @@ function AppShellInner({
   // a bien un circuit renseigné (voir infosManquantesAuto/DashboardView) :
   // avant ça, seule la fiche client individuelle avait cette info.
   const [allClientHotels, setAllClientHotels] = useState<Record<string, ClientHotel[]>>({});
-  const [allIncidents, setAllIncidents] = useState<Incident[]>([]);
   const [allVerifications, setAllVerifications] = useState<Verification[]>([]);
   const [paypalPaiements, setPaypalPaiements] = useState<PaypalPaiement[]>([]);
   const [catalogueModificationRequests, setCatalogueModificationRequests] = useState<
@@ -422,7 +420,6 @@ function AppShellInner({
         { data: profs },
         { data: shifts },
         { data: paypal },
-        { data: incidents },
         { data: verifs },
       ] = await Promise.all([
         fetchAllRows<Client>(supabase, "clients", "*", "created_at", false),
@@ -442,10 +439,6 @@ function AppShellInner({
         // (PaypalPaiementRappel) doit pouvoir se déclencher quel que soit
         // l'onglet ouvert, comme les autres rappels (billets, appels...).
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
-        // Chargé sans attendre l'ouverture de Suivis, pour la même raison :
-        // le tableau de bord doit signaler un incident dès l'ouverture de
-        // l'appli, même à une collègue qui n'était pas là quand il est arrivé.
-        supabase.from("incidents").select("*").order("created_at", { ascending: false }),
         // Chargé sans attendre l'ouverture d'une fiche : sert au rappel
         // personnel de vérification des dossiers (PersonalNudgeAlert).
         supabase.from("verifications").select("*"),
@@ -454,7 +447,6 @@ function AppShellInner({
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
-      setAllIncidents((incidents as Incident[]) || []);
       setAllVerifications((verifs as Verification[]) || []);
       if (!error && data) {
         setClients(data as Client[]);
@@ -830,11 +822,6 @@ function AppShellInner({
     setSuivisSub("paypal");
   };
 
-  const openIncidents = () => {
-    setMode("suivis");
-    setSuivisSub("incidents");
-  };
-
   // Depuis la fiche détail d'un billet (Suivis > Billets d'avion), ouvre
   // l'activité liée dans Réservations > Calendrier par activité, avec un
   // "Retour" qui ramène pile sur cette même fiche billet (pas juste sur la
@@ -982,7 +969,6 @@ function AppShellInner({
         { data: profs },
         { data: shifts },
         { data: paypal },
-        { data: incidents },
         { data: verifs },
       ] = await Promise.all([
         fetchAllRows<Client>(supabase, "clients", "*", "created_at", false),
@@ -996,7 +982,6 @@ function AppShellInner({
         supabase.from("profiles").select("*"),
         supabase.from("planning_shifts").select("*"),
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
-        supabase.from("incidents").select("*").order("created_at", { ascending: false }),
         supabase.from("verifications").select("*"),
       ]);
       setPacks((packsData as Pack[]) || []);
@@ -1055,7 +1040,6 @@ function AppShellInner({
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
-      setAllIncidents((incidents as Incident[]) || []);
       setAllVerifications((verifs as Verification[]) || []);
 
       if (flags.planningLoaded) {
@@ -1250,16 +1234,6 @@ function AppShellInner({
     } else {
       toast("Impossible de créer le nouveau séjour.");
     }
-  };
-
-  // La fiche client garde sa propre copie des incidents (filtrée sur ce
-  // client) — sans ce rafraîchissement, le badge "Incidents ouverts" du
-  // Dashboard (basé sur allIncidents, chargé une seule fois) restait à
-  // l'ancien statut après un ajout/résolution/suppression depuis la fiche,
-  // jusqu'à un rechargement complet de la page.
-  const refreshIncidents = async () => {
-    const { data } = await supabase.from("incidents").select("*").order("created_at", { ascending: false });
-    setAllIncidents((data as Incident[]) || []);
   };
 
   const deleteClient = async (id: string): Promise<boolean> => {
@@ -2761,8 +2735,6 @@ function AppShellInner({
               onReporterReste={reporterResteAProchaineActiviteGlobal}
               onDeleteClient={deleteClient}
               catalogue={catalogue}
-              incidents={allIncidents}
-              onOpenIncidents={openIncidents}
               showTeamShiftsToday={effectiveNavMasque.includes("rh")}
               teamPlanningShifts={teamPlanningShifts}
               teamProfiles={teamProfiles}
@@ -2968,7 +2940,6 @@ function AppShellInner({
                   onAutoOpenActivityHandled={() => setActivityAutoOpenClientId(null)}
                   autoOpenSection={sectionAutoOpen?.clientId === selected.id ? sectionAutoOpen.section : undefined}
                   onAutoOpenSectionHandled={() => setSectionAutoOpen(null)}
-                  onIncidentsChanged={refreshIncidents}
                 />
               </>
             )}
@@ -3095,7 +3066,6 @@ function AppShellInner({
               onUpdateRemboursement={updateRemboursement}
               onDeleteRemboursement={deleteRemboursement}
               isDirection={effectiveIsDirection}
-              incidents={allIncidents}
               verifications={allVerifications}
               paypalPaiements={paypalPaiements}
               onRattacherPaiement={rattacherPaypalPaiement}
@@ -3238,7 +3208,6 @@ function AppShellInner({
               onUpdateRemboursement={updateRemboursement}
               onDeleteRemboursement={deleteRemboursement}
               isDirection={effectiveIsDirection}
-              incidents={allIncidents}
               verifications={allVerifications}
               paypalPaiements={paypalPaiements}
               onRattacherPaiement={rattacherPaypalPaiement}

@@ -338,32 +338,5 @@ async function processMessage(
     .eq("id", existing.id);
   if (updateRes.error) throw new Error(`update client failed: ${updateRes.error.message}`);
 
-  // Signalement en direct d'un incident détecté sur ce message — jusqu'ici
-  // ce type d'info finissait perdu dans kommo_resume, invisible sans relire
-  // toute la conversation. Pas de doublon si le même incident (même titre)
-  // est déjà ouvert pour ce client — un client qui revient sur le même
-  // problème sur plusieurs messages ne doit pas créer une ligne par message.
-  if (updated.incident_signale) {
-    const { titre, details } = updated.incident_signale;
-    const { data: dejaOuvert } = await admin
-      .from("incidents")
-      .select("id")
-      .eq("client_id", existing.id)
-      .eq("statut", "Ouvert")
-      .eq("titre", titre)
-      .maybeSingle();
-    if (!dejaOuvert) {
-      const incidentRes = await admin.from("incidents").insert({
-        client_id: existing.id,
-        titre,
-        details,
-        date_incident: localDateStr(new Date()),
-        statut: "Ouvert",
-        par: "Détection IA",
-      });
-      if (incidentRes.error) throw new Error(`create incident failed: ${incidentRes.error.message}`);
-    }
-  }
-
   return existing.id;
 }

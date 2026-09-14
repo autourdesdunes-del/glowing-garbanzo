@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   CatalogueItem,
   Client,
-  Incident,
   PaiementEtape,
   PaypalPaiement,
   PlanningShift,
@@ -51,7 +50,6 @@ import {
   AppelRow,
   AttenteRow,
   BilletDetailModal,
-  IncidentRow,
   PaypalHistorique,
   PaypalPaiementRow,
   PickupActivityCard,
@@ -74,7 +72,6 @@ export const SUIVIS_SUBS = [
   { key: "appels", label: "Appels", labelAr: "المكالمات", groupe: "important" },
   { key: "billets", label: "Billets d'avion", labelAr: "تذاكر الطيران", groupe: "important" },
   { key: "paypal", label: "Paiements PayPal", labelAr: "مدفوعات PayPal", groupe: "important" },
-  { key: "incidents", label: "Incidents", labelAr: "الحوادث", groupe: "important" },
   { key: "verifs", label: "Vérification de dossier", labelAr: "التحقق من الملف", groupe: "suivi_du_suivi" },
   { key: "activites", label: "Activités en attente", labelAr: "الأنشطة المعلقة", groupe: "suivi_du_suivi" },
   {
@@ -103,7 +100,6 @@ export default function SuivisView({
   onUpdateRemboursement,
   onDeleteRemboursement,
   isDirection = false,
-  incidents,
   verifications,
   paypalPaiements,
   onRattacherPaiement,
@@ -128,7 +124,6 @@ export default function SuivisView({
   onUpdateRemboursement: (id: string, patch: Partial<Remboursement>) => void;
   onDeleteRemboursement?: (id: string) => void;
   isDirection?: boolean;
-  incidents: Incident[];
   verifications: Verification[];
   paypalPaiements: PaypalPaiement[];
   onRattacherPaiement: (
@@ -329,13 +324,6 @@ export default function SuivisView({
     .filter((r) => r.statut !== "Effectué")
     .sort((a, b) => (a.date_probleme || "").localeCompare(b.date_probleme || ""));
   const totalARembourser = remboursementsEnAttente.reduce((s, r) => s + (Number(r.montant) || 0), 0);
-
-  const incidentsOuverts = incidents
-    .filter((i) => i.statut === "Ouvert")
-    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-  const incidentsResolus = incidents
-    .filter((i) => i.statut === "Résolu")
-    .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
 
   // Dossiers où le dernier mot revient au client (pas de réponse équipe
   // depuis) depuis plus de 48h — croise kommo_last_client_message_at et
@@ -1532,40 +1520,6 @@ export default function SuivisView({
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {sub === "incidents" && (
-        <div className="space-y-8">
-          <div>
-            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
-              Ouverts ({incidentsOuverts.length})
-            </h3>
-            {incidentsOuverts.length === 0 && (
-              <div className="text-sm text-neutral-400">Aucun incident ouvert.</div>
-            )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {incidentsOuverts.map((i) => {
-                const client = clients.find((c) => c.id === i.client_id);
-                if (!client) return null;
-                return <IncidentRow key={i.id} incident={i} client={client} onOpenClient={onOpenClient} />;
-              })}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">Résolus</h3>
-            {incidentsResolus.length === 0 && (
-              <div className="text-sm text-neutral-400">Aucun incident résolu pour l'instant.</div>
-            )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {incidentsResolus.map((i) => {
-                const client = clients.find((c) => c.id === i.client_id);
-                if (!client) return null;
-                return <IncidentRow key={i.id} incident={i} client={client} onOpenClient={onOpenClient} />;
-              })}
             </div>
           </div>
         </div>

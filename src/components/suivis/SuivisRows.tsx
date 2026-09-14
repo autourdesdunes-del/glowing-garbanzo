@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   CatalogueItem,
   Client,
-  Incident,
   PaypalPaiement,
   Remboursement,
   Reservation,
@@ -182,46 +181,6 @@ export function RemboursementCard({
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-export function IncidentRow({
-  incident,
-  client,
-  onOpenClient,
-}: {
-  incident: Incident;
-  client: Client;
-  onOpenClient: (id: string) => void;
-}) {
-  return (
-    <div
-      onClick={() => onOpenClient(client.id)}
-      className={`cursor-pointer overflow-hidden rounded-lg border px-3 py-2.5 shadow-sm ${
-        incident.statut === "Ouvert" ? "border-red-200 bg-red-50" : "border-neutral-200 bg-white"
-      }`}
-    >
-      <div className="flex flex-wrap items-center gap-1.5">
-        <ClientNameLink
-          nom={client.nom}
-          onClick={() => onOpenClient(client.id)}
-          className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-        />
-        <span
-          className={`ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-medium ${
-            incident.statut === "Ouvert" ? "bg-red-100 text-red-700" : "bg-[#0F5C56]/10 text-[#0F5C56]"
-          }`}
-        >
-          {incident.statut}
-        </span>
-      </div>
-      <p className="mt-1 text-xs font-medium text-[#171717]">{incident.titre}</p>
-      {incident.details && <p className="mt-0.5 line-clamp-2 text-xs text-neutral-500">{incident.details}</p>}
-      <p className="mt-1.5 text-[11px] text-neutral-400">
-        {fmtDate(incident.date_incident)}
-        {incident.par ? ` · ${incident.par}` : ""}
-      </p>
     </div>
   );
 }

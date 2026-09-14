@@ -2132,7 +2132,19 @@ export function PaiementsStep({
                       {ligne.activite && <span>({ligne.activite})</span>}
                     </div>
                   </div>
-                  {ligne.note && <div className="mt-0.5 text-xs italic text-[#8B4531]">{ligne.note}</div>}
+                  {ligne.note &&
+                    (paypalMatch ? (
+                      <button
+                        type="button"
+                        onClick={() => setPaypalDetailOuvert((id) => (id === ligne.id ? null : ligne.id))}
+                        title="Voir qui a envoyé ce paiement PayPal"
+                        className="mt-0.5 text-xs italic text-[#8B4531] underline decoration-dotted hover:no-underline"
+                      >
+                        {ligne.note}
+                      </button>
+                    ) : (
+                      <div className="mt-0.5 text-xs italic text-[#8B4531]">{ligne.note}</div>
+                    ))}
                   {detailOuvert && paypalMatch && (
                     <div className="mt-1 rounded-md bg-[#0F5C56]/10 px-2 py-1 text-xs text-[#0F5C56]">
                       Envoyé par {paypalMatch.payeur_nom || "un payeur non identifié"}

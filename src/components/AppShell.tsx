@@ -1231,6 +1231,14 @@ function AppShellInner({
       setClients((prev) => [data as Client, ...prev]);
       setSelectedId(data.id);
       setMode("prospects");
+      // Sans ouvrir immédiatement quelque chose, ce nouveau dossier (statut
+      // "Prospect" par défaut, voir EMPTY_CLIENT) atterrit tel quel dans le
+      // Pipeline — noyé parmi des centaines de cartes, rien ne montre à
+      // l'employée qu'il a bien été créé, elle a l'impression que le bouton
+      // "+ Nouveau séjour" n'a rien fait (vécu par Mélanie le 2026-09-14).
+      // Même geste que addClient : ouvrir le résumé prospect, qui permet de
+      // confirmer directement ce client pour accéder à la fiche complète.
+      setProspectSummaryId(data.id);
     } else {
       toast("Impossible de créer le nouveau séjour.");
     }

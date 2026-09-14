@@ -807,6 +807,19 @@ export default function ClientDetail({
         .single();
       creeParNom = prof?.prenom || (prof?.email || "").split("@")[0] || "";
     }
+    // Sans limite de temps, une requête bloquée par un incident réseau
+    // (vécu plusieurs fois avec Supabase le 2026-09-14 : CORS/503
+    // intermittents) laissait le bouton "grisé" indéfiniment — l'employée,
+    // pensant le clic perdu, rouvrait le pas-à-pas et recommençait
+    // plusieurs fois. Chaque tentative abandonnée restait malgré tout en
+    // vol côté serveur, et TOUTES finissaient par aboutir d'un coup une
+    // fois l'incident résolu (constaté : plusieurs "Safari quad" en
+    // Brouillon créées d'un coup ~20 minutes après le premier clic). Une
+    // limite de 12s par tentative rend l'échec visible et rapide au lieu
+    // de laisser deviner, pour qu'on retente une seule fois au lieu de
+    // cinq.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
     const { data, error } = await supabase
       .from("reservations")
       .insert({
@@ -822,7 +835,9 @@ export default function ClientDetail({
         statut_resa: client.statut === "Client confirmé" ? "Confirmée" : "Brouillon",
       })
       .select()
+      .abortSignal(controller.signal)
       .single();
+    clearTimeout(timeoutId);
     if (!error && data) {
       const newReservation = data as Reservation;
       setReservations((prev) => [...prev, newReservation]);

@@ -303,6 +303,22 @@ export const STATUT_PAIEMENT_OPTIONS: {
 ];
 
 export function paiementStatutKey(client: Client, r: Reservation): StatutPaiementKey {
+  // Une reprise encore ouverte (activité ajoutée après un solde déjà réglé,
+  // voir reprise_activite_ids) a son propre règlement, distinct de celui du
+  // solde d'origine — sans cette garde, dès que le solde d'une AUTRE
+  // activité passait "payé", ce badge affichait "Payé" ici aussi alors que
+  // son propre règlement restait dû (vécu sur Carine LELOIR : Speedboat
+  // payé au virement → Le Caire en bus / Safari quad affichaient "Payé" à
+  // tort malgré 180 € encore en attente).
+  const repriseIds =
+    Array.isArray(client.reprise_activite_ids) && client.reprise_activite_ids.length > 0
+      ? client.reprise_activite_ids
+      : client.reprise_activite_id
+        ? [client.reprise_activite_id]
+        : [];
+  if (Number(client.reprise_montant) > 0 && repriseIds.includes(r.id)) {
+    return client.reprise_mode === "PayPal" ? "attente_paypal" : "attente";
+  }
   if (client.solde_paye) {
     if (client.solde_mode === "Modes différents") return "paye_mixte";
     if (client.solde_mode === "Espèces EGP") return "paye_egp";

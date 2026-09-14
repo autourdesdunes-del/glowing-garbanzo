@@ -149,7 +149,6 @@ export default function DashboardView({
   const [shiftDebut, setShiftDebut] = useState("");
   const [shiftFin, setShiftFin] = useState("");
   const [showActivitesEnAttenteModal, setShowActivitesEnAttenteModal] = useState(false);
-  const [showClientsEnAttenteModal, setShowClientsEnAttenteModal] = useState(false);
   const [showPaiementsDuJourModal, setShowPaiementsDuJourModal] = useState(false);
 
   useEffect(() => {
@@ -286,11 +285,6 @@ export default function DashboardView({
   const activitesEnAttente = reservations
     .filter((r) => r.statut_resa === "Brouillon")
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
-
-  // Clients confirmés Kommo renvoyés à quelqu'un (ou pas encore pris en
-  // charge) — regroupés ici avec les activités en attente pour ne pas se
-  // perdre entre le popup bloquant (NouveauClientConfirmeAlert) et le suivi.
-  const clientsEnAttenteConfirmation = clients.filter((c) => c.confirmation_a_traiter);
 
   const auRevoirToday = clients.filter(
     (c) =>
@@ -477,8 +471,7 @@ export default function DashboardView({
     paiementsAPayer.length +
     auRevoirToday.length +
     avisToday.length +
-    staleProspects.length +
-    clientsEnAttenteConfirmation.length;
+    staleProspects.length;
 
   // -- Priority queue: every client needing attention soon, ranked by departure date.
   type QueueRow = { client: Client; motifs: string[] };
@@ -1169,22 +1162,6 @@ export default function DashboardView({
                 }
               />
               <ActionRow
-                icon="clipboard"
-                title="Clients confirmés en attente"
-                sub={
-                  clientsEnAttenteConfirmation.length > 0
-                    ? clientsEnAttenteConfirmation
-                        .slice(0, 3)
-                        .map((c) => c.nom || "Sans nom")
-                        .join(" · ") + (clientsEnAttenteConfirmation.length > 3 ? "…" : "")
-                    : "Rien en attente"
-                }
-                count={clientsEnAttenteConfirmation.length}
-                onClick={
-                  clientsEnAttenteConfirmation.length > 0 ? () => setShowClientsEnAttenteModal(true) : undefined
-                }
-              />
-              <ActionRow
                 icon="check"
                 title="Paiements du jour"
                 sub={
@@ -1285,50 +1262,6 @@ export default function DashboardView({
                   </div>
                 );
               })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showClientsEnAttenteModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setShowClientsEnAttenteModal(false)}
-        >
-          <div
-            className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-start justify-between">
-              <h3 className="font-heading text-base font-semibold text-[#171717]">
-                Clients confirmés en attente
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowClientsEnAttenteModal(false)}
-                className="text-neutral-400 hover:text-[#171717]"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea]">
-              {clientsEnAttenteConfirmation.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    setShowClientsEnAttenteModal(false);
-                    onOpenClient(c.id);
-                  }}
-                  className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
-                >
-                  <p className="text-sm font-medium text-[#171717]">{c.nom || "Sans nom"}</p>
-                  <p className="text-xs text-[#666666]">
-                    {c.confirmation_assignee_a
-                      ? `Renvoyé à ${c.confirmation_assignee_a}`
-                      : "Pas encore pris en charge"}
-                  </p>
-                </div>
-              ))}
             </div>
           </div>
         </div>

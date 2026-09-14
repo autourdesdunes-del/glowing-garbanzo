@@ -43,6 +43,7 @@ import {
 import { fmtAnnulationSuffix } from "@/lib/dates";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
+import { useToast } from "@/components/ToastProvider";
 import { euros, fmtDate } from "@/lib/planningViewFormat";
 import { DetailRow } from "@/components/planning/PlanningCards";
 import RdvPaiementCreationModal from "@/components/RdvPaiementCreationModal";
@@ -78,6 +79,7 @@ export function ActivityDetailModal({
 }) {
   const supabase = createClient();
   const confirm = useConfirm();
+  const toast = useToast();
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   // "RDV paiement planifié" choisi dans le menu rapide ci-dessous : sans ce
@@ -428,6 +430,16 @@ export function ActivityDetailModal({
                   if (!opt) return;
                   if (opt.key === "rdv_planifie") {
                     setRdvCreationPending(true);
+                    return;
+                  }
+                  // Même garde-fou que ItineraryView.tsx : "Payé - ..."
+                  // efface la reprise en attente (voir plus bas) — vécu sur
+                  // Carine LELOIR, 180 € de reprise effacés en marquant juste
+                  // une AUTRE activité payée depuis ce même menu.
+                  if (opt.key.startsWith("paye_") && Number(effectiveClient.reprise_montant) > 0) {
+                    toast(
+                      `Un règlement de ${euros(effectiveClient.reprise_montant)} € (${effectiveClient.reprise_mode || "mode non précisé"}) est encore en attente sur ce dossier. Réglez-le d'abord depuis l'onglet Paiements du client ("Marquer réglé" ou "Modifier") avant de marquer le séjour payé ici — sinon ce montant disparaît du dossier.`
+                    );
                     return;
                   }
                   if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(effectiveClient)) {

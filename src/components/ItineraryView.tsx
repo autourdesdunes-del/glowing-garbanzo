@@ -189,6 +189,19 @@ export default function ItineraryView({
       setRdvCreationPending(true);
       return;
     }
+    // "Payé - ..." déclare tout le séjour réglé et efface la reprise en
+    // attente (voir plus bas, patch.reprise_montant = 0) — correct quand
+    // cette reprise vient d'être réellement encaissée, mais sinon ça fait
+    // disparaître en silence un montant encore dû (vécu sur Carine LELOIR :
+    // 180 € de reprise effacés en marquant juste une AUTRE activité payée).
+    // Cette reprise a son propre bouton "Marquer réglé"/"Modifier" dans
+    // l'onglet Paiements — c'est là qu'il faut passer, pas ici.
+    if (opt.key.startsWith("paye_") && Number(client.reprise_montant) > 0) {
+      toast(
+        `Un règlement de ${euros(client.reprise_montant)} € (${client.reprise_mode || "mode non précisé"}) est encore en attente sur ce dossier. Réglez-le d'abord depuis l'onglet Paiements du client ("Marquer réglé" ou "Modifier") avant de marquer le séjour payé ici — sinon ce montant disparaît du dossier.`
+      );
+      return;
+    }
     if (opt.key.startsWith("paye_") && soldeInclutAcompteImpaye(client)) {
       const ok = await confirm({
         title: "L'acompte n'a pas encore été marqué encaissé",

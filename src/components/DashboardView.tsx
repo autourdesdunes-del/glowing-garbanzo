@@ -1270,6 +1270,10 @@ export default function DashboardView({
         <PaiementsDuJourModal
           encaisses={paiementsEncaisses}
           aPayer={paiementsAPayer}
+          reservations={reservations}
+          resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
           onOpenClient={(id) => {
             setShowPaiementsDuJourModal(false);
             onOpenClient(id);

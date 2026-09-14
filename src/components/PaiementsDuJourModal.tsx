@@ -12,6 +12,7 @@ import { avoirUtiliseTotal, reservationsActives, resaTotalMontant, soldeInclutAc
 import { todayStr } from "@/lib/dates";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { MODES_PAIEMENT } from "@/lib/constants";
+import SoldePayeConfirmModal from "@/components/SoldePayeConfirmModal";
 
 function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
@@ -245,17 +246,31 @@ export function computePaiementsDuJour(
 export default function PaiementsDuJourModal({
   encaisses,
   aPayer,
+  reservations,
+  resaOptions,
+  resaTarifs,
+  paiementsEtapes,
   onOpenClient,
   onOpenClientForPaiements,
   onClose,
 }: {
   encaisses: Ligne[];
   aPayer: Ligne[];
+  reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes: PaiementEtape[];
   onOpenClient: (id: string) => void;
   onOpenClientForPaiements: (id: string) => void;
   onClose: () => void;
 }) {
   const [dateModal, setDateModal] = useState<{ ligne: Ligne; date: string; mode: string } | null>(null);
+  // "Marquer payé" (ligne Solde) change le badge de TOUTES les activités du
+  // client d'un coup — même règle que partout ailleurs (voir
+  // SoldePayeConfirmModal) : on montre ce qui va changer avant d'appliquer.
+  const [soldeConfirmPending, setSoldeConfirmPending] = useState<{ ligne: Ligne; date: string; mode: string } | null>(
+    null
+  );
   const [reporterModal, setReporterModal] = useState<{
     ligne: Ligne;
     montant: string;
@@ -427,7 +442,18 @@ export default function PaiementsDuJourModal({
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => {
-                  dateModal.ligne.onMarquerPaye(dateModal.date || todayStr(), dateModal.mode);
+                  const d = dateModal.date || todayStr();
+                  // Une ligne "Solde" affecte toutes les activités du
+                  // client (un seul solde par client) — on passe par l'étape
+                  // de confirmation. Une ligne "Reprise" ne touche, elle,
+                  // que sa propre activité (onMarquerRepriseReglee), pas
+                  // besoin de la même confirmation élargie.
+                  if (dateModal.ligne.libelle.startsWith("Solde") || dateModal.ligne.libelle === "RDV solde") {
+                    setSoldeConfirmPending({ ligne: dateModal.ligne, date: d, mode: dateModal.mode });
+                    setDateModal(null);
+                    return;
+                  }
+                  dateModal.ligne.onMarquerPaye(d, dateModal.mode);
                   setDateModal(null);
                 }}
                 className="rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
@@ -536,6 +562,21 @@ export default function PaiementsDuJourModal({
             </div>
           </div>
         </div>
+      )}
+      {soldeConfirmPending && (
+        <SoldePayeConfirmModal
+          client={soldeConfirmPending.ligne.client}
+          reservations={reservations.filter((r) => r.client_id === soldeConfirmPending.ligne.client.id)}
+          resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes.filter((e) => e.client_id === soldeConfirmPending.ligne.client.id)}
+          newLabel={`Payé - ${soldeConfirmPending.mode}`}
+          onCancel={() => setSoldeConfirmPending(null)}
+          onConfirm={() => {
+            soldeConfirmPending.ligne.onMarquerPaye(soldeConfirmPending.date, soldeConfirmPending.mode);
+            setSoldeConfirmPending(null);
+          }}
+        />
       )}
     </div>
   );

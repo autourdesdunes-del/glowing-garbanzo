@@ -291,15 +291,35 @@ export function ligneTotal(l: Ligne): number {
 // l'app) plutôt que de risquer un mauvais classement silencieux.
 export function parseTrancheAge(texte: string): { min: number; max: number } | null {
   if (!texte) return null;
-  const nums = (texte.match(/\d{1,2}/g) || []).map(Number);
+  const nums = (texte.match(/\d{1,3}/g) || []).map(Number);
   if (nums.length === 0) return null;
+  // "moins de 6 ans" exclut strictement 6 (contrairement à "0 à 6 ans" qui
+  // l'inclut) — vérifié sur le catalogue réel ("INTERDIT AUX ENFANTS DE
+  // MOINS DE 6 ANS" doit laisser un enfant de 6 ans participer).
+  if (/moins\s+de/i.test(texte) && nums.length >= 1) {
+    return { min: 0, max: Math.max(0, nums[0] - 1) };
+  }
   if (nums.length === 1) {
-    // "11 ans et +" / "ou plus" : borne basse seulement. Sinon (ex. "moins
-    // de 3 ans") un seul nombre veut dire une borne haute.
-    if (/\+|et plus|ou plus/i.test(texte)) return { min: nums[0], max: 999 };
+    // "11 ans et +" / "ou plus" / "à partir de 10 ans" : borne basse
+    // seulement. Sinon un seul nombre veut dire une borne haute (repli,
+    // rare en pratique — la plupart des tranches réelles du catalogue
+    // donnent les deux bornes).
+    if (/\+|et\s+plus|ou\s+plus|(?:à|a)\s+partir\s+de/i.test(texte)) return { min: nums[0], max: 999 };
     return { min: 0, max: nums[0] };
   }
   return { min: Math.min(...nums), max: Math.max(...nums) };
+}
+
+// Une tranche "interdit" (ou "à partir de X ans" utilisé seul, sans aucun
+// tarif réduit sur la fiche — ça ne veut jamais dire "gratuit à partir de
+// X ans", juste "pas autorisé avant") — jamais transformée en un prix : ni
+// gratuit, ni plein tarif, l'âge est simplement exclu du calcul.
+export function detecterTrancheInterdite(texte: string): { min: number; max: number } | null {
+  if (!texte) return null;
+  if (/interdit/i.test(texte)) return parseTrancheAge(texte);
+  const range = parseTrancheAge(texte);
+  if (range && range.max >= 900 && range.min > 0) return { min: 0, max: range.min - 1 };
+  return null;
 }
 
 // Répartit une liste d'âges d'enfants sur les tranches tarifaires
@@ -314,29 +334,43 @@ export type RepartitionAgesResultat = {
   tranches: RepartitionLigne[];
   // Âges qu'aucune tranche ne doit facturer parce que le catalogue
   // l'interdit explicitement (ex. "INTERDIT AUX ENFANTS DE MOINS DE 6
-  // ANS" sur pu_bebe_age) — jamais un prix inventé (ni gratuit, ni plein
-  // tarif) pour un participant qui ne peut de toute façon pas faire
-  // l'activité ; à l'employée de trancher (retirer l'enfant, alternative,
-  // prévenir le client).
+  // ANS" sur pu_bebe_age/pu_enfant_age, ou "À PARTIR DE 10 ANS" sans
+  // aucun tarif réduit sur la fiche) — jamais un prix inventé (ni
+  // gratuit, ni plein tarif) pour un participant qui ne peut de toute
+  // façon pas faire l'activité ; à l'employée de trancher (retirer
+  // l'enfant, alternative, prévenir le client).
   agesInterdits: number[];
+  // Nombre d'enfants à ajouter au compte adulte plutôt qu'à une tranche
+  // enfant : certaines fiches (spa/massage) n'ont tout simplement aucun
+  // tarif enfant (pu_enfant = 0, pas une réduction) — au-delà de l'âge
+  // minimum autorisé, l'enfant paie comme un adulte, jamais 0€ par défaut.
+  commeAdulte: number;
 };
 
 export function repartirAgesEnfants(item: CatalogueItem, ages: number[]): RepartitionAgesResultat {
   const bebeAgeTexte = item.pu_bebe_age || "";
+  const enfantAgeTexte = item.pu_enfant_age || "";
   // pu_bebe_age porte l'info même quand pu_bebe vaut 0 — un tarif "bébé"
   // gratuit (0 à 3 ans", "0 à 5 ans (gratuit)") est un vrai prix (zéro),
   // pas une absence de tranche ; ne jamais l'ignorer juste parce que le
   // montant est nul (bug corrigé le 2026-09-14 : un enfant de 3 ans
   // facturé au plein tarif enfant sur des activités où il devrait être
   // gratuit).
-  const interdit = /interdit/i.test(bebeAgeTexte);
-  const bebeRange = !interdit ? parseTrancheAge(bebeAgeTexte) : null;
-  const interditRange = interdit ? parseTrancheAge(bebeAgeTexte) : null;
-  const enfantRange = item.pu_enfant > 0 ? parseTrancheAge(item.pu_enfant_age) : null;
+  const bebeInterditRange = detecterTrancheInterdite(bebeAgeTexte);
+  const enfantInterditRange = detecterTrancheInterdite(enfantAgeTexte);
+  // Un texte "interdit" ou "à partir de X" ne décrit jamais un vrai palier
+  // de prix (jamais "gratuit à partir de X ans") — seulement utilisé
+  // ci-dessus pour exclure, jamais pour construire une tranche bébé.
+  const bebeRangeBrut = !bebeInterditRange ? parseTrancheAge(bebeAgeTexte) : null;
+  const bebeRange = bebeRangeBrut && bebeRangeBrut.max < 900 ? bebeRangeBrut : null;
+  const enfantRange = item.pu_enfant > 0 ? parseTrancheAge(enfantAgeTexte) : null;
   const compteurs: Record<"enfant_3ans" | "bebe" | "enfant", number> = { enfant_3ans: 0, bebe: 0, enfant: 0 };
   const agesInterdits: number[] = [];
+  let commeAdulte = 0;
   ages.forEach((age) => {
-    if (interditRange && age >= interditRange.min && age <= interditRange.max) {
+    if (bebeInterditRange && age >= bebeInterditRange.min && age <= bebeInterditRange.max) {
+      agesInterdits.push(age);
+    } else if (enfantInterditRange && age >= enfantInterditRange.min && age <= enfantInterditRange.max) {
       agesInterdits.push(age);
     } else if (bebeRange && age >= bebeRange.min && age <= bebeRange.max) {
       compteurs.bebe += 1;
@@ -347,8 +381,13 @@ export function repartirAgesEnfants(item: CatalogueItem, ages: number[]): Repart
       compteurs.enfant_3ans += 1;
     } else if (enfantRange && (age < enfantRange.min || age > enfantRange.max) && item.pu_enfant_3ans > 0 && age <= 3) {
       compteurs.enfant_3ans += 1;
-    } else {
+    } else if (item.pu_enfant > 0) {
       compteurs.enfant += 1;
+    } else {
+      // Aucun tarif enfant du tout sur cette fiche (spa/massage...) : pas
+      // une réduction à 0€, juste une activité qui ne distingue pas les
+      // enfants — facturé comme un adulte normal.
+      commeAdulte += 1;
     }
   });
   const tranches: RepartitionLigne[] = [];
@@ -356,8 +395,8 @@ export function repartirAgesEnfants(item: CatalogueItem, ages: number[]): Repart
   if (compteurs.enfant_3ans > 0)
     tranches.push({ tranche: "enfant_3ans", label: "Enfant 3 ans", pu: item.pu_enfant_3ans, nb: compteurs.enfant_3ans });
   if (compteurs.enfant > 0)
-    tranches.push({ tranche: "enfant", label: item.pu_enfant_age || "Enfant", pu: item.pu_enfant, nb: compteurs.enfant });
-  return { tranches, agesInterdits };
+    tranches.push({ tranche: "enfant", label: enfantAgeTexte || "Enfant", pu: item.pu_enfant, nb: compteurs.enfant });
+  return { tranches, agesInterdits, commeAdulte };
 }
 
 // Propose la première date libre du séjour pour cette activité — respecte

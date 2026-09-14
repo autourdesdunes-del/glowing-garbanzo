@@ -260,8 +260,16 @@ export default function RedactionProgramView({
           `${enfants} enfant(s) mais ${ages.length} âge(s) trouvé(s) dans "Âges enfants" — vérifie la répartition des prix.`
         );
       }
-      const { tranches: trenchesAges, agesInterdits } = repartirAgesEnfants(item, ages);
+      const { tranches: trenchesAges, agesInterdits, commeAdulte } = repartirAgesEnfants(item, ages);
       tranches.push(...trenchesAges);
+      if (commeAdulte > 0) {
+        // Pas de tarif enfant du tout sur cette fiche (spa/massage...) —
+        // fusionné dans la tranche adulte plutôt qu'affiché à 0€ par
+        // erreur (compteurs.enfant ne monte jamais pour ces âges-là).
+        const idxAdulte = tranches.findIndex((t) => t.tranche === "adulte");
+        if (idxAdulte >= 0) tranches[idxAdulte] = { ...tranches[idxAdulte], nb: tranches[idxAdulte].nb + commeAdulte };
+        else tranches.push({ tranche: "adulte", label: item.pu_adulte_age || "Adulte", pu: item.pu_adulte, nb: commeAdulte });
+      }
       if (agesInterdits.length > 0) {
         toast(
           `"${item.nom}" est interdit à ${agesInterdits.length > 1 ? "ces âges" : "cet âge"} (${agesInterdits.join(", ")} ans) — non compté dans le prix, à retirer ou remplacer.`

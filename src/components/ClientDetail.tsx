@@ -1434,7 +1434,17 @@ export default function ClientDetail({
     mixteEgp: string;
     mixteRate: number;
   } | null>(null);
-  const checkRepriseApresAjout = () => {
+  // avoirAutoApplique : montant que tryAutoApplyAvoirOnFinish s'apprête à
+  // affecter à LA MÊME activité qui vient de déclencher ce contrôle (voir
+  // handleActivityFinished, qui calcule ce montant avant d'appeler les deux
+  // fonctions). Sans lui, le pop-up de reprise se basait uniquement sur le
+  // coût brut du séjour, sans jamais savoir qu'un avoir allait couvrir tout
+  // ou partie de cette nouvelle activité — il demandait "comment régler
+  // 130€" alors que l'avoir en couvrait déjà 130€, obligeant à répondre à
+  // un pop-up sur un montant en réalité déjà réglé (vécu sur Iman KASRI le
+  // 2026-09-14 : les deux pop-up — "utiliser l'avoir" ET "organiser le
+  // paiement" — apparaissaient pour la même activité).
+  const checkRepriseApresAjout = (avoirAutoApplique = 0) => {
     if (!client.solde_paye) return;
     // Une reprise déjà en attente (pas encore marquée réglée) ne doit
     // jamais empêcher de détecter une NOUVELLE activité ajoutée par-dessus
@@ -1446,7 +1456,7 @@ export default function ClientDetail({
     // et seul le dépassement AU-DESSUS de ce qui est déjà prévu déclenche
     // le pop-up.
     const baseline = (Number(client.solde_montant) || totalSejourHeader) + (Number(client.reprise_montant) || 0);
-    const diff = Math.round((totalSejourHeader - baseline) * 100) / 100;
+    const diff = Math.round((totalSejourHeader - baseline - avoirAutoApplique) * 100) / 100;
     if (diff <= 0.01) return;
     const derniereActivite = [...reservationsActives(reservations)].sort((a, b) =>
       (a.created_at || "").localeCompare(b.created_at || "")
@@ -1475,7 +1485,26 @@ export default function ClientDetail({
   // règlement, avoir à appliquer) plutôt que de dupliquer le câblage
   // onActivityFinished à chaque endroit où le pas-à-pas est monté.
   const handleActivityFinished = (reservationId?: string) => {
-    checkRepriseApresAjout();
+    // Même condition que tryAutoApplyAvoirOnFinish (candidat = la
+    // réservation tout juste créée), calculée à part pour que
+    // checkRepriseApresAjout connaisse ce montant AVANT de décider si le
+    // pop-up de reprise doit s'afficher — sans dupliquer l'effet de bord
+    // (consommer newActivityAvoirCandidateRef), laissé à
+    // tryAutoApplyAvoirOnFinish seul.
+    let avoirAutoApplique = 0;
+    if (
+      reservationId &&
+      reservationId === newActivityAvoirCandidateRef.current &&
+      !avoirExpire &&
+      avoirDisponible > 0
+    ) {
+      const r = reservations.find((res) => res.id === reservationId);
+      if (r) {
+        const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+        avoirAutoApplique = Math.min(avoirDisponible, total);
+      }
+    }
+    checkRepriseApresAjout(avoirAutoApplique);
     tryAutoApplyAvoirOnFinish(reservationId);
   };
 

@@ -61,7 +61,6 @@ export default function DashboardView({
   onOpenNumerosChambre,
   onOpenAuRevoir,
   onOpenAvisClients,
-  onOpenProspectsARelancer,
   onOpenBilletsAvion,
   onOpenPaypalPaiements,
   paypalPaiementsNonRattaches,
@@ -100,7 +99,6 @@ export default function DashboardView({
   onOpenNumerosChambre: () => void;
   onOpenAuRevoir: () => void;
   onOpenAvisClients: () => void;
-  onOpenProspectsARelancer: () => void;
   onOpenBilletsAvion: () => void;
   onOpenPaypalPaiements: () => void;
   paypalPaiementsNonRattaches: number;
@@ -1230,15 +1228,6 @@ export default function DashboardView({
                 sub={avisToday.length > 0 ? `${avisToday.length} à envoyer` : "Rien à envoyer"}
                 count={avisToday.length}
                 onClick={avisToday.length > 0 ? onOpenAvisClients : undefined}
-              />
-              <ActionRow
-                icon="refresh"
-                title="Relances prospects"
-                sub={
-                  staleProspects.length > 0 ? `${staleProspects.length} à relancer` : "Rien à relancer"
-                }
-                count={staleProspects.length}
-                onClick={staleProspects.length > 0 ? onOpenProspectsARelancer : undefined}
               />
             </div>
           </div>

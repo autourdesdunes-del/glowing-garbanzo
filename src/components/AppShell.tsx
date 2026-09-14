@@ -2752,7 +2752,6 @@ function AppShellInner({
               onOpenNumerosChambre={openNumerosChambre}
               onOpenAuRevoir={openAuRevoir}
               onOpenAvisClients={openAvisClients}
-              onOpenProspectsARelancer={openProspectsARelancer}
               onOpenBilletsAvion={openBilletsAvion}
               onOpenPaypalPaiements={openPaypalPaiements}
               paypalPaiementsNonRattaches={paypalPaiementsNonRattaches}

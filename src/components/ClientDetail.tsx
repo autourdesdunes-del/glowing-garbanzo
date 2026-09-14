@@ -1380,10 +1380,19 @@ export default function ClientDetail({
     const derniereActivite = [...reservationsActives(reservations)].sort((a, b) =>
       (a.created_at || "").localeCompare(b.created_at || "")
     ).pop();
+    // Une reprise déjà en attente a déjà un mode et (parfois) une activité
+    // de rattachement choisis — les reproposer par défaut plutôt que de
+    // repartir de zéro à chaque nouvelle activité, sinon rien n'indique
+    // qu'on peut simplement continuer sur le même PayPal/la même activité
+    // déjà prévus (demandé par Mélanie le 2026-09-14). Toujours modifiable
+    // avant de valider si cette activité-ci doit être réglée autrement.
+    const repriseExistante = Number(client.reprise_montant) > 0;
+    const activiteRepriseExistanteValide =
+      repriseExistante && reservationsActives(reservations).some((r) => r.id === client.reprise_activite_id);
     setRepriseModal({
       montant: String(diff),
-      mode: MODES_PAIEMENT[0] || "Espèces EUR",
-      activiteId: derniereActivite?.id || "",
+      mode: repriseExistante ? client.reprise_mode || MODES_PAIEMENT[0] || "Espèces EUR" : MODES_PAIEMENT[0] || "Espèces EUR",
+      activiteId: activiteRepriseExistanteValide ? client.reprise_activite_id || "" : derniereActivite?.id || "",
       mixteEur: "",
       mixteEgp: "",
       mixteRate: client.egp_taux || 0,
@@ -2025,6 +2034,17 @@ export default function ClientDetail({
             <p className="mb-4 text-sm text-neutral-600">
               Pour cette nouvelle activité, quel est le règlement prévu ?
             </p>
+            {Number(client.reprise_montant) > 0 && (
+              <p className="mb-4 rounded-md bg-[#C9973E]/10 p-2.5 text-xs text-[#8B4531]">
+                Une reprise de {euros(Number(client.reprise_montant))} € ({client.reprise_mode}
+                {client.reprise_activite_id
+                  ? ` — ${reservations.find((r) => r.id === client.reprise_activite_id)?.nom_activite || "activité liée"}`
+                  : ""}
+                ) est déjà en attente pour ce client — le mode et l&apos;activité ci-dessous en repartent par
+                défaut pour continuer sur la même, mais tu peux changer si cette activité-ci doit être réglée
+                autrement. Le montant ci-dessous s&apos;y ajoutera automatiquement.
+              </p>
+            )}
             <div className="mb-3">
               <label className="mb-1 block text-xs font-medium text-neutral-500">Montant</label>
               <input

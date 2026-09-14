@@ -310,12 +310,35 @@ export function parseTrancheAge(texte: string): { min: number; max: number } | n
 // silencieux). N'est appelé que si l'activité distingue vraiment ses prix
 // (cf. RedactionProgramView) ; les adultes ne sont jamais dans cette liste,
 // leur tranche est ajoutée séparément par l'appelant.
-export function repartirAgesEnfants(item: CatalogueItem, ages: number[]): RepartitionLigne[] {
-  const bebeRange = item.pu_bebe > 0 ? parseTrancheAge(item.pu_bebe_age) : null;
+export type RepartitionAgesResultat = {
+  tranches: RepartitionLigne[];
+  // Âges qu'aucune tranche ne doit facturer parce que le catalogue
+  // l'interdit explicitement (ex. "INTERDIT AUX ENFANTS DE MOINS DE 6
+  // ANS" sur pu_bebe_age) — jamais un prix inventé (ni gratuit, ni plein
+  // tarif) pour un participant qui ne peut de toute façon pas faire
+  // l'activité ; à l'employée de trancher (retirer l'enfant, alternative,
+  // prévenir le client).
+  agesInterdits: number[];
+};
+
+export function repartirAgesEnfants(item: CatalogueItem, ages: number[]): RepartitionAgesResultat {
+  const bebeAgeTexte = item.pu_bebe_age || "";
+  // pu_bebe_age porte l'info même quand pu_bebe vaut 0 — un tarif "bébé"
+  // gratuit (0 à 3 ans", "0 à 5 ans (gratuit)") est un vrai prix (zéro),
+  // pas une absence de tranche ; ne jamais l'ignorer juste parce que le
+  // montant est nul (bug corrigé le 2026-09-14 : un enfant de 3 ans
+  // facturé au plein tarif enfant sur des activités où il devrait être
+  // gratuit).
+  const interdit = /interdit/i.test(bebeAgeTexte);
+  const bebeRange = !interdit ? parseTrancheAge(bebeAgeTexte) : null;
+  const interditRange = interdit ? parseTrancheAge(bebeAgeTexte) : null;
   const enfantRange = item.pu_enfant > 0 ? parseTrancheAge(item.pu_enfant_age) : null;
   const compteurs: Record<"enfant_3ans" | "bebe" | "enfant", number> = { enfant_3ans: 0, bebe: 0, enfant: 0 };
+  const agesInterdits: number[] = [];
   ages.forEach((age) => {
-    if (bebeRange && age >= bebeRange.min && age <= bebeRange.max) {
+    if (interditRange && age >= interditRange.min && age <= interditRange.max) {
+      agesInterdits.push(age);
+    } else if (bebeRange && age >= bebeRange.min && age <= bebeRange.max) {
       compteurs.bebe += 1;
     } else if (item.pu_enfant_3ans > 0 && !enfantRange && age <= 3) {
       // Pas de champ "_age" pour pu_enfant_3ans (n'existe pas sur le
@@ -329,12 +352,12 @@ export function repartirAgesEnfants(item: CatalogueItem, ages: number[]): Repart
     }
   });
   const tranches: RepartitionLigne[] = [];
-  if (compteurs.bebe > 0) tranches.push({ tranche: "bebe", label: item.pu_bebe_age || "Bébé", pu: item.pu_bebe, nb: compteurs.bebe });
+  if (compteurs.bebe > 0) tranches.push({ tranche: "bebe", label: bebeAgeTexte || "Bébé", pu: item.pu_bebe, nb: compteurs.bebe });
   if (compteurs.enfant_3ans > 0)
     tranches.push({ tranche: "enfant_3ans", label: "Enfant 3 ans", pu: item.pu_enfant_3ans, nb: compteurs.enfant_3ans });
   if (compteurs.enfant > 0)
     tranches.push({ tranche: "enfant", label: item.pu_enfant_age || "Enfant", pu: item.pu_enfant, nb: compteurs.enfant });
-  return tranches;
+  return { tranches, agesInterdits };
 }
 
 // Propose la première date libre du séjour pour cette activité — respecte

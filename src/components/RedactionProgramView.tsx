@@ -242,7 +242,14 @@ export default function RedactionProgramView({
 
   const construireRepartition = (item: CatalogueItem): RepartitionLigne[] | undefined => {
     if (item.tarif_mode === "groupe") return undefined;
-    const distingue = item.pu_enfant !== item.pu_adulte || item.pu_bebe > 0 || item.pu_enfant_3ans > 0;
+    // pu_bebe_age porte l'info même quand pu_bebe vaut 0 (tarif "bébé"
+    // gratuit ou tranche interdite) — ne jamais se fier au seul montant
+    // pour décider si l'activité distingue un tarif enfant particulier.
+    const distingue =
+      item.pu_enfant !== item.pu_adulte ||
+      item.pu_bebe > 0 ||
+      item.pu_enfant_3ans > 0 ||
+      !!(item.pu_bebe_age || "").trim();
     if (enfants === 0 || !distingue) return undefined;
     const tranches: RepartitionLigne[] = [];
     if (adultes > 0) tranches.push({ tranche: "adulte", label: item.pu_adulte_age || "Adulte", pu: item.pu_adulte, nb: adultes });
@@ -253,7 +260,13 @@ export default function RedactionProgramView({
           `${enfants} enfant(s) mais ${ages.length} âge(s) trouvé(s) dans "Âges enfants" — vérifie la répartition des prix.`
         );
       }
-      tranches.push(...repartirAgesEnfants(item, ages));
+      const { tranches: trenchesAges, agesInterdits } = repartirAgesEnfants(item, ages);
+      tranches.push(...trenchesAges);
+      if (agesInterdits.length > 0) {
+        toast(
+          `"${item.nom}" est interdit à ${agesInterdits.length > 1 ? "ces âges" : "cet âge"} (${agesInterdits.join(", ")} ans) — non compté dans le prix, à retirer ou remplacer.`
+        );
+      }
     } else {
       // Pas d'âge connu du tout : impossible de distinguer bébé/3 ans/enfant
       // — repli sur le tarif enfant générique du catalogue plutôt que de

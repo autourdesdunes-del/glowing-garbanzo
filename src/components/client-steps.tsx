@@ -1885,6 +1885,9 @@ export function PaiementsStep({
             client={client}
             onChange={onChange}
             reservations={reservations}
+            resaOptions={resaOptions}
+            resaTarifs={resaTarifs}
+            paiementsEtapes={paiementsEtapes}
             montantACouvrir={totalSejour}
             totalSejour={totalSejour}
             confirm={confirm}
@@ -1993,6 +1996,9 @@ export function PaiementsStep({
                   client={client}
                   onChange={onChange}
                   reservations={reservations}
+                  resaOptions={resaOptions}
+                  resaTarifs={resaTarifs}
+                  paiementsEtapes={paiementsEtapes}
                   montantACouvrir={resteApresAcompte}
                   totalSejour={totalSejour}
                   montantActiviteAttenduPrevu={montantActiviteAttenduPrevu}

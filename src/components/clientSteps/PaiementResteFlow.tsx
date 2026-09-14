@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Client, Reservation } from "@/lib/types";
+import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import { ASSIGNE_A_OPTIONS } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
@@ -11,6 +11,7 @@ import { Field } from "@/components/Field";
 import MontantEgpField from "@/components/MontantEgpField";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
+import SoldePayeConfirmModal from "@/components/SoldePayeConfirmModal";
 
 // Bouton "Marquer encaissé" / "Encaissé ✅" réutilisé partout où un montant
 // attend d'être pointé comme réglé (solde RDV, solde à l'activité...).
@@ -153,6 +154,9 @@ export function PaiementResteFlow({
   client,
   onChange,
   reservations,
+  resaOptions,
+  resaTarifs,
+  paiementsEtapes,
   montantACouvrir,
   totalSejour,
   montantActiviteAttenduPrevu,
@@ -165,6 +169,9 @@ export function PaiementResteFlow({
   client: Client;
   onChange: (patch: Partial<Client>) => void;
   reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes: PaiementEtape[];
   montantACouvrir: number;
   // Total du séjour au moment où le solde est marqué payé — figé dans
   // client.solde_montant pour que paiementProgress puisse ensuite détecter
@@ -191,6 +198,11 @@ export function PaiementResteFlow({
   const montantAttenduPrevu = montantActiviteAttenduPrevu ?? montantACouvrir;
   const montantAttenduReel = montantActiviteAttenduReel ?? montantACouvrir;
   const [showActivityPicker, setShowActivityPicker] = useState(false);
+  // Marquer le solde payé change le badge de TOUTES les activités d'un coup
+  // (un seul solde par client) — cette étape montre ce qui va changer avant
+  // d'appliquer quoi que ce soit (voir SoldePayeConfirmModal, demande de
+  // Mélanie du 14/09).
+  const [soldePayeConfirm, setSoldePayeConfirm] = useState<{ label: string; patch: Partial<Client> } | null>(null);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
   // Répartition € + EGP saisie librement par l'employée (montants
   // indépendants, pas liés par un taux) — le taux n'est ici affiché qu'à
@@ -256,16 +268,10 @@ export function PaiementResteFlow({
 
   const finaliserRdv = async () => {
     if (!(await confirmerAcompteInclus())) return;
-    const ok = await confirm({
-      title: "Rendez-vous finalisé ?",
-      message:
-        'Souhaitez-vous passer toutes les activités en "Payé - rendez-vous paiement finalisé" ?',
-      confirmLabel: "Oui",
-      cancelLabel: "Non, je m'en occupe manuellement",
+    setSoldePayeConfirm({
+      label: "Payé - rendez-vous paiement finalisé",
+      patch: { solde_paye: true, solde_rdv_finalise: true, solde_montant: totalSejour },
     });
-    if (ok) {
-      onChange({ solde_paye: true, solde_rdv_finalise: true, solde_montant: totalSejour });
-    }
   };
 
   const validerDatePaiement = () => {
@@ -284,19 +290,21 @@ export function PaiementResteFlow({
     time?: string
   ) => {
     if (!(await confirmerAcompteInclus())) return;
-    onChange({
-      solde_paye: true,
-      solde_mode: mode,
-      solde_rdv_finalise: false,
-      solde_date: date,
-      // solde_montant reste le total du séjour (sert à détecter une
-      // activité ajoutée après coup) — solde_montant_recu garde la trace du
-      // montant réellement encaissé quand il diffère.
-      solde_montant: totalSejour,
-      solde_montant_recu: montantRecu,
-      solde_entre_proches_oublie: entreProchesOublie,
-      solde_encaisse_ts:
-        mode === "PayPal" && time ? new Date(`${date}T${time}:00`).toISOString() : null,
+    setSoldePayeConfirm({
+      label: `Payé - ${mode}`,
+      patch: {
+        solde_paye: true,
+        solde_mode: mode,
+        solde_rdv_finalise: false,
+        solde_date: date,
+        // solde_montant reste le total du séjour (sert à détecter une
+        // activité ajoutée après coup) — solde_montant_recu garde la trace du
+        // montant réellement encaissé quand il diffère.
+        solde_montant: totalSejour,
+        solde_montant_recu: montantRecu,
+        solde_entre_proches_oublie: entreProchesOublie,
+        solde_encaisse_ts: mode === "PayPal" && time ? new Date(`${date}T${time}:00`).toISOString() : null,
+      },
     });
   };
 
@@ -1117,6 +1125,21 @@ export function PaiementResteFlow({
             </div>
           );
         })()}
+      {soldePayeConfirm && (
+        <SoldePayeConfirmModal
+          client={client}
+          reservations={reservations}
+          resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
+          newLabel={soldePayeConfirm.label}
+          onCancel={() => setSoldePayeConfirm(null)}
+          onConfirm={() => {
+            onChange(soldePayeConfirm.patch);
+            setSoldePayeConfirm(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -798,17 +798,37 @@ export default function ClientDetail({
   // (le wizard "Ajouter une activité" enchaîne beaucoup de patchs rapides).
   const reservationPendingPatch = useRef<Record<string, Partial<Reservation>>>({});
   const reservationRetryTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const reservationDebounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const reservationInFlight = useRef<Record<string, boolean>>({});
   const reservationErrorToastShown = useRef<Record<string, boolean>>({});
 
   const flushReservation = useCallback(
     async (id: string, attempt = 0) => {
       const patch = reservationPendingPatch.current[id];
       if (!patch || Object.keys(patch).length === 0) return;
+      // Un envoi par frappe (avant ce fix) pouvait partir en parallèle pour
+      // chaque lettre tapée dans un champ texte (ex. info_importante) — sans
+      // garantie d'ordre d'arrivée réseau, un envoi partiel ("Allerg…") pouvait
+      // arriver après l'envoi complet ("Allergie") et tronquer la valeur en
+      // base. On sérialise désormais les envois par réservation : un seul en
+      // vol à la fois, le suivant repart avec le dernier patch accumulé.
+      if (attempt === 0 && reservationInFlight.current[id]) return;
+      reservationInFlight.current[id] = true;
       const { error } = await supabase.from("reservations").update(patch).eq("id", id);
+      reservationInFlight.current[id] = false;
       if (!error) {
         const current = reservationPendingPatch.current[id];
         if (current) {
-          Object.keys(patch).forEach((k) => delete (current as Record<string, unknown>)[k]);
+          // Ne retire que les clés dont la valeur n'a pas changé depuis cet
+          // envoi — sinon une frappe arrivée pendant la requête (donc déjà
+          // fusionnée dans current) serait effacée de la file sans jamais
+          // avoir été envoyée.
+          Object.keys(patch).forEach((k) => {
+            if ((current as Record<string, unknown>)[k] === (patch as Record<string, unknown>)[k]) {
+              delete (current as Record<string, unknown>)[k];
+            }
+          });
+          if (Object.keys(current).length > 0) flushReservation(id);
         }
         reservationErrorToastShown.current[id] = false;
         return;
@@ -831,7 +851,10 @@ export default function ClientDetail({
     setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     reservationPendingPatch.current[id] = { ...reservationPendingPatch.current[id], ...patch };
     if (reservationRetryTimers.current[id]) clearTimeout(reservationRetryTimers.current[id]);
-    flushReservation(id);
+    // Petit debounce pour laisser une frappe rapide (ex. info_importante)
+    // se poser avant l'envoi, au lieu de lancer une requête par caractère.
+    if (reservationDebounceTimers.current[id]) clearTimeout(reservationDebounceTimers.current[id]);
+    reservationDebounceTimers.current[id] = setTimeout(() => flushReservation(id), 400);
     // Alerte immédiate si ce changement fait tomber cette activité sur la
     // même date + même moment de la journée qu'une autre activité du client.
     if ("date_debut" in patch || "moment" in patch || "creneau" in patch) {

@@ -1364,8 +1364,17 @@ export default function ClientDetail({
     mixteRate: number;
   } | null>(null);
   const checkRepriseApresAjout = () => {
-    if (!client.solde_paye || client.reprise_montant > 0) return;
-    const baseline = Number(client.solde_montant) || totalSejourHeader;
+    if (!client.solde_paye) return;
+    // Une reprise déjà en attente (pas encore marquée réglée) ne doit
+    // jamais empêcher de détecter une NOUVELLE activité ajoutée par-dessus
+    // — sinon celle-ci est absorbée en silence, sans jamais demander
+    // comment/où l'encaisser (bug constaté sur Carine LELOIR le
+    // 2026-09-14 : 2e activité reprise correctement, 3e activité ajoutée
+    // pendant que la reprise de la 2e restait en attente → jamais
+    // demandée). La reprise déjà connue fait donc partie de la référence,
+    // et seul le dépassement AU-DESSUS de ce qui est déjà prévu déclenche
+    // le pop-up.
+    const baseline = (Number(client.solde_montant) || totalSejourHeader) + (Number(client.reprise_montant) || 0);
     const diff = Math.round((totalSejourHeader - baseline) * 100) / 100;
     if (diff <= 0.01) return;
     const derniereActivite = [...reservationsActives(reservations)].sort((a, b) =>
@@ -1409,8 +1418,15 @@ export default function ClientDetail({
       toast("Choisis à quelle activité relier ce paiement.");
       return;
     }
+    // S'ajoute à une reprise déjà en attente plutôt que de l'écraser — sinon
+    // valider cette reprise-ci effacerait le montant d'une précédente
+    // encore non réglée. Le mode/l'activité affichés restent ceux de cette
+    // reprise-ci (limite connue : un seul mode/une seule activité mémorisés
+    // pour la reprise totale, même si plusieurs activités aux règlements
+    // différents s'accumulent avant d'être réglées).
+    const montantCumule = Math.round(((Number(client.reprise_montant) || 0) + montant) * 100) / 100;
     onChange({
-      reprise_montant: montant,
+      reprise_montant: montantCumule,
       reprise_mode: repriseModal.mode,
       reprise_activite_id: modeSansActivite ? null : repriseModal.activiteId,
       // Remis à 0 quand le mode n'est pas mixte, pour ne jamais laisser une

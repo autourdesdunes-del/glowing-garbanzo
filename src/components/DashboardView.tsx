@@ -470,8 +470,7 @@ export default function DashboardView({
     activitesEnAttente.length +
     paiementsAPayer.length +
     auRevoirToday.length +
-    avisToday.length +
-    staleProspects.length;
+    avisToday.length;
 
   // -- Priority queue: every client needing attention soon, ranked by departure date.
   type QueueRow = { client: Client; motifs: string[] };

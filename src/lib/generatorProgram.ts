@@ -225,6 +225,8 @@ export type VehiculeLigne = {
   nb: number;
 };
 
+export type TransfertVehiculeLigne = { label: string; prix: number };
+
 export type Ligne = {
   id: string;
   catalogueItemId: string;
@@ -264,6 +266,13 @@ export type Ligne = {
   // prixParPersonne/nbPersonnes ET repartition ET groupe, mêmes règles de
   // mutuelle exclusivité.
   vehicules?: VehiculeLigne[];
+  // Transfert à tarif par véhicule (voiture jusqu'à 3 personnes / van
+  // au-delà) — remplace groupe/repartition/prixParPersonne. Un transfert ne
+  // se facture jamais "forfait + personne supplémentaire" : on paie un
+  // véhicule, et c'est le nombre de voyageurs qui décide lequel. Le libellé
+  // et le prix viennent des "Tarifs de transfert par zone" de la fiche
+  // catalogue, jamais d'un calcul.
+  transfertVehicule?: TransfertVehiculeLigne;
   // Ligne spéciale "Taxe de transfert seule" (RedactionProgramView) — pas
   // une vraie activité catalogue : seul le montant de taxeTransfert compte,
   // jamais de "X€ par personne" ni de ligne "+ Taxe de transfert" en plus
@@ -285,6 +294,7 @@ export function groupeBase(g: GroupeLigne): number {
 export function ligneBase(l: Ligne): number {
   if (l.estTaxeSeule) return 0;
   if (l.vehicules && l.vehicules.length > 0) return l.vehicules.reduce((s, v) => s + v.pu * v.nb, 0);
+  if (l.transfertVehicule) return l.transfertVehicule.prix;
   if (l.groupe) return groupeBase(l.groupe);
   if (l.repartition && l.repartition.length > 0) {
     return l.repartition.reduce((s, r) => s + r.pu * r.nb, 0);
@@ -595,6 +605,8 @@ export function buildRedactionText(
         .forEach((v) => {
           parts.push(`${eurosVirgule(v.pu)} par ${v.label} (x${v.nb})`);
         });
+    } else if (l.transfertVehicule) {
+      parts.push(`${l.transfertVehicule.label} : ${eurosVirgule(l.transfertVehicule.prix)}`);
     } else if (l.groupe) {
       parts.push(`Forfait de base (${l.groupe.basePax} pers.) : ${eurosVirgule(l.groupe.base)}`);
       if (l.groupe.extra1 > 0) {

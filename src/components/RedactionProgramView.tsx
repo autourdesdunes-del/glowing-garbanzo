@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, CatalogueOption, Client, HotelReference, TransfertTaxe } from "@/lib/types";
+import { CatalogueItem, CatalogueOption, CatalogueTransfertTarif, Client, HotelReference, TransfertTaxe } from "@/lib/types";
 import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import { groupeExtraCounts, normalizeJoursDisponibles } from "@/lib/resa";
 import { CRENEAUX_ACTIVITE } from "@/lib/constants";
@@ -25,6 +25,7 @@ import {
   repartirAgesEnfants,
   RepartitionLigne,
   suggererDateLigne,
+  TransfertVehiculeLigne,
   VehiculeLigne,
 } from "@/lib/generatorProgram";
 
@@ -76,10 +77,12 @@ export default function RedactionProgramView({
   catalogue,
   clients,
   catalogueOptions,
+  transfertTarifs,
 }: {
   catalogue: CatalogueItem[];
   clients: Client[];
   catalogueOptions: Record<string, CatalogueOption[]>;
+  transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
 }) {
   const supabase = createClient();
   const toast = useToast();
@@ -254,6 +257,47 @@ export default function RedactionProgramView({
     };
   };
 
+  // Un transfert ne se facture pas "forfait + personne supplémentaire" : on
+  // paie un véhicule entier, et c'est le nombre de voyageurs qui décide
+  // lequel — voiture jusqu'à 3, van au-delà. Le libellé et le prix sont lus
+  // dans les "Tarifs de transfert par zone" de la fiche catalogue, jamais
+  // recalculés. Quand la fiche distingue plusieurs zones (transfert aéroport
+  // de Hurghada : Hurghada / Sahl Hasheesh / Makadi / El Gouna), on retient
+  // celle de l'hôtel du client ; s'il n'y a qu'un tarif pour ce véhicule
+  // (transferts d'une ville à l'autre), il n'y a rien à départager.
+  const construireTransfertVehicule = (item: CatalogueItem): TransfertVehiculeLigne | undefined => {
+    const tarifs = (transfertTarifs[item.id] || []).filter((t) => t.zone.trim() && t.vehicule.trim());
+    if (tarifs.length === 0) return undefined;
+    const estVan = nbPersonnes > 3;
+    const candidats = tarifs.filter((t) => {
+      const v = deaccent(t.vehicule.toLowerCase());
+      const vehiculeGroupe = v.includes("van") || v.includes("bus") || v.includes("minibus");
+      return estVan ? vehiculeGroupe : !vehiculeGroupe;
+    });
+    if (candidats.length === 0) return undefined;
+    const zone = deaccent(villeClient.trim().toLowerCase());
+    const parZone = zone
+      ? candidats.filter((t) => {
+          const z = deaccent(t.zone.trim().toLowerCase());
+          return z === zone || z.includes(zone) || zone.includes(z);
+        })
+      : [];
+    const choisi = parZone.length === 1 ? parZone[0] : candidats.length === 1 ? candidats[0] : null;
+    if (!choisi) {
+      // Plusieurs zones possibles et aucune ne correspond à l'hôtel : on ne
+      // choisit pas à la place de l'employée, elle corrigera le montant.
+      toast(`Plusieurs tarifs de transfert pour "${item.nom}" — vérifie le véhicule et le prix à la main.`);
+      return undefined;
+    }
+    // Au-delà de 8 voyageurs, aucun van standard : le tarif catalogue ne
+    // vaut plus, il faut demander à Hossam (règle du glossaire, rappelée
+    // sur toutes les fiches de transfert privatif).
+    if (nbPersonnes > 8) {
+      toast(`${nbPersonnes} personnes — au-delà de 8, le tarif van n'est plus garanti : à confirmer avec Hossam avant d'envoyer.`);
+    }
+    return { label: choisi.vehicule.trim(), prix: Number(choisi.prix) || 0 };
+  };
+
   const construireRepartition = (item: CatalogueItem): RepartitionLigne[] | undefined => {
     if (item.tarif_mode === "groupe") return undefined;
     // pu_bebe_age porte l'info même quand pu_bebe vaut 0 (tarif "bébé"
@@ -384,6 +428,11 @@ export default function RedactionProgramView({
       setMixQuadBuggyItem(item);
       setNbQuadPopup(1);
       setNbBuggyPopup(0);
+      return;
+    }
+    const transfertVehicule = construireTransfertVehicule(item);
+    if (transfertVehicule) {
+      construireEtAjouterLigne(item, { transfertVehicule });
       return;
     }
     construireEtAjouterLigne(item, { repartition: construireRepartition(item), groupe: construireGroupe(item) });
@@ -594,6 +643,16 @@ export default function RedactionProgramView({
               .filter((v) => v.nb > 0)
               .map((v) => `${v.nb} ${v.label}${v.nb > 1 ? "s" : ""}`)
               .join(", "),
+          }
+        : l.transfertVehicule
+        ? {
+            // Un véhicule entier, pas un prix par tête : on l'enregistre en
+            // forfait groupe (seul mode "prix global" que la fiche client
+            // sait afficher) et le véhicule retenu reste lisible dans
+            // pax_override, pour que personne n'ait à le redeviner.
+            tarif_mode: "groupe" as const,
+            prix_groupe_base: Math.max(l.transfertVehicule.prix - l.remise, 0),
+            pax_override: `${l.transfertVehicule.label} — ${nbPersonnesLigne(l)} personnes`,
           }
         : l.groupe
         ? {
@@ -931,7 +990,7 @@ export default function RedactionProgramView({
                         {!l.creneau && <span className="mt-0.5 block text-[10px] text-red-600">Obligatoire</span>}
                       </label>
                     )}
-                    {!l.repartition && !l.groupe && !l.vehicules && !l.estTaxeSeule && (
+                    {!l.repartition && !l.groupe && !l.vehicules && !l.transfertVehicule && !l.estTaxeSeule && (
                       <>
                         <label className="text-[11px] text-neutral-500">
                           Prix / personne (€)
@@ -1111,6 +1170,29 @@ export default function RedactionProgramView({
                           <span className="text-neutral-500">= {eurosVirgule(v.pu * v.nb)}</span>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {l.transfertVehicule && (
+                    <div className="mt-2 space-y-1 rounded-md bg-[#fafafa] p-2 text-xs">
+                      <p className="text-[11px] font-medium text-neutral-500">
+                        Véhicule — {nbPersonnes} voyageur(s)
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="shrink-0 font-medium text-[#171717]">{l.transfertVehicule.label}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={l.transfertVehicule.prix}
+                          onChange={(e) =>
+                            updateLigne(l.id, {
+                              transfertVehicule: { ...l.transfertVehicule!, prix: Math.max(0, Number(e.target.value)) },
+                            })
+                          }
+                          className="input w-20 text-xs"
+                        />
+                        <span className="text-neutral-400">€</span>
+                      </div>
                     </div>
                   )}
 

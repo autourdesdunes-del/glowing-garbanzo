@@ -3119,7 +3119,7 @@ function AppShellInner({
                 </button>
               </div>
               {generateurSub === "redaction" ? (
-                <RedactionProgramView catalogue={catalogue} clients={clients} catalogueOptions={catalogueOptions} />
+                <RedactionProgramView catalogue={catalogue} clients={clients} catalogueOptions={catalogueOptions} transfertTarifs={transfertTarifs} />
               ) : (
                 <GeneratorView catalogue={catalogue} clients={clients} />
               )}
@@ -3130,7 +3130,7 @@ function AppShellInner({
             // activités que personne n'a choisies — un programme envoyé au
             // client ne doit contenir que ce qui a été décidé. Pas de barre de
             // sous-onglets ici : il n'y a qu'un outil à lui montrer.
-            <RedactionProgramView catalogue={catalogue} clients={clients} catalogueOptions={catalogueOptions} />
+            <RedactionProgramView catalogue={catalogue} clients={clients} catalogueOptions={catalogueOptions} transfertTarifs={transfertTarifs} />
           ) : (
             <OutilEnConstruction />
           )}

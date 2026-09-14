@@ -216,6 +216,15 @@ export type GroupeLigne = {
   prixExtraEnfant: number;
 };
 
+// Composition libre par unité (ex. "Safari Mix Quad/Buggy" : prix au
+// véhicule choisi, pas de forfait de base ni de prix par personne — un cas
+// catalogue unique qui ne rentre dans aucun des deux modèles ci-dessus).
+export type VehiculeLigne = {
+  label: string;
+  pu: number;
+  nb: number;
+};
+
 export type Ligne = {
   id: string;
   catalogueItemId: string;
@@ -251,6 +260,10 @@ export type Ligne = {
   // sont mutuellement exclusifs, une activité catalogue est soit "personne"
   // soit "groupe", jamais les deux).
   groupe?: GroupeLigne;
+  // Composition par unité (ex. Safari Mix Quad/Buggy) — remplace
+  // prixParPersonne/nbPersonnes ET repartition ET groupe, mêmes règles de
+  // mutuelle exclusivité.
+  vehicules?: VehiculeLigne[];
   // Ligne spéciale "Taxe de transfert seule" (RedactionProgramView) — pas
   // une vraie activité catalogue : seul le montant de taxeTransfert compte,
   // jamais de "X€ par personne" ni de ligne "+ Taxe de transfert" en plus
@@ -271,6 +284,7 @@ export function groupeBase(g: GroupeLigne): number {
 
 export function ligneBase(l: Ligne): number {
   if (l.estTaxeSeule) return 0;
+  if (l.vehicules && l.vehicules.length > 0) return l.vehicules.reduce((s, v) => s + v.pu * v.nb, 0);
   if (l.groupe) return groupeBase(l.groupe);
   if (l.repartition && l.repartition.length > 0) {
     return l.repartition.reduce((s, r) => s + r.pu * r.nb, 0);
@@ -575,6 +589,12 @@ export function buildRedactionText(
     if (l.estTaxeSeule) {
       // Rien de plus : le total en bas suffit, pas de "X€ par personne" ni
       // de ligne "+ Taxe de transfert" qui doublonnerait le même montant.
+    } else if (l.vehicules && l.vehicules.length > 0) {
+      l.vehicules
+        .filter((v) => v.nb > 0)
+        .forEach((v) => {
+          parts.push(`${eurosVirgule(v.pu)} par ${v.label} (x${v.nb})`);
+        });
     } else if (l.groupe) {
       parts.push(`Forfait de base (${l.groupe.basePax} pers.) : ${eurosVirgule(l.groupe.base)}`);
       if (l.groupe.extra1 > 0) {

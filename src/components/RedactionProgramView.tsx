@@ -25,6 +25,7 @@ import {
   repartirAgesEnfants,
   RepartitionLigne,
   suggererDateLigne,
+  VehiculeLigne,
 } from "@/lib/generatorProgram";
 
 // Même règle que AddActivityWizard : une activité de demi-journée
@@ -32,6 +33,16 @@ import {
 // (matin/après-midi/coucher de soleil) — sinon rien n'empêche de la
 // réserver deux fois le même jour sans que personne ne le voie.
 const CRENEAU_REQUIS = "Créneau (matin / après-midi / coucher de soleil)";
+
+// Cas catalogue unique : ni un prix par personne, ni un forfait de base +
+// suppléments — le client choisit combien de quads et combien de buggies
+// il veut, chacun à son propre prix unitaire (25€/110€, donné par
+// Mélanie le 2026-09-14, absent du catalogue car aucun champ ne modélise
+// "plusieurs types de véhicules à l'unité"). Détecté par son nom exact
+// faute d'un marqueur générique sur la fiche catalogue.
+const NOM_MIX_QUAD_BUGGY = "Safari Mix Quad/Buggy";
+const PRIX_QUAD = 25;
+const PRIX_BUGGY = 110;
 
 // Brouillon persistant : l'employée peut changer d'onglet ou de page sans
 // perdre le programme en cours — demandé par Mélanie le 2026-09-13 après
@@ -112,6 +123,9 @@ export default function RedactionProgramView({
       return next;
     });
   };
+  const [mixQuadBuggyItem, setMixQuadBuggyItem] = useState<CatalogueItem | null>(null);
+  const [nbQuadPopup, setNbQuadPopup] = useState(1);
+  const [nbBuggyPopup, setNbBuggyPopup] = useState(0);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [hotels, setHotels] = useState<HotelReference[]>([]);
@@ -286,7 +300,10 @@ export default function RedactionProgramView({
     return tranches;
   };
 
-  const addLigne = (item: CatalogueItem) => {
+  // Partie commune à toute activité ajoutée (date suggérée, taxe, créneau
+  // obligatoire...) — extraite pour être réutilisée par le popup Safari Mix
+  // Quad/Buggy (qui ne calcule ni repartition ni groupe, juste `vehicules`).
+  const construireEtAjouterLigne = (item: CatalogueItem, extra: Partial<Ligne>) => {
     // Toutes les dates déjà couvertes par une autre ligne, y compris les
     // jours intermédiaires d'une activité sur plusieurs jours (croisière,
     // Louxor 2 jours...) — sinon rien n'empêchait de proposer une seconde
@@ -326,13 +343,16 @@ export default function RedactionProgramView({
     if (estMultiJours && dureeJoursParsee === null) {
       toast(`Durée de "${item.nom}" inconnue (pas de nombre de jours dans son nom) — complète la date de fin toi-même.`);
     }
-    const repartition = construireRepartition(item);
-    const groupe = construireGroupe(item);
     const creneauRequis = (item.champs_requis_liste || []).includes(CRENEAU_REQUIS);
     // Certaines excursions ne partent pas de Hurghada (déjà sur place à
     // Louxor/Le Caire, croisières, Siwa...) — jamais la taxe hôtel↔point de
     // rendez-vous Hurghada dans ce cas, quelle que soit la zone de l'hôtel.
     const taxeApplicable = excluTaxeTransfertHurghada(item) ? 0 : taxeTransfertMontant;
+    if (item.tarif_mode === "groupe" && item.prix_groupe_note?.trim()) {
+      // Ex. Yacht privé (petit modèle) : prix variable selon disponibilité,
+      // jamais annoncé au client sans vérification — cf. fiche catalogue.
+      toast(item.prix_groupe_note.trim());
+    }
     const id = nextLigneId();
     setLignesOuvertes((prev) => new Set(prev).add(id));
     setLignes((prev) => [
@@ -352,12 +372,35 @@ export default function RedactionProgramView({
         remiseLabel: "",
         taxeTransfert: taxeApplicable,
         options: [],
-        repartition,
-        groupe,
         ...(creneauRequis ? { creneau: "" } : {}),
+        ...extra,
       },
     ]);
     setActiviteQuery("");
+  };
+
+  const addLigne = (item: CatalogueItem) => {
+    if (item.nom === NOM_MIX_QUAD_BUGGY) {
+      setMixQuadBuggyItem(item);
+      setNbQuadPopup(1);
+      setNbBuggyPopup(0);
+      return;
+    }
+    construireEtAjouterLigne(item, { repartition: construireRepartition(item), groupe: construireGroupe(item) });
+  };
+
+  const confirmerMixQuadBuggy = () => {
+    if (!mixQuadBuggyItem) return;
+    if (nbQuadPopup === 0 && nbBuggyPopup === 0) {
+      toast("Choisis au moins un quad ou un buggy.");
+      return;
+    }
+    const vehicules: VehiculeLigne[] = [
+      ...(nbQuadPopup > 0 ? [{ label: "quad", pu: PRIX_QUAD, nb: nbQuadPopup }] : []),
+      ...(nbBuggyPopup > 0 ? [{ label: "buggy", pu: PRIX_BUGGY, nb: nbBuggyPopup }] : []),
+    ];
+    construireEtAjouterLigne(mixQuadBuggyItem, { vehicules });
+    setMixQuadBuggyItem(null);
   };
 
   // Taxe de transfert vendue seule, sans activité — même montant que celui
@@ -538,6 +581,19 @@ export default function RedactionProgramView({
             participants_adultes: 0,
             pu_adulte: 0,
             pax_override: "Taxe de transfert",
+          }
+        : l.vehicules
+        ? {
+            // Aucune colonne dédiée à "plusieurs types de véhicules à
+            // l'unité" — on réutilise le forfait groupe (déjà supporté
+            // partout ailleurs dans l'app) avec le total déjà calculé
+            // comme base, et le détail lisible dans pax_override.
+            tarif_mode: "groupe" as const,
+            prix_groupe_base: Math.max(l.vehicules.reduce((s, v) => s + v.pu * v.nb, 0) - l.remise, 0),
+            pax_override: l.vehicules
+              .filter((v) => v.nb > 0)
+              .map((v) => `${v.nb} ${v.label}${v.nb > 1 ? "s" : ""}`)
+              .join(", "),
           }
         : l.groupe
         ? {
@@ -875,7 +931,7 @@ export default function RedactionProgramView({
                         {!l.creneau && <span className="mt-0.5 block text-[10px] text-red-600">Obligatoire</span>}
                       </label>
                     )}
-                    {!l.repartition && !l.groupe && !l.estTaxeSeule && (
+                    {!l.repartition && !l.groupe && !l.vehicules && !l.estTaxeSeule && (
                       <>
                         <label className="text-[11px] text-neutral-500">
                           Prix / personne (€)
@@ -1023,6 +1079,42 @@ export default function RedactionProgramView({
                     </div>
                   )}
 
+                  {l.vehicules && l.vehicules.length > 0 && (
+                    <div className="mt-2 space-y-1 rounded-md bg-[#fafafa] p-2 text-xs">
+                      <p className="text-[11px] font-medium text-neutral-500">Véhicules</p>
+                      {l.vehicules.map((v, idx) => (
+                        <div key={idx} className="flex flex-wrap items-center gap-2">
+                          <span className="w-16 shrink-0 font-medium capitalize text-[#171717]">{v.label}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={v.pu}
+                            onChange={(e) =>
+                              updateLigne(l.id, {
+                                vehicules: l.vehicules!.map((x, i) => (i === idx ? { ...x, pu: Math.max(0, Number(e.target.value)) } : x)),
+                              })
+                            }
+                            className="input w-20 text-xs"
+                          />
+                          <span className="text-neutral-400">€ ×</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={v.nb}
+                            onChange={(e) =>
+                              updateLigne(l.id, {
+                                vehicules: l.vehicules!.map((x, i) => (i === idx ? { ...x, nb: Math.max(0, Number(e.target.value)) } : x)),
+                              })
+                            }
+                            className="input w-16 text-xs"
+                          />
+                          <span className="text-neutral-500">= {eurosVirgule(v.pu * v.nb)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!l.vehicules && (
                   <div className="mt-2">
                     <p className="text-[11px] text-neutral-500">Options / suppléments</p>
                     {(l.options || []).map((o) => (
@@ -1072,6 +1164,7 @@ export default function RedactionProgramView({
                       <p className="mt-1 text-[11px] text-neutral-400">Aucune option pour cette activité.</p>
                     )}
                   </div>
+                  )}
 
                   <label className="mt-2 block text-[11px] text-neutral-500">
                     Remise (€)
@@ -1130,6 +1223,54 @@ export default function RedactionProgramView({
             >
               {saving ? "Ajout…" : `Ajouter ${lignes.length} activité(s) au dossier`}
             </button>
+          </div>
+        </div>
+      )}
+
+      {mixQuadBuggyItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl">
+            <h2 className="font-heading text-base font-semibold text-[#171717]">Safari Mix Quad/Buggy</h2>
+            <p className="mt-2 text-sm text-neutral-600">
+              Combien de quads et de buggies le client veut-il ? Chaque véhicule a son propre prix.
+            </p>
+            <label className="mt-4 block text-xs text-neutral-500">
+              Quads ({eurosVirgule(PRIX_QUAD)} chacun)
+              <input
+                type="number"
+                min={0}
+                value={nbQuadPopup}
+                onChange={(e) => setNbQuadPopup(Math.max(0, Number(e.target.value)))}
+                className="input mt-1"
+              />
+            </label>
+            <label className="mt-3 block text-xs text-neutral-500">
+              Buggies ({eurosVirgule(PRIX_BUGGY)} chacun)
+              <input
+                type="number"
+                min={0}
+                value={nbBuggyPopup}
+                onChange={(e) => setNbBuggyPopup(Math.max(0, Number(e.target.value)))}
+                className="input mt-1"
+              />
+            </label>
+            <p className="mt-3 text-sm font-medium text-[#0F5C56]">
+              Total : {eurosVirgule(nbQuadPopup * PRIX_QUAD + nbBuggyPopup * PRIX_BUGGY)}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={() => setMixQuadBuggyItem(null)}
+                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-[#fafafa]"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmerMixQuadBuggy}
+                className="flex-1 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                Ajouter au programme
+              </button>
+            </div>
           </div>
         </div>
       )}

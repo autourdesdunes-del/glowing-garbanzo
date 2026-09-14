@@ -25,7 +25,6 @@ import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 import MissingInfoModal from "@/components/MissingInfoModal";
 import GuidedActivityModal from "@/components/GuidedActivityModal";
-import AvoirUseModal from "@/components/AvoirUseModal";
 import AnnulerClientModal from "@/components/AnnulerClientModal";
 import IncidentsModal from "@/components/IncidentsModal";
 import DevisPaiementModal from "@/components/DevisPaiementModal";
@@ -403,8 +402,10 @@ export default function ClientDetail({
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
   const [avoirs, setAvoirs] = useState<Avoir[]>([]);
-  const [avoirPromptReservationId, setAvoirPromptReservationId] = useState<string | null>(null);
-  const [avoirAppliedNotice, setAvoirAppliedNotice] = useState<number | null>(null);
+  const [avoirAppliedNotice, setAvoirAppliedNotice] = useState<{
+    reservationId: string;
+    montant: number;
+  } | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [clientHotels, setClientHotels] = useState<ClientHotel[]>([]);
   const [paiementsEtapes, setPaiementsEtapes] = useState<PaiementEtape[]>([]);
@@ -579,27 +580,19 @@ export default function ClientDetail({
   // le crédit réel n'est débité qu'une fois en base mais appliqué deux fois
   // aux réservations.
   const usingAvoirRef = useRef(false);
-  const useAvoir = async (montant: number) => {
-    const reservationId = avoirPromptReservationId;
-    setAvoirPromptReservationId(null);
-    if (!reservationId || usingAvoirRef.current) return;
+  const autoApplyAvoir = async (reservationId: string, montant: number) => {
+    if (usingAvoirRef.current) return;
     usingAvoirRef.current = true;
     // On relit les avoirs depuis la base plutôt que de faire confiance à
     // `avoirs` en mémoire, pour réduire (sans l'éliminer complètement) la
     // fenêtre où un autre onglet/utilisateur aurait déjà entamé le même
-    // avoir entre l'ouverture du prompt et cette confirmation.
+    // avoir entre le calcul du montant et cette application.
     const { data: avoirsFrais } = await supabase
       .from("avoirs")
       .select("*")
       .eq("client_id", client.id)
       .order("created_at", { ascending: true });
     const avoirsSource = (avoirsFrais as Avoir[]) || avoirs;
-    // Avant ce correctif, "Utilisé sur" restait vide tant que personne ne le
-    // remplissait à la main : un avoir consommé via ce prompt (le cas
-    // courant, à l'ajout d'une nouvelle activité) ne laissait aucune trace
-    // lisible de où il était parti — seule la fraction montant_restant/
-    // montant en témoignait, à calculer soi-même. On l'écrit maintenant
-    // automatiquement, avec le nom de l'activité si déjà connu à cet instant.
     const resaCible = reservations.find((r) => r.id === reservationId);
     const label = `${euros(montant)} € sur ${
       resaCible?.nom_activite || "une activité"
@@ -627,8 +620,66 @@ export default function ClientDetail({
     // le total dans paiementProgress()).
     const montantReellementApplique = montant - restant;
     await updateReservation(reservationId, { avoir_utilise: montantReellementApplique });
-    setAvoirAppliedNotice(montantReellementApplique);
+    setAvoirAppliedNotice({ reservationId, montant: montantReellementApplique });
     usingAvoirRef.current = false;
+  };
+
+  // Id de la réservation tout juste créée par addReservation (avant que son
+  // prix ne soit connu) — voir tryAutoApplyAvoirOnFinish.
+  const newActivityAvoirCandidateRef = useRef<string | null>(null);
+
+  // Avant, un pop-up "veux-tu utiliser l'avoir ?" apparaissait dès la
+  // création de l'activité (étape 1 du pas-à-pas), donc avant même de
+  // connaître son prix — l'employée devait deviner combien affecter.
+  // Demande de Mélanie (14/09) : appliquer l'avoir automatiquement, plafonné
+  // au prix réel de l'activité, une fois celui-ci connu — donc seulement à
+  // la fin du pas-à-pas ("Ajouter l'activité"), jamais à la création ni sur
+  // une édition d'activité déjà en place (reservationId ne correspond alors
+  // pas au candidat mémorisé ci-dessus, voir addReservation).
+  const tryAutoApplyAvoirOnFinish = (finishedReservationId?: string) => {
+    const candidateId = newActivityAvoirCandidateRef.current;
+    newActivityAvoirCandidateRef.current = null;
+    if (!finishedReservationId || finishedReservationId !== candidateId) return;
+    if (avoirExpire || avoirDisponible <= 0) return;
+    const r = reservations.find((res) => res.id === finishedReservationId);
+    if (!r) return;
+    const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+    const montant = Math.min(avoirDisponible, total);
+    if (montant <= 0) return;
+    autoApplyAvoir(finishedReservationId, montant);
+  };
+
+  // Ajustable après coup (réduire ou retirer l'avoir auto-appliqué) — on ne
+  // sait pas forcément duquel des avoirs d'origine la part libérée vient
+  // (répartition possible sur plusieurs), donc on la restitue sous la forme
+  // d'un nouvel avoir plutôt que de deviner lequel recréditer (même
+  // principe que la restitution sur annulation, voir AnnulerActiviteModal).
+  const adjustAvoirOnReservation = async (reservationId: string, nouveauMontant: number) => {
+    const r = reservations.find((res) => res.id === reservationId);
+    if (!r) return;
+    const actuel = Number(r.avoir_utilise) || 0;
+    const cible = Math.max(0, Math.min(nouveauMontant, actuel));
+    const aLiberer = Math.round((actuel - cible) * 100) / 100;
+    if (aLiberer <= 0) return;
+    const { data, error } = await supabase
+      .from("avoirs")
+      .insert({
+        client_id: client.id,
+        montant: aLiberer,
+        montant_restant: aLiberer,
+        raison: "Autre",
+        raison_autre: `Ajusté depuis ${r.nom_activite || "une activité"}`,
+        activite_id: reservationId,
+        date_probleme: todayStr(),
+      })
+      .select()
+      .single();
+    if (error || !data) {
+      toast("Échec de l'ajustement de l'avoir.");
+      return;
+    }
+    setAvoirs((prev) => [...prev, data as Avoir]);
+    await updateReservation(reservationId, { avoir_utilise: cible });
   };
 
   useEffect(() => {
@@ -770,11 +821,12 @@ export default function ClientDetail({
         onChange({ solde_montant: totalAvant });
       }
       // Cette nouvelle activité peut être l'occasion de consommer un avoir
-      // en attente — le montant utilisé se rattache à cette réservation
-      // précise pour rester visible sur sa carte. Sauf pour une carte créée
-      // automatiquement en arrière-plan (option de croisière) : ce prompt
-      // interromprait un pop-up déjà ouvert sans rapport avec cette carte.
-      if (avoirDisponible > 0 && !opts?.skipAvoirPrompt) setAvoirPromptReservationId(newReservation.id);
+      // en attente — appliqué automatiquement une fois son prix connu, voir
+      // tryAutoApplyAvoirOnFinish. Sauf pour une carte créée automatiquement
+      // en arrière-plan (option de croisière), sans rapport avec cette carte.
+      if (avoirDisponible > 0 && !opts?.skipAvoirPrompt) {
+        newActivityAvoirCandidateRef.current = newReservation.id;
+      }
       return newReservation.id;
     }
     // Un token d'auth silencieusement expiré échoue une seule fois — on le
@@ -801,6 +853,11 @@ export default function ClientDetail({
   const reservationDebounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const reservationInFlight = useRef<Record<string, boolean>>({});
   const reservationErrorToastShown = useRef<Record<string, boolean>>({});
+  // flushReservation s'appelle elle-même (retry, patch accumulé pendant un
+  // envoi en cours) — passer par ce ref plutôt que par le nom de la const
+  // évite une auto-référence directe dans son propre corps (interdite par
+  // react-hooks/immutability).
+  const flushReservationRef = useRef<(id: string, attempt?: number) => Promise<void>>(async () => {});
 
   const flushReservation = useCallback(
     async (id: string, attempt = 0) => {
@@ -828,7 +885,7 @@ export default function ClientDetail({
               delete (current as Record<string, unknown>)[k];
             }
           });
-          if (Object.keys(current).length > 0) flushReservation(id);
+          if (Object.keys(current).length > 0) setTimeout(() => flushReservationRef.current(id), 0);
         }
         reservationErrorToastShown.current[id] = false;
         return;
@@ -842,10 +899,16 @@ export default function ClientDetail({
       }
       const delay = Math.min(2000 * 2 ** attempt, 15000);
       if (reservationRetryTimers.current[id]) clearTimeout(reservationRetryTimers.current[id]);
-      reservationRetryTimers.current[id] = setTimeout(() => flushReservation(id, attempt + 1), delay);
+      reservationRetryTimers.current[id] = setTimeout(
+        () => flushReservationRef.current(id, attempt + 1),
+        delay
+      );
     },
     [supabase, toast]
   );
+  useEffect(() => {
+    flushReservationRef.current = flushReservation;
+  }, [flushReservation]);
 
   const updateReservation = (id: string, patch: Partial<Reservation>) => {
     setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
@@ -1318,6 +1381,15 @@ export default function ClientDetail({
     });
   };
 
+  // Appelé à chaque fin de pas-à-pas "Ajouter une activité" — regroupe les
+  // deux vérifications indépendantes qui doivent s'y faire (reprise de
+  // règlement, avoir à appliquer) plutôt que de dupliquer le câblage
+  // onActivityFinished à chaque endroit où le pas-à-pas est monté.
+  const handleActivityFinished = (reservationId?: string) => {
+    checkRepriseApresAjout();
+    tryAutoApplyAvoirOnFinish(reservationId);
+  };
+
   const confirmerReprise = () => {
     if (!repriseModal) return;
     const montant = Number(repriseModal.montant) || 0;
@@ -1719,7 +1791,7 @@ export default function ClientDetail({
         taxesRef={taxesRef}
         coutsMap={coutsMap}
         onUpdateCoutReel={updateCoutReel}
-        onActivityFinished={checkRepriseApresAjout}
+        onActivityFinished={handleActivityFinished}
         onBusEscalation={handleBusEscalation}
         busEscalations={busEscalations}
         onJourEscalation={handleJourEscalation}
@@ -1822,7 +1894,7 @@ export default function ClientDetail({
           coutsMap={coutsMap}
           onUpdateCoutReel={updateCoutReel}
           onRequestAdd={() => setGuidedOpen(true)}
-          onActivityFinished={checkRepriseApresAjout}
+          onActivityFinished={handleActivityFinished}
           onBusEscalation={handleBusEscalation}
           busEscalations={busEscalations}
           onJourEscalation={handleJourEscalation}
@@ -1899,6 +1971,7 @@ export default function ClientDetail({
               onDeletePaiementEtape={deletePaiementEtape}
               isDirection={canSeeMargins}
               onAcompteAlerte={handleAcompteAlerte}
+              onAdjustAvoir={adjustAvoirOnReservation}
             />
           </div>
         </div>
@@ -1926,13 +1999,6 @@ export default function ClientDetail({
           }}
         />
       </Section>
-
-      <AvoirUseModal
-        open={avoirPromptReservationId !== null}
-        montantDisponible={avoirDisponible}
-        onClose={() => setAvoirPromptReservationId(null)}
-        onUse={useAvoir}
-      />
 
       {repriseModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -2210,10 +2276,11 @@ export default function ClientDetail({
             className="w-full max-w-sm rounded-lg border border-neutral-200 bg-white p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="font-heading text-base font-semibold text-[#171717]">Avoir utilisé</h3>
+            <h3 className="font-heading text-base font-semibold text-[#171717]">Avoir appliqué</h3>
             <p className="mt-2 text-sm text-neutral-600">
-              Un avoir de <strong>{euros(avoirAppliedNotice)} €</strong> a été utilisé sur cette
-              activité. Repassez par l&apos;onglet Paiements pour vérifier le montant restant dû.
+              Un avoir de <strong>{euros(avoirAppliedNotice.montant)} €</strong> a été appliqué
+              automatiquement sur cette activité. Ajustable à tout moment depuis l&apos;onglet
+              Paiements si ce n&apos;est pas ce que tu voulais.
             </p>
             <button
               onClick={() => {
@@ -2230,6 +2297,16 @@ export default function ClientDetail({
               className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
             >
               Aller aux Paiements
+            </button>
+            <button
+              onClick={() => {
+                const notice = avoirAppliedNotice;
+                setAvoirAppliedNotice(null);
+                adjustAvoirOnReservation(notice.reservationId, 0);
+              }}
+              className="mt-2 w-full rounded-md px-3 py-2 text-sm text-neutral-500 hover:underline"
+            >
+              Ne pas l&apos;utiliser sur cette activité
             </button>
           </div>
         </div>

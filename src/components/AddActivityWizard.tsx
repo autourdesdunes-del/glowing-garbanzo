@@ -207,7 +207,10 @@ export default function AddActivityWizard({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
-  onFinish: () => void;
+  // Reçoit l'id de la réservation qui vient d'être finalisée (prix connu) —
+  // utilisé côté ClientDetail pour proposer d'y appliquer un avoir
+  // automatiquement une fois le montant réel connu, pas avant.
+  onFinish: (reservationId: string) => void;
   onCancel: () => void;
   // Ouvre le pas-à-pas directement sur une activité déjà existante (édition
   // depuis la fiche client) au lieu de partir de "choix" — les étapes
@@ -2897,7 +2900,7 @@ export default function AddActivityWizard({
       setAcompteMinInfo(true);
       return;
     }
-    onFinish();
+    onFinish(r.id);
   };
 
   const finishClick = () => {
@@ -3119,7 +3122,7 @@ export default function AddActivityWizard({
                     onSuggestAcompte?.(minimum);
                     setAcompteMinInfo(false);
                     setAcompteMinAsked(true);
-                    onFinish();
+                    onFinish(r.id);
                   }}
                   className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
                 >

@@ -937,7 +937,9 @@ export function ActivitesStep({
   // Appelé uniquement quand l'activité est effectivement ajoutée (bouton
   // "Ajouter cette activité" au bout du wizard) — jamais sur "Annuler", ni
   // en direct pendant qu'on la configure (voir checkRepriseApresAjout).
-  onActivityFinished?: () => void;
+  // L'id transmis (nouvelle activité seulement, pas une édition) sert côté
+  // ClientDetail à proposer l'avoir dispo une fois le prix final connu.
+  onActivityFinished?: (reservationId?: string) => void;
   onBusEscalation: (nomActivite: string, reservationId: string | null) => Promise<void>;
   busEscalations: BusEscalation[];
   onJourEscalation: (
@@ -1022,9 +1024,9 @@ export function ActivitesStep({
         reservations={reservations}
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
-        onFinish={() => {
+        onFinish={(reservationId) => {
           setAddingNew(false);
-          onActivityFinished?.();
+          onActivityFinished?.(reservationId);
         }}
         onCancel={() => setAddingNew(false)}
         onBusEscalation={onBusEscalation}
@@ -1135,11 +1137,15 @@ export function PaiementsStep({
   onDeletePaiementEtape = () => {},
   isDirection = false,
   onAcompteAlerte,
+  onAdjustAvoir,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  // Réduit ou retire (montant 0) l'avoir auto-appliqué sur une activité — la
+  // part libérée revient sous forme d'un nouvel avoir utilisable ailleurs.
+  onAdjustAvoir?: (reservationId: string, nouveauMontant: number) => void;
   paiementsEtapes?: PaiementEtape[];
   onAddPaiementEtape?: (
     montant: number,
@@ -1761,11 +1767,37 @@ export function PaiementsStep({
       {avoirsUtilises.length > 0 && (
         <div className="rounded-md border border-[#C9973E]/30 bg-[#C9973E]/10 p-3 text-sm">
           <h3 className="mb-1 text-sm font-semibold text-[#8B4531]">Avoirs déduits</h3>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {avoirsUtilises.map((r) => (
-              <div key={r.id} className="text-[#8B4531]">
-                Avoir de <strong>{euros(r.avoir_utilise)} €</strong> déduit sur{" "}
-                {r.nom_activite || "Activité sans nom"}
+              <div key={r.id} className="flex flex-wrap items-center gap-2 text-[#8B4531]">
+                <span>
+                  Avoir de <strong>{euros(r.avoir_utilise)} €</strong> déduit sur{" "}
+                  {r.nom_activite || "Activité sans nom"}
+                </span>
+                {onAdjustAvoir && (
+                  <>
+                    <input
+                      key={`${r.id}-${r.avoir_utilise}`}
+                      type="number"
+                      defaultValue={r.avoir_utilise}
+                      min={0}
+                      max={r.avoir_utilise}
+                      title="Réduire le montant d'avoir appliqué sur cette activité"
+                      onBlur={(e) => {
+                        const v = Math.max(0, Math.min(Number(e.target.value) || 0, r.avoir_utilise));
+                        if (v !== r.avoir_utilise) onAdjustAvoir(r.id, v);
+                      }}
+                      className="w-20 rounded-md border border-[#C9973E]/40 bg-white px-2 py-0.5 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onAdjustAvoir(r.id, 0)}
+                      className="text-xs text-[#8B4531] hover:underline"
+                    >
+                      Retirer
+                    </button>
+                  </>
+                )}
               </div>
             ))}
           </div>

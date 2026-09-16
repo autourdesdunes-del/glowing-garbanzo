@@ -135,6 +135,7 @@ export type StatutPaiementKey =
   | "activite_cb"
   | "activite_eur"
   | "activite_egp"
+  | "activite_virement"
   | "paye_agence";
 
 export const STATUT_PAIEMENT_OPTIONS: {
@@ -297,6 +298,21 @@ export const STATUT_PAIEMENT_OPTIONS: {
       // solde_rdv_finalise à true — s'il était un jour remarqué "Payé" par
       // un autre biais, le badge réaffichait à tort "rendez-vous paiement
       // finalisé" pour un règlement qui n'a rien à voir avec ce RDV.
+      solde_rdv_finalise: false,
+      paiement_integral_mode: "",
+    }),
+  },
+  {
+    key: "activite_virement",
+    label: "Paiement à l'activité - virement bancaire",
+    className: "bg-orange-100 text-orange-700",
+    patch: (r) => ({
+      solde_paye: false,
+      solde_mode: "Virement bancaire",
+      solde_activite_id: r.id,
+      solde_rdv_heure: "",
+      solde_rdv_lieu: "",
+      solde_rdv_valide: false,
       solde_rdv_finalise: false,
       paiement_integral_mode: "",
     }),
@@ -646,14 +662,18 @@ export function activitePaiementWarning(
   resaTarifs: Record<string, ReservationTarif[]>,
   etapes: PaiementEtape[] = []
 ): { amount: number; devise: "€" | "EGP"; amount2?: number; devise2?: "€" | "EGP" } | null {
-  // Reprise réglée en espèces/CB/EGP : prioritaire sur le solde d'origine,
-  // déjà "payé" par ailleurs (règle du solde unique — voir
+  // Reprise réglée en espèces/CB/EGP/virement : prioritaire sur le solde
+  // d'origine, déjà "payé" par ailleurs (règle du solde unique — voir
   // repriseActiviteCible) — affichée avec le même rappel que le point de
-  // collecte habituel, "à côté du titre".
+  // collecte habituel, "à côté du titre". Le virement rejoint ce groupe
+  // (plutôt que le "waiting" PayPal ci-dessous) depuis l'ajout du bouton
+  // manuel "Ajouter un paiement à effectuer" (demande de Mélanie) : un
+  // virement à venir se rattache toujours à une activité précise, comme un
+  // règlement en espèces — seul PayPal reste un rappel "flottant", sans
+  // point de collecte physique.
   if (
     Number(client.reprise_montant) > 0 &&
     client.reprise_mode !== "PayPal" &&
-    client.reprise_mode !== "Virement bancaire" &&
     client.reprise_activite_id === r.id
   ) {
     // Mixte €+EGP (reprise_mixte_eur/egp) — même principe que le solde
@@ -741,13 +761,12 @@ export function acompteWaitingWarning(
   r: Reservation,
   reservations: Reservation[]
 ): { montant: number; mode: string } | null {
-  // Reprise réglée en PayPal/virement : affichée sur la prochaine activité
-  // à venir (voir repriseActiviteCible), avec le même rappel "waiting" que
-  // l'acompte — prioritaire sur le solde d'origine, déjà "payé" ailleurs.
-  if (
-    Number(client.reprise_montant) > 0 &&
-    (client.reprise_mode === "PayPal" || client.reprise_mode === "Virement bancaire")
-  ) {
+  // Reprise réglée en PayPal : affichée sur la prochaine activité à venir
+  // (voir repriseActiviteCible), avec le même rappel "waiting" que l'acompte
+  // — prioritaire sur le solde d'origine, déjà "payé" ailleurs. Le virement
+  // n'est plus dans ce groupe (voir activitePaiementWarning) : il rejoint
+  // désormais le rappel "à payer à l'activité", pas ce rappel "flottant".
+  if (Number(client.reprise_montant) > 0 && client.reprise_mode === "PayPal") {
     const cible = repriseActiviteCible(client, reservations);
     if (cible?.id === r.id) return { montant: Number(client.reprise_montant) || 0, mode: client.reprise_mode };
   }

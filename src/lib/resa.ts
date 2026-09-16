@@ -518,6 +518,18 @@ export function paiementBadge(
   resaTarifs?: Record<string, ReservationTarif[]>,
   etapes?: PaiementEtape[]
 ): { label: string; className: string } | null {
+  // Un avoir appliqué directement sur cette activité (pas via le solde
+  // global) doit la faire passer au vert dès qu'il en couvre le total,
+  // indépendamment de client.solde_paye — sinon une activité entièrement
+  // financée par un avoir reste affichée "non réglé" (vécu : plongée
+  // d'Iman KASRI financée par un avoir de 100€ restée en rouge).
+  if (resaOptions && resaTarifs) {
+    const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+    if (Number(r.avoir_utilise) > 0 && Number(r.avoir_utilise) >= total - 0.01) {
+      return { label: "Payé (avoir)", className: "bg-green-100 text-green-700" };
+    }
+  }
+
   if (reservations && repriseActivitesCibles(client, reservations).some((rr) => rr.id === r.id)) {
     const repriseKey = REPRISE_MODE_TO_KEY[client.reprise_mode] || "attente";
     const repriseOpt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === repriseKey)!;

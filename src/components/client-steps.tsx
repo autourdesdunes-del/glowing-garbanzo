@@ -1942,6 +1942,7 @@ export function PaiementsStep({
             toast={toast}
             isDirection={isDirection}
             onEncaissementDifferent={ouvrirEncaissementDifferent}
+            onUpdateReservation={onUpdateReservation}
           />
         )}
 
@@ -2055,6 +2056,7 @@ export function PaiementsStep({
                   toast={toast}
                   isDirection={isDirection}
                   onEncaissementDifferent={ouvrirEncaissementDifferent}
+                  onUpdateReservation={onUpdateReservation}
                 />
               </div>
             ) : (
@@ -2532,10 +2534,11 @@ export function PaiementsStep({
           paiementsEtapes={paiementsEtapes}
           newLabel="Payé - pris en charge par l'agence"
           onCancel={() => setResiduelAgenceConfirm(null)}
-          onConfirm={() => {
+          onConfirm={(activiteIds) => {
             const montant = residuelAgenceConfirm;
             setResiduelAgenceConfirm(null);
             onChange({ solde_paye: true, solde_montant: totalSejour });
+            activiteIds.forEach((id) => onUpdateReservation(id, { paiement_statut: "paye_agence" }));
             onAddPaiementEtape(
               montant,
               "Agence",
@@ -2921,81 +2924,38 @@ export function PaiementsStep({
         soldeCompletConfirm &&
         (() => {
           const o = soldeCompletConfirm;
-          const activitesAffectees = reservationsActives(reservations);
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-              <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
-                <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
-                  Confirmer &quot;{o.label}&quot;
-                </h2>
-                <p className="mb-3 text-sm text-neutral-600">
-                  Ce changement s&apos;applique au séjour entier (un seul solde par client) — voici
-                  ce qui va changer pour chaque activité :
-                </p>
-                <div className="mb-3 flex flex-col gap-1.5 rounded-md border border-neutral-200 p-2">
-                  {activitesAffectees.map((r) => {
-                    const avant = paiementBadge(client, r, reservations, resaOptions, resaTarifs, paiementsEtapes) || {
-                      label: "En attente",
-                      className: "bg-yellow-100 text-yellow-700",
-                    };
-                    return (
-                      <div key={r.id} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="truncate text-[#171717]">{r.nom_activite}</span>
-                        <span className="flex items-center gap-1 whitespace-nowrap text-xs">
-                          <span className={`rounded-full px-2 py-0.5 font-medium ${avant.className}`}>
-                            {avant.label}
-                          </span>
-                          <span className="text-neutral-400">→</span>
-                          <span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700">
-                            {o.label}
-                          </span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {Number(client.reprise_montant) > 0 && (
-                  <p className="mb-3 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
-                    ⚠️ Un règlement de {euros(client.reprise_montant)} € ({client.reprise_mode || "mode non précisé"})
-                    est encore en attente sur ce dossier — en validant, il sera considéré comme réglé et disparaîtra
-                    du résumé des paiements.
-                  </p>
-                )}
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setSoldeCompletConfirm(null)}
-                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={() => {
-                      const r = reservationsActives(reservations)[0] || reservations[0];
-                      // Le solde_montant doit toujours figer le total séjour
-                      // au moment où on marque payé — sinon une activité
-                      // ajoutée plus tard grossit le total sans que rien ne
-                      // détecte que ce surplus n'a jamais été réglé (voir
-                      // paiementProgress dans resa.ts).
-                      onChange({
-                        ...o.patch(r),
-                        solde_montant: totalSejour,
-                        reprise_montant: 0,
-                        reprise_mode: "",
-                        reprise_activite_id: null,
-                        reprise_activite_ids: [],
-                        reprise_mixte_eur: 0,
-                        reprise_mixte_egp: 0,
-                      });
-                      setSoldeCompletConfirm(null);
-                      setShowSoldeCompletPopup(false);
-                    }}
-                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-                  >
-                    Valider
-                  </button>
-                </div>
-              </div>
-            </div>
+            <SoldePayeConfirmModal
+              client={client}
+              reservations={reservations}
+              resaOptions={resaOptions}
+              resaTarifs={resaTarifs}
+              paiementsEtapes={paiementsEtapes}
+              newLabel={o.label}
+              title={`Confirmer "${o.label}"`}
+              onCancel={() => setSoldeCompletConfirm(null)}
+              onConfirm={(activiteIds) => {
+                const r = reservationsActives(reservations)[0] || reservations[0];
+                // Le solde_montant doit toujours figer le total séjour
+                // au moment où on marque payé — sinon une activité
+                // ajoutée plus tard grossit le total sans que rien ne
+                // détecte que ce surplus n'a jamais été réglé (voir
+                // paiementProgress dans resa.ts).
+                onChange({
+                  ...o.patch(r),
+                  solde_montant: totalSejour,
+                  reprise_montant: 0,
+                  reprise_mode: "",
+                  reprise_activite_id: null,
+                  reprise_activite_ids: [],
+                  reprise_mixte_eur: 0,
+                  reprise_mixte_egp: 0,
+                });
+                activiteIds.forEach((id) => onUpdateReservation(id, { paiement_statut: o.key }));
+                setSoldeCompletConfirm(null);
+                setShowSoldeCompletPopup(false);
+              }}
+            />
           );
         })()}
 

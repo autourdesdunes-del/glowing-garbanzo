@@ -1359,7 +1359,13 @@ export default function AddActivityWizard({
     // pour être identique que ça vienne du bouton "Suivant" normal ou de la
     // demande d'autorisation résolue immédiatement.
     const proceedAfterDate = () => {
-      if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedPremiere) {
+      // Jamais en édition d'une activité déjà en place (billet déjà traité
+      // depuis longtemps, parfois des jours plus tôt) — sinon rouvrir "Le
+      // Caire en avion" juste pour ajouter une option/info repose "Avez-vous
+      // prévenu Hossam ?" à chaque fois, ce qui donnait l'impression que le
+      // formulaire refusait d'avancer (vécu sur Nathan DENIS). Même garde
+      // que acompteMinAsked/completeFinish un peu plus bas pour ce même cas.
+      if (!editReservationId && isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedPremiere) {
         setHossamPopup("premiere");
         return;
       }
@@ -2968,7 +2974,10 @@ export default function AddActivityWizard({
   };
 
   const finishClick = () => {
-    if (isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedFinale) {
+    // Même garde qu'en haut (proceedAfterDate) : jamais en édition, pour la
+    // même raison — sinon "Enregistrer les modifications" sur une activité
+    // déjà en place repose systématiquement cette question déjà répondue.
+    if (!editReservationId && isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite) && !hossamAskedFinale) {
       setHossamPopup("finale");
       return;
     }

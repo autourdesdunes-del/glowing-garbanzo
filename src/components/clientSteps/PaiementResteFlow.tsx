@@ -5,7 +5,12 @@ import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif
 import { ASSIGNE_A_OPTIONS } from "@/lib/constants";
 import { todayStr } from "@/lib/dates";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
-import { fmtEncaisseLe, soldeInclutAcompteImpaye } from "@/lib/resa";
+import {
+  fmtEncaisseLe,
+  MODE_TO_PAIEMENT_STATUT_KEY,
+  soldeInclutAcompteImpaye,
+  StatutPaiementKey,
+} from "@/lib/resa";
 import { euros, fmtDateDMY } from "@/lib/contactStepFormat";
 import { Field } from "@/components/Field";
 import MontantEgpField from "@/components/MontantEgpField";
@@ -165,10 +170,15 @@ export function PaiementResteFlow({
   toast,
   isDirection = false,
   onEncaissementDifferent,
+  onUpdateReservation,
 }: {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
   reservations: Reservation[];
+  // Badge de paiement indépendant par activité (voir resa.ts/paiementBadge)
+  // — jamais déduit à nouveau de client.solde_*, donc à stamper à part sur
+  // chaque activité retenue quand on marque le solde payé.
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes: PaiementEtape[];
@@ -202,7 +212,11 @@ export function PaiementResteFlow({
   // (un seul solde par client) — cette étape montre ce qui va changer avant
   // d'appliquer quoi que ce soit (voir SoldePayeConfirmModal, demande de
   // Mélanie du 14/09).
-  const [soldePayeConfirm, setSoldePayeConfirm] = useState<{ label: string; patch: Partial<Client> } | null>(null);
+  const [soldePayeConfirm, setSoldePayeConfirm] = useState<{
+    label: string;
+    key: StatutPaiementKey;
+    patch: Partial<Client>;
+  } | null>(null);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
   // Répartition € + EGP saisie librement par l'employée (montants
   // indépendants, pas liés par un taux) — le taux n'est ici affiché qu'à
@@ -270,6 +284,7 @@ export function PaiementResteFlow({
     if (!(await confirmerAcompteInclus())) return;
     setSoldePayeConfirm({
       label: "Payé - rendez-vous paiement finalisé",
+      key: MODE_TO_PAIEMENT_STATUT_KEY[client.solde_mode] || "paye_eur",
       patch: { solde_paye: true, solde_rdv_finalise: true, solde_montant: totalSejour },
     });
   };
@@ -292,6 +307,7 @@ export function PaiementResteFlow({
     if (!(await confirmerAcompteInclus())) return;
     setSoldePayeConfirm({
       label: `Payé - ${mode}`,
+      key: MODE_TO_PAIEMENT_STATUT_KEY[mode] || "paye_eur",
       patch: {
         solde_paye: true,
         solde_mode: mode,
@@ -1134,8 +1150,9 @@ export function PaiementResteFlow({
           paiementsEtapes={paiementsEtapes}
           newLabel={soldePayeConfirm.label}
           onCancel={() => setSoldePayeConfirm(null)}
-          onConfirm={() => {
+          onConfirm={(activiteIds) => {
             onChange(soldePayeConfirm.patch);
+            activiteIds.forEach((id) => onUpdateReservation(id, { paiement_statut: soldePayeConfirm.key }));
             setSoldePayeConfirm(null);
           }}
         />

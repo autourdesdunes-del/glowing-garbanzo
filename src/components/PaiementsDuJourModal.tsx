@@ -8,7 +8,13 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { avoirUtiliseTotal, reservationsActives, resaTotalMontant, soldeInclutAcompteImpaye } from "@/lib/resa";
+import {
+  avoirUtiliseTotal,
+  MODE_TO_PAIEMENT_STATUT_KEY,
+  reservationsActives,
+  resaTotalMontant,
+  soldeInclutAcompteImpaye,
+} from "@/lib/resa";
 import { todayStr } from "@/lib/dates";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { MODES_PAIEMENT } from "@/lib/constants";
@@ -253,6 +259,7 @@ export default function PaiementsDuJourModal({
   onOpenClient,
   onOpenClientForPaiements,
   onClose,
+  onUpdateReservation,
 }: {
   encaisses: Ligne[];
   aPayer: Ligne[];
@@ -263,6 +270,9 @@ export default function PaiementsDuJourModal({
   onOpenClient: (id: string) => void;
   onOpenClientForPaiements: (id: string) => void;
   onClose: () => void;
+  // Badge de paiement indépendant par activité (voir resa.ts/paiementBadge)
+  // — jamais déduit à nouveau de client.solde_*, donc à stamper à part.
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
 }) {
   const [dateModal, setDateModal] = useState<{ ligne: Ligne; date: string; mode: string } | null>(null);
   // "Marquer payé" (ligne Solde) change le badge de TOUTES les activités du
@@ -572,8 +582,10 @@ export default function PaiementsDuJourModal({
           paiementsEtapes={paiementsEtapes.filter((e) => e.client_id === soldeConfirmPending.ligne.client.id)}
           newLabel={`Payé - ${soldeConfirmPending.mode}`}
           onCancel={() => setSoldeConfirmPending(null)}
-          onConfirm={() => {
+          onConfirm={(activiteIds) => {
             soldeConfirmPending.ligne.onMarquerPaye(soldeConfirmPending.date, soldeConfirmPending.mode);
+            const key = MODE_TO_PAIEMENT_STATUT_KEY[soldeConfirmPending.mode] || "paye_eur";
+            activiteIds.forEach((id) => onUpdateReservation(id, { paiement_statut: key }));
             setSoldeConfirmPending(null);
           }}
         />

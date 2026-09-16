@@ -1707,6 +1707,48 @@ export function PaiementsStep({
     onChange({ acompte_valide: true, acompte_montant_prevu: Number(client.acompte_montant) || 0 });
   };
 
+  // Direction seule : retirer n'importe quelle ligne du "Résumé des
+  // paiements" — et la retirer veut dire l'annuler, pas la masquer. Un
+  // acompte ou un solde effacé ici redevient "à encaisser" (le montant
+  // prévu, le RDV et l'activité de collecte restent, seul l'encaissement
+  // disparaît), une étape est supprimée comme avant. Sans ça, une erreur de
+  // saisie sur l'acompte ou le solde ne se corrigeait que depuis la carte
+  // correspondante, invisible pour qui regardait le résumé.
+  const supprimerLignePaiement = async (ligne: PaiementLigne) => {
+    if (ligne.etapeId) {
+      onDeletePaiementEtape(ligne.etapeId);
+      return;
+    }
+    const quoi =
+      ligne.id === "acompte"
+        ? `l'acompte de ${euros(ligne.montant)} €`
+        : `le solde de ${euros(ligne.montant)} €`;
+    const ok = await confirm({
+      message: `Annuler ${quoi} ? Il repassera en attente d'encaissement — le montant prévu et le rendez-vous de paiement, eux, sont conservés.`,
+      confirmLabel: "Annuler le règlement",
+      danger: true,
+    });
+    if (!ok) return;
+    if (ligne.id === "acompte") {
+      onChange({
+        acompte_paye: false,
+        acompte_date_encaissement: null,
+        acompte_encaisse_ts: null,
+        acompte_entre_proches_oublie: false,
+      });
+      toast("Acompte annulé — il redevient à encaisser.");
+    } else {
+      onChange({
+        solde_paye: false,
+        solde_date: null,
+        solde_encaisse_ts: null,
+        solde_montant_recu: 0,
+        solde_entre_proches_oublie: false,
+      });
+      toast("Solde annulé — il redevient à encaisser.");
+    }
+  };
+
   const supprimerAcompte = () => {
     onChange({
       acompte_valide: false,
@@ -2138,10 +2180,16 @@ export function PaiementsStep({
                       <span className="flex items-center gap-2">
                         {ligne.when}
                         {paypalMatch && <span>à {formatHeurePaypal(paypalMatch.paypal_recu_le)}</span>}
-                        {ligne.etapeId && (
+                        {(ligne.etapeId || isDirection) && (
                           <button
-                            onClick={() => onDeletePaiementEtape(ligne.etapeId!)}
-                            title="Retirer cette étape"
+                            onClick={() => supprimerLignePaiement(ligne)}
+                            title={
+                              ligne.etapeId
+                                ? "Retirer cette étape"
+                                : ligne.id === "acompte"
+                                  ? "Annuler cet acompte — il repassera à encaisser"
+                                  : "Annuler ce solde — il repassera à encaisser"
+                            }
                             className="text-red-500 hover:text-red-600"
                           >
                             🗑

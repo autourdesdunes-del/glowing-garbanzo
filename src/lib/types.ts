@@ -307,6 +307,16 @@ export type Reservation = {
   // anciennes.
   cree_par_id: string | null;
   cree_par_nom: string;
+  // Statut de paiement de CETTE activité précise, indépendant du solde
+  // partagé du client (client.solde_*) — chaque activité a son propre badge,
+  // modifiable sans jamais toucher au solde ni à une reprise en attente sur
+  // une autre activité (l'ancien système faisait ça, incident Carine
+  // LELOIR : changer une activité effaçait en silence un règlement dû
+  // ailleurs — demande de Mélanie le 16/09 de revenir à un badge par
+  // activité, mais réellement indépendant cette fois). Une des clés de
+  // STATUT_PAIEMENT_OPTIONS (resa.ts) — "attente" par défaut en base pour
+  // toute nouvelle activité, jamais hérité d'un solde déjà marqué payé.
+  paiement_statut: string;
   created_at: string;
   updated_at: string;
 };

@@ -134,7 +134,8 @@ export type StatutPaiementKey =
   | "rdv_planifie"
   | "activite_cb"
   | "activite_eur"
-  | "activite_egp";
+  | "activite_egp"
+  | "paye_agence";
 
 export const STATUT_PAIEMENT_OPTIONS: {
   key: StatutPaiementKey;
@@ -300,7 +301,28 @@ export const STATUT_PAIEMENT_OPTIONS: {
       paiement_integral_mode: "",
     }),
   },
+  {
+    key: "paye_agence",
+    label: "Payé - pris en charge par l'agence",
+    className: "bg-green-100 text-green-700",
+    patch: () => ({ solde_paye: true, solde_mode: "Espèces EUR" }),
+  },
 ];
+
+// Mode de règlement (texte tel qu'affiché/stocké, ex. "Espèces EUR",
+// "PayPal"...) → clé de badge correspondante — réutilisé partout où un
+// paiement vient d'être encaissé dans un mode précis et qu'il faut décider
+// quel badge lui donner (résumé d'un seul solde marqué payé, reprise,
+// paiement mixte...), plutôt que de dupliquer cette table dans chaque
+// composant appelant.
+export const MODE_TO_PAIEMENT_STATUT_KEY: Record<string, StatutPaiementKey> = {
+  "Espèces EUR": "paye_eur",
+  "Espèces EGP": "paye_egp",
+  "Carte bleue": "paye_cb",
+  "Virement bancaire": "paye_virement",
+  PayPal: "paye_paypal",
+  "Modes différents": "paye_mixte",
+};
 
 export function paiementStatutKey(client: Client, r: Reservation): StatutPaiementKey {
   // Une reprise encore ouverte (activité ajoutée après un solde déjà réglé,
@@ -338,10 +360,6 @@ export function paiementStatutKey(client: Client, r: Reservation): StatutPaiemen
   return client.solde_mode === "PayPal" ? "attente_paypal" : "attente";
 }
 
-const RDV_FINALISE_LABELS: Record<string, string> = {
-  "Carte bleue": "Payé CB - rendez-vous paiement finalisé",
-  "Espèces EGP": "Payé en EGP - rendez-vous paiement finalisé",
-};
 
 // Marquer le solde payé (badge vert "Payé - ...") déclare tout le séjour
 // réglé, acompte compris (règle du solde unique — voir paiementProgress) :
@@ -416,11 +434,6 @@ export function paiementProgress(
   return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0), soldeRestant };
 }
 
-// Seuil à partir duquel un séjour presque entièrement réglé (ex. Célia
-// Nichanian : 1510,8€/1530€) ne doit plus afficher "En attente" sur les
-// activités qui ne sont pas le point de collecte du solde — ce libellé
-// laisse penser que rien n'a été payé, alors que la quasi-totalité l'est.
-const SEUIL_PRESQUE_PAYE = 0.9;
 
 // Activité ciblée par un règlement "de reprise" (nouvelle activité ajoutée
 // après un solde déjà entièrement réglé, voir client.reprise_* et le
@@ -493,22 +506,6 @@ export function prochaineActiviteActive(reservations: Reservation[]): Reservatio
   return [...actives].sort((a, b) => (b.date_debut || "").localeCompare(a.date_debut || ""))[0] || null;
 }
 
-// Statut "point de collecte" habituel correspondant au mode choisi pour la
-// reprise — le badge principal de l'activité doit se comporter comme un
-// vrai "Paiement à l'activité"/"En attente", jamais un texte à part : le
-// rappel visuel dédié (montant/mode) est déjà porté à côté du titre par
-// activitePaiementWarning/acompteWaitingWarning.
-const REPRISE_MODE_TO_KEY: Record<string, StatutPaiementKey> = {
-  "Espèces EUR": "activite_eur",
-  "Espèces EGP": "activite_egp",
-  "Carte bleue": "activite_cb",
-  PayPal: "attente_paypal",
-  "Virement bancaire": "attente",
-  // Mixte €+EGP (reprise_mixte_eur/egp) — même traitement que le solde
-  // mixte (paiementStatutKey plus bas retombe aussi sur "activite_eur"
-  // pour solde_mode "Modes différents", faute de badge dédié).
-  "Modes différents": "activite_eur",
-};
 
 export function paiementBadge(
   client: Client,
@@ -530,136 +527,24 @@ export function paiementBadge(
     }
   }
 
-  if (reservations && repriseActivitesCibles(client, reservations).some((rr) => rr.id === r.id)) {
-    const repriseKey = REPRISE_MODE_TO_KEY[client.reprise_mode] || "attente";
-    const repriseOpt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === repriseKey)!;
-    return { label: repriseOpt.label, className: repriseOpt.className };
-  }
-
-  const key = paiementStatutKey(client, r);
-  const opt = STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key)!;
-
-  // Sans le contexte complet (anciens appels à 2 arguments), comportement
-  // inchangé — ces affinages ont besoin de connaître le reste à payer réel
-  // du séjour entier.
-  if (!reservations || !resaOptions || !resaTarifs) {
-    if (client.solde_paye && client.solde_rdv_finalise) {
-      return {
-        label: RDV_FINALISE_LABELS[client.solde_mode] || "Payé en € - rendez-vous paiement finalisé",
-        className: "bg-green-100 text-green-700",
-      };
-    }
-    return { label: opt.label, className: opt.className };
-  }
-
-  const { totalPaye, totalSejour, reste, soldeRestant } = paiementProgress(
-    client,
-    reservations,
-    resaOptions,
-    resaTarifs,
-    etapes || []
-  );
-
-  // Le bouton "Rendez-vous finalisé" (étape Paiements) marque le solde payé
-  // et pose ce drapeau — le badge doit alors le préciser plutôt que le
-  // libellé "Payé" générique, sur toutes les activités.
-  if (client.solde_paye && client.solde_rdv_finalise) {
-    return {
-      label: RDV_FINALISE_LABELS[client.solde_mode] || "Payé en € - rendez-vous paiement finalisé",
-      className: "bg-green-100 text-green-700",
-    };
-  }
-
-  // Solde réglé "à distance" (PayPal/virement), donc rattaché à aucune
-  // activité précise (solde_activite_id vide) : sans ce filtre, CHAQUE
-  // activité active recevrait indépendamment ce même badge "En attente",
-  // dupliqué sur toutes les cartes du séjour à la fois. On ne le montre que
-  // sur la prochaine activité à venir (prochaineActiviteActive se décale
-  // seule dès qu'une date est dépassée) ; les autres cartes n'affichent
-  // rien ici, l'info reste visible au bon endroit (étape Paiements).
-  if ((key === "attente" || key === "attente_paypal" || key === "rdv_planifie") && reservations) {
-    const cible = prochaineActiviteActive(reservations);
-    if (cible && cible.id !== r.id) return null;
-  }
-
-  // Le RDV paiement (personne, pas à une activité) une fois sa date passée
-  // sans encaissement — sinon "RDV paiement planifié" restait affiché
-  // indéfiniment, un rendez-vous manqué devenant invisible pour l'équipe
-  // sans jamais alerter personne.
-  if (key === "rdv_planifie" && client.solde_date && client.solde_date < todayStr()) {
-    return {
-      label: `⚠️ ${fmtEuros(soldeRestant)} € en retard — rendez-vous paiement manqué`,
-      className: "bg-red-100 text-red-700",
-    };
-  }
-
-  // Le point de collecte désigné pour le solde, une fois sa date passée
-  // sans encaissement : "Paiement à l'activité" devient trompeur, ce n'est
-  // plus "à venir" mais du retard non signalé.
-  if (
-    (key === "activite_eur" || key === "activite_cb" || key === "activite_egp") &&
-    r.date_debut &&
-    r.date_debut < todayStr()
-  ) {
-    return {
-      label: `⚠️ ${fmtEuros(soldeRestant)} € en retard — non collecté à l'activité prévue`,
-      className: "bg-red-100 text-red-700",
-    };
-  }
-
-  // Activité qui n'est pas le point de collecte du solde : "En attente" est
-  // trompeur si la quasi-totalité du séjour est déjà réglée — cette carte
-  // précise n'attend rien de particulier.
-  if (
-    (key === "attente" || key === "attente_paypal" || key === "rdv_planifie") &&
-    totalSejour > 0 &&
-    totalPaye / totalSejour >= SEUIL_PRESQUE_PAYE
-  ) {
-    return {
-      label: `Presque payé — reste ${fmtEuros(reste)} €`,
-      className: "bg-blue-100 text-blue-700",
-    };
-  }
-
-  // Solde marqué payé mais total séjour reparti à la hausse depuis (nouvelle
-  // activité ajoutée) au-delà de ce que le solde figé ET la reprise déjà
-  // connue expliquent à eux deux — reste > 0 le révèle malgré
-  // client.solde_paye. C'est le cas quand le pop-up de reprise n'a jamais
-  // été rempli (interrompu par un rechargement/une navigation), MAIS AUSSI
-  // quand une reprise existe déjà pour une PREMIÈRE activité ajoutée après
-  // coup et qu'une DEUXIÈME en suit sans que personne n'ait pu être
-  // reprompté (checkRepriseApresAjout ne se redéclenche jamais tant qu'une
-  // reprise est déjà en attente, pour ne pas la redemander deux fois) :
-  // sans ce filet, cette deuxième activité reste "Payé" indéfiniment, son
-  // coût jamais tracé nulle part. Jamais laisser une nouvelle activité
-  // s'afficher "Payé" comme si de rien n'était — retenue par ordre de
-  // création (la plus récemment ajoutée), pas par date de séjour : une
-  // activité déjà couverte par le solde figé peut très bien tomber plus
-  // tôt dans le calendrier qu'une nouvelle activité ajoutée après coup, et
-  // un tri par date_debut désignerait alors à tort cette activité déjà
-  // payée au lieu de la vraie nouveauté — même logique que la cible par
-  // défaut de checkRepriseApresAjout (ClientDetail.tsx), qui utilise déjà
-  // created_at pour cette même raison. Exclut l'activité déjà ciblée par
-  // la reprise existante (elle a déjà son propre badge, juste au-dessus).
-  if (key.startsWith("paye_") && reste > 0.01) {
-    const cibleReprise = repriseActiviteCible(client, reservations);
-    if (cibleReprise?.id !== r.id) {
-      const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejour;
-      const repriseCouverte = Number(client.reprise_montant) || 0;
-      const nonCouvert = Math.max(totalSejour - soldeBaseline - repriseCouverte, 0);
-      if (nonCouvert > 0.01) {
-        const actives = reservationsActives(reservations).filter((rr) => rr.id !== cibleReprise?.id);
-        const cibleAuto = [...actives].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
-        if (cibleAuto?.id === r.id) {
-          return {
-            label: `⚠️ ${fmtEuros(nonCouvert)} € non réglés (nouvelle activité)`,
-            className: "bg-red-100 text-red-700",
-          };
-        }
-      }
-    }
-  }
-
+  // Depuis le 16/09 (demande de Mélanie) : badge indépendant par activité
+  // (r.paiement_statut), modifiable via le menu déroulant sans jamais
+  // toucher au solde partagé du client ni à une reprise en attente sur une
+  // autre activité. L'ancien système dérivait ce badge de client.solde_*
+  // (paiementStatutKey) avec toute une couche d'heuristiques (reprise
+  // ciblée, prochaine activité, "presque payé", croissance non couverte...)
+  // pour éviter qu'un même solde projeté sur plusieurs cartes n'en mente
+  // sur une seule — nécessaire tant que le badge N'ÉTAIT QU'une projection
+  // d'un état partagé. Une fois chaque activité vraiment indépendante, ce
+  // problème disparaît de lui-même : ce qui est enregistré ici EST la
+  // vérité de cette carte, point final (voir migration 0131 — "attente"
+  // par défaut pour toute nouvelle activité, jamais hérité d'un solde déjà
+  // payé). Le contexte complet (reste à payer réel, reprise en cours)
+  // continue de vivre dans l'onglet Paiements (activitePaiementWarning),
+  // seul endroit qui doit trancher un vrai règlement.
+  const key = (r.paiement_statut || "attente") as StatutPaiementKey;
+  const opt =
+    STATUT_PAIEMENT_OPTIONS.find((o) => o.key === key) || STATUT_PAIEMENT_OPTIONS.find((o) => o.key === "attente")!;
   return { label: opt.label, className: opt.className };
 }
 

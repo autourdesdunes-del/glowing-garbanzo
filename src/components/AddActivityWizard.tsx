@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   BusEscalation,
@@ -129,6 +129,28 @@ const STEP_TITLES: Record<Step, string> = {
   reduction: "Réduction / activité offerte",
   transfert: "Taxe de transfert",
 };
+
+// Génère le texte "X adulte(s), Y accompagnateur(s)..." utilisé pour
+// pré-remplir pax_override dès qu'une composition non standard (accompagnateur,
+// enfant 2-3 ans...) est choisie — voir l'effet d'auto-remplissage dans le
+// step "participants" plus bas.
+function buildPaxOverrideSuggestion(counts: {
+  adultes: number;
+  enfants: number;
+  bebes: number;
+  accompagnateurs: number;
+  enfants3ans: number;
+}): string {
+  const parts: string[] = [];
+  if (counts.adultes > 0) parts.push(`${counts.adultes} adulte${counts.adultes > 1 ? "s" : ""}`);
+  if (counts.enfants > 0) parts.push(`${counts.enfants} enfant${counts.enfants > 1 ? "s" : ""}`);
+  if (counts.enfants3ans > 0)
+    parts.push(`${counts.enfants3ans} enfant${counts.enfants3ans > 1 ? "s" : ""} 2-3 ans`);
+  if (counts.bebes > 0) parts.push(`${counts.bebes} bébé${counts.bebes > 1 ? "s" : ""}`);
+  if (counts.accompagnateurs > 0)
+    parts.push(`${counts.accompagnateurs} accompagnateur${counts.accompagnateurs > 1 ? "s" : ""}`);
+  return parts.join(", ");
+}
 
 // Ajouter une nouvelle activité est le moment où il y a le plus de champs à
 // remplir d'un coup — une question par écran plutôt que de montrer le
@@ -260,6 +282,11 @@ export default function AddActivityWizard({
   } | null>(null);
   const [validationError, setValidationError] = useState(false);
   const [showPaxOverride, setShowPaxOverride] = useState(false);
+  // Mémorise, par réservation, le dernier texte pax_override généré
+  // automatiquement — permet de continuer à régénérer tant que l'employée n'a
+  // pas tapé autre chose elle-même, sans jamais écraser un texte déjà tapé à
+  // la main (y compris en réouvrant une activité existante).
+  const autoPaxOverrideRef = useRef<Record<string, string>>({});
   // Petite note libre affichée en badge à côté du titre de l'activité,
   // partout où elle apparaît (Itinéraire, Réservations, Suivis...) — champ
   // déjà existant (info_importante), jamais éditable depuis ce pop-up avant
@@ -367,6 +394,43 @@ export default function AddActivityWizard({
   const showQuadPaxHint =
     !!catalogueItem && isQuad(catalogueItem.nom) && (nbEnfantsParticipants > 0 || client.ados_presents);
   const showPaxHint = showChevalPaxHint || showQuadPaxHint;
+
+  // Dès qu'une composition non standard est choisie (accompagnateur, enfant
+  // 2-3 ans, ou les cas cheval/quad déjà signalés par showPaxHint), coche
+  // automatiquement "Écrire moi-même le texte affiché" et pré-remplit avec le
+  // texte correspondant aux effectifs actuels, sans jamais écraser un texte
+  // déjà tapé à la main (voir autoPaxOverrideRef).
+  useEffect(() => {
+    if (!r || r.participants_mode !== "custom") return;
+    const shouldAutoFill =
+      r.participants_accompagnateurs > 0 || r.participants_enfants_3ans > 0 || showPaxHint;
+    if (!shouldAutoFill) return;
+    const suggestion = buildPaxOverrideSuggestion({
+      adultes: r.participants_adultes,
+      enfants: r.participants_enfants,
+      bebes: r.participants_bebes,
+      accompagnateurs: r.participants_accompagnateurs,
+      enfants3ans: r.participants_enfants_3ans,
+    });
+    if (!suggestion) return;
+    const lastAuto = autoPaxOverrideRef.current[r.id];
+    const safeToOverwrite = r.pax_override === "" || r.pax_override === lastAuto;
+    if (!safeToOverwrite) return;
+    autoPaxOverrideRef.current[r.id] = suggestion;
+    if (r.pax_override !== suggestion) onUpdateReservation(r.id, { pax_override: suggestion });
+    if (!showPaxOverride) setShowPaxOverride(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    r?.id,
+    r?.participants_mode,
+    r?.participants_adultes,
+    r?.participants_enfants,
+    r?.participants_bebes,
+    r?.participants_accompagnateurs,
+    r?.participants_enfants_3ans,
+    r?.pax_override,
+    showPaxHint,
+  ]);
 
   // Pour les transferts aéroport (et autres activités où le numéro de vol
   // du CLIENT est demandé), l'étape "Informations requises" n'a de sens

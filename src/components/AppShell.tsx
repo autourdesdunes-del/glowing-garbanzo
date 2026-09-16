@@ -2622,8 +2622,9 @@ function AppShellInner({
               paiementsEtapes={allPaiementsEtapes.filter((e) => e.client_id === c.id)}
               newLabel="Payé - PayPal ✅"
               onCancel={() => setSoldePaypalConfirm(null)}
-              onConfirm={async () => {
+              onConfirm={async (activiteIds) => {
                 await updateClientById(soldePaypalConfirm.clientId, soldePaypalConfirm.patch);
+                activiteIds.forEach((id) => updateReservationById(id, { paiement_statut: "paye_paypal" }));
                 setSoldePaypalConfirm(null);
               }}
             />
@@ -2778,6 +2779,7 @@ function AppShellInner({
               paypalPaiementsNonRattaches={paypalPaiementsNonRattaches}
               onCreateClient={addClient}
               onUpdateClient={updateClientById}
+              onUpdateReservation={updateReservationById}
               onMarquerRepriseReglee={marquerRepriseRegleeGlobal}
               onReporterReste={reporterResteAProchaineActiviteGlobal}
               onDeleteClient={deleteClient}

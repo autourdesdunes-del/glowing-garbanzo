@@ -65,6 +65,7 @@ export default function DashboardView({
   paypalPaiementsNonRattaches,
   onCreateClient,
   onUpdateClient,
+  onUpdateReservation,
   onMarquerRepriseReglee,
   onReporterReste,
   onDeleteClient,
@@ -106,6 +107,7 @@ export default function DashboardView({
     statut: "Prospect" | "Client confirmé";
   }) => Promise<Client | null>;
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onMarquerRepriseReglee: (clientId: string, date: string) => void;
   onReporterReste: (
     clientId: string,
@@ -1274,6 +1276,7 @@ export default function DashboardView({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           paiementsEtapes={paiementsEtapes}
+          onUpdateReservation={onUpdateReservation}
           onOpenClient={(id) => {
             setShowPaiementsDuJourModal(false);
             onOpenClient(id);

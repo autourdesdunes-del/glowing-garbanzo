@@ -40,8 +40,11 @@ import {
   resaTotalMontant,
   avoirUtiliseTotal,
   findMomentConflict,
+  prochaineActiviteActive,
   reservationsActives,
   soldeRestantSejour,
+  STATUT_PAIEMENT_OPTIONS,
+  StatutPaiementKey,
 } from "@/lib/resa";
 import { todayStr } from "@/lib/dates";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
@@ -1433,7 +1436,27 @@ export default function ClientDetail({
     mixteEur: string;
     mixteEgp: string;
     mixteRate: number;
+    // Badge (paiement_statut) stampé sur l'activité choisie à la validation
+    // — indépendant du solde, voir STATUT_PAIEMENT_OPTIONS (resa.ts).
+    badge: StatutPaiementKey;
+    // Distingue l'ouverture automatique (checkRepriseApresAjout, après une
+    // activité ajoutée sur un solde déjà réglé) de l'ouverture manuelle
+    // (bouton "+ Ajouter un paiement à effectuer", à tout moment) — seul le
+    // texte d'en-tête change, le reste du formulaire est partagé.
+    manuel?: boolean;
   } | null>(null);
+  // Mode → badge pré-proposé par défaut dans ce modal (l'employée peut
+  // toujours changer) : PayPal n'a pas de point de collecte physique
+  // (rappel "flottant", voir acompteWaitingWarning) donc "en attente -
+  // PayPal" ; les autres modes se rattachent tous à l'activité choisie.
+  const badgeParDefautPourMode = (mode: string): StatutPaiementKey => {
+    if (mode === "PayPal") return "attente_paypal";
+    if (mode === "Espèces EGP") return "activite_egp";
+    if (mode === "Carte bleue") return "activite_cb";
+    if (mode === "Virement bancaire") return "activite_virement";
+    if (mode === "Espèces EUR") return "activite_eur";
+    return "attente";
+  };
   // avoirAutoApplique : montant que tryAutoApplyAvoirOnFinish s'apprête à
   // affecter à LA MÊME activité qui vient de déclencher ce contrôle (voir
   // handleActivityFinished, qui calcule ce montant avant d'appeler les deux
@@ -1487,13 +1510,37 @@ export default function ClientDetail({
     // d'une reprise précédente (chaque activité doit pouvoir être reliée
     // explicitement, voir reprise_activite_ids).
     const repriseExistante = Number(client.reprise_montant) > 0;
+    const modeInitial = repriseExistante
+      ? client.reprise_mode || MODES_PAIEMENT[0] || "Espèces EUR"
+      : MODES_PAIEMENT[0] || "Espèces EUR";
     setRepriseModal({
       montant: String(diff),
-      mode: repriseExistante ? client.reprise_mode || MODES_PAIEMENT[0] || "Espèces EUR" : MODES_PAIEMENT[0] || "Espèces EUR",
+      mode: modeInitial,
       activiteId: derniereActivite?.id || "",
       mixteEur: "",
       mixteEgp: "",
       mixteRate: client.egp_taux || 0,
+      badge: badgeParDefautPourMode(modeInitial),
+    });
+  };
+
+  // Ouverture manuelle (bouton "+ Ajouter un paiement à effectuer", visible
+  // à tout moment dans Paiements) — même formulaire que checkRepriseApresAjout
+  // mais sans attendre qu'une activité vienne d'être ajoutée sur un solde
+  // déjà réglé : Mélanie veut pouvoir prévoir un PayPal (ou tout autre mode)
+  // à venir pour n'importe quelle activité, à n'importe quel moment.
+  const ouvrirPaiementAVenir = () => {
+    const cible = prochaineActiviteActive(reservations);
+    const mode = "PayPal";
+    setRepriseModal({
+      montant: "",
+      mode,
+      activiteId: cible?.id || "",
+      mixteEur: "",
+      mixteEgp: "",
+      mixteRate: client.egp_taux || 0,
+      badge: badgeParDefautPourMode(mode),
+      manuel: true,
     });
   };
 
@@ -1569,6 +1616,11 @@ export default function ClientDetail({
       // marquerEncaisse pour le solde mixte, PaiementResteFlow.tsx).
       ...(estMixte && repriseModal.mixteRate > 0 ? { egp_taux: repriseModal.mixteRate } : {}),
     });
+    // Badge indépendant (r.paiement_statut) sur l'activité choisie — jamais
+    // via .patch() : ça ne doit toucher QUE cette activité, jamais le solde
+    // ni une reprise en attente ailleurs (même principe que le menu
+    // déroulant par activité, voir resa.ts).
+    updateReservation(repriseModal.activiteId, { paiement_statut: repriseModal.badge });
     setRepriseModal(null);
   };
 
@@ -2121,6 +2173,7 @@ export default function ClientDetail({
               onAcompteAlerte={handleAcompteAlerte}
               onAdjustAvoir={adjustAvoirOnReservation}
               paypalPaiements={paypalPaiementsClient}
+              onOuvrirPaiementAVenir={ouvrirPaiementAVenir}
             />
           </div>
         </div>
@@ -2153,10 +2206,14 @@ export default function ClientDetail({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
             <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
-              Le client avait déjà réglé toutes ses activités
+              {repriseModal.manuel
+                ? "Prévoir un paiement à effectuer"
+                : "Le client avait déjà réglé toutes ses activités"}
             </h2>
             <p className="mb-4 text-sm text-neutral-600">
-              Pour cette nouvelle activité, quel est le règlement prévu ?
+              {repriseModal.manuel
+                ? "Montant, mode, activité concernée et badge affiché — tout est modifiable."
+                : "Pour cette nouvelle activité, quel est le règlement prévu ?"}
             </p>
             {Number(client.reprise_montant) > 0 && (
               <p className="mb-4 rounded-md bg-[#C9973E]/10 p-2.5 text-xs text-[#8B4531]">
@@ -2196,10 +2253,22 @@ export default function ClientDetail({
                   // librement la vraie répartition, mais part d'un état
                   // cohérent avec le Montant déjà saisi plutôt que de deux
                   // champs vides sans lien avec lui.
+                  // Le badge suit le mode par défaut à chaque changement —
+                  // seulement s'il n'a pas déjà été personnalisé à la main
+                  // (sinon repasser sur PayPal par erreur écraserait un
+                  // badge choisi exprès juste avant).
+                  const badgeSuit = repriseModal.badge === badgeParDefautPourMode(repriseModal.mode);
+                  const patch = badgeSuit ? { badge: badgeParDefautPourMode(mode) } : {};
                   if (mode === "Modes différents" && !repriseModal.mixteEur && !repriseModal.mixteEgp) {
-                    setRepriseModal({ ...repriseModal, mode, mixteEur: repriseModal.montant, mixteEgp: "0" });
+                    setRepriseModal({
+                      ...repriseModal,
+                      mode,
+                      mixteEur: repriseModal.montant,
+                      mixteEgp: "0",
+                      ...patch,
+                    });
                   } else {
-                    setRepriseModal({ ...repriseModal, mode });
+                    setRepriseModal({ ...repriseModal, mode, ...patch });
                   }
                 }}
               >
@@ -2307,6 +2376,22 @@ export default function ClientDetail({
                 ))}
               </select>
             </div>
+            <div className="mb-4">
+              <label className="mb-1 block text-xs font-medium text-neutral-500">
+                Badge affiché sur cette activité
+              </label>
+              <select
+                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                value={repriseModal.badge}
+                onChange={(e) => setRepriseModal({ ...repriseModal, badge: e.target.value as StatutPaiementKey })}
+              >
+                {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="flex flex-col gap-2">
               <button
                 onClick={confirmerReprise}
@@ -2321,7 +2406,7 @@ export default function ClientDetail({
                 }}
                 className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
               >
-                Programmer une deuxième étape pour ce paiement
+                {repriseModal.manuel ? "Annuler" : "Programmer une deuxième étape pour ce paiement"}
               </button>
             </div>
           </div>

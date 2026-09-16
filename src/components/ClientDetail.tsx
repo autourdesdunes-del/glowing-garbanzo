@@ -1372,8 +1372,13 @@ export default function ClientDetail({
     if (error) toast("Échec de la suppression.");
   };
 
-  const autresSejours = allClients.filter(
-    (c) => c.id !== client.id && client.telephone && c.telephone === client.telephone
+  // Mémoïsé : ce scan tournait sur les ~1150 clients à CHAQUE rendu de la
+  // fiche (chaque frappe dans un champ, chaque tick des pollers 20-25s
+  // ci-dessus) — recalculé seulement quand la liste globale ou ce client
+  // changent vraiment.
+  const autresSejours = useMemo(
+    () => allClients.filter((c) => c.id !== client.id && client.telephone && c.telephone === client.telephone),
+    [allClients, client.id, client.telephone]
   );
 
   const totalSejourHeader = reservationsActives(reservations).reduce(

@@ -707,11 +707,24 @@ function AppShellInner({
     jourEscalationsPending.length +
     assouanVerificationsPending.length +
     acompteAlertesPending.length;
-  const managerClientsCount = clients.filter((c) => c.confirmation_a_traiter).length;
-  const managerActivitesCount = allReservations.filter((r) => r.statut_resa === "Brouillon").length;
-  const managerCatalogueBrouillonCount = catalogue.filter((a) => !a.valide).length;
-  const managerDoublonsCount = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite).length;
-  const managerProspectsStagnantsCount = clients.filter(prospectStagnant).length;
+  // Mémoïsés : ces 5 scans tournaient sur les listes ENTIÈRES (clients,
+  // réservations, catalogue) à chaque rendu d'AppShell — y compris pendant
+  // qu'on tape dans "+ Nouvelle activité" ou qu'une fiche client s'ouvre,
+  // deux moments où AppShell re-render très souvent. Avec ~1150 clients et
+  // ~400+ réservations, ce coût grossit avec l'activité de l'agence et
+  // ralentissait tout le reste — jamais recalculés que si les listes
+  // sources ont vraiment changé.
+  const managerClientsCount = useMemo(() => clients.filter((c) => c.confirmation_a_traiter).length, [clients]);
+  const managerActivitesCount = useMemo(
+    () => allReservations.filter((r) => r.statut_resa === "Brouillon").length,
+    [allReservations]
+  );
+  const managerCatalogueBrouillonCount = useMemo(() => catalogue.filter((a) => !a.valide).length, [catalogue]);
+  const managerDoublonsCount = useMemo(
+    () => clients.filter((c) => c.doublon_possible_id && !c.doublon_traite).length,
+    [clients]
+  );
+  const managerProspectsStagnantsCount = useMemo(() => clients.filter(prospectStagnant).length, [clients]);
   // Badges par sous-menu (pas un total global) : "Gestion équipe" n'a pas
   // de badge, rien à traiter en urgence de ce côté.
   const managerSubCounts: Record<ManagerSub, number> = {
@@ -732,12 +745,29 @@ function AppShellInner({
         ? [...PROSPECT_STATUTS, "Client perdu"]
         : [prospectsSub]
       : CLIENT_STATUTS;
-  const scoped = clients.filter((c) => activeStatuts.includes(c.statut));
-  const allTags = Array.from(new Set(scoped.flatMap((c) => c.tags || []))).sort();
-  const filtered = scoped
-    .filter((c) => deaccent((c.nom || "").toLowerCase()).includes(deaccent(query.toLowerCase())))
-    .filter((c) => !tagFilter || (c.tags || []).includes(tagFilter));
-  const selected = clients.find((c) => c.id === selectedId) || null;
+  // Mémoïsé sur [clients, mode, prospectsSub] plutôt que sur activeStatuts
+  // (un nouveau tableau littéral à chaque rendu, qui aurait annulé le
+  // bénéfice du useMemo) — même besoin que managerClientsCount ci-dessus :
+  // ce filtre tourne sur les ~1150 clients à chaque rendu, y compris pendant
+  // la frappe dans la recherche.
+  const scoped = useMemo(
+    () => clients.filter((c) => activeStatuts.includes(c.statut)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clients, mode, prospectsSub]
+  );
+  const allTags = useMemo(() => Array.from(new Set(scoped.flatMap((c) => c.tags || []))).sort(), [scoped]);
+  // deaccent(query) sorti de la boucle de filtre : recalculé une fois par
+  // rendu au lieu d'une fois par client (normalize NFD + regex répété
+  // ~1150 fois par frappe sinon).
+  const deaccentedQuery = useMemo(() => deaccent(query.toLowerCase()), [query]);
+  const filtered = useMemo(
+    () =>
+      scoped
+        .filter((c) => deaccent((c.nom || "").toLowerCase()).includes(deaccentedQuery))
+        .filter((c) => !tagFilter || (c.tags || []).includes(tagFilter)),
+    [scoped, deaccentedQuery, tagFilter]
+  );
+  const selected = useMemo(() => clients.find((c) => c.id === selectedId) || null, [clients, selectedId]);
 
   const openClient = (id: string) => {
     const c = clients.find((cl) => cl.id === id);
@@ -1172,9 +1202,16 @@ function AppShellInner({
 
   useEffect(() => {
     if (!loaded) return;
+    // refreshAll retélécharge TOUT (clients, réservations, catalogue...) à
+    // chaque tick — son coût grossit avec le nombre de clients/réservations
+    // de l'agence, et retombe pile pendant qu'on tape dans "+ Nouvelle
+    // activité" ou qu'une fiche s'ouvre, ce qui ralentissait les deux à la
+    // longue. 45s au lieu de 25s réduit d'environ 45% la fréquence de ce
+    // gros refetch, sans trop dégrader la fraîcheur entre sessions
+    // concurrentes (voir CLAUDE.md sur les collisions multi-sessions).
     const id = setInterval(
       () => refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection }),
-      25000
+      45000
     );
     return () => clearInterval(id);
   }, [loaded, planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection, refreshAll]);
@@ -2910,7 +2947,14 @@ function AppShellInner({
                   {filtered.length === 0 && (
                     <div className="p-4 text-sm text-neutral-400">Aucun client.</div>
                   )}
-                  {filtered.map((c) => (
+                  {/* Sans recherche, cette liste peut afficher tous les clients
+                      confirmés (400+) sans aucune virtualisation — chaque
+                      bouton monté ralentit le rendu, surtout à l'ouverture
+                      d'une fiche juste après (3 setState d'affilée). Plafonné
+                      à 150 tant qu'aucune recherche n'affine — une recherche
+                      retire toujours ce plafond, jamais de client caché à
+                      qui cherche par son nom. */}
+                  {(query.trim() ? filtered : filtered.slice(0, 150)).map((c) => (
                     <button
                       key={c.id}
                       onClick={() => {
@@ -2948,6 +2992,11 @@ function AppShellInner({
                       </div>
                     </button>
                   ))}
+                  {!query.trim() && filtered.length > 150 && (
+                    <div className="p-4 text-center text-xs text-neutral-400">
+                      150 sur {filtered.length} affichés — tape un nom pour affiner.
+                    </div>
+                  )}
                 </div>
               </>
           </aside>

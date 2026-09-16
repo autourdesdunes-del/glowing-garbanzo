@@ -178,6 +178,26 @@ export function translateDejaSurPlace(nom: string): string {
 // Le titre stocké peut porter un suffixe " — ..." (île / moment / créneau,
 // posé par l'assistant d'ajout) — on ne veut que le nom de base ici, le
 // moment/créneau est déjà ajouté séparément par momentBadge.
+// Étiquettes du client (la petite étoile de la fiche) qui doivent suivre
+// son nom dans le bloc équipe Égypte : l'équipe sur place lit ce bloc et
+// rien d'autre, donc ce qui change sa façon d'accueillir le client doit y
+// figurer. Les autres étiquettes (Urgent, Ancien client) servent au suivi
+// interne et n'ont rien à faire dans un message opérationnel.
+const ETIQUETTES_BLOC_EGYPTE: [string, string][] = [
+  ["VIP", "(VIP)"],
+  ["Vigilance", "(DIFFICULT CLIENT)"],
+  ["Influenceur/Collaboration", "(Influenceur/Collab)"],
+];
+
+// "Sophie Durand (VIP)" — plusieurs étiquettes se cumulent dans l'ordre
+// ci-dessus, pour que deux clients étiquetés pareil s'affichent pareil.
+export function nomClientPourEgypte(client: Client) {
+  const nom = client.nom || "—";
+  const tags = client.tags || [];
+  const suffixes = ETIQUETTES_BLOC_EGYPTE.filter(([tag]) => tags.includes(tag)).map(([, libelle]) => libelle);
+  return suffixes.length > 0 ? `${nom} ${suffixes.join(" ")}` : nom;
+}
+
 export function baseActivityName(nom: string) {
   const idx = nom.indexOf(" — ");
   return idx === -1 ? nom : nom.slice(0, idx);
@@ -295,7 +315,7 @@ export function buildEgyptActivityBlock(
   // apparaissait tel quel au milieu d'un bloc sinon entièrement en anglais.
   // Sans effet sur le texte déjà calculé en anglais (aucun mot français à
   // traduire dedans).
-  return `${activiteLines.join("\n")}\n\nName : ${client.nom || "—"}\n\n${translateFr(
+  return `${activiteLines.join("\n")}\n\nName : ${nomClientPourEgypte(client)}\n\n${translateFr(
     buildPaxEnglishForReservation(r, client)
   )}\n\nHotel : ${hotelEgyptLinePourActivite(
     clientHotels,

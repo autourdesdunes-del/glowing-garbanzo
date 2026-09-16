@@ -52,7 +52,11 @@ export function Section({
   );
 }
 
-const TAG_OPTIONS = ["VIP", "Récurrent", "Urgent", "Vigilance"];
+// "Ancien client" remplace "Récurrent" (demande de Mélanie, 2026-09-16) :
+// personne ne disait "récurrent" à l'oral. "Influenceur/Collaboration"
+// s'ajoute pour les partenariats. VIP, Vigilance et Influenceur suivent le
+// client jusque dans le bloc équipe Égypte — voir nomClientPourEgypte.
+const TAG_OPTIONS = ["VIP", "Ancien client", "Urgent", "Vigilance", "Influenceur/Collaboration"];
 
 // Petite étoile à côté des badges du bandeau (statut/hôtel/dates) : clic
 // pour ouvrir un menu et cocher/décocher les étiquettes — remplace
@@ -97,7 +101,7 @@ export function TagStarPicker({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-6 z-20 w-36 rounded-md border border-[#eaeaea] bg-white p-1 shadow-lg">
+          <div className="absolute left-0 top-6 z-20 w-52 rounded-md border border-[#eaeaea] bg-white p-1 shadow-lg">
             {TAG_OPTIONS.map((opt) => (
               <button
                 key={opt}

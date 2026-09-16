@@ -48,6 +48,7 @@ import {
 } from "@/lib/resa";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import { matchHotel, hotelDisplayForEgypt, hotelsEgyptLines } from "@/lib/hotelHelp";
+import { nomClientPourEgypte } from "@/lib/egyptBlock";
 import { getEurToEgpRate } from "@/lib/exchangeRate";
 import { todayStr, localDateStr } from "@/lib/dates";
 import MarquerRembourseModal from "@/components/MarquerRembourseModal";
@@ -265,7 +266,7 @@ export function ContactStep({
       ? hotelsEgyptLines(clientHotels)
       : [`Hotel : ${hotelDisplayForEgypt(client.hotel, hotelMatch?.ville)}`];
 
-  const egyptCopyBlock = `Name : ${client.nom || "—"}\n${buildPaxEnglish(client)}\n${hotelLines.join(
+  const egyptCopyBlock = `Name : ${nomClientPourEgypte(client)}\n${buildPaxEnglish(client)}\n${hotelLines.join(
     "\n"
   )}\nRoom Number : ${client.chambre || "—"}\nWhat's app : ${client.telephone || "—"}`;
   const doCopyEgypt = async () => {

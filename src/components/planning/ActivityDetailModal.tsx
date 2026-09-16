@@ -34,6 +34,7 @@ import {
   resaTotalMontant,
   reservationsActives,
   siteCaireBadge,
+  STATUT_PAIEMENT_OPTIONS,
   taxeTransfertManquante,
   volBadge,
 } from "@/lib/resa";
@@ -54,6 +55,7 @@ export function ActivityDetailModal({
   onOpenClient,
   onOpenActivity,
   onOpenRdvPaiement,
+  onUpdateReservation,
   hotelsRef,
   onClose,
   onBack,
@@ -67,6 +69,7 @@ export function ActivityDetailModal({
   onOpenClient: (clientId: string) => void;
   onOpenActivity: (r: Reservation) => void;
   onOpenRdvPaiement: (clientId: string) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   hotelsRef: HotelReference[];
   onClose: () => void;
   onBack?: () => void;
@@ -391,18 +394,32 @@ export function ActivityDetailModal({
           )}
           <DetailRow label="PAX">{paxLine(r, client)}</DetailRow>
           <DetailRow label="Paiement">
-            {/* Affichage seul, plus de menu ici — un menu par activité
-                donnait l'impression de régler CETTE activité, alors qu'il
-                n'existe qu'un seul solde par client : choisir "Payé"
-                marquait tout le séjour réglé et effaçait en silence une
-                reprise encore en attente sur une AUTRE activité (vécu sur
-                Carine LELOIR). Le seul endroit pour changer un paiement est
-                désormais l'onglet Paiements de la fiche client. */}
             {(() => {
-              const b = r.statut_resa === "Annulée" ? badgeAnnulation(r) : badge;
-              if (!b) return null;
+              if (r.statut_resa === "Annulée") {
+                const b = badgeAnnulation(r);
+                if (!b) return null;
+                return (
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.className}`}>{b.label}</span>
+                );
+              }
+              if (!badge) return null;
+              // Badge indépendant par activité (r.paiement_statut) — ne
+              // touche jamais le solde partagé ni une reprise en attente sur
+              // une autre activité (incident Carine LELOIR, rétabli en menu
+              // par activité sur demande de Mélanie du 16/09, mais réellement
+              // indépendant cette fois).
               return (
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.className}`}>{b.label}</span>
+                <select
+                  value={r.paiement_statut || "attente"}
+                  onChange={(e) => onUpdateReservation(r.id, { paiement_statut: e.target.value })}
+                  className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${badge.className}`}
+                >
+                  {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                    <option key={o.key} value={o.key}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
               );
             })()}
           </DetailRow>

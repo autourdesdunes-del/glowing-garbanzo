@@ -45,6 +45,7 @@ export default function PlanningView({
   catalogue,
   onOpenClient,
   onOpenRdvPaiement,
+  onUpdateReservation,
   focusReservationId,
   onBackToBillet,
 }: {
@@ -57,6 +58,7 @@ export default function PlanningView({
   catalogue: CatalogueItem[];
   onOpenClient: (clientId: string) => void;
   onOpenRdvPaiement: (clientId: string) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   focusReservationId?: string | null;
   onBackToBillet?: () => void;
 }) {
@@ -279,6 +281,7 @@ export default function PlanningView({
           onOpenClient={onOpenClient}
           onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
           onOpenRdvPaiement={onOpenRdvPaiement}
+          onUpdateReservation={onUpdateReservation}
           hotelsRef={hotelsRef}
           onClose={() => setActiveActivity(null)}
           onBack={activeActivity.r.id === focusReservationId ? onBackToBillet : undefined}

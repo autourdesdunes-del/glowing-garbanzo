@@ -3076,6 +3076,7 @@ function AppShellInner({
               catalogue={catalogue}
               onOpenClient={openClient}
               onOpenRdvPaiement={openRdvPaiements}
+              onUpdateReservation={updateReservationById}
               focusReservationId={focusReservationId}
               onBackToBillet={focusReservationId ? backFromReservationFocus : undefined}
             />

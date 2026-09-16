@@ -38,6 +38,7 @@ import {
   taxeTransfertManquante,
   volBadge,
   paiementBadge,
+  STATUT_PAIEMENT_OPTIONS,
   participantsFor,
   paxLine,
   resaBreakdown,
@@ -390,11 +391,28 @@ export default function ItineraryView({
         <div className="mt-1 text-xs text-neutral-500">{paxLine(r, client)}</div>
         <div className="mt-1.5 flex items-center justify-between">
           <span className="font-amounts text-sm font-bold text-[#171717]">{euros(total)} €</span>
-          {badge && (
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
-              {badge.label}
-            </span>
-          )}
+          {badge &&
+            (r.statut_resa === "Annulée" ? (
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${badge.className}`}>
+                {badge.label}
+              </span>
+            ) : (
+              <select
+                value={r.paiement_statut || "attente"}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onUpdateReservation(r.id, { paiement_statut: e.target.value });
+                }}
+                className={`rounded-full border-0 px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
+              >
+                {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ))}
         </div>
       </div>
     );
@@ -740,16 +758,30 @@ export default function ItineraryView({
               </button>
               {expBadge && (
                 <DetailRow label="Paiement">
-                  {/* Affichage seul — un menu ici donnait l'impression de
-                      régler CETTE activité, alors qu'il n'existe qu'un seul
-                      solde par client : choisir "Payé" ici marquait tout le
-                      séjour réglé et effaçait en silence une reprise encore
-                      en attente sur une AUTRE activité (vécu sur Carine
-                      LELOIR). Le seul endroit pour changer un paiement est
-                      désormais l'onglet Paiements de la fiche client. */}
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${expBadge.className}`}>
-                    {expBadge.label}
-                  </span>
+                  {expandedReservation.statut_resa === "Annulée" ? (
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${expBadge.className}`}>
+                      {expBadge.label}
+                    </span>
+                  ) : (
+                    // Badge indépendant par activité (r.paiement_statut) — ne
+                    // touche jamais le solde partagé ni une reprise en attente
+                    // sur une autre activité (incident Carine LELOIR du 14/09,
+                    // rétabli en menu par activité sur demande de Mélanie du
+                    // 16/09, mais réellement indépendant cette fois).
+                    <select
+                      value={expandedReservation.paiement_statut || "attente"}
+                      onChange={(e) =>
+                        onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
+                      }
+                      className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${expBadge.className}`}
+                    >
+                      {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                        <option key={o.key} value={o.key}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </DetailRow>
               )}
               <button

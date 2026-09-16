@@ -1457,7 +1457,24 @@ export default function ClientDetail({
     // le pop-up.
     const baseline = (Number(client.solde_montant) || totalSejourHeader) + (Number(client.reprise_montant) || 0);
     const diff = Math.round((totalSejourHeader - baseline - avoirAutoApplique) * 100) / 100;
-    if (diff <= 0.01) return;
+    if (diff <= 0.01) {
+      // Croissance intégralement couverte par l'avoir auto-appliqué : pas de
+      // reprise à demander, MAIS sans rattraper solde_montant sur le nouveau
+      // total, paiementProgress() continue de soustraire cette croissance de
+      // soldeCouvert pour toujours (croissanceApresSolde), comme si elle
+      // restait due — "reste à payer" affiche alors à tort le montant de
+      // l'activité pourtant déjà réglée par avoir (vécu sur Iman KASRI,
+      // Plongée sous-marine à 100€ intégralement couverte par avoir, encore
+      // comptée "100€ à payer" des jours après). Même principe que
+      // marquerRepriseReglee, qui referme déjà solde_montant sur le total
+      // actuel une fois une reprise réglée par un vrai paiement — ici la
+      // reprise n'a jamais existé car l'avoir a tout couvert immédiatement,
+      // donc c'est cette fonction qui doit refermer la base à la place.
+      if (avoirAutoApplique > 0.01) {
+        onChange({ solde_montant: totalSejourHeader });
+      }
+      return;
+    }
     const derniereActivite = [...reservationsActives(reservations)].sort((a, b) =>
       (a.created_at || "").localeCompare(b.created_at || "")
     ).pop();

@@ -1143,6 +1143,7 @@ export function PaiementsStep({
   onAcompteAlerte,
   onAdjustAvoir,
   paypalPaiements = [],
+  onOuvrirPaiementAVenir,
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -1174,6 +1175,10 @@ export function PaiementsStep({
   // ligne du "Résumé des paiements" réglée en PayPal, l'heure exacte de
   // réception et l'identité du payeur (voir matchPaypalPaiement plus bas).
   paypalPaiements?: PaypalPaiement[];
+  // Ouvre le pop-up "Prévoir un paiement à effectuer" (ClientDetail.tsx) —
+  // même formulaire que la reprise automatique, déclenché ici manuellement
+  // à tout moment (demande de Mélanie, 16/09).
+  onOuvrirPaiementAVenir?: () => void;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -2073,14 +2078,31 @@ export function PaiementsStep({
             )}
           </div>
         )}
+          </>
+        )}
 
+        {/* En dehors de {typeDePaiementOpen && ...} : reste visible même
+            "Type de paiement" replié, pour enregistrer un paiement reçu ou
+            en prévoir un futur sans devoir rouvrir tout le détail du
+            paiement (demande de Mélanie, 16/09). */}
         <div className="mt-3">
-          <button
-            onClick={() => setAddingEtape((v) => !v)}
-            className="rounded-md border border-[#C9973E]/40 px-2 py-0.5 text-xs font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
-          >
-            + Ajouter une étape
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setAddingEtape((v) => !v)}
+              className="rounded-md border border-[#C9973E]/40 px-2 py-0.5 text-xs font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
+            >
+              + Ajouter un paiement effectué
+            </button>
+            {onOuvrirPaiementAVenir && (
+              <button
+                type="button"
+                onClick={onOuvrirPaiementAVenir}
+                className="rounded-md border border-red-300 px-2 py-0.5 text-xs font-medium text-red-600 hover:bg-red-50"
+              >
+                + Ajouter un paiement à effectuer
+              </button>
+            )}
+          </div>
           {addingEtape && (
             <div className="mt-2 flex flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2.5">
               <div className="flex flex-wrap items-end gap-2">
@@ -2156,8 +2178,6 @@ export function PaiementsStep({
             </div>
           )}
         </div>
-          </>
-        )}
       </div>
 
       {paiementsChronologiques.length > 0 && (

@@ -19,6 +19,7 @@ import {
   siteCaireEgyptLine,
   transfertPrivatifVilles,
 } from "@/lib/resa";
+import { dejaSurPlaceVille } from "@/lib/generatorProgram";
 import { buildPaxEnglishForReservation } from "@/components/client-steps";
 
 export function euros(n: number) {
@@ -324,7 +325,23 @@ export function buildEgyptActivityBlock(
   // d'ARRIVÉE seul, la date du transfert étant aussi le jour de check-in du
   // nouvel hôtel (convention "déjà arrivé" de hotelPourDate) — l'équipe
   // Égypte a pourtant besoin des deux pour organiser le trajet.
-  const villesTransfert = transfertPrivatifVilles(titreBase);
+  //
+  // Même souci pour une excursion "(déjà sur place)" qui inclut elle-même
+  // le retour vers une autre ville du circuit (ex. "Louxor 1 jour visites &
+  // Montgolfière (déjà sur place) - avec retour Marsa Alam inclus", vécu
+  // sur Sharlen MICIELI) : ce n'est pas un "Transfert privatif" catalogue,
+  // mais la ville où se déroule concrètement l'activité (dejaSurPlaceVille)
+  // diffère de l'étape résolue par date (etapeChambre, déjà "déjà arrivée"
+  // à la ville suivante) — même signal qu'un transfert entre deux hôtels,
+  // peu importe le libellé exact tapé pour le retour.
+  const villeDejaSurPlace = dejaSurPlaceVille(titreBase);
+  const villesTransfert =
+    transfertPrivatifVilles(titreBase) ||
+    (villeDejaSurPlace &&
+    etapeChambre &&
+    etapeChambre.ville.trim().toLowerCase() !== villeDejaSurPlace.trim().toLowerCase()
+      ? { depart: villeDejaSurPlace, arrivee: etapeChambre.ville }
+      : null);
   const hotelLines = villesTransfert
     ? `Hotel departure : ${hotelPourVille(clientHotels, villesTransfert.depart, client.hotel, hotelVille)}\nHotel arrival : ${hotelPourVille(
         clientHotels,

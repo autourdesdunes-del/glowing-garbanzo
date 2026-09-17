@@ -267,6 +267,9 @@ export function buildEgyptActivityBlock(
   if (chevalBadge) activiteLines.push(chevalBadge);
   if (r.nb_conducteurs != null) activiteLines.push(`Drivers : ${r.nb_conducteurs}`);
   if (r.nb_passagers != null) activiteLines.push(`Passengers : ${r.nb_passagers}`);
+  if (r.nb_quad) activiteLines.push(`Quad : ${r.nb_quad}`);
+  if (r.nb_buggy_normal) activiteLines.push(`Buggy : ${r.nb_buggy_normal}`);
+  if (r.nb_buggy_famille) activiteLines.push(`Buggy family : ${r.nb_buggy_famille}`);
   if (r.pointure) activiteLines.push(`Shoe size : ${r.pointure}`);
   // Info importante (bouton "+" bleu de l'étape Options du wizard, ex.
   // "Allergie fruits de mer") — visible en badge rouge sur la carte côté

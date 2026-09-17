@@ -9,9 +9,14 @@ const BUCKET = "billets-avion";
 export default function BilletAvionUpload({
   path,
   onChange,
+  hideLabel = false,
 }: {
   path: string | null;
   onChange: (path: string | null) => void;
+  // true quand ce widget est déjà inséré dans une ligne portant elle-même
+  // le libellé "Billet d'avion" (ex. DetailRow dans ItineraryView) — évite
+  // de l'afficher deux fois.
+  hideLabel?: boolean;
 }) {
   const [url, setUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -64,9 +69,11 @@ export default function BilletAvionUpload({
 
   return (
     <div>
-      <span className="mb-1 block text-sm font-medium text-neutral-700">
-        Billet d&apos;avion (PDF ou photo)
-      </span>
+      {!hideLabel && (
+        <span className="mb-1 block text-sm font-medium text-neutral-700">
+          Billet d&apos;avion (PDF ou photo)
+        </span>
+      )}
       {path ? (
         <div className="flex items-center gap-2">
           <a

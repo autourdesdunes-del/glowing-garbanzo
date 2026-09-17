@@ -37,6 +37,9 @@ import {
   siteCaireBadge,
   taxeTransfertManquante,
   volBadge,
+  billetUploadPatch,
+  isLeCaireEnAvion,
+  needsBilletInterneGenerique,
   paiementBadge,
   STATUT_PAIEMENT_OPTIONS,
   participantsFor,
@@ -49,6 +52,7 @@ import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import AnnulerMontgolfiereModal from "@/components/AnnulerMontgolfiereModal";
 import RetirerParticipantsModal from "@/components/RetirerParticipantsModal";
 import AjouterRemboursementAvoirModal from "@/components/AjouterRemboursementAvoirModal";
+import BilletAvionUpload from "@/components/BilletAvionUpload";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
@@ -791,6 +795,27 @@ export default function ItineraryView({
               >
                 <DetailRow label="Total">{euros(expTotal)} €</DetailRow>
               </button>
+              {(isLeCaireEnAvion(expandedReservation.nom_activite) ||
+                needsBilletInterneGenerique(expandedReservation.nom_activite) ||
+                expandedReservation.billet_requis) && (
+                <DetailRow label="Billet d'avion">
+                  {/* Voir/joindre le billet directement depuis l'activité —
+                      avant, seul Suivis > Billets d'avion le permettait, et
+                      une activité jamais passée par le popup Hossam (import
+                      Notion, popup zappé...) n'y apparaissait même pas,
+                      donc impossible d'y joindre quoi que ce soit (vécu sur
+                      Manon DALLA COSTA). billetUploadPatch se charge de
+                      passer billet_requis à true si besoin dès qu'un
+                      fichier est réellement déposé. */}
+                  <BilletAvionUpload
+                    path={expandedReservation.billet_lien || null}
+                    onChange={(path) =>
+                      onUpdateReservation(expandedReservation.id, billetUploadPatch(expandedReservation, path))
+                    }
+                    hideLabel
+                  />
+                </DetailRow>
+              )}
             </div>
             {expBreakdown.length > 0 && (
               <div className="mt-1 space-y-1 border-t border-neutral-100 pt-2 text-xs text-neutral-500">

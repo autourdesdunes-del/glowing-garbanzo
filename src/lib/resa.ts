@@ -1456,6 +1456,20 @@ export function billetUploadPatch(r: Reservation, path: string | null): Partial<
     patch.billet_etape = "a_envoyer_client";
     patch.billet_recu_le = new Date().toISOString();
   }
+  // billet_requis reste parfois à false alors que le billet est bel et bien
+  // déposé (ex. popup Hossam jamais déclenché à la création — vécu sur
+  // Manon DALLA COSTA, invisible dans Suivis > Billets d'avion malgré "Le
+  // Caire en avion" au programme) — un billet réellement joint suffit à
+  // prouver qu'il était nécessaire, pas la peine d'attendre que quelqu'un
+  // coche la case à part.
+  if (path && !r.billet_requis) {
+    patch.billet_requis = true;
+    if (isLeCaireEnAvion(r.nom_activite)) {
+      patch.billet_ville_depart = patch.billet_ville_depart || r.billet_ville_depart || "Hurghada";
+      patch.billet_ville_arrivee = patch.billet_ville_arrivee || r.billet_ville_arrivee || "Le Caire";
+    }
+    patch.billet_date = r.billet_date || r.date_debut;
+  }
   return patch;
 }
 

@@ -62,30 +62,45 @@ export function canalLabel(canal: string, client: Client) {
   return canal;
 }
 
-export function contactViaSummary(client: Client) {
-  const principal = canalLabel(client.canal, client);
-  if (!client.canal_secondaire) return principal;
-  let secondaire: string;
-  if (client.canal_secondaire === "Autre") {
-    secondaire = client.canal_secondaire_autre || "Autre";
-  } else if (client.canal_secondaire === "Instagram" || client.canal_secondaire === "TikTok") {
-    // Le pseudo du canal secondaire est stocké dans un champ dédié
-    // (pseudo_contact_secondaire) car pseudo_contact appartient au canal
-    // principal — canalLabel() ne peut donc pas être réutilisée telle quelle.
-    secondaire = client.pseudo_contact_secondaire
-      ? `${client.canal_secondaire} — @${client.pseudo_contact_secondaire}`
-      : client.canal_secondaire;
-  } else if (client.canal_secondaire === "Email") {
-    // Contrairement au pseudo Instagram/TikTok, l'email n'a pas de champ
-    // dédié au canal secondaire : `email` est déjà collecté indépendamment
-    // du canal (modale "What's app / Email") et ne peut pas être déjà pris
-    // par le canal principal ici, puisque le second canal ne peut pas être
-    // identique au principal.
-    secondaire = client.email ? `Email — ${client.email}` : "Email";
-  } else {
-    secondaire = client.canal_secondaire;
+// Même logique pour le 2e et le 3e canal — factorisée ici pour ne pas
+// dupliquer une troisième fois le cas "Autre"/Instagram-TikTok/Email.
+function canalSupplementaireLabel(canal: string, canalAutre: string, pseudoContact: string, client: Client): string {
+  if (canal === "Autre") return canalAutre || "Autre";
+  if (canal === "Instagram" || canal === "TikTok") {
+    // Le pseudo de ce canal supplémentaire est stocké dans un champ dédié
+    // (jamais pseudo_contact, qui appartient au canal principal) —
+    // canalLabel() ne peut donc pas être réutilisée telle quelle.
+    return pseudoContact ? `${canal} — @${pseudoContact}` : canal;
   }
-  return `${principal} + ${secondaire}`;
+  if (canal === "Email") {
+    // Contrairement au pseudo Instagram/TikTok, l'email n'a pas de champ
+    // dédié par canal : `email` est déjà collecté indépendamment du canal
+    // (modale "What's app / Email") et ne peut pas être déjà pris par un
+    // autre canal ici, puisque deux canaux du même client sont toujours
+    // distincts entre eux.
+    return client.email ? `Email — ${client.email}` : "Email";
+  }
+  return canal;
+}
+
+export function contactViaSummary(client: Client) {
+  const canaux = [canalLabel(client.canal, client)];
+  if (client.canal_secondaire) {
+    canaux.push(
+      canalSupplementaireLabel(
+        client.canal_secondaire,
+        client.canal_secondaire_autre,
+        client.pseudo_contact_secondaire,
+        client
+      )
+    );
+  }
+  if (client.canal_tertiaire) {
+    canaux.push(
+      canalSupplementaireLabel(client.canal_tertiaire, client.canal_tertiaire_autre, client.pseudo_contact_tertiaire, client)
+    );
+  }
+  return canaux.join(" + ");
 }
 
 export function whatsappSummary(client: Client) {

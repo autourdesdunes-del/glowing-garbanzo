@@ -136,11 +136,21 @@ export function Metric({
   label: string;
   value: string;
   sub?: string;
-  tone: "default" | "error";
+  tone: "default" | "error" | "blue" | "yellow" | "orange" | "green";
   first?: boolean;
   onClick?: () => void;
 }) {
-  const valueClass = tone === "error" ? "text-[#EE0000]" : "text-[#171717]";
+  // Une couleur par métrique (demande de Mélanie, 17/09) — sert à repérer
+  // d'un coup d'œil laquelle regarder sans lire chaque libellé, une fois
+  // qu'on connaît le code couleur par cœur.
+  const TONE_CLASSES: Record<string, string> = {
+    error: "text-[#EE0000]",
+    blue: "text-blue-600",
+    yellow: "text-yellow-600",
+    orange: "text-orange-600",
+    green: "text-green-700",
+  };
+  const valueClass = TONE_CLASSES[tone] || "text-[#171717]";
   const Wrapper = onClick ? "button" : "div";
   return (
     <Wrapper

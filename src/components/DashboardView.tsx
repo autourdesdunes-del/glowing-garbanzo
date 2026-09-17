@@ -361,17 +361,22 @@ export default function DashboardView({
       r.billet_date >= todayStr &&
       r.billet_date <= addDays(todayStr, 15)
   );
-  // Acompte non réglé (quel que soit le mode) alors que l'activité est dans
-  // 4 jours ou moins.
-  const acomptesUrgents = clients.filter(
+  // Acompte non réglé (quel que soit le mode), arrivée dans la semaine —
+  // reste en file d'attente prioritaire tant qu'il y a le temps de relancer
+  // calmement (demande de Mélanie, 17/09).
+  const in7Days = addDays(todayStr, 7);
+  const acompteNonPayeSemaine = clients.filter(
     (c) =>
       c.paiement_type === "acompte" &&
       c.acompte_valide &&
       !c.acompte_paye &&
       c.date_debut &&
       c.date_debut >= todayStr &&
-      c.date_debut <= addDays(todayStr, 4)
+      c.date_debut <= in7Days
   );
+  // Sous-ensemble le plus proche (< 3 jours) : bascule aussi en Cas urgents,
+  // sans sortir de la file d'attente pour autant.
+  const acomptesUrgents = acompteNonPayeSemaine.filter((c) => (c.date_debut as string) <= in3Days);
 
   // Les pick-ups manquants ont déjà leur propre métrique dédiée
   // ("Pick-ups manquants") : les compter aussi dans "Cas urgents" faisait
@@ -487,8 +492,11 @@ export default function DashboardView({
   incompleteUrgent.forEach((c) => {
     infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).forEach((motif) => addToQueue(c, motif));
   });
-  staleProspects.forEach((c) => addToQueue(c, "À relancer"));
+  // Les prospects à relancer ont déjà leur propre nombre en haut du tableau
+  // de bord ("Prospects à relancer") — les compter aussi ici faisait
+  // doublon (demande de Mélanie, 17/09).
   rdvToday.forEach((c) => addToQueue(c, "RDV paiement"));
+  acompteNonPayeSemaine.forEach((c) => addToQueue(c, "Acompte non payé"));
   const priorityQueue = Array.from(queueMap.values()).sort((a, b) =>
     (a.client.date_debut || "9999").localeCompare(b.client.date_debut || "9999")
   );
@@ -874,14 +882,14 @@ export default function DashboardView({
           first
           label="Clients en Égypte"
           value={String(clientsInEgypt.length)}
-          tone="default"
+          tone="green"
           onClick={clientsInEgypt.length > 0 ? () => setClientsEgyptModalOpen(true) : undefined}
         />
         <Metric
           label="Cas urgents"
           value={String(urgentCount)}
           sub={urgentCount > 0 ? "à traiter" : "rien pour l'instant"}
-          tone={urgentCount > 0 ? "error" : "default"}
+          tone="error"
           onClick={urgentCount > 0 ? () => setUrgentModalOpen(true) : undefined}
         />
         <Metric
@@ -892,21 +900,21 @@ export default function DashboardView({
           // proximité du séjour (2/5/10 jours sans contact), sans plafond
           // sur la date d'arrivée elle-même.
           sub="sans relance récente"
-          tone="default"
+          tone="blue"
           onClick={staleProspects.length > 0 ? () => setProspectsModalOpen(true) : undefined}
         />
         <Metric
           label="Dossiers incomplets"
           value={String(incompleteUpcoming.length)}
           sub="arrivée < 14 j"
-          tone="default"
+          tone="yellow"
           onClick={incompleteUpcoming.length > 0 ? () => setIncompleteModalOpen(true) : undefined}
         />
         <Metric
           label="Pick-ups manquants"
           value={String(pickupsMissingTomorrow.length)}
           sub="demain"
-          tone="default"
+          tone="orange"
           onClick={pickupsMissingTomorrow.length > 0 ? () => setPickupsModalOpen(true) : undefined}
         />
       </div>

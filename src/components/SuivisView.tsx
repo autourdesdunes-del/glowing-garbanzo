@@ -103,6 +103,7 @@ export default function SuivisView({
   verifications,
   paypalPaiements,
   onRattacherPaiement,
+  onMasquerPaiement,
   profiles,
   currentUserId,
   planningShifts,
@@ -131,6 +132,7 @@ export default function SuivisView({
     clientId: string,
     type: "acompte" | "etape" | "solde" | "reprise"
   ) => void;
+  onMasquerPaiement?: (paiementId: string) => void;
   profiles: Profile[];
   currentUserId: string;
   planningShifts: PlanningShift[];
@@ -1758,18 +1760,19 @@ export default function SuivisView({
               Reçus automatiquement dès qu&apos;un client paie sur le compte PayPal de l&apos;agence.
               Rattacher un paiement remplit directement l&apos;acompte du dossier.
             </p>
-            {paypalPaiements.filter((p) => !p.rattache_client_id).length === 0 ? (
+            {paypalPaiements.filter((p) => !p.rattache_client_id && !p.masque).length === 0 ? (
               <div className="text-sm text-neutral-400">Aucun paiement en attente de rattachement.</div>
             ) : (
               <div className="space-y-2">
                 {paypalPaiements
-                  .filter((p) => !p.rattache_client_id)
+                  .filter((p) => !p.rattache_client_id && !p.masque)
                   .map((p) => (
                     <PaypalPaiementRow
                       key={p.id}
                       paiement={p}
                       clients={clients}
                       onRattacher={(clientId, type) => onRattacherPaiement(p.id, clientId, type)}
+                      onIgnorer={onMasquerPaiement ? () => onMasquerPaiement(p.id) : undefined}
                     />
                   ))}
               </div>

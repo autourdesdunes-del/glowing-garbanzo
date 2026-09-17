@@ -1602,6 +1602,16 @@ function AppShellInner({
     }
   };
 
+  // Retire un paiement PayPal de la liste "à rattacher" sans le rattacher à
+  // un client — pour du bruit ancien qu'on ne compte plus vouloir traiter
+  // (ex. nettoyage d'un gros arriéré) sans perdre l'historique du paiement
+  // ni empêcher les prochains paiements PayPal d'apparaître normalement.
+  const masquerPaypalPaiement = async (paiementId: string) => {
+    setPaypalPaiements((prev) => prev.map((p) => (p.id === paiementId ? { ...p, masque: true } : p)));
+    const { error } = await supabase.from("paypal_paiements").update({ masque: true }).eq("id", paiementId);
+    if (error) toast("Échec du masquage de ce paiement PayPal.");
+  };
+
   // Même geste que marquerRepriseReglee (client-steps.tsx), pour un endroit
   // qui n'a accès qu'à onUpdateClient et pas au contexte complet d'une
   // fiche client — voir "Paiements du jour" (PaiementsDuJourModal), qui
@@ -2239,7 +2249,9 @@ function AppShellInner({
     );
   }
 
-  const paypalPaiementsNonRattaches = paypalPaiements.filter((p) => !p.rattache_client_id).length;
+  const paypalPaiementsNonRattaches = paypalPaiements.filter(
+    (p) => !p.rattache_client_id && !p.masque
+  ).length;
 
   const currentTab = TABS.find((t) => t.key === mode);
   const visibleSuivisSubs = effectiveSuivisVisibles
@@ -3143,6 +3155,7 @@ function AppShellInner({
               verifications={allVerifications}
               paypalPaiements={paypalPaiements}
               onRattacherPaiement={rattacherPaypalPaiement}
+              onMasquerPaiement={masquerPaypalPaiement}
               profiles={teamProfiles}
               currentUserId={userId}
               planningShifts={teamPlanningShifts}
@@ -3285,6 +3298,7 @@ function AppShellInner({
               verifications={allVerifications}
               paypalPaiements={paypalPaiements}
               onRattacherPaiement={rattacherPaypalPaiement}
+              onMasquerPaiement={masquerPaypalPaiement}
               profiles={teamProfiles}
               currentUserId={userId}
               planningShifts={teamPlanningShifts}

@@ -941,6 +941,7 @@ export type PaypalPaiement = {
   rattache_client_id: string | null;
   rattache_par: string;
   rattache_at: string | null;
+  masque: boolean;
   created_at: string;
 };
 

@@ -734,10 +734,15 @@ export function PaypalPaiementRow({
   paiement,
   clients,
   onRattacher,
+  onIgnorer,
 }: {
   paiement: PaypalPaiement;
   clients: Client[];
   onRattacher: (clientId: string, type: "acompte" | "etape" | "solde" | "reprise") => void;
+  // Retire ce paiement de la liste sans le rattacher à un client (nettoyage
+  // d'un arriéré ancien) — reste consultable dans l'historique, disparaît
+  // juste de "à rattacher".
+  onIgnorer?: () => void;
 }) {
   const [query, setQuery] = useState("");
   // Un paiement PayPal en cours de dossier n'est pas toujours l'acompte —
@@ -796,13 +801,25 @@ export function PaypalPaiementRow({
       </div>
       {!clientChoisi ? (
         <div className="mt-2">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Rattacher à un client…"
-            className="input text-sm"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rattacher à un client…"
+              className="input text-sm"
+            />
+            {onIgnorer && (
+              <button
+                type="button"
+                onClick={onIgnorer}
+                title="Retire ce paiement de la liste sans le rattacher (reste dans l'historique)"
+                className="shrink-0 whitespace-nowrap text-xs text-neutral-400 hover:text-red-600 hover:underline"
+              >
+                Ignorer
+              </button>
+            )}
+          </div>
           {matches.length > 0 && (
             <div className="mt-1.5 divide-y divide-neutral-100 overflow-hidden rounded-md border border-neutral-200">
               {matches.map((c) => (

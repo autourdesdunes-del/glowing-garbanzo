@@ -118,6 +118,14 @@ export default function HebergementSection({
     reordered.forEach((h) => supabase.from("client_hotels").update({ ordre: h.ordre }).eq("id", h.id));
   };
 
+  // Suggestions natives (datalist) pendant la saisie du nom d'hôtel — pour
+  // repérer tout de suite un hôtel déjà répertorié qui ressemble à ce qui
+  // est tapé, au lieu d'en recréer un quasi-doublon (ex. "Jaz Casa Del Mar"
+  // vs "Jaz Élite Casa del Mar", vécu sur Khaled TAZGHAT). Un <datalist>
+  // laisse toujours taper librement — jamais un menu fermé qui bloquerait
+  // un hôtel réellement nouveau.
+  const hotelsSuggestions = Array.from(new Set(hotelsRef.map((h) => h.nom))).sort();
+
   const hotelMatch = matchHotel(client.hotel, hotelsRef);
   const taxeResultat = hotelMatch
     ? matchTransfertTaxe(taxesRef, hotelMatch.ville, client.adultes, client.enfants)
@@ -129,6 +137,11 @@ export default function HebergementSection({
 
   return (
     <div className="space-y-1.5">
+      <datalist id="hotels-reference-suggestions">
+        {hotelsSuggestions.map((nom) => (
+          <option key={nom} value={nom} />
+        ))}
+      </datalist>
       <PropertyRow label="Hôtel" icon={<PropIcon name="hotel" />} shaded>
         {clientHotels.length > 0 ? (
           <button type="button" onClick={() => setHotelModalOpen(true)} className="w-full space-y-2 text-left">
@@ -269,6 +282,7 @@ export default function HebergementSection({
                           value={client.hotel}
                           onChange={(e) => onChange({ hotel: e.target.value })}
                           placeholder="Hôtel"
+                          list="hotels-reference-suggestions"
                           className="input-flat w-full font-medium"
                         />
                       </PropertyRow>
@@ -349,6 +363,7 @@ export default function HebergementSection({
                               value={h.nom}
                               onChange={(e) => updateHotelStep(h.id, { nom: e.target.value })}
                               placeholder="Hôtel"
+                              list="hotels-reference-suggestions"
                               className="input w-full text-sm"
                             />
                             <div className="grid grid-cols-2 gap-1.5">

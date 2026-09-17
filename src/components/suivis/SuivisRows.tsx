@@ -24,6 +24,7 @@ import {
 } from "@/lib/resa";
 import { BILLET_ETAPES, VILLES_VOL } from "@/lib/constants";
 import BilletAvionUpload from "@/components/BilletAvionUpload";
+import BilletDownloadButton from "@/components/BilletDownloadButton";
 import { VoirPreuveRemboursementLink } from "@/components/RemboursementSummaryCard";
 import { ClientNameLink, VoirRibLink } from "@/components/suivis/SuivisPrimitives";
 import { euros, fmtDate, fmtDateTime } from "@/lib/suivisFormat";
@@ -566,6 +567,15 @@ export function PickupActivityCard({
           </span>
         )}
       </div>
+      {/* Le pick-up est souvent le dernier moment pratique pour remettre le
+          billet au client (ex. Le Caire en avion) — sans ce bouton ici, il
+          fallait rouvrir Suivis > Billets d'avion à côté pour le retrouver
+          (demande de Mélanie, 17/09). */}
+      {r.billet_requis && r.billet_lien && (
+        <div className="mt-1.5">
+          <BilletDownloadButton path={r.billet_lien} label="Télécharger le billet à envoyer au client" />
+        </div>
+      )}
     </div>
   );
 }

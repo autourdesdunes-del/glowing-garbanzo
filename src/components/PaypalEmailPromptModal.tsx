@@ -65,6 +65,16 @@ export default function PaypalEmailPromptModal({
             Valider
           </button>
         </div>
+        {/* Le client ne donne pas toujours son adresse tout de suite — plutôt
+            que de bloquer l'annulation/le remboursement en attendant, on
+            valide sans adresse et on la complète plus tard depuis
+            Suivis > Remboursements (le champ y reste modifiable). */}
+        <button
+          onClick={() => onConfirm("")}
+          className="mt-2 w-full text-center text-xs text-neutral-500 underline decoration-dotted hover:no-underline"
+        >
+          Valider sans adresse pour l&apos;instant — je la demanderai plus tard
+        </button>
       </div>
     </div>
   );

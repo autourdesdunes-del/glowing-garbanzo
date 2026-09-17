@@ -326,6 +326,23 @@ export function buildEgyptActivityBlock(
   // nouvel hôtel (convention "déjà arrivé" de hotelPourDate) — l'équipe
   // Égypte a pourtant besoin des deux pour organiser le trajet.
   //
+  // Même souci pour un circuit de plusieurs jours qui change d'hôtel en
+  // cours de route (ex. "Louxor 2 jours & Montgolfière (depuis Hurghada),
+  // reste à Louxor", vécu sur Vanessa PUJOL) : le titre est souvent retapé
+  // à la main par l'équipe (mots, ordre, tournure changent d'un dossier à
+  // l'autre), donc on ne se fie pas au texte mais au circuit réel —
+  // l'étape résolue au premier jour de l'activité diffère de celle résolue
+  // au dernier jour, peu importe comment l'activité est nommée.
+  const etapeDebutActivite = clientHotels.length > 0 ? hotelPourDate(clientHotels, r.date_debut) : null;
+  const etapeFinActivite =
+    clientHotels.length > 0 ? hotelPourDate(clientHotels, r.date_fin || r.date_debut) : null;
+  const villesDebutFin =
+    etapeDebutActivite &&
+    etapeFinActivite &&
+    etapeDebutActivite.ville.trim().toLowerCase() !== etapeFinActivite.ville.trim().toLowerCase()
+      ? { depart: etapeDebutActivite.ville, arrivee: etapeFinActivite.ville }
+      : null;
+
   // Même souci pour une excursion "(déjà sur place)" qui inclut elle-même
   // le retour vers une autre ville du circuit (ex. "Louxor 1 jour visites &
   // Montgolfière (déjà sur place) - avec retour Marsa Alam inclus", vécu
@@ -333,10 +350,13 @@ export function buildEgyptActivityBlock(
   // mais la ville où se déroule concrètement l'activité (dejaSurPlaceVille)
   // diffère de l'étape résolue par date (etapeChambre, déjà "déjà arrivée"
   // à la ville suivante) — même signal qu'un transfert entre deux hôtels,
-  // peu importe le libellé exact tapé pour le retour.
+  // peu importe le libellé exact tapé pour le retour. Sans date de fin
+  // distincte (activité d'un seul jour), villesDebutFin ci-dessus ne peut
+  // rien détecter — d'où ce deuxième filet, basé sur le titre cette fois.
   const villeDejaSurPlace = dejaSurPlaceVille(titreBase);
   const villesTransfert =
     transfertPrivatifVilles(titreBase) ||
+    villesDebutFin ||
     (villeDejaSurPlace &&
     etapeChambre &&
     etapeChambre.ville.trim().toLowerCase() !== villeDejaSurPlace.trim().toLowerCase()

@@ -47,6 +47,11 @@ import {
   creneauxDisponiblesPour,
   estBaseAvecFormuleCoucherDeSoleil,
   isQuad,
+  isSafariMixQuadBuggy,
+  prixSafariMixQuadBuggy,
+  PRIX_QUAD_MIX,
+  PRIX_BUGGY_NORMAL_MIX,
+  PRIX_BUGGY_FAMILLE_MIX,
   isSpeedboatPriveMaisonDauphins,
   joursDisponiblesMismatch,
   needsMomentSpeedboat,
@@ -2038,13 +2043,28 @@ export default function AddActivityWizard({
       ((nbAd > 0 && Number(r.pu_adulte) !== hauteSaison.pu_adulte) ||
         (nbEnf > 0 && Number(r.pu_enfant) !== hauteSaison.pu_enfant));
 
+    const isMixQuadBuggy =
+      r.tarif_mode === "groupe" && isSafariMixQuadBuggy(catalogueItem?.nom || r.nom_activite);
+    const mixQuadBuggyMissing =
+      isMixQuadBuggy && r.nb_quad == null && r.nb_buggy_normal == null && r.nb_buggy_famille == null;
+
     const goNextTarifs = () => {
-      if (hauteSaisonMismatch) {
+      if (hauteSaisonMismatch || mixQuadBuggyMissing) {
         setValidationError(true);
         return;
       }
       setValidationError(false);
       setStep("options");
+    };
+
+    const updateMixQuadBuggy = (patch: Partial<Reservation>) => {
+      const nbQuad = patch.nb_quad !== undefined ? patch.nb_quad : r.nb_quad;
+      const nbBuggyNormal = patch.nb_buggy_normal !== undefined ? patch.nb_buggy_normal : r.nb_buggy_normal;
+      const nbBuggyFamille = patch.nb_buggy_famille !== undefined ? patch.nb_buggy_famille : r.nb_buggy_famille;
+      onUpdateReservation(r.id, {
+        ...patch,
+        prix_groupe_base: prixSafariMixQuadBuggy(nbQuad || 0, nbBuggyNormal || 0, nbBuggyFamille || 0),
+      });
     };
 
     // Sur certaines activités, l'agence organise elle-même le transfert
@@ -2322,6 +2342,61 @@ export default function AddActivityWizard({
             </>
           ) : (
             <>
+              {isMixQuadBuggy && (
+                <div
+                  className={`col-span-2 rounded-md border p-2 ${
+                    mixQuadBuggyMissing && validationError
+                      ? "border-red-300 bg-red-50"
+                      : "border-[#EF9F27] bg-[#FAEEDA]"
+                  }`}
+                >
+                  <p className="mb-2 text-xs font-medium text-neutral-500">
+                    Nombre de véhicules — {PRIX_QUAD_MIX} €/quad, {PRIX_BUGGY_NORMAL_MIX} €/buggy,{" "}
+                    {PRIX_BUGGY_FAMILLE_MIX} €/buggy famille
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Field label="Quad">
+                      <input
+                        type="number"
+                        min={0}
+                        value={r.nb_quad ?? ""}
+                        onChange={(e) =>
+                          updateMixQuadBuggy({
+                            nb_quad: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        className="input w-20"
+                      />
+                    </Field>
+                    <Field label="Buggy normal">
+                      <input
+                        type="number"
+                        min={0}
+                        value={r.nb_buggy_normal ?? ""}
+                        onChange={(e) =>
+                          updateMixQuadBuggy({
+                            nb_buggy_normal: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        className="input w-20"
+                      />
+                    </Field>
+                    <Field label="Buggy famille">
+                      <input
+                        type="number"
+                        min={0}
+                        value={r.nb_buggy_famille ?? ""}
+                        onChange={(e) =>
+                          updateMixQuadBuggy({
+                            nb_buggy_famille: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        className="input w-20"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              )}
               <div className="col-span-2 rounded-md border border-[#EF9F27] bg-[#FAEEDA] p-2">
                 <Field label="Prix forfait de base (€)">
                   <input

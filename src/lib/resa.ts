@@ -1604,6 +1604,36 @@ export function chevalChameauBadge(r: Reservation, client: Client) {
   return `❗ ${nbAd} ${animalLabel}`;
 }
 
+// "Safari Mix Quad/Buggy" : tarif au véhicule (25€/quad, 110€/buggy normal,
+// 150€/buggy famille, sans limite de personnes par véhicule), demandé en
+// "Forfait groupe" — voir AddActivityWizard.tsx.
+export function isSafariMixQuadBuggy(nom: string) {
+  return (nom || "").toLowerCase().includes("mix quad");
+}
+
+export const PRIX_QUAD_MIX = 25;
+export const PRIX_BUGGY_NORMAL_MIX = 110;
+export const PRIX_BUGGY_FAMILLE_MIX = 150;
+
+export function prixSafariMixQuadBuggy(nbQuad: number, nbBuggyNormal: number, nbBuggyFamille: number) {
+  return (
+    (Number(nbQuad) || 0) * PRIX_QUAD_MIX +
+    (Number(nbBuggyNormal) || 0) * PRIX_BUGGY_NORMAL_MIX +
+    (Number(nbBuggyFamille) || 0) * PRIX_BUGGY_FAMILLE_MIX
+  );
+}
+
+export function quadBuggyBadge(r: Reservation) {
+  if (!isSafariMixQuadBuggy(r.nom_activite)) return "";
+  const parts: string[] = [];
+  if (r.nb_quad) parts.push(`${r.nb_quad} quad${r.nb_quad > 1 ? "s" : ""}`);
+  if (r.nb_buggy_normal) parts.push(`${r.nb_buggy_normal} buggy${r.nb_buggy_normal > 1 ? "s" : ""}`);
+  if (r.nb_buggy_famille) {
+    parts.push(`${r.nb_buggy_famille} buggy${r.nb_buggy_famille > 1 ? "s" : ""} famille`);
+  }
+  return parts.join(" + ");
+}
+
 // D'anciennes activités ont pu se retrouver avec ce même texte figé "en
 // dur" dans le titre (avant que ça devienne un badge calculé à part) — on
 // le retire à l'affichage pour ne jamais le montrer en double.

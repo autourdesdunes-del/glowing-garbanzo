@@ -24,6 +24,7 @@ import {
   activiteEnCoursAujourdhui,
   badgeAnnulation,
   chevalChameauBadge,
+  quadBuggyBadge,
   cleanActivityTitle,
   isMontgolfiereActivity,
   isDeuxiemeIleOption,
@@ -308,6 +309,11 @@ export default function ItineraryView({
           {chevalChameauBadge(r, client) && (
             <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-[11px] font-semibold text-white">
               {chevalChameauBadge(r, client)}
+            </span>
+          )}
+          {quadBuggyBadge(r) && (
+            <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-[11px] font-semibold text-white">
+              {quadBuggyBadge(r)}
             </span>
           )}
           {optionsBadge((resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id) && (

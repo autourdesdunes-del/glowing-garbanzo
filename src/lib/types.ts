@@ -245,6 +245,9 @@ export type Reservation = {
   site_caire: string;
   nb_conducteurs: number | null;
   nb_passagers: number | null;
+  nb_quad: number | null;
+  nb_buggy_normal: number | null;
+  nb_buggy_famille: number | null;
   numero_vol: string;
   horaire_vol: string;
   photo_vol_path: string | null;

@@ -14,6 +14,7 @@ import {
   acompteWaitingWarning,
   activitePaiementWarning,
   chevalChameauBadge,
+  quadBuggyBadge,
   cleanActivityTitle,
   enCoursBadge,
   isDeuxiemeIleOption,
@@ -181,6 +182,11 @@ export function ReservationSummaryCard({
               {chevalChameauBadge(r, client)}
             </span>
           )}
+          {quadBuggyBadge(r) && (
+            <span className="whitespace-nowrap rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              {quadBuggyBadge(r)}
+            </span>
+          )}
           {taxeTransfertManquante(r, hotelHorsHurghada) && (
             <span className="whitespace-nowrap rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
               ⚠ Taxe manquante
@@ -268,6 +274,11 @@ export function ReservationSummaryCard({
           {chevalChameauBadge(r, client) && (
             <span className="rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
               {chevalChameauBadge(r, client)}
+            </span>
+          )}
+          {quadBuggyBadge(r) && (
+            <span className="rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              {quadBuggyBadge(r)}
             </span>
           )}
         </div>
@@ -382,6 +393,11 @@ export function ReservationSummaryCard({
         {chevalChameauBadge(r, client) && (
           <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-xs font-semibold text-white">
             {chevalChameauBadge(r, client)}
+          </span>
+        )}
+        {quadBuggyBadge(r) && (
+          <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-xs font-semibold text-white">
+            {quadBuggyBadge(r)}
           </span>
         )}
         {taxeTransfertManquante(r, hotelHorsHurghada) && (

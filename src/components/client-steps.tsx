@@ -448,7 +448,10 @@ export function ContactStep({
           className="flex w-full items-center justify-between gap-2 text-left text-sm text-[#171717] hover:underline"
         >
           <span>{whatsappSummary(client)}</span>
-          {client.email && client.canal !== "Email" && client.canal_secondaire !== "Email" && (
+          {client.email &&
+            client.canal !== "Email" &&
+            client.canal_secondaire !== "Email" &&
+            client.canal_tertiaire !== "Email" && (
             <span className="text-[#666666]">Email : {client.email}</span>
           )}
         </button>
@@ -666,6 +669,70 @@ export function ContactStep({
                   + Ajouter un second canal
                 </button>
               )}
+
+              {/* Troisième canal optionnel — plus rare, mais un client peut
+                  arriver par trois canaux à la fois (ex. WhatsApp + Email +
+                  Instagram). Proposé seulement une fois le second canal déjà
+                  renseigné, jamais avant. */}
+              {client.canal_secondaire &&
+                (client.canal_tertiaire ? (
+                  <>
+                    <PropertyRow label="+ Canal">
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={client.canal_tertiaire}
+                          onChange={(e) => onChange({ canal_tertiaire: e.target.value })}
+                          className="input-flat flex-1"
+                        >
+                          {CANAUX.filter((c) => c !== client.canal && c !== client.canal_secondaire).map((c) => (
+                            <option key={c}>{c}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onChange({ canal_tertiaire: "", canal_tertiaire_autre: "", pseudo_contact_tertiaire: "" })
+                          }
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Retirer
+                        </button>
+                      </div>
+                    </PropertyRow>
+                    {client.canal_tertiaire === "Autre" && (
+                      <PropertyRow label="Préciser (3e canal)">
+                        <input
+                          value={client.canal_tertiaire_autre}
+                          onChange={(e) => onChange({ canal_tertiaire_autre: e.target.value })}
+                          className="input-flat w-full"
+                        />
+                      </PropertyRow>
+                    )}
+                    {(client.canal_tertiaire === "Instagram" || client.canal_tertiaire === "TikTok") && (
+                      <PropertyRow label={`Pseudo ${client.canal_tertiaire}`}>
+                        <input
+                          value={client.pseudo_contact_tertiaire}
+                          onChange={(e) => onChange({ pseudo_contact_tertiaire: e.target.value })}
+                          placeholder="pseudo"
+                          className="input-flat w-full"
+                        />
+                      </PropertyRow>
+                    )}
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChange({
+                        canal_tertiaire:
+                          CANAUX.find((c) => c !== client.canal && c !== client.canal_secondaire) || CANAUX[0],
+                      })
+                    }
+                    className="text-xs text-[#171717] hover:underline"
+                  >
+                    + Ajouter un troisième canal
+                  </button>
+                ))}
             </div>
             <button
               type="button"

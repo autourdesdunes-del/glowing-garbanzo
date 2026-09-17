@@ -26,6 +26,7 @@ export default function SoldePayeConfirmModal({
   paiementsEtapes,
   newLabel,
   title,
+  warnReprise = true,
   onConfirm,
   onCancel,
 }: {
@@ -36,6 +37,11 @@ export default function SoldePayeConfirmModal({
   paiementsEtapes: PaiementEtape[];
   newLabel: string;
   title?: string;
+  // false pour un simple RDV planifié (rien n'est encore réglé) — le texte
+  // "sera considéré comme réglé" serait faux tant que le rendez-vous n'a pas
+  // eu lieu. Vrai par défaut pour ne rien changer aux appels existants
+  // (marquer payé, où la reprise est effectivement absorbée).
+  warnReprise?: boolean;
   // Liste des activités effectivement retenues (cases restées cochées) —
   // jamais forcément toutes.
   onConfirm: (activiteIds: string[]) => void;
@@ -94,7 +100,7 @@ export default function SoldePayeConfirmModal({
             );
           })}
         </div>
-        {Number(client.reprise_montant) > 0 && (
+        {warnReprise && Number(client.reprise_montant) > 0 && (
           <p className="mb-3 rounded-md bg-amber-50 p-2 text-xs text-amber-800">
             ⚠️ Un règlement de {euros(client.reprise_montant)} € ({client.reprise_mode || "mode non précisé"}) est
             encore en attente sur ce dossier — en validant, il sera considéré comme réglé et disparaîtra du résumé

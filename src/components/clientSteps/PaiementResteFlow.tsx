@@ -216,6 +216,9 @@ export function PaiementResteFlow({
     label: string;
     key: StatutPaiementKey;
     patch: Partial<Client>;
+    // false pour "RDV planifié" : rien n'est encore réglé, l'avertissement
+    // "sera considéré comme réglé" (reprise en attente) n'a pas lieu d'être.
+    warnReprise?: boolean;
   } | null>(null);
   const [egpModal, setEgpModal] = useState<{ r: Reservation; rate: number } | null>(null);
   // Répartition € + EGP saisie librement par l'employée (montants
@@ -253,15 +256,38 @@ export function PaiementResteFlow({
       ? "Autre"
       : "";
 
-  const validerRdv = () => {
+  const validerRdv = async () => {
     if (!client.solde_date || !client.solde_rdv_heure || !client.solde_assigne_a) {
       toast("Renseigne la date, l'heure et la personne assignée avant de valider.");
       return;
     }
+    // Relecture explicite du montant avant de planifier — un total mal
+    // recalculé (options oubliées, activité ajoutée entre-temps...) doit se
+    // voir ici plutôt que d'être découvert le jour du rendez-vous (demande
+    // de Mélanie, 17/09, suite au montant faux affiché sur Clémentine ROBIN
+    // dans Suivis > RDV paiements).
+    const ok = await confirm({
+      title: "Confirmer ce rendez-vous de paiement",
+      message: `${euros(montantACouvrir)} € à régler le ${fmtDateDMY(client.solde_date)} à ${
+        client.solde_rdv_heure
+      }, avec ${client.solde_assigne_a}. Ce montant est-il correct ?`,
+      confirmLabel: "Oui, planifier ce RDV",
+      cancelLabel: "Non, vérifier",
+    });
+    if (!ok) return;
     const mode = RDV_MODES.includes(client.solde_mode as (typeof RDV_MODES)[number])
       ? client.solde_mode
       : RDV_MODES[0];
-    onChange({ solde_rdv_valide: true, solde_mode: mode });
+    // Un RDV planifié change potentiellement le badge de toutes les
+    // activités actives du dossier (un seul solde par client) — même étape
+    // de confirmation que pour "marquer payé", pour ne rien changer en
+    // silence (demande de Mélanie, 17/09).
+    setSoldePayeConfirm({
+      label: "RDV paiement planifié",
+      key: "rdv_planifie",
+      patch: { solde_rdv_valide: true, solde_mode: mode },
+      warnReprise: false,
+    });
   };
 
   // Marquer le solde encaissé (RDV finalisé, ou activité désignée) déclare
@@ -1149,6 +1175,7 @@ export function PaiementResteFlow({
           resaTarifs={resaTarifs}
           paiementsEtapes={paiementsEtapes}
           newLabel={soldePayeConfirm.label}
+          warnReprise={soldePayeConfirm.warnReprise ?? true}
           onCancel={() => setSoldePayeConfirm(null)}
           onConfirm={(activiteIds) => {
             onChange(soldePayeConfirm.patch);

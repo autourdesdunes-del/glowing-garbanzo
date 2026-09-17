@@ -465,6 +465,12 @@ export type Client = {
   // (celui du canal principal), pour ne jamais écraser l'un par l'autre
   // quand les deux canaux sont Instagram/TikTok.
   pseudo_contact_secondaire: string;
+  // Troisième canal optionnel — même principe que canal_secondaire, pour le
+  // cas plus rare où un client arrive par trois canaux à la fois. Vide si
+  // inutilisé.
+  canal_tertiaire: string;
+  canal_tertiaire_autre: string;
+  pseudo_contact_tertiaire: string;
   pseudo_contact: string;
   // Deuxième pseudo Instagram/TikTok, jamais obligatoire.
   pseudo_contact_2: string;
@@ -651,6 +657,9 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   canal_secondaire: "",
   canal_secondaire_autre: "",
   pseudo_contact_secondaire: "",
+  canal_tertiaire: "",
+  canal_tertiaire_autre: "",
+  pseudo_contact_tertiaire: "",
   pseudo_contact: "",
   pseudo_contact_2: "",
   // Jamais un canal par défaut (ex. "Instagram") : une employée qui oublie

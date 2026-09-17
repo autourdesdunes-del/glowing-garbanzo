@@ -1835,18 +1835,36 @@ export function agesLabel(ages: string) {
   return /\bans?\b/i.test(clean) ? ` (${clean})` : ` (${clean} ans)`;
 }
 
+// Un ado n'a pas de compteur dédié (pas de champ "nb_ados") — juste un
+// booléen ados_presents + une liste d'âges texte (ages_ados) : ces
+// voyageurs sont déjà inclus dans le nombre d'adultes (compté comme tel
+// pour les tarifs), jamais un groupe à part. Affichés en annotation "(dont
+// ...)" ACCOLÉE au nombre d'adultes plutôt qu'en item séparé — sinon "8
+// adultes, ados (12 et 16 ans)" se lit à tort comme 8 adultes + des ados EN
+// PLUS (vécu sur Lisa DIASPARRA, demande de Mélanie le 2026-09-17).
+function adultesLabel(client: Client) {
+  const nbAd = Number(client.adultes) || 0;
+  let label = `${nbAd} adulte${nbAd > 1 ? "s" : ""}`;
+  if (client.ados_presents) {
+    const nbAdos = (client.ages_ados.match(/\d+/g) || []).length;
+    const agesAdos = client.ages_ados.trim();
+    label +=
+      nbAdos > 0
+        ? ` (dont ${nbAdos} ado${nbAdos > 1 ? "s" : ""}${agesAdos ? ` : ${agesAdos}` : ""})`
+        : " (dont ados)";
+  }
+  return label;
+}
+
 // "2 adultes, 1 enfant (5 ans)" — résumé du nombre de participants d'un
 // séjour, réutilisé partout où on affiche un client en un coup d'œil.
 export function paxSummary(client: Client) {
-  const parts: string[] = [`${client.adultes || 0} adulte${(client.adultes || 0) > 1 ? "s" : ""}`];
+  const parts: string[] = [adultesLabel(client)];
   if (client.enfants > 0) {
     parts.push(`${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${agesLabel(client.ages_enfants)}`);
   }
   if (client.bebes > 0) {
     parts.push(`${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes)}`);
-  }
-  if (client.ados_presents) {
-    parts.push(`ados${agesLabel(client.ages_ados)}`);
   }
   return parts.join(", ");
 }
@@ -1879,10 +1897,10 @@ export function paxLine(r: Reservation, client: Client) {
   const { nbAd, nbEnf, nbBebe } = participantsFor(r, client);
   const showAges = r.participants_mode === "tous";
   const parts: string[] = [];
-  let adLabel = `${nbAd} adulte${nbAd > 1 ? "s" : ""}`;
-  if (showAges && client.ados_presents && client.ages_ados) {
-    adLabel += ` (dont ados ${client.ages_ados})`;
-  }
+  // En mode "tous" nbAd === client.adultes — on réutilise directement
+  // l'annotation "(dont N ados...)" de paxSummary plutôt que d'en garder
+  // une variante à part qui pourrait diverger (voir adultesLabel).
+  const adLabel = showAges ? adultesLabel(client) : `${nbAd} adulte${nbAd > 1 ? "s" : ""}`;
   parts.push(adLabel);
   if (nbEnf > 0) {
     let s = `${nbEnf} enfant${nbEnf > 1 ? "s" : ""}`;

@@ -196,9 +196,14 @@ export default function ItineraryView({
   const [retirerParticipantsActiviteId, setRetirerParticipantsActiviteId] = useState<string | null>(null);
   const [egyptOpen, setEgyptOpen] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
+  // Le texte pré-rempli reste modifiable avant l'envoi (demande de Mélanie,
+  // 2026-09-17) — undefined tant que l'employée n'a rien touché, auquel cas
+  // on affiche/copie directement le texte recalculé plus bas.
+  const [egyptBlockEdite, setEgyptBlockEdite] = useState<string | undefined>(undefined);
   useEffect(() => {
     setEditingExpanded(false);
     setEgyptOpen(false);
+    setEgyptBlockEdite(undefined);
   }, [expandedId]);
   const nbAnnulees = reservations.filter((r) => r.statut_resa === "Annulée").length;
   const reservationsAffichees = voirAnnulees
@@ -476,9 +481,10 @@ export default function ItineraryView({
         hotelVille
       )
     : "";
+  const egyptBlockAffiche = egyptBlockEdite ?? egyptBlock;
   const copyEgyptBlock = async () => {
     try {
-      await navigator.clipboard.writeText(egyptBlock);
+      await navigator.clipboard.writeText(egyptBlockAffiche);
       setCopiedEgypt(true);
       setTimeout(() => setCopiedEgypt(false), 1500);
     } catch {
@@ -847,16 +853,30 @@ export default function ItineraryView({
             </button>
             {egyptOpen && (
               <div className="mt-1 rounded-md border border-[#666666]/20 bg-white p-3">
-                <pre className="font-amounts whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-xs">
-                  {egyptBlock}
-                </pre>
-                <button
-                  type="button"
-                  onClick={copyEgyptBlock}
-                  className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-                >
-                  {copiedEgypt ? "Copié ✓" : "Copier"}
-                </button>
+                <textarea
+                  value={egyptBlockAffiche}
+                  onChange={(e) => setEgyptBlockEdite(e.target.value)}
+                  rows={egyptBlockAffiche.split("\n").length + 1}
+                  className="font-amounts w-full whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-xs"
+                />
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={copyEgyptBlock}
+                    className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                  >
+                    {copiedEgypt ? "Copié ✓" : "Copier"}
+                  </button>
+                  {egyptBlockEdite !== undefined && egyptBlockEdite !== egyptBlock && (
+                    <button
+                      type="button"
+                      onClick={() => setEgyptBlockEdite(undefined)}
+                      className="text-xs text-neutral-400 hover:underline"
+                    >
+                      Revenir au texte pré-rempli
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

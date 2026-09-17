@@ -186,9 +186,15 @@ export function ActivityDetailModal({
     hotelMatch?.ville
   );
 
+  // Le texte pré-rempli reste modifiable avant l'envoi (demande de Mélanie,
+  // 2026-09-17) — undefined tant que l'employée n'a rien touché, auquel cas
+  // on affiche/copie directement le texte recalculé (ce composant est
+  // remonté à chaque activité via key={r.id}, pas besoin de reset manuel).
+  const [egyptBlockEdite, setEgyptBlockEdite] = useState<string | undefined>(undefined);
+  const egyptBlockAffiche = egyptBlockEdite ?? egyptBlock;
   const copyEgyptBlock = async () => {
     try {
-      await navigator.clipboard.writeText(egyptBlock);
+      await navigator.clipboard.writeText(egyptBlockAffiche);
       setCopiedEgypt(true);
       setTimeout(() => setCopiedEgypt(false), 1500);
     } catch {
@@ -602,15 +608,29 @@ export function ActivityDetailModal({
           <p dir="rtl" className="mt-1 text-xs text-neutral-500">
             يرجى التحقق من صحة جميع الحقول قبل الإرسال
           </p>
-          <pre className="font-amounts mt-2 whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs">
-            {egyptBlock}
-          </pre>
-          <button
-            onClick={copyEgyptBlock}
-            className="mt-2 rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-          >
-            {copiedEgypt ? "Copié ✓" : "Copier"}
-          </button>
+          <textarea
+            value={egyptBlockAffiche}
+            onChange={(e) => setEgyptBlockEdite(e.target.value)}
+            rows={egyptBlockAffiche.split("\n").length + 1}
+            className="font-amounts mt-2 w-full whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs"
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              onClick={copyEgyptBlock}
+              className="rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              {copiedEgypt ? "Copié ✓" : "Copier"}
+            </button>
+            {egyptBlockEdite !== undefined && egyptBlockEdite !== egyptBlock && (
+              <button
+                type="button"
+                onClick={() => setEgyptBlockEdite(undefined)}
+                className="text-xs text-neutral-400 hover:underline"
+              >
+                Revenir au texte pré-rempli
+              </button>
+            )}
+          </div>
         </div>
         </div>
       </div>

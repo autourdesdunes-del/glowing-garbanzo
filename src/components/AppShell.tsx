@@ -572,53 +572,43 @@ function AppShellInner({
       // déjà par les setters locaux (updateReservationById etc.), donc les
       // données restent à jour sans refetch.
       if (!planningLoaded) {
-        const { data: resas } = await supabase.from("reservations").select("*");
-        const list = (resas as Reservation[]) || [];
+        // fetchAllRows partout ici (pas de simple .select("*")/.in()) : au-delà
+        // de 1000 lignes un .select("*") est silencieusement tronqué par
+        // PostgREST (voir fetchAllRows), et un .in() avec autant d'ids que de
+        // réservations (800+) dépasse la longueur d'URL acceptée et renvoie
+        // une erreur 400 silencieuse — reservation_options/tarifs/couts
+        // retombaient alors sur {} pour TOUT LE MONDE, pas seulement au-delà
+        // du seuil (vécu : options manquantes du total "RDV paiements" de
+        // Clémentine ROBIN, 990€ affichés au lieu de 1065€).
+        const { data: list } = await fetchAllRows<Reservation>(supabase, "reservations", "*", "created_at", true);
         setAllReservations(list);
-        if (list.length) {
-          const [{ data: opts }, { data: tarifs }] = await Promise.all([
-            supabase
-              .from("reservation_options")
-              .select("*")
-              .in(
-                "reservation_id",
-                list.map((r) => r.id)
-              ),
-            supabase
-              .from("reservation_tarifs")
-              .select("*")
-              .in(
-                "reservation_id",
-                list.map((r) => r.id)
-              ),
-          ]);
-          const grouped: Record<string, ReservationOption[]> = {};
-          ((opts as ReservationOption[]) || []).forEach((o) => {
-            grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
-          });
-          setAllResaOptions(grouped);
-          const groupedTarifs: Record<string, ReservationTarif[]> = {};
-          ((tarifs as ReservationTarif[]) || []).forEach((t) => {
-            groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
-          });
-          setAllResaTarifs(groupedTarifs);
-        } else {
-          setAllResaOptions({});
-          setAllResaTarifs({});
-        }
+        const [{ data: opts }, { data: tarifs }] = await Promise.all([
+          fetchAllRows<ReservationOption>(supabase, "reservation_options", "*", "id", true),
+          fetchAllRows<ReservationTarif>(supabase, "reservation_tarifs", "*", "id", true),
+        ]);
+        const grouped: Record<string, ReservationOption[]> = {};
+        opts.forEach((o) => {
+          grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
+        });
+        setAllResaOptions(grouped);
+        const groupedTarifs: Record<string, ReservationTarif[]> = {};
+        tarifs.forEach((t) => {
+          groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
+        });
+        setAllResaTarifs(groupedTarifs);
 
         // Coûts réels : réservés à la Direction en base (table à part + RLS),
         // jamais fetchés dans le navigateur d'un compte équipe.
-        if (isDirection && list.length) {
-          const { data: couts } = await supabase
-            .from("reservation_couts")
-            .select("*")
-            .in(
-              "reservation_id",
-              list.map((r) => r.id)
-            );
+        if (isDirection) {
+          const { data: couts } = await fetchAllRows<{ reservation_id: string; cout_reel: number }>(
+            supabase,
+            "reservation_couts",
+            "*",
+            "reservation_id",
+            true
+          );
           const map: Record<string, number> = {};
-          ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
+          couts.forEach((c) => {
             map[c.reservation_id] = c.cout_reel;
           });
           setAllCoutsMap(map);
@@ -1074,12 +1064,19 @@ function AppShellInner({
       setAllVerifications((verifs as Verification[]) || []);
 
       if (flags.planningLoaded) {
-        const { data: resas } = await supabase.from("reservations").select("*");
-        const list = (resas as Reservation[]) || [];
+        // fetchAllRows partout ici, jamais .select("*")/.in() — même raison
+        // qu'au chargement initial plus haut : au-delà de 1000 réservations
+        // un simple .select("*") tronque en silence, et un .in() avec
+        // autant d'ids qu'il y a de réservations (800+ déjà aujourd'hui)
+        // dépasse la longueur d'URL acceptée par PostgREST et échoue avec
+        // une erreur 400 silencieuse — options/tarifs/couts retombaient
+        // alors sur {} pour tout le monde (vécu : total "RDV paiements" de
+        // Clémentine ROBIN sans ses options, 990€ au lieu de 1065€).
+        const { data: list } = await fetchAllRows<Reservation>(supabase, "reservations", "*", "created_at", true);
         const nowReservations = Date.now();
         setAllReservations((prev) => {
           const fetchedIds = new Set(list.map((r) => r.id));
-          // Ce SELECT tourne sur un minuteur indépendant (25s) — une
+          // Ce SELECT tourne sur un minuteur indépendant (25s/45s) — une
           // activité tout juste ajoutée ailleurs (fiche client) entre le
           // lancement de cette requête et sa réponse n'apparaît pas encore
           // dans `list` alors qu'elle existe bel et bien en base. Sans
@@ -1095,58 +1092,36 @@ function AppShellInner({
           });
           return [...list, ...recentLocalOnly];
         });
-        // Comme pour allReservations juste au-dessus : ce SELECT n'interroge
-        // que les réservations de `list`, une réservation gardée un court
-        // instant par recentLocalOnly (absente de `list` à cause de la même
-        // course) n'a pas été requêtée ici — ne jamais effacer ses options/
-        // tarifs déjà connus localement, sinon elle reste visible mais perd
-        // son détail (options, prix) jusqu'au prochain passage.
-        const listIds = new Set(list.map((r) => r.id));
-        const [{ data: opts }, { data: tarifs }] = list.length
-          ? await Promise.all([
-              supabase
-                .from("reservation_options")
-                .select("*")
-                .in(
-                  "reservation_id",
-                  list.map((r) => r.id)
-                ),
-              supabase
-                .from("reservation_tarifs")
-                .select("*")
-                .in(
-                  "reservation_id",
-                  list.map((r) => r.id)
-                ),
-            ])
-          : [{ data: [] }, { data: [] }];
+        // Table entière à chaque fois (pas scopée à `list`) : plus besoin de
+        // préserver les entrées locales d'une réservation absente de `list`
+        // (recentLocalOnly ci-dessus) — si elle existe déjà en base, ses
+        // options/tarifs sont dans ce fetch complet ; sinon il n'y a de
+        // toute façon encore rien à perdre.
+        const [{ data: opts }, { data: tarifs }] = await Promise.all([
+          fetchAllRows<ReservationOption>(supabase, "reservation_options", "*", "id", true),
+          fetchAllRows<ReservationTarif>(supabase, "reservation_tarifs", "*", "id", true),
+        ]);
         const grouped: Record<string, ReservationOption[]> = {};
-        ((opts as ReservationOption[]) || []).forEach((o) => {
+        opts.forEach((o) => {
           grouped[o.reservation_id] = [...(grouped[o.reservation_id] || []), o];
         });
         const groupedTarifs: Record<string, ReservationTarif[]> = {};
-        ((tarifs as ReservationTarif[]) || []).forEach((t) => {
+        tarifs.forEach((t) => {
           groupedTarifs[t.reservation_id] = [...(groupedTarifs[t.reservation_id] || []), t];
         });
-        setAllResaOptions((prev) => {
-          const kept = Object.fromEntries(Object.entries(prev).filter(([id]) => !listIds.has(id)));
-          return { ...kept, ...grouped };
-        });
-        setAllResaTarifs((prev) => {
-          const kept = Object.fromEntries(Object.entries(prev).filter(([id]) => !listIds.has(id)));
-          return { ...kept, ...groupedTarifs };
-        });
+        setAllResaOptions(grouped);
+        setAllResaTarifs(groupedTarifs);
 
-        if (flags.isDirection && list.length) {
-          const { data: couts } = await supabase
-            .from("reservation_couts")
-            .select("*")
-            .in(
-              "reservation_id",
-              list.map((r) => r.id)
-            );
+        if (flags.isDirection) {
+          const { data: couts } = await fetchAllRows<{ reservation_id: string; cout_reel: number }>(
+            supabase,
+            "reservation_couts",
+            "*",
+            "reservation_id",
+            true
+          );
           const map: Record<string, number> = {};
-          ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
+          couts.forEach((c) => {
             map[c.reservation_id] = c.cout_reel;
           });
           setAllCoutsMap(map);

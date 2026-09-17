@@ -352,13 +352,19 @@ function ConfirmationTemplate({
                 borderTop: client.paiement_type === "acompte" ? "1px solid rgba(33,28,22,0.12)" : "none",
               }}
             >
-              <span>{soldeInfo.isPaypal || soldeInfo.mode === "virement" ? "Solde à régler" : "Solde à régler sur place"}</span>
+              <span>
+                {soldeInfo.isPaypal || soldeInfo.mode === "virement"
+                  ? "Solde à régler"
+                  : soldeRdv
+                    ? "Solde à régler sur place - rendez-vous paiement"
+                    : "Solde à régler sur place"}
+              </span>
               <span>{euros(soldeMontant)}</span>
             </div>
             <div style={{ fontSize: 13.5, color: "#5C5342", lineHeight: 1.7, marginTop: 6 }}>
               {soldeRdv ? (
                 <>
-                  <strong>En espèces, en euros,</strong> lors d&apos;un rendez-vous dédié
+                  <strong>En espèces en euros,</strong> lors d&apos;un rendez-vous dédié
                   {soldeRdv.date ? (
                     <>
                       {" "}
@@ -450,7 +456,8 @@ function ConfirmationTemplate({
             </div>
             <div style={{ fontSize: 13, color: "#A32D2D", fontWeight: 700, lineHeight: 1.6, marginTop: 10 }}>
               ⚠ Le solde doit être réglé en une seule fois, en intégralité — {euros(soldeMontant)}, pas seulement le
-              montant d&apos;une activité. À défaut, l&apos;agence se réserve le droit de reporter ou d&apos;annuler
+              montant d&apos;une activité. À défaut de paiement intégral remis ce jour-là, l&apos;agence se réserve le
+              droit de reporter ou d&apos;annuler
               cette activité ou toute autre prochaine activité non réglée
               {soldeDate ? ` le ${fmtDateLong(soldeDate)}` : ""}.
             </div>

@@ -99,6 +99,27 @@ export function hotelEgyptLinePourActivite(
   return hotelDisplayForEgypt(hotelNomUnique, villeUnique);
 }
 
+// Hôtel d'une ville précise du circuit — utilisé pour un transfert privatif
+// entre deux villes (ex. "Transfert privatif Louxor - Hurghada"), où il faut
+// l'hôtel de CHAQUE ville plutôt qu'un seul hôtel résolu par date (voir
+// transfertPrivatifVilles dans resa.ts). Sans étape connue pour cette ville
+// (pas de circuit multi-hôtels enregistré), on ne devine pas : l'équipe
+// devra vérifier directement avec le client.
+export function hotelPourVille(
+  clientHotels: ClientHotel[],
+  ville: string,
+  hotelNomUnique: string,
+  villeUnique: string | null | undefined
+): string {
+  const clean = ville.trim().toLowerCase();
+  const etape = clientHotels.find((h) => h.ville.trim().toLowerCase() === clean);
+  if (etape) return hotelDisplayForEgypt(etape.nom, etape.ville);
+  if (villeUnique && villeUnique.trim().toLowerCase() === clean) {
+    return hotelDisplayForEgypt(hotelNomUnique, villeUnique);
+  }
+  return "? (à vérifier avec le client)";
+}
+
 // Nom de l'hôtel effectif pour UNE activité précise — même résolution que
 // hotelEgyptLinePourActivite (étape du circuit à cette date, sinon
 // client.hotel), mais renvoie juste le nom brut pour matchHotel(). Sans ce

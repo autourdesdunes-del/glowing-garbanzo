@@ -10,13 +10,14 @@ import {
   ReservationOption,
   ReservationTarif,
 } from "@/lib/types";
-import { hotelEgyptLinePourActivite, hotelPourDate } from "@/lib/hotelHelp";
+import { hotelEgyptLinePourActivite, hotelPourDate, hotelPourVille } from "@/lib/hotelHelp";
 import {
   activitePaiementWarning,
   chevalChameauBadge,
   isDeuxiemeIleOption,
   momentBadge,
   siteCaireEgyptLine,
+  transfertPrivatifVilles,
 } from "@/lib/resa";
 import { buildPaxEnglishForReservation } from "@/components/client-steps";
 
@@ -315,14 +316,24 @@ export function buildEgyptActivityBlock(
   // apparaissait tel quel au milieu d'un bloc sinon entièrement en anglais.
   // Sans effet sur le texte déjà calculé en anglais (aucun mot français à
   // traduire dedans).
+  // Transfert privatif entre deux villes (ex. Louxor - Hurghada) : l'hôtel
+  // résolu par date (hotelEgyptLinePourActivite) retombe sur l'hôtel
+  // d'ARRIVÉE seul, la date du transfert étant aussi le jour de check-in du
+  // nouvel hôtel (convention "déjà arrivé" de hotelPourDate) — l'équipe
+  // Égypte a pourtant besoin des deux pour organiser le trajet.
+  const villesTransfert = transfertPrivatifVilles(titreBase);
+  const hotelLines = villesTransfert
+    ? `Hotel departure : ${hotelPourVille(clientHotels, villesTransfert.depart, client.hotel, hotelVille)}\nHotel arrival : ${hotelPourVille(
+        clientHotels,
+        villesTransfert.arrivee,
+        client.hotel,
+        hotelVille
+      )}`
+    : `Hotel : ${hotelEgyptLinePourActivite(clientHotels, r.date_debut, client.hotel, hotelVille)}`;
+
   return `${activiteLines.join("\n")}\n\nName : ${nomClientPourEgypte(client)}\n\n${translateFr(
     buildPaxEnglishForReservation(r, client)
-  )}\n\nHotel : ${hotelEgyptLinePourActivite(
-    clientHotels,
-    r.date_debut,
-    client.hotel,
-    hotelVille
-  )}\nRoom Number : ${chambre || "—"}\n\nWhat's app : ${client.telephone || "—"}${
+  )}\n\n${hotelLines}\nRoom Number : ${chambre || "—"}\n\nWhat's app : ${client.telephone || "—"}${
     paymentLine ? `\n\n${paymentLine}` : ""
   }`;
 }

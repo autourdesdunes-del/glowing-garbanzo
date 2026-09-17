@@ -1216,6 +1216,27 @@ const VILLES_TRANSFERT_CONNUES = [
   "Safaga",
 ].sort((a, b) => b.length - a.length);
 
+// Extrait les deux villes d'un transfert privatif déjà résolu (titre
+// concret de la réservation, ex. "Transfert privatif Louxor - Hurghada" —
+// pas le nom générique catalogue qui peut contenir les deux sens). Sert au
+// bloc équipe Égypte pour afficher l'hôtel de départ ET d'arrivée plutôt
+// qu'un seul "Hotel :" résolu par date, qui retombe sur le mauvais hôtel
+// le jour même du transfert (convention "déjà arrivé au nouvel hôtel" de
+// hotelPourDate, pensée pour les activités classiques, pas pour le
+// transfert qui relie justement les deux étapes).
+export function transfertPrivatifVilles(nom: string): { depart: string; arrivee: string } | null {
+  const match = (nom || "").match(/^Transfert privatif (.+)$/);
+  if (!match) return null;
+  const reste = match[1];
+  const dashIdx = reste.indexOf(" - ");
+  if (dashIdx === -1) return null;
+  const villeA = reste.slice(0, dashIdx).trim();
+  const apres = reste.slice(dashIdx + 3);
+  const villeB = VILLES_TRANSFERT_CONNUES.find((v) => apres.startsWith(v));
+  if (!villeA || !villeB) return null;
+  return { depart: villeA, arrivee: villeB };
+}
+
 export type SensTransfertOption = { value: string; label: string; titre: string };
 
 // Les transferts aéroport et privatifs peuvent se faire dans les deux sens

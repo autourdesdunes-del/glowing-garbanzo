@@ -242,6 +242,30 @@ export function computePaiementsDuJour(
         onAnnulerPaye: () => {},
       });
     }
+    // Une reprise réglée aujourd'hui (bouton "Marquer réglé") efface
+    // reprise_montant à 0 une fois l'étape enregistrée (voir
+    // marquerRepriseReglee/marquerRepriseRegleeGlobal) — sans ce bloc, la
+    // ligne ci-dessus disparaissait purement et simplement au lieu de
+    // basculer de "à payer" à "encaissé", donnant l'impression qu'un
+    // paiement réellement reçu le jour même s'était volatilisé (vécu sur
+    // Khaled TAZGHAT le 16/09). On la retrouve via la même étape de
+    // paiement que celle insérée par ce bouton (note identique).
+    const repriseRegleeAujourdhui = paiementsEtapes.find(
+      (e) =>
+        e.client_id === c.id &&
+        e.date === todayStr &&
+        e.note === "Activité réservée ultérieurement — nouveau règlement du solde"
+    );
+    if (repriseRegleeAujourdhui) {
+      encaisses.push({
+        client: c,
+        libelle: `Reprise réglée — ${repriseRegleeAujourdhui.activite_nom || "activité"}`,
+        montant: Number(repriseRegleeAujourdhui.montant) || 0,
+        paye: true,
+        onMarquerPaye: () => {},
+        onAnnulerPaye: () => {},
+      });
+    }
     // Volontairement pas d'acompte ici (PayPal ou autre) — cette popup ne
     // couvre que le solde et la reprise réglés à une activité précise.
   }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { paiementBadge, reservationsActives } from "@/lib/resa";
+import { paiementBadge, reservationsActives, STATUT_PAIEMENT_OPTIONS } from "@/lib/resa";
 import { euros } from "@/lib/contactStepFormat";
 
 // Étape de confirmation partagée, à afficher avant tout changement qui
@@ -48,6 +48,12 @@ export default function SoldePayeConfirmModal({
   onCancel: () => void;
 }) {
   const activites = reservationsActives(reservations);
+  // Le badge "après" doit reprendre la vraie couleur du statut visé (ex.
+  // bleu pour "RDV paiement planifié") plutôt qu'un vert générique "payé" —
+  // faux pour un RDV qui n'est justement pas encore réglé (demande de
+  // Mélanie, 2026-09-17).
+  const newClassName =
+    STATUT_PAIEMENT_OPTIONS.find((o) => o.label === newLabel)?.className || "bg-green-100 text-green-700";
   const [exclues, setExclues] = useState<Set<string>>(new Set());
   const toggle = (id: string) =>
     setExclues((prev) => {
@@ -90,9 +96,7 @@ export default function SoldePayeConfirmModal({
                   {incluse && (
                     <>
                       <span className="text-neutral-400">→</span>
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 font-medium text-green-700">
-                        {newLabel}
-                      </span>
+                      <span className={`rounded-full px-2 py-0.5 font-medium ${newClassName}`}>{newLabel}</span>
                     </>
                   )}
                 </span>

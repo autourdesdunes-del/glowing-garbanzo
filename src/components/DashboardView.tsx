@@ -581,7 +581,7 @@ export default function DashboardView({
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <QuickAddClient
             onCreate={onCreateClient}
             onUpdateClient={onUpdateClient}
@@ -877,7 +877,7 @@ export default function DashboardView({
         </div>
       )}
 
-      <div className="flex">
+      <div className="flex flex-wrap">
         <Metric
           first
           label="Clients en Égypte"

@@ -156,9 +156,15 @@ export function Metric({
     <Wrapper
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`flex-1 px-5 text-left ${first ? "pl-0" : "border-l border-[#eaeaea]"} ${
-        onClick ? "cursor-pointer hover:opacity-70" : ""
-      }`}
+      // min-w-[45%] : sur mobile la barre passe en 2 colonnes (voir le
+      // conteneur "flex flex-wrap" dans DashboardView) — sans ce plancher,
+      // les 5 métriques se tassaient sur une seule ligne hors écran au lieu
+      // de passer à la ligne. La bordure gauche ne s'affiche qu'à partir de
+      // sm: en dessous, chaque case garde son propre espace plutôt qu'un
+      // trait de séparation qui n'aurait de sens qu'alignée sur une ligne.
+      className={`min-w-[45%] flex-1 px-5 pb-3 text-left sm:min-w-0 sm:pb-0 ${
+        first ? "pl-0" : "sm:border-l sm:border-[#eaeaea] sm:pl-5"
+      } ${onClick ? "cursor-pointer hover:opacity-70" : ""}`}
     >
       <p className="text-[11px] font-medium text-[#666666]">{label}</p>
       <p className={`mt-1.5 text-[28px] font-bold leading-none ${valueClass}`}>{value}</p>

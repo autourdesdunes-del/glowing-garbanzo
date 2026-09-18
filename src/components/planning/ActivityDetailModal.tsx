@@ -187,10 +187,13 @@ export function ActivityDetailModal({
   );
 
   // Le texte pré-rempli reste modifiable avant l'envoi (demande de Mélanie,
-  // 2026-09-17) — undefined tant que l'employée n'a rien touché, auquel cas
+  // 2026-09-17), et conservé dans reservations.egypt_block_note (demande du
+  // 2026-09-18) — undefined tant que l'employée n'a rien touché, auquel cas
   // on affiche/copie directement le texte recalculé (ce composant est
   // remonté à chaque activité via key={r.id}, pas besoin de reset manuel).
-  const [egyptBlockEdite, setEgyptBlockEdite] = useState<string | undefined>(undefined);
+  const [egyptBlockEdite, setEgyptBlockEdite] = useState<string | undefined>(
+    r.egypt_block_note || undefined
+  );
   const egyptBlockAffiche = egyptBlockEdite ?? egyptBlock;
   const copyEgyptBlock = async () => {
     try {
@@ -610,7 +613,10 @@ export function ActivityDetailModal({
           </p>
           <textarea
             value={egyptBlockAffiche}
-            onChange={(e) => setEgyptBlockEdite(e.target.value)}
+            onChange={(e) => {
+              setEgyptBlockEdite(e.target.value);
+              onUpdateReservation(r.id, { egypt_block_note: e.target.value });
+            }}
             rows={egyptBlockAffiche.split("\n").length + 1}
             className="font-amounts mt-2 w-full whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs"
           />
@@ -624,7 +630,10 @@ export function ActivityDetailModal({
             {egyptBlockEdite !== undefined && egyptBlockEdite !== egyptBlock && (
               <button
                 type="button"
-                onClick={() => setEgyptBlockEdite(undefined)}
+                onClick={() => {
+                  setEgyptBlockEdite(undefined);
+                  onUpdateReservation(r.id, { egypt_block_note: "" });
+                }}
                 className="text-xs text-neutral-400 hover:underline"
               >
                 Revenir au texte pré-rempli

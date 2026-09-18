@@ -225,6 +225,7 @@ export type Reservation = {
   participants_extra_bebes: number;
   participants_noms: string;
   pax_override: string;
+  egypt_block_note: string;
   transfert_inclus: boolean;
   transfert_montant: number;
   reduction_montant: number;

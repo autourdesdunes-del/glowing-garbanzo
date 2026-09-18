@@ -197,13 +197,19 @@ export default function ItineraryView({
   const [egyptOpen, setEgyptOpen] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   // Le texte pré-rempli reste modifiable avant l'envoi (demande de Mélanie,
-  // 2026-09-17) — undefined tant que l'employée n'a rien touché, auquel cas
-  // on affiche/copie directement le texte recalculé plus bas.
+  // 2026-09-17), et la modification est conservée dans
+  // reservations.egypt_block_note (demande du 2026-09-18 : la première
+  // version ne gardait la saisie qu'en état React local, perdue au moindre
+  // changement d'activité ou rechargement) — undefined tant que l'employée
+  // n'a rien touché, auquel cas on affiche/copie directement le texte
+  // recalculé plus bas.
   const [egyptBlockEdite, setEgyptBlockEdite] = useState<string | undefined>(undefined);
   useEffect(() => {
     setEditingExpanded(false);
     setEgyptOpen(false);
-    setEgyptBlockEdite(undefined);
+    const r = reservations.find((res) => res.id === expandedId);
+    setEgyptBlockEdite(r?.egypt_block_note || undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedId]);
   const nbAnnulees = reservations.filter((r) => r.statut_resa === "Annulée").length;
   const reservationsAffichees = voirAnnulees
@@ -855,7 +861,10 @@ export default function ItineraryView({
               <div className="mt-1 rounded-md border border-[#666666]/20 bg-white p-3">
                 <textarea
                   value={egyptBlockAffiche}
-                  onChange={(e) => setEgyptBlockEdite(e.target.value)}
+                  onChange={(e) => {
+                    setEgyptBlockEdite(e.target.value);
+                    onUpdateReservation(expandedReservation.id, { egypt_block_note: e.target.value });
+                  }}
                   rows={egyptBlockAffiche.split("\n").length + 1}
                   className="font-amounts w-full whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-xs"
                 />
@@ -870,7 +879,10 @@ export default function ItineraryView({
                   {egyptBlockEdite !== undefined && egyptBlockEdite !== egyptBlock && (
                     <button
                       type="button"
-                      onClick={() => setEgyptBlockEdite(undefined)}
+                      onClick={() => {
+                        setEgyptBlockEdite(undefined);
+                        onUpdateReservation(expandedReservation.id, { egypt_block_note: "" });
+                      }}
                       className="text-xs text-neutral-400 hover:underline"
                     >
                       Revenir au texte pré-rempli

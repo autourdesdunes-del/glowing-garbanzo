@@ -1904,12 +1904,12 @@ export function paxLine(r: Reservation, client: Client) {
   parts.push(adLabel);
   if (nbEnf > 0) {
     let s = `${nbEnf} enfant${nbEnf > 1 ? "s" : ""}`;
-    if (showAges && client.ages_enfants) s += ` (${client.ages_enfants} ans)`;
+    if (showAges) s += agesLabel(client.ages_enfants);
     parts.push(s);
   }
   if (nbBebe > 0) {
     let s = `${nbBebe} bébé${nbBebe > 1 ? "s" : ""}`;
-    if (showAges && client.ages_bebes) s += ` (${client.ages_bebes} ans)`;
+    if (showAges) s += agesLabel(client.ages_bebes);
     parts.push(s);
   }
   return parts.join(", ");
@@ -2102,6 +2102,7 @@ const SITE_CAIRE_EN: Record<string, string> = {
   Saqqarah: "saqqarah",
   "Citadelle Mohamed Ali": "citadel",
   "Grand Egyptian Museum (nouveau musée)": "new museum",
+  Souk: "souk",
 };
 
 export function siteCaireBadge(r: Reservation): string {
@@ -2117,6 +2118,7 @@ const SITE_CAIRE_EGYPT: Record<string, string> = {
   Saqqarah: "Saqqarah",
   "Citadelle Mohamed Ali": "Citadel",
   "Grand Egyptian Museum (nouveau musée)": "New Museum GEM",
+  Souk: "Souk",
 };
 
 export function siteCaireEgyptLine(r: Reservation): string {

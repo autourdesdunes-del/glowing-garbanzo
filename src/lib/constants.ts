@@ -224,7 +224,7 @@ export const CHAMPS_REQUIS_PRESETS = [
   "Créneau (matin / après-midi / coucher de soleil)",
   "Conducteurs & passagers",
   "Vol & horaire",
-  "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)",
+  "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum / souk)",
 ] as const;
 
 export const CRENEAUX_ACTIVITE = ["Matin", "Après-midi", "Coucher de soleil"] as const;
@@ -237,6 +237,7 @@ export const SITES_CAIRE = [
   "Saqqarah",
   "Citadelle Mohamed Ali",
   "Grand Egyptian Museum (nouveau musée)",
+  "Souk",
 ] as const;
 
 export const CATALOGUE_CATEGORIES = [

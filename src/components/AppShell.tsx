@@ -1184,10 +1184,21 @@ function AppShellInner({
     // longue. 45s au lieu de 25s réduit d'environ 45% la fréquence de ce
     // gros refetch, sans trop dégrader la fraîcheur entre sessions
     // concurrentes (voir CLAUDE.md sur les collisions multi-sessions).
-    const id = setInterval(
-      () => refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection }),
-      45000
-    );
+    const id = setInterval(() => {
+      // Ce refetch remplace l'état de la plupart des entités d'un coup —
+      // un gros re-rendu qui, tombant pile pendant une frappe (nom de
+      // client, titre d'activité personnalisé...), pouvait faire percevoir
+      // l'app comme "qui rame" au pire moment. On reporte simplement ce
+      // tick au prochain (45s plus tard) si le focus est sur un champ de
+      // saisie au moment où le minuteur se déclenche — l'écart de fraîcheur
+      // reste minime, l'interruption de frappe disparaît.
+      const active = document.activeElement;
+      const isTyping =
+        active &&
+        (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT");
+      if (isTyping) return;
+      refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection });
+    }, 45000);
     return () => clearInterval(id);
   }, [loaded, planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection, refreshAll]);
 

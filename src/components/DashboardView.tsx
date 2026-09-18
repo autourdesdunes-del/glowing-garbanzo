@@ -946,7 +946,104 @@ export default function DashboardView({
             doublonsNonTraites.length === 0 ? (
               "Rien de prioritaire pour l'instant."
             ) : (
-              <table className="w-full text-sm">
+              <>
+              {/* En dessous de sm, un tableau à 4 colonnes fixes ne rentre
+                  jamais sur un téléphone — on retombe sur une carte par
+                  ligne, avec exactement les mêmes actions au clic. */}
+              <div className="divide-y divide-[#eaeaea] sm:hidden">
+                {doublonsNonTraites.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenClient(doublonsNonTraites[0].id)}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#fafafa]"
+                  >
+                    <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[#171717] text-base text-white">
+                      ⚠
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-[#171717]">
+                        {doublonsNonTraites.length} doublon{doublonsNonTraites.length > 1 ? "s" : ""}{" "}
+                        probable{doublonsNonTraites.length > 1 ? "s" : ""} à vérifier
+                      </p>
+                      <span className="mt-1 inline-block whitespace-nowrap rounded-[4px] border border-[#eaeaea] bg-[#fafafa] px-2 py-0.5 text-[11px] text-[#171717]">
+                        Doublon
+                      </span>
+                    </div>
+                  </button>
+                )}
+                {paypalPaiementsNonRattaches > 0 && (
+                  <button
+                    type="button"
+                    onClick={onOpenPaypalPaiements}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#fafafa]"
+                  >
+                    <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-full bg-[#171717] text-base text-white">
+                      💰
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-[#171717]">
+                        {paypalPaiementsNonRattaches} paiement{paypalPaiementsNonRattaches > 1 ? "s" : ""}{" "}
+                        PayPal à rattacher
+                      </p>
+                      <span className="mt-1 inline-block whitespace-nowrap rounded-[4px] border border-[#eaeaea] bg-[#fafafa] px-2 py-0.5 text-[11px] text-[#171717]">
+                        PayPal
+                      </span>
+                    </div>
+                  </button>
+                )}
+                {priorityQueue.slice(0, 10).map(({ client, motifs }) => (
+                  <div
+                    key={client.id}
+                    onClick={() =>
+                      motifs.includes("RDV paiement")
+                        ? onOpenRdvPaiements()
+                        : onOpenClient(client.id)
+                    }
+                    className="flex cursor-pointer items-start gap-3 px-4 py-3 hover:bg-[#fafafa]"
+                  >
+                    <Avatar name={client.nom || "Sans nom"} />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-[#171717]">{client.nom || "Sans nom"}</p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span
+                          className="text-[11px] font-medium"
+                          style={{ color: STATUT_COLORS[client.statut] }}
+                        >
+                          {client.statut}
+                        </span>
+                        <span className="font-amounts text-[11px] text-[#666666]">
+                          {fmtDate(client.date_debut)}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {motifs.map((m) => (
+                          <span
+                            key={m}
+                            className="whitespace-nowrap rounded-[4px] border border-[#eaeaea] bg-[#fafafa] px-2 py-0.5 text-[11px] text-[#171717]"
+                          >
+                            {m}
+                            {m === "À relancer" && client.nb_relances > 0
+                              ? ` (${client.nb_relances})`
+                              : ""}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    {motifs.includes("À relancer") && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          marquerRelance(client);
+                        }}
+                        className="flex-shrink-0 whitespace-nowrap rounded-[6px] bg-[#171717] px-2.5 py-1 text-xs font-medium text-white hover:opacity-90"
+                      >
+                        Relancé
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <table className="hidden w-full text-sm sm:table">
                 <thead>
                   <tr className="text-left text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
                     <th className="px-5 pb-3 pt-5 font-medium">Client</th>
@@ -1073,6 +1170,7 @@ export default function DashboardView({
                   ))}
                 </tbody>
               </table>
+              </>
             )}
           </div>
           {priorityQueue.length > 0 && (

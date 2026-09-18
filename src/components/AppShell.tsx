@@ -2906,7 +2906,16 @@ function AppShellInner({
             />
           ) : (
         <div className="flex flex-1 overflow-hidden">
-          {(clientListExpanded || query.trim()) && (
+          {/* Sur mobile, aside et main occupent chacun tout l'écran (jamais
+              côte à côte comme sur desktop) — sans client sélectionné,
+              aucun des deux n'avait de raison de se monter (aside gaté par
+              clientListExpanded/query, main caché par "hidden md:block"),
+              laissant un écran entièrement blanc au premier chargement de
+              l'onglet Clients ou après "‹ Retour à la liste". */}
+          {(clientListExpanded ||
+            query.trim() ||
+            !selected ||
+            !activeStatuts.includes(selected.statut)) && (
           <aside
             className={`${
               !selected || !activeStatuts.includes(selected.statut) ? "flex w-full" : "hidden"

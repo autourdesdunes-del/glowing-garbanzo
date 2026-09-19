@@ -1759,7 +1759,7 @@ export default function ClientDetail({
                   if (matches.length > 0) setDupMatches(matches);
                 }}
                 placeholder="Nom du client"
-                className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-2xl font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none"
+                className="font-heading w-full min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-lg font-semibold text-[#171717] hover:border-neutral-200 focus:border-[#171717] focus:outline-none sm:text-2xl"
               />
               {incidents.some((i) => i.statut === "Ouvert") && (
                 <button

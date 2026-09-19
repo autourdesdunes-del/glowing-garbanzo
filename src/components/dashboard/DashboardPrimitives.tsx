@@ -156,19 +156,18 @@ export function Metric({
     <Wrapper
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      // min-w-[45%] : sur mobile la barre passe en 2 colonnes (voir le
-      // conteneur "flex flex-wrap" dans DashboardView) — sans ce plancher,
-      // les 5 métriques se tassaient sur une seule ligne hors écran au lieu
-      // de passer à la ligne. La bordure gauche ne s'affiche qu'à partir de
-      // sm: en dessous, chaque case garde son propre espace plutôt qu'un
-      // trait de séparation qui n'aurait de sens qu'alignée sur une ligne.
-      className={`min-w-[45%] flex-1 px-5 pb-3 text-left sm:min-w-0 sm:pb-0 ${
-        first ? "pl-0" : "sm:border-l sm:border-[#eaeaea] sm:pl-5"
+      // Les 5 métriques restent sur une seule ligne même sur mobile (demande
+      // de Mélanie, 2026-09-19) — flex-1 min-w-0 les tasse à parts égales
+      // plutôt que de passer à la ligne comme avant (min-w-[45%]/flex-wrap).
+      // Le libellé peut redescendre sur plusieurs lignes (leading-tight),
+      // seul "sub" disparaît en dessous de sm faute de place.
+      className={`min-w-0 flex-1 px-1 pb-2 text-left sm:px-5 sm:pb-0 ${
+        first ? "sm:pl-0" : "border-l border-[#eaeaea] pl-1.5 sm:pl-5"
       } ${onClick ? "cursor-pointer hover:opacity-70" : ""}`}
     >
-      <p className="text-[11px] font-medium text-[#666666]">{label}</p>
-      <p className={`mt-1.5 text-[28px] font-bold leading-none ${valueClass}`}>{value}</p>
-      {sub && <p className="mt-1.5 text-xs text-[#666666]">{sub}</p>}
+      <p className="text-[9px] font-medium leading-tight text-[#666666] sm:text-[11px]">{label}</p>
+      <p className={`mt-1 text-lg font-bold leading-none sm:mt-1.5 sm:text-[28px] ${valueClass}`}>{value}</p>
+      {sub && <p className="mt-1.5 hidden text-xs text-[#666666] sm:block">{sub}</p>}
     </Wrapper>
   );
 }

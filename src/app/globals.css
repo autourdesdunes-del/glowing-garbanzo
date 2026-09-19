@@ -86,10 +86,18 @@ h1, h2, h3, h4 {
    hors de l'écran visible — l'utilisatrice a alors l'impression de ne plus
    pouvoir écrire dedans (ex. What's app), alors que le champ reste en
    réalité éditable. On relève donc le font-size uniquement sur les
-   écrans tactiles, sans toucher à la densité de l'interface sur desktop. */
+   écrans tactiles, sans toucher à la densité de l'interface sur desktop.
+   Étendu à tout input/select/textarea (pas seulement .input/.input-flat) —
+   la fiche client a de nombreux champs bruts (nom du client, recherche,
+   menus déroulants de statut...) en text-xs/text-sm qui déclenchaient le
+   même zoom resté "collé" en passant d'un champ à l'autre, donnant
+   l'impression que toute la fiche est zoomée dès l'ouverture. */
 @media (pointer: coarse) {
   .input,
-  .input-flat {
+  .input-flat,
+  input,
+  select,
+  textarea {
     font-size: 16px;
   }
 }

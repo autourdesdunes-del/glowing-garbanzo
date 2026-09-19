@@ -885,7 +885,7 @@ export default function DashboardView({
         </div>
       )}
 
-      <div className="flex flex-wrap">
+      <div className="flex">
         <Metric
           first
           label="Clients en Égypte"

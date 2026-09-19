@@ -390,7 +390,9 @@ export default function SuivisView({
   const billetsRows =
     billetsMonthFilter === "a_venir"
       ? billetsAllRows
-      : billetsAllRows.filter((r) => (r.billet_date || "").slice(0, 7) === billetsMonthFilter);
+      : billetsMonthFilter === "en_attente"
+        ? billetsAllRows.filter((r) => billetAttenteBadge(r.billet_etape))
+        : billetsAllRows.filter((r) => (r.billet_date || "").slice(0, 7) === billetsMonthFilter);
 
   const activitesEnAttenteRows = reservations
     .filter((r) => r.statut_resa === "Brouillon")
@@ -1565,6 +1567,16 @@ export default function SuivisView({
             >
               À venir
             </button>
+            <button
+              onClick={() => setBilletsMonthFilter("en_attente")}
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
+                billetsMonthFilter === "en_attente"
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-neutral-300 bg-white text-neutral-600"
+              }`}
+            >
+              En attente
+            </button>
             {billetsMonthKeys.map((ym) => (
               <button
                 key={ym}
@@ -1594,7 +1606,6 @@ export default function SuivisView({
                     <th className="px-3 pb-2 pt-3 font-medium">Client</th>
                     <th className="px-3 pb-2 pt-3 font-medium">PAX</th>
                     <th className="px-3 pb-2 pt-3 font-medium">Étape</th>
-                    <th className="px-3 pb-2 pt-3 font-medium">En attente</th>
                     <th className="px-3 pb-2 pt-3 font-medium">Trajet</th>
                   </tr>
                 </thead>
@@ -1633,16 +1644,15 @@ export default function SuivisView({
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-500">{pax}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-600">
-                          {billetEtapeShortLabel(r.billet_etape)}
-                        </td>
                         <td className="whitespace-nowrap px-3 py-2.5 align-top">
-                          {attenteBadge && (
+                          {attenteBadge ? (
                             <span
                               className={`rounded-full px-2 py-0.5 text-xs font-medium ${attenteBadge.className}`}
                             >
                               {attenteBadge.label}
                             </span>
+                          ) : (
+                            <span className="text-neutral-600">{billetEtapeShortLabel(r.billet_etape)}</span>
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-500">

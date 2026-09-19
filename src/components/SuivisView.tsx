@@ -156,6 +156,9 @@ export default function SuivisView({
   const [avisEnvoyesOuvert, setAvisEnvoyesOuvert] = useState(false);
   const [avisNePasDemanderOuvert, setAvisNePasDemanderOuvert] = useState(false);
   const [avisUpcomingOuvert, setAvisUpcomingOuvert] = useState(false);
+  // Même logique pour Suivis > Au revoir (demande de Mélanie, 2026-09-19).
+  const [auRevoirEnvoyesOuvert, setAuRevoirEnvoyesOuvert] = useState(false);
+  const [auRevoirUpcomingOuvert, setAuRevoirUpcomingOuvert] = useState(false);
   const [marquerRembourseIds, setMarquerRembourseIds] = useState<string[] | null>(null);
   // Retire une carte de la liste dès validation, sans attendre le prochain
   // rafraîchissement automatique (25s, voir AppShell.tsx) — la vraie source
@@ -1017,73 +1020,99 @@ export default function SuivisView({
           </div>
 
           <div>
-            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">
-              Envoyés récemment (3 derniers jours)
-            </h3>
-            {auRevoirEnvoyesRecemment.length === 0 && (
-              <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
-            )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {auRevoirEnvoyesRecemment.map((c) => (
-                <div
-                  key={c.id}
-                  className="overflow-hidden rounded-lg border border-green-200 bg-white p-3 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-medium text-neutral-500">
-                      Envoyé le {fmtDate(c.au_revoir_envoye_le)}
-                    </span>
-                    <ClientNameLink
-                      nom={c.nom}
-                      onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-                    />
-                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
-                    <span className="ml-auto rounded-full bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700">
-                      Envoyé ✓
-                    </span>
-                  </div>
-                  <label className="mt-3 flex items-center gap-1.5 text-xs text-neutral-600">
-                    <input
-                      type="checkbox"
-                      checked={c.au_revoir_envoye}
-                      onChange={(e) =>
-                        onUpdateClient(c.id, {
-                          au_revoir_envoye: e.target.checked,
-                          au_revoir_envoye_le: e.target.checked ? todayStr : null,
-                        })
-                      }
-                    />
-                    Envoyé
-                  </label>
+            <button
+              onClick={() => setAuRevoirEnvoyesOuvert((v) => !v)}
+              className="mb-3 flex w-full items-center justify-between text-left"
+            >
+              <h3 className="font-heading text-sm font-semibold text-[#171717]">
+                Envoyés récemment (3 derniers jours) — {auRevoirEnvoyesRecemment.length}
+              </h3>
+              <span className="text-xs font-medium text-[#666666]">
+                {auRevoirEnvoyesOuvert ? "Replier ▴" : "Déplier ▾"}
+              </span>
+            </button>
+            {auRevoirEnvoyesOuvert && (
+              <>
+                {auRevoirEnvoyesRecemment.length === 0 && (
+                  <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
+                )}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {auRevoirEnvoyesRecemment.map((c) => (
+                    <div
+                      key={c.id}
+                      className="overflow-hidden rounded-lg border border-green-200 bg-white p-3 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-medium text-neutral-500">
+                          Envoyé le {fmtDate(c.au_revoir_envoye_le)}
+                        </span>
+                        <ClientNameLink
+                          nom={c.nom}
+                          onClick={() => onOpenClient(c.id)}
+                          className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                        />
+                        <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                        <span className="ml-auto rounded-full bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700">
+                          Envoyé ✓
+                        </span>
+                      </div>
+                      <label className="mt-3 flex items-center gap-1.5 text-xs text-neutral-600">
+                        <input
+                          type="checkbox"
+                          checked={c.au_revoir_envoye}
+                          onChange={(e) =>
+                            onUpdateClient(c.id, {
+                              au_revoir_envoye: e.target.checked,
+                              au_revoir_envoye_le: e.target.checked ? todayStr : null,
+                            })
+                          }
+                        />
+                        Envoyé
+                      </label>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </div>
 
           <div>
-            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">À venir</h3>
-            {auRevoirUpcomingRows.length === 0 && (
-              <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
-            )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {auRevoirUpcomingRows.map(({ c, dateCible }) => (
-                <div
-                  key={c.id}
-                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
-                    <ClientNameLink
-                      nom={c.nom}
-                      onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-                    />
-                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
-                  </div>
+            <button
+              onClick={() => setAuRevoirUpcomingOuvert((v) => !v)}
+              className="mb-3 flex w-full items-center justify-between text-left"
+            >
+              <h3 className="font-heading text-sm font-semibold text-[#171717]">
+                À venir — {auRevoirUpcomingRows.length}
+              </h3>
+              <span className="text-xs font-medium text-[#666666]">
+                {auRevoirUpcomingOuvert ? "Replier ▴" : "Déplier ▾"}
+              </span>
+            </button>
+            {auRevoirUpcomingOuvert && (
+              <>
+                {auRevoirUpcomingRows.length === 0 && (
+                  <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
+                )}
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {auRevoirUpcomingRows.map(({ c, dateCible }) => (
+                    <div
+                      key={c.id}
+                      className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
+                        <ClientNameLink
+                          nom={c.nom}
+                          onClick={() => onOpenClient(c.id)}
+                          className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                        />
+                        <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -10,7 +10,12 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import { addDays, fmtAnnulationSuffix, todayStr, weekdayFr } from "@/lib/dates";
-import { CHAMPS_REQUIS_PRESETS, CRENEAUX_ACTIVITE, PROSPECT_STATUTS } from "@/lib/constants";
+import {
+  CHAMP_SITE_VISITE_CAIRE,
+  CHAMPS_REQUIS_PRESETS,
+  CRENEAUX_ACTIVITE,
+  PROSPECT_STATUTS,
+} from "@/lib/constants";
 
 // Un client confirmé, séjour proche (dans les 14 jours, ou déjà en cours),
 // sans aucune ligne dans "verifications" — utilisé à la fois par le rappel
@@ -1131,12 +1136,7 @@ export function missingChampsFor(
   ) {
     missingChamps.push("Vol & horaire");
   }
-  if (
-    champsRequis.includes(
-      "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)"
-    ) &&
-    !r.site_caire
-  ) {
+  if (champsRequis.includes(CHAMP_SITE_VISITE_CAIRE) && !r.site_caire) {
     missingChamps.push("Site visité");
   }
   const champsRequisPersonnalises = champsRequis.filter(

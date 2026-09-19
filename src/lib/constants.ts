@@ -219,12 +219,22 @@ export const CATALOGUE_TAGS_PRESETS = [
 // Liste fermée : chaque valeur a un champ de saisie dédié dans
 // ReservationCard, contrairement aux presets "inclus/non-inclus" qui
 // acceptent du texte libre.
+// Constante à part (plutôt qu'un literal dupliqué à chaque endroit qui le
+// compare) — un renommage ici (ex. ajout de "/ souk" le 2026-09-18) oubliait
+// sinon les copies figées ailleurs (AddActivityWizard.tsx, resa.ts), qui ne
+// reconnaissaient alors plus ce champ comme "déjà géré" : il retombait à
+// tort dans la liste générique des champs personnalisés, faisant apparaître
+// une case à cocher en double à côté du menu déroulant dédié (vécu sur "Le
+// Caire 1 jour"/"Le Caire 2 jours", remonté par Mélanie le 2026-09-19).
+export const CHAMP_SITE_VISITE_CAIRE =
+  "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum / souk)";
+
 export const CHAMPS_REQUIS_PRESETS = [
   "Pointure",
   "Créneau (matin / après-midi / coucher de soleil)",
   "Conducteurs & passagers",
   "Vol & horaire",
-  "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum / souk)",
+  CHAMP_SITE_VISITE_CAIRE,
 ] as const;
 
 export const CRENEAUX_ACTIVITE = ["Matin", "Après-midi", "Coucher de soleil"] as const;

@@ -18,6 +18,7 @@ import {
 } from "@/lib/types";
 import { hotelNomPourActivite, matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import {
+  CHAMP_SITE_VISITE_CAIRE,
   CHAMPS_REQUIS_PRESETS,
   OPTIONS_PRESETS,
   SITES_CAIRE,
@@ -985,7 +986,7 @@ export default function AddActivityWizard({
       missing.push("Conducteurs & passagers");
     }
     if (
-      champsRequis.includes("Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)") &&
+      champsRequis.includes(CHAMP_SITE_VISITE_CAIRE) &&
       !r.site_caire
     ) {
       missing.push("Site visité");
@@ -1206,9 +1207,7 @@ export default function AddActivityWizard({
               </p>
             </>
           )}
-          {champsRequis.includes(
-            "Site visité au Caire (musée / Saqqarah / citadelle / Grand Egyptian Museum)"
-          ) && (
+          {champsRequis.includes(CHAMP_SITE_VISITE_CAIRE) && (
             <Field label="Site visité *">
               <select
                 value={r.site_caire}

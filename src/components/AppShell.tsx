@@ -390,6 +390,16 @@ function AppShellInner({
   // Sylvie/Laura/Justine ont aussi un nav_masque (['recap']) pour une tout
   // autre raison, ce qui leur affichait l'arabe par erreur.
   const arabicMode = ["hossam", "bodé", "bode"].includes(effectivePrenom.trim().toLowerCase());
+  // Générateur de programme > Rédaction seule (pas Génération auto, qui
+  // propose des activités que personne n'a choisies) — Sylvie l'avait déjà
+  // via effectiveIsManager, étendu à Justine et Laura à la demande de
+  // Mélanie (2026-09-19). Volontairement indépendant d'effectiveIsManager :
+  // ce dernier gouverne aussi l'onglet "Manager" (validation d'activités,
+  // etc.), qui ne doit pas s'ouvrir pour Justine/Laura juste pour ça.
+  const REDACTION_SEULE_PRENOMS = ["sylvie", "justine", "laura"];
+  const effectiveCanRedactionSeule = REDACTION_SEULE_PRENOMS.includes(
+    effectivePrenom.trim().toLowerCase()
+  );
   // "Récap du mois" vit sous Direction > Récap du mois pour Mélanie (pas en
   // onglet de premier niveau), mais reste un vrai onglet pour Hossam/Bodé.
   // On distingue via navMasque (vide) plutôt que le prénom : seule Mélanie
@@ -3227,12 +3237,13 @@ function AppShellInner({
                 <GeneratorView catalogue={catalogue} clients={clients} />
               )}
             </>
-          ) : effectiveIsManager ? (
-            // Sylvie (manager) rédige les programmes elle-même : elle accède à
-            // la Rédaction, mais pas à la Génération auto, qui propose des
-            // activités que personne n'a choisies — un programme envoyé au
-            // client ne doit contenir que ce qui a été décidé. Pas de barre de
-            // sous-onglets ici : il n'y a qu'un outil à lui montrer.
+          ) : effectiveCanRedactionSeule ? (
+            // Sylvie/Justine/Laura rédigent les programmes elles-mêmes :
+            // accès à la Rédaction, mais pas à la Génération auto, qui
+            // propose des activités que personne n'a choisies — un
+            // programme envoyé au client ne doit contenir que ce qui a été
+            // décidé. Pas de barre de sous-onglets ici : il n'y a qu'un
+            // outil à leur montrer.
             <RedactionProgramView catalogue={catalogue} clients={clients} catalogueOptions={catalogueOptions} transfertTarifs={transfertTarifs} />
           ) : (
             <OutilEnConstruction />

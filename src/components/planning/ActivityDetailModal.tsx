@@ -490,7 +490,7 @@ export function ActivityDetailModal({
               // autres badges (Mélanie, 2026-09-19).
               return (
                 <span
-                  className={`inline-block h-5 max-w-[60%] shrink-0 overflow-hidden rounded-full ${badge.className}`}
+                  className={`inline-block h-5 max-w-full min-w-0 overflow-hidden rounded-full ${badge.className}`}
                 >
                   <select
                     value={r.paiement_statut || "attente"}

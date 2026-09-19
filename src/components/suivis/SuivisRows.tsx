@@ -542,7 +542,7 @@ export function PickupActivityCard({
         <span>{fmtDate(r.date_debut)}</span>
         {r.moment && !hideMoment(r.nom_activite, r.horaire_souhaite) && <span>· {r.moment}</span>}
         {r.pickup_reel ? (
-          <span>· Pick-up {r.pickup_reel}</span>
+          <span>· Pick-up {r.pickup_reel}{r.pickup_veille ? " (la veille)" : ""}</span>
         ) : (
           <button
             type="button"

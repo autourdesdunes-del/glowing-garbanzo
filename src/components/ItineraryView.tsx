@@ -399,7 +399,7 @@ export default function ItineraryView({
             {day && r.date_fin && r.date_fin !== day ? ` → ${fmtDateShort(r.date_fin)}` : ""}
           </span>
           {r.pickup_reel ? (
-            <span>· Pick-up {r.pickup_reel}</span>
+            <span>· Pick-up {r.pickup_reel}{r.pickup_veille ? " (la veille)" : ""}</span>
           ) : (
             <button
               type="button"
@@ -763,7 +763,10 @@ export default function ItineraryView({
                         : ""}
                     </button>
                     {expandedReservation.pickup_reel ? (
-                      <span className="text-[#0F5C56]">🚐 {expandedReservation.pickup_reel}</span>
+                      <span className="text-[#0F5C56]">
+                        🚐 {expandedReservation.pickup_reel}
+                        {expandedReservation.pickup_veille ? " (la veille)" : ""}
+                      </span>
                     ) : (
                       <button
                         type="button"

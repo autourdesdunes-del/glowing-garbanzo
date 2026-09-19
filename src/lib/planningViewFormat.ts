@@ -46,6 +46,19 @@ export function pickupMinutes(pickupReel: string | null | undefined): number | n
   return h * 60 + min;
 }
 
+// Certaines activités (ex. "Le Caire en mini-bus") ont un pick-up réel très
+// tôt le matin, donc en pratique récupéré la VEILLE au soir (ex. 23:35),
+// pas le jour même de l'activité (Mélanie, 2026-09-19, voir pickup_veille
+// dans types.ts). Pour le tri, on retranche 24h à ce pick-up : "23:35 la
+// veille" devient -25 min, donc toujours avant n'importe quel pick-up du
+// jour même (0-1439 min) — l'activité reste affichée sous le jour J
+// (date_debut), seul son rang dans le tri change.
+export function pickupSortMinutes(r: { pickup_reel: string; pickup_veille: boolean }): number | null {
+  const m = pickupMinutes(r.pickup_reel);
+  if (m === null) return null;
+  return r.pickup_veille ? m - 1440 : m;
+}
+
 export const FILTERS = [
   { key: "hier", label: "Hier" },
   { key: "aujourdhui", label: "Aujourd'hui" },

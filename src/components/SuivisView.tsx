@@ -168,6 +168,10 @@ export default function SuivisView({
   const [dossiersVerifiesMaintenant, setDossiersVerifiesMaintenant] = useState<Set<string>>(new Set());
   const [newAppelClientId, setNewAppelClientId] = useState("");
   const [pickupDrafts, setPickupDrafts] = useState<Record<string, string>>({});
+  // Coché quand le pick-up saisi a en fait lieu la veille au soir (ex. Le
+  // Caire en mini-bus, pick-up 23:35 la veille pour un départ très matinal)
+  // — voir pickup_veille dans types.ts.
+  const [pickupVeilleDrafts, setPickupVeilleDrafts] = useState<Record<string, boolean>>({});
   const [chambreDrafts, setChambreDrafts] = useState<Record<string, string>>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [rdvModalClientId, setRdvModalClientId] = useState<string | null>(null);
@@ -555,12 +559,26 @@ export default function SuivisView({
                           onChange={(e) => setPickupDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
                           className="input text-xs"
                         />
+                        <label className="flex items-center gap-1 text-xs text-neutral-500">
+                          <input
+                            type="checkbox"
+                            checked={pickupVeilleDrafts[r.id] ?? false}
+                            onChange={(e) =>
+                              setPickupVeilleDrafts((d) => ({ ...d, [r.id]: e.target.checked }))
+                            }
+                          />
+                          Pick-up la veille au soir
+                        </label>
                         <button
                           onClick={() => {
                             const val = (pickupDrafts[r.id] || "").trim();
                             if (!val) return;
-                            onUpdateReservation(r.id, { pickup_reel: val });
+                            onUpdateReservation(r.id, {
+                              pickup_reel: val,
+                              pickup_veille: pickupVeilleDrafts[r.id] ?? false,
+                            });
                             setPickupDrafts((d) => ({ ...d, [r.id]: "" }));
+                            setPickupVeilleDrafts((d) => ({ ...d, [r.id]: false }));
                           }}
                           className="rounded-md bg-[#171717] px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
                         >
@@ -615,6 +633,7 @@ export default function SuivisView({
                         </button>
                         <span className="rounded-full bg-[#171717]/10 px-2 py-0.5 text-[11px] text-[#171717]">
                           Pick-up {r.pickup_reel}
+                          {r.pickup_veille ? " (la veille)" : ""}
                         </span>
                       </div>
                       <PickupActivityCard

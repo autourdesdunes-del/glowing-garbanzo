@@ -200,7 +200,7 @@ export function ReservationSummaryCard({
         </div>
         {r.pickup_reel && (
           <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-[#0F5C56]">
-            🚐 Pick-up {r.pickup_reel}
+            🚐 Pick-up {r.pickup_reel}{r.pickup_veille ? " (la veille)" : ""}
           </p>
         )}
         <button
@@ -422,7 +422,7 @@ export function ReservationSummaryCard({
       </p>
       {r.pickup_reel && (
         <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-[#0F5C56]">
-          🚐 Pick-up {r.pickup_reel}
+          🚐 Pick-up {r.pickup_reel}{r.pickup_veille ? " (la veille)" : ""}
         </p>
       )}
       <button

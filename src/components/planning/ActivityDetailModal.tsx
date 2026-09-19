@@ -79,11 +79,13 @@ export function ActivityDetailModal({
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   const [editingPickup, setEditingPickup] = useState(false);
   const [pickupDraft, setPickupDraft] = useState(r.pickup_reel);
+  const [pickupVeilleDraft, setPickupVeilleDraft] = useState(r.pickup_veille);
   // La modale garde `r` figé (capturé à l'ouverture) — sans état local,
   // valider un pick-up réaffichait "+ Ajouter le pick-up" jusqu'à fermeture/
   // réouverture, alors que l'enregistrement avait bien réussi (visible sur
   // la carte derrière).
   const [savedPickup, setSavedPickup] = useState(r.pickup_reel);
+  const [savedPickupVeille, setSavedPickupVeille] = useState(r.pickup_veille);
   const [photoVolUrl, setPhotoVolUrl] = useState("");
   // Séjour multi-hôtels (circuit) : pour que le bloc équipe Égypte de cette
   // activité précise affiche seulement l'hôtel où le client se trouve ce
@@ -388,44 +390,58 @@ export function ActivityDetailModal({
           </DetailRow>
           <DetailRow label="Pick-up">
             {editingPickup ? (
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="text"
-                  autoFocus
-                  value={pickupDraft}
-                  onChange={(e) => setPickupDraft(e.target.value)}
-                  placeholder="Heure / lieu"
-                  className="input w-36 text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const val = pickupDraft.trim();
-                    onUpdateReservation(r.id, { pickup_reel: val });
-                    setSavedPickup(val);
-                    setEditingPickup(false);
-                  }}
-                  className="rounded-md bg-[#171717] px-2 py-1 text-xs font-medium text-white"
-                >
-                  OK
-                </button>
+              <div className="flex flex-col items-end gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={pickupDraft}
+                    onChange={(e) => setPickupDraft(e.target.value)}
+                    placeholder="Heure / lieu"
+                    className="input w-36 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = pickupDraft.trim();
+                      onUpdateReservation(r.id, { pickup_reel: val, pickup_veille: pickupVeilleDraft });
+                      setSavedPickup(val);
+                      setSavedPickupVeille(pickupVeilleDraft);
+                      setEditingPickup(false);
+                    }}
+                    className="rounded-md bg-[#171717] px-2 py-1 text-xs font-medium text-white"
+                  >
+                    OK
+                  </button>
+                </div>
+                <label className="flex items-center gap-1 text-xs text-neutral-500">
+                  <input
+                    type="checkbox"
+                    checked={pickupVeilleDraft}
+                    onChange={(e) => setPickupVeilleDraft(e.target.checked)}
+                  />
+                  Pick-up la veille au soir
+                </label>
               </div>
             ) : savedPickup ? (
               <button
                 type="button"
                 onClick={() => {
                   setPickupDraft(savedPickup);
+                  setPickupVeilleDraft(savedPickupVeille);
                   setEditingPickup(true);
                 }}
                 className="text-[#0F5C56] hover:underline"
               >
                 🚐 {savedPickup}
+                {savedPickupVeille ? " (la veille)" : ""}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => {
                   setPickupDraft("");
+                  setPickupVeilleDraft(false);
                   setEditingPickup(true);
                 }}
                 className="text-xs font-medium text-[#0F5C56] underline"

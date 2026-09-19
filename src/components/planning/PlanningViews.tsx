@@ -22,7 +22,7 @@ import {
   monthEndOf,
   monthLabel,
   monthStartOf,
-  pickupMinutes,
+  pickupSortMinutes,
   resaActiveOn,
   toStr,
   WEEKDAY_LABELS,
@@ -79,8 +79,8 @@ export function CalendarMonthView({
       // trient par heure de pick-up croissante (demande de Mélanie,
       // 2026-09-19) — celles sans pick-up gardent l'ordre par moment derrière.
       rows.sort((a, b) => {
-        const pa = pickupMinutes(a.r.pickup_reel);
-        const pb = pickupMinutes(b.r.pickup_reel);
+        const pa = pickupSortMinutes(a.r);
+        const pb = pickupSortMinutes(b.r);
         if (pa !== null && pb !== null) return pa - pb;
         if (pa !== null) return -1;
         if (pb !== null) return 1;

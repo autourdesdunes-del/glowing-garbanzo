@@ -235,6 +235,10 @@ export type Reservation = {
   vehicule_transfert: string;
   horaire_approx: string;
   pickup_reel: string;
+  // Vrai quand pickup_reel a lieu la veille au soir de date_debut (ex. Le
+  // Caire en mini-bus, pick-up 23:35 la veille pour un départ très matinal)
+  // — l'activité reste affichée le jour J, seul le tri en tient compte.
+  pickup_veille: boolean;
   point_rdv: string;
   inclus: string;
   non_inclus: string;

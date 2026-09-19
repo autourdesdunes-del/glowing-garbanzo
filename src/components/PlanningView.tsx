@@ -18,6 +18,7 @@ import {
   fmtDate,
   monthLabel,
   monthStartOf,
+  pickupMinutes,
   rangesOverlap,
   resaActiveOn,
   toStr,
@@ -150,7 +151,17 @@ export default function PlanningView({
       rows.push({ client, r });
     });
 
-    rows.sort((a, b) => (a.r.date_debut || "").localeCompare(b.r.date_debut || ""));
+    // Dès qu'un pick-up réel est renseigné, les activités d'une même journée
+    // se trient par heure de pick-up croissante — celles sans pick-up gardent
+    // l'ordre par date derrière (demande de Mélanie, 2026-09-19).
+    rows.sort((a, b) => {
+      const pa = pickupMinutes(a.r.pickup_reel);
+      const pb = pickupMinutes(b.r.pickup_reel);
+      if (pa !== null && pb !== null) return pa - pb;
+      if (pa !== null) return -1;
+      if (pb !== null) return 1;
+      return (a.r.date_debut || "").localeCompare(b.r.date_debut || "");
+    });
 
     // "Hier"/"Aujourd'hui"/"Demain" ne montrent qu'un seul jour à la fois —
     // regrouper par date_debut de chaque activité y affichait la date de
@@ -245,6 +256,9 @@ export default function PlanningView({
               <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
                 {fmtDate(date)}
                 {date === grouped.todayStr ? " — aujourd'hui" : ""}
+                <span className="ml-1.5 font-normal text-neutral-400">
+                  ({grouped.byDate[date].length} activité{grouped.byDate[date].length > 1 ? "s" : ""})
+                </span>
               </h3>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {grouped.byDate[date].map((row) => (

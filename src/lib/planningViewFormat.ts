@@ -32,6 +32,20 @@ export function rangesOverlap(rStart: string | null, rEnd: string | null, fStart
   return rStart <= fEnd && end >= fStart;
 }
 
+// pickup_reel est un texte libre ("heure / lieu", ex. "9h devant la
+// réception") — extrait l'heure en minutes depuis minuit pour trier les
+// activités d'une même journée par ordre de pick-up (demande de Mélanie,
+// 2026-09-19). Renvoie null si aucune heure n'est reconnaissable en tête du
+// texte, pour laisser ces activités après celles avec un pick-up daté.
+export function pickupMinutes(pickupReel: string | null | undefined): number | null {
+  const m = /(\d{1,2})\s*[:h]\s*(\d{2})?/i.exec(pickupReel || "");
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = m[2] ? Number(m[2]) : 0;
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
+}
+
 export const FILTERS = [
   { key: "hier", label: "Hier" },
   { key: "aujourdhui", label: "Aujourd'hui" },

@@ -77,6 +77,8 @@ export function ActivityDetailModal({
   const supabase = createClient();
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
+  const [editingPickup, setEditingPickup] = useState(false);
+  const [pickupDraft, setPickupDraft] = useState(r.pickup_reel);
   const [photoVolUrl, setPhotoVolUrl] = useState("");
   // Séjour multi-hôtels (circuit) : pour que le bloc équipe Égypte de cette
   // activité précise affiche seulement l'hôtel où le client se trouve ce
@@ -379,11 +381,52 @@ export function ActivityDetailModal({
             {fmtDate(r.date_debut || "")}
             {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
           </DetailRow>
-          {r.pickup_reel && (
-            <DetailRow label="Pick-up">
-              <span className="text-[#0F5C56]">🚐 {r.pickup_reel}</span>
-            </DetailRow>
-          )}
+          <DetailRow label="Pick-up">
+            {editingPickup ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  autoFocus
+                  value={pickupDraft}
+                  onChange={(e) => setPickupDraft(e.target.value)}
+                  placeholder="Heure / lieu"
+                  className="input w-36 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateReservation(r.id, { pickup_reel: pickupDraft.trim() });
+                    setEditingPickup(false);
+                  }}
+                  className="rounded-md bg-[#171717] px-2 py-1 text-xs font-medium text-white"
+                >
+                  OK
+                </button>
+              </div>
+            ) : r.pickup_reel ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPickupDraft(r.pickup_reel);
+                  setEditingPickup(true);
+                }}
+                className="text-[#0F5C56] hover:underline"
+              >
+                🚐 {r.pickup_reel}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setPickupDraft("");
+                  setEditingPickup(true);
+                }}
+                className="text-xs font-medium text-[#0F5C56] underline"
+              >
+                + Ajouter le pick-up
+              </button>
+            )}
+          </DetailRow>
           {(r.numero_vol.trim() || r.horaire_vol.trim() || r.photo_vol_path) && (
             <DetailRow label="Vol du client">
               <div className="flex flex-col items-end gap-0.5">

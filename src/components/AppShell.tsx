@@ -2301,6 +2301,7 @@ function AppShellInner({
               <button
                 onClick={() => {
                   setMode(t.key);
+                  if (t.key === "planning") setPlanningSub("aujourdhui");
                   if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
                   setMobileMenuOpen(false);
                 }}
@@ -3432,7 +3433,10 @@ function AppShellInner({
           return (
             <button
               key={t.key}
-              onClick={() => setMode(t.key)}
+              onClick={() => {
+                setMode(t.key);
+                if (t.key === "planning") setPlanningSub("aujourdhui");
+              }}
               className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
                 active ? "text-[#8B4531]" : "text-[#666666]"
               }`}

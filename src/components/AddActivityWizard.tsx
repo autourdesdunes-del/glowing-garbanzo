@@ -556,8 +556,15 @@ export default function AddActivityWizard({
         // ouverte une première fois (ReservationCard ne monte, et donc son
         // useEffect de secours ne tourne, que lorsque l'activité est
         // dépliée) — sinon l'activité n'apparaîtrait pas tout de suite dans
-        // le tableau des billets d'avion.
-        billet_requis: needsBilletInterneGenerique(item.nom),
+        // le tableau des billets d'avion. "Le Caire en avion" est inclus ici
+        // aussi (pas seulement via le pop-up "Avez-vous prévenu Hossam ?"
+        // plus bas) — ce pop-up ne se déclenchait pas de façon fiable dans
+        // certains cas jamais totalement isolés (vécu sur Manon DALLA COSTA
+        // puis Sabrina ROCQ, billet_requis resté à false malgré une
+        // activité fraîchement créée), laissant l'activité invisible dans
+        // Suivis > Billets d'avion sans que personne ne puisse y ajouter le
+        // billet une fois reçu.
+        billet_requis: needsBilletInterneGenerique(item.nom) || isLeCaireEnAvion(item.nom),
         // La colonne "moment" est NOT NULL avec une contrainte CHECK
         // ('Matin'/'Après-midi'/'Journée'/'Plusieurs jours') — jamais de
         // chaîne vide, sinon la sauvegarde échoue silencieusement (l'écran

@@ -19,6 +19,7 @@ import {
   acompteWaitingWarning,
   activitePaiementWarning,
   agesLabel,
+  billetAttenteBadge,
   billetEtapeShortLabel,
   cleanActivityTitle,
   estDossierNonVerifie,
@@ -1593,6 +1594,7 @@ export default function SuivisView({
                     <th className="px-3 pb-2 pt-3 font-medium">Client</th>
                     <th className="px-3 pb-2 pt-3 font-medium">PAX</th>
                     <th className="px-3 pb-2 pt-3 font-medium">Étape</th>
+                    <th className="px-3 pb-2 pt-3 font-medium">En attente</th>
                     <th className="px-3 pb-2 pt-3 font-medium">Trajet</th>
                   </tr>
                 </thead>
@@ -1605,6 +1607,7 @@ export default function SuivisView({
                       r.pax_override ||
                       `${nbAd} adultes${nbEnf ? `, ${nbEnf} enfant(s)${agesLabel(client.ages_enfants)}` : ""}`;
                     const isCaire = isLeCaireEnAvion(r.nom_activite);
+                    const attenteBadge = billetAttenteBadge(r.billet_etape);
                     const sameDateAsPrev = i > 0 && billetsRows[i - 1].billet_date === r.billet_date;
                     return (
                       <tr
@@ -1632,6 +1635,15 @@ export default function SuivisView({
                         <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-500">{pax}</td>
                         <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-600">
                           {billetEtapeShortLabel(r.billet_etape)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 align-top">
+                          {attenteBadge && (
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${attenteBadge.className}`}
+                            >
+                              {attenteBadge.label}
+                            </span>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5 align-top text-neutral-500">
                           {r.billet_ville_depart || "?"} {isCaire ? "⇄" : "→"}{" "}

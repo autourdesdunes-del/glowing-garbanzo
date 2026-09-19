@@ -1465,6 +1465,19 @@ export function billetEtapeShortLabel(etape: string) {
   return BILLET_ETAPE_SHORT_LABELS[etape] || etape;
 }
 
+// Les 3 étapes où Mélanie/Hossam doivent encore agir (par opposition à "reçu"
+// ou "envoyé au client", qui n'appellent plus rien) — couleur rouge pour ce
+// qui bloque côté billet lui-même, jaune pour ce qui bloque côté paiement.
+export function billetAttenteBadge(etape: string): { label: string; className: string } | null {
+  if (etape === "attente_acompte")
+    return { label: "Acompte en attente", className: "bg-yellow-100 text-yellow-700" };
+  if (etape === "a_envoyer_hossam")
+    return { label: "À envoyer à Hossam", className: "bg-red-100 text-red-700" };
+  if (etape === "attente_hossam")
+    return { label: "En attente du billet", className: "bg-red-100 text-red-700" };
+  return null;
+}
+
 // Patch à appliquer quand la photo/le fichier du billet est ajouté (ou
 // retiré) à la réservation — factorisé pour que ReservationCard et la fiche
 // détail de Suivis > Billets d'avion avancent l'étape et horodatent la

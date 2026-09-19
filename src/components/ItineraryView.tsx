@@ -312,6 +312,11 @@ export default function ItineraryView({
               ⚠ Taxe de transfert manquante
             </span>
           )}
+          {r.billet_requis && !r.billet_lien && r.statut_resa !== "Annulée" && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+              ✈ Billet en attente
+            </span>
+          )}
           {pointureBadge(r) && (
             <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600">
               {pointureBadge(r)}

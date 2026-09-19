@@ -79,6 +79,11 @@ export function ActivityDetailModal({
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   const [editingPickup, setEditingPickup] = useState(false);
   const [pickupDraft, setPickupDraft] = useState(r.pickup_reel);
+  // La modale garde `r` figé (capturé à l'ouverture) — sans état local,
+  // valider un pick-up réaffichait "+ Ajouter le pick-up" jusqu'à fermeture/
+  // réouverture, alors que l'enregistrement avait bien réussi (visible sur
+  // la carte derrière).
+  const [savedPickup, setSavedPickup] = useState(r.pickup_reel);
   const [photoVolUrl, setPhotoVolUrl] = useState("");
   // Séjour multi-hôtels (circuit) : pour que le bloc équipe Égypte de cette
   // activité précise affiche seulement l'hôtel où le client se trouve ce
@@ -395,7 +400,9 @@ export function ActivityDetailModal({
                 <button
                   type="button"
                   onClick={() => {
-                    onUpdateReservation(r.id, { pickup_reel: pickupDraft.trim() });
+                    const val = pickupDraft.trim();
+                    onUpdateReservation(r.id, { pickup_reel: val });
+                    setSavedPickup(val);
                     setEditingPickup(false);
                   }}
                   className="rounded-md bg-[#171717] px-2 py-1 text-xs font-medium text-white"
@@ -403,16 +410,16 @@ export function ActivityDetailModal({
                   OK
                 </button>
               </div>
-            ) : r.pickup_reel ? (
+            ) : savedPickup ? (
               <button
                 type="button"
                 onClick={() => {
-                  setPickupDraft(r.pickup_reel);
+                  setPickupDraft(savedPickup);
                   setEditingPickup(true);
                 }}
                 className="text-[#0F5C56] hover:underline"
               >
-                🚐 {r.pickup_reel}
+                🚐 {savedPickup}
               </button>
             ) : (
               <button

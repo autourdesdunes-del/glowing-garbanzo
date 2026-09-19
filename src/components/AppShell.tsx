@@ -260,7 +260,7 @@ function AppShellInner({
 
   const [mode, setMode] = useState<Mode>("dashboard");
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
-  const [planningSub, setPlanningSub] = useState<PlanningSub>("aujourdhui");
+  const [planningSub, setPlanningSub] = useState<PlanningSub>("calendrier");
   const [directionSub, setDirectionSub] = useState<DirectionSub>("dashboard");
   const [helpSub, setHelpSub] = useState<HelpSub>("hotels");
   const [generateurSub, setGenerateurSub] = useState<"redaction" | "generation">("redaction");
@@ -2301,7 +2301,7 @@ function AppShellInner({
               <button
                 onClick={() => {
                   setMode(t.key);
-                  if (t.key === "planning") setPlanningSub("aujourdhui");
+                  if (t.key === "planning") setPlanningSub("calendrier");
                   if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
                   setMobileMenuOpen(false);
                 }}
@@ -3435,7 +3435,7 @@ function AppShellInner({
               key={t.key}
               onClick={() => {
                 setMode(t.key);
-                if (t.key === "planning") setPlanningSub("aujourdhui");
+                if (t.key === "planning") setPlanningSub("calendrier");
               }}
               className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
                 active ? "text-[#8B4531]" : "text-[#666666]"

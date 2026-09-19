@@ -1601,6 +1601,9 @@ export function PaiementsStep({
     note?: string;
     activite?: string;
     mode?: string;
+    // Qui a effectué le règlement (RDV paiement uniquement pour l'instant —
+    // solde_assigne_a) — affiché dans le résumé pour tracer qui a encaissé.
+    assigneA?: string;
   };
   const paiementsChronologiques: PaiementLigne[] = [];
   if (client.acompte_paye) {
@@ -1646,10 +1649,17 @@ export function PaiementsStep({
     const soldeActivite = client.solde_activite_id
       ? reservations.find((r) => r.id === client.solde_activite_id)
       : null;
+    // Le RDV paiement finalisé (PaiementResteFlow.tsx > finaliserRdv) pose
+    // solde_paye/solde_rdv_finalise mais ne crée aucune ligne dans
+    // paiements_etapes — sans ce cas, il ne ressortait ici que sous le
+    // libellé générique "Solde — {mode}", sans dire que c'était un RDV ni
+    // qui l'a effectué (Mélanie, 2026-09-19).
+    const estRdvFinalise = client.solde_rdv_finalise;
     paiementsChronologiques.push({
       id: "solde",
-      label:
-        client.solde_mode === "Modes différents"
+      label: estRdvFinalise
+        ? "RDV paiement"
+        : client.solde_mode === "Modes différents"
           ? `Solde — ${euros(client.solde_mixte_eur)} € + ${client.solde_mixte_egp.toLocaleString("fr-FR")} EGP`
           : `Solde — ${client.solde_mode}`,
       montant: soldeRestant,
@@ -1663,15 +1673,18 @@ export function PaiementsStep({
       sortKey: client.solde_date || "",
       activite: soldeActivite?.nom_activite,
       note:
-        (soldeActivite
-          ? `Solde récolté à l'activité "${soldeActivite.nom_activite}"`
-          : "Solde du séjour") +
+        (estRdvFinalise
+          ? `Rendez-vous paiement — réglé en ${(client.solde_mode || "").toLowerCase() || "—"}`
+          : soldeActivite
+            ? `Solde récolté à l'activité "${soldeActivite.nom_activite}"`
+            : "Solde du séjour") +
         (client.solde_montant_recu > 0 && client.solde_montant_recu !== soldeRestant
           ? ` — ${euros(client.solde_montant_recu)} € réellement reçus (${
               client.solde_entre_proches_oublie ? "oubli « Entre proches »" : "montant ajusté"
             })`
           : ""),
       mode: client.solde_mode,
+      assigneA: estRdvFinalise ? client.solde_assigne_a : undefined,
     });
   }
   paiementsChronologiques.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
@@ -2314,6 +2327,7 @@ export function PaiementsStep({
                         )}
                       </span>
                       {ligne.activite && <span>({ligne.activite})</span>}
+                      {ligne.assigneA && <span>👤 {ligne.assigneA}</span>}
                     </div>
                   </div>
                   {ligne.note &&

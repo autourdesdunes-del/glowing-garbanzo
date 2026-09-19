@@ -550,6 +550,9 @@ export function PaiementResteFlow({
                   <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
                     {client.solde_mode}
                   </span>
+                  <span className="rounded-full bg-[#171717] px-2 py-0.5 text-xs font-semibold text-white">
+                    {euros(montantACouvrir)} € à régler
+                  </span>
                 </div>
                 <EcartAcompteLine
                   reel={montantAttenduReel}

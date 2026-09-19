@@ -671,6 +671,13 @@ export function ActivityDetailModal({
           </div>
         )}
 
+        {r.programme_personnalise.trim() && (
+          <div className="mt-3 rounded-md border border-neutral-200 bg-[#fafafa] p-3">
+            <p className="mb-1 text-xs font-medium text-neutral-500">Programme</p>
+            <p className="whitespace-pre-wrap text-sm text-[#171717]">{r.programme_personnalise}</p>
+          </div>
+        )}
+
         <div className="mt-3 rounded-md border border-[#666666]/20 bg-white p-4">
           <h3 className="font-heading text-sm font-semibold text-[#171717]">
             Bloc pour l&apos;équipe Égypte

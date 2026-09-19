@@ -850,6 +850,15 @@ export default function ItineraryView({
               Clique sur une ligne pour modifier cette activité
             </p>
 
+            {expandedReservation.programme_personnalise.trim() && (
+              <div className="mt-3 rounded-md border border-neutral-200 bg-[#fafafa] p-3">
+                <p className="mb-1 text-xs font-medium text-neutral-500">Programme</p>
+                <p className="whitespace-pre-wrap text-sm text-[#171717]">
+                  {expandedReservation.programme_personnalise}
+                </p>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setEgyptOpen((o) => !o)}

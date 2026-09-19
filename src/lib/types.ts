@@ -244,6 +244,10 @@ export type Reservation = {
   non_inclus: string;
   a_prevoir: string;
   info_importante: string;
+  // Programme détaillé jour par jour, propre à ce client (ex. circuit
+  // Louxor 2 jours avec horaires) — texte libre multi-lignes, distinct du
+  // champ "programme" du catalogue (générique, commun à tous les clients).
+  programme_personnalise: string;
   photo_path: string;
   pointure: string;
   creneau: string;

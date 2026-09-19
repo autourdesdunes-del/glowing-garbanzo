@@ -298,6 +298,10 @@ export default function AddActivityWizard({
   // déjà existant (info_importante), jamais éditable depuis ce pop-up avant
   // ce bouton.
   const [showInfoImportanteInput, setShowInfoImportanteInput] = useState(false);
+  // Programme détaillé jour par jour, propre à cette réservation (ex.
+  // circuit Louxor 2 jours avec horaires) — texte libre multi-lignes,
+  // distinct du badge court info_importante (Mélanie, 2026-09-19).
+  const [showProgrammeInput, setShowProgrammeInput] = useState(false);
   // Deux relances Hossam distinctes pour "Le Caire en avion" : une première
   // fois quand la date est saisie (pour vérifier la dispo avant de
   // continuer), une seconde au moment de finaliser l'activité (filet de
@@ -2859,6 +2863,16 @@ export default function AddActivityWizard({
               + Ajouter une info
             </button>
           )}
+          {!r.programme_personnalise.trim() && !showProgrammeInput && (
+            <button
+              type="button"
+              onClick={() => setShowProgrammeInput(true)}
+              title="Ajouter un programme détaillé jour par jour, propre à ce client"
+              className="rounded-md bg-neutral-700 px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+            >
+              + Ajouter un programme
+            </button>
+          )}
         </div>
 
         {(r.info_importante.trim() || showInfoImportanteInput) && (
@@ -2881,6 +2895,35 @@ export default function AddActivityWizard({
             >
               Retirer
             </button>
+          </div>
+        )}
+
+        {(r.programme_personnalise.trim() || showProgrammeInput) && (
+          <div className="mt-2">
+            <div className="mb-1 flex items-center justify-between">
+              <p className="text-xs font-medium text-neutral-500">
+                Programme (visible dans le détail de l&apos;activité)
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateReservation(r.id, { programme_personnalise: "" });
+                  setShowProgrammeInput(false);
+                }}
+                title="Retirer ce programme"
+                className="shrink-0 text-xs text-red-600 hover:underline"
+              >
+                Retirer
+              </button>
+            </div>
+            <textarea
+              autoFocus={showProgrammeInput && !r.programme_personnalise.trim()}
+              value={r.programme_personnalise}
+              onChange={(e) => onUpdateReservation(r.id, { programme_personnalise: e.target.value })}
+              placeholder={"Jour 1 — Visite Temple Karnak & Temple de Louxor\n08:00 Départ de votre hôtel…\n— Visite du Temple Karnak\n…"}
+              rows={6}
+              className="input w-full whitespace-pre-wrap"
+            />
           </div>
         )}
 

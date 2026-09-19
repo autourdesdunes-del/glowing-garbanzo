@@ -17,6 +17,7 @@ import {
 import {
   billetRequisEffectif,
   cleanActivityTitle,
+  firstActivityDateMap,
   joursSansReponseProspect,
   missingChampsFor,
   paxSummary,
@@ -262,9 +263,15 @@ export default function DashboardView({
     (r) => r.date_debut === tomorrowStr && !r.pickup_reel
   );
 
-  const clientsArrivingTomorrow = clients.filter((c) => c.date_debut === tomorrowStr);
-  const roomsMissingTomorrow = clientsArrivingTomorrow.filter(
-    (c) => !c.chambre || c.infos_manquantes.includes("Room number")
+  // Même règle que Suivis > Numéros de chambre (SuivisView.tsx) — sinon ce
+  // badge comptait les clients arrivant demain à l'hôtel alors que la liste
+  // réelle se base sur la date de leur première activité, qui peut être un
+  // autre jour : badge non-vide mais liste vide au clic.
+  const firstActivityDateByClient = useMemo(() => firstActivityDateMap(reservations), [reservations]);
+  const roomsMissingTomorrow = clients.filter(
+    (c) =>
+      firstActivityDateByClient.get(c.id) === tomorrowStr &&
+      (!c.chambre || c.infos_manquantes.includes("Room number"))
   );
 
   const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);
@@ -1209,7 +1216,7 @@ export default function DashboardView({
                 title="Numéros de chambre manquants"
                 sub={
                   roomsMissingTomorrow.length > 0
-                    ? `${roomsMissingTomorrow.length} client(s) arrivant demain`
+                    ? `${roomsMissingTomorrow.length} client(s) — 1ère activité demain`
                     : "Rien à demander"
                 }
                 count={roomsMissingTomorrow.length}

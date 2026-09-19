@@ -638,6 +638,26 @@ export function reservationsActives(reservations: Reservation[]) {
   return reservations.filter((r) => r.statut_resa !== "Annulée");
 }
 
+// Le numéro de chambre se demande à J-1 de la toute première activité du
+// client, pas de son arrivée à l'hôtel (client.date_debut) — les deux
+// dates divergent dès qu'un client a une première activité un autre jour
+// que son arrivée (ou pas encore de réservation du tout), ce qui rendait
+// le badge "Numéros de chambre manquants" du tableau de bord non-vide
+// alors que la liste réelle (Suivis > Numéros de chambre) restait vide
+// (elle utilisait déjà cette bonne règle). Partagé entre les deux pour ne
+// plus jamais diverger.
+export function firstActivityDateMap(reservations: Reservation[]): Map<string, string> {
+  const map = new Map<string, string>();
+  reservations.forEach((r) => {
+    // Une activité annulée ne compte plus comme la "première activité" —
+    // sinon le rappel se déclenche à J-1 d'une activité qui n'a plus lieu.
+    if (!r.date_debut || r.statut_resa === "Annulée") return;
+    const current = map.get(r.client_id);
+    if (!current || r.date_debut < current) map.set(r.client_id, r.date_debut);
+  });
+  return map;
+}
+
 // Une activité encore en Brouillon (prix/détails pas finalisés) ne doit
 // jamais compter comme une vente réelle dans le CA/marge côté Direction —
 // vécu : "Rapport détaillé", panier moyen par employée et classement

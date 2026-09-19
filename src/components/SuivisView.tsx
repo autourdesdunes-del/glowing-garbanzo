@@ -24,6 +24,7 @@ import {
   billetRequisEffectif,
   cleanActivityTitle,
   estDossierNonVerifie,
+  firstActivityDateMap,
   isLeCaireEnAvion,
   missingChampsFor,
   paiementBadge,
@@ -461,17 +462,10 @@ export default function SuivisView({
 
   // Le numéro de chambre se demande à J-1 de la toute première activité du
   // client (pas de son arrivée à l'hôtel) — donc calculé depuis la date la
-  // plus proche parmi ses réservations, pas depuis client.date_debut.
-  const firstActivityDateByClient = new Map<string, string>();
-  reservations.forEach((r) => {
-    // Une activité annulée ne compte plus comme la "première activité" —
-    // sinon le rappel "numéro de chambre" se déclenchait à J-1 d'une
-    // activité qui n'a plus lieu, au lieu de la vraie première activité qui
-    // reste.
-    if (!r.date_debut || r.statut_resa === "Annulée") return;
-    const current = firstActivityDateByClient.get(r.client_id);
-    if (!current || r.date_debut < current) firstActivityDateByClient.set(r.client_id, r.date_debut);
-  });
+  // plus proche parmi ses réservations, pas depuis client.date_debut. Helper
+  // partagé avec le badge du tableau de bord (DashboardView.tsx), qui s'en
+  // servait pas et divergeait (badge non-vide, liste ici vide).
+  const firstActivityDateByClient = firstActivityDateMap(reservations);
   const roomsJ1 = clients.filter(
     (c) => !c.chambre && firstActivityDateByClient.get(c.id) === tomorrowStr
   );

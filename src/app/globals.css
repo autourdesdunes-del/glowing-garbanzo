@@ -14,6 +14,19 @@ button {
   -moz-appearance: none;
 }
 
+/* Safari iOS agrandit automatiquement le texte affiché dans <select> et
+   <textarea> (accessibilité "text size adjust"), en ignorant une police
+   CSS pourtant plus petite (text-xs, text-[11px]…) — c'est ce qui rendait
+   les badges de statut (paiement, avis) et le bloc équipe Égypte "énormes"
+   sur iPhone alors qu'ils s'affichaient normalement en aperçu desktop/
+   navigateur simulé. Désactive cet ajustement pour revenir à la taille
+   réellement demandée (Mélanie, 2026-09-19).
+select,
+textarea {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 /* Deux registres : Geist Sans pour tout le texte courant/titres, Geist
    Mono explicitement réservé au contenu chiffré/technique (dates,
    montants, IDs, codes de statut) — jamais aux titres. */

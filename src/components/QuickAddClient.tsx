@@ -25,6 +25,7 @@ import {
 } from "@/lib/types";
 import { matchHotel } from "@/lib/hotelHelp";
 import { DuplicateMatch, findDuplicateClients } from "@/lib/duplicates";
+import type { KommoLeadSearchResult } from "@/lib/kommoApi";
 
 type StepId =
   | "nom"
@@ -36,6 +37,7 @@ type StepId =
   | "relation"
   | "relation_autre"
   | "telephone"
+  | "kommo_lien"
   | "email"
   | "passeport"
   | "infos_manquantes"
@@ -76,7 +78,11 @@ function buildSteps(a: Partial<Client>): StepId[] {
   steps.push("canal_secondaire");
   steps.push("relation");
   if (a.relation_grace_a === "Autre") steps.push("relation_autre");
-  steps.push("telephone", "email", "passeport", "infos_manquantes");
+  steps.push("telephone");
+  // Tout dossier doit rester relié à sa conversation Kommo — sauf un client
+  // venant d'un email, qui n'en a jamais eu (demande de Mélanie, 2026-09-19).
+  if (a.canal !== "Email") steps.push("kommo_lien");
+  steps.push("email", "passeport", "infos_manquantes");
   steps.push("date_debut", "date_fin", "hotel", "adultes", "enfants");
   if ((a.enfants ?? 0) > 0) steps.push("ages_enfants");
   steps.push("bebes");
@@ -95,6 +101,7 @@ const CONTACT_STEPS: StepId[] = [
   "relation",
   "relation_autre",
   "telephone",
+  "kommo_lien",
   "email",
   "passeport",
   "infos_manquantes",
@@ -141,6 +148,10 @@ export default function QuickAddClient({
   const [dupMatches, setDupMatches] = useState<DuplicateMatch[]>([]);
   const [infoOptions, setInfoOptions] = useState<string[]>([]);
   const [newInfoLabel, setNewInfoLabel] = useState("");
+  const [kommoQuery, setKommoQuery] = useState("");
+  const [kommoResults, setKommoResults] = useState<KommoLeadSearchResult[]>([]);
+  const [kommoSearching, setKommoSearching] = useState(false);
+  const [kommoLinkedName, setKommoLinkedName] = useState("");
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
   const [taxesRef, setTaxesRef] = useState<TransfertTaxe[]>([]);
   const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
@@ -219,6 +230,9 @@ export default function QuickAddClient({
     setResaOptions({});
     setResaTarifs({});
     setDupMatches([]);
+    setKommoQuery("");
+    setKommoResults([]);
+    setKommoLinkedName("");
   };
 
   const patch = (fields: Partial<Client>) => {
@@ -417,6 +431,40 @@ export default function QuickAddClient({
   };
 
   const goBack = () => setStepIdx((i) => Math.max(i - 1, 0));
+
+  const searchKommo = useCallback(async (q: string) => {
+    const clean = q.trim();
+    if (!clean) {
+      setKommoResults([]);
+      return;
+    }
+    setKommoSearching(true);
+    try {
+      const res = await fetch("/api/kommo/search-leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: clean }),
+      });
+      const data = await res.json();
+      setKommoResults(data.results || []);
+    } catch {
+      setKommoResults([]);
+    } finally {
+      setKommoSearching(false);
+    }
+  }, []);
+
+  // Dès l'arrivée sur l'étape, pré-remplit la recherche avec le téléphone
+  // (déjà saisi juste avant) ou le nom, et lance la recherche tout de suite
+  // — l'employée n'a le plus souvent qu'à cliquer sur le bon résultat.
+  useEffect(() => {
+    if (step !== "kommo_lien" || answers.kommo_lead_id) return;
+    const seed = (answers.telephone || answers.nom || "").trim();
+    if (!seed) return;
+    setKommoQuery(seed);
+    searchKommo(seed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   const handleDeleteDuplicate = async (id: string) => {
     if (!onDeleteClient) return;
@@ -905,6 +953,83 @@ export default function QuickAddClient({
                 </>
               )}
 
+              {step === "kommo_lien" && (
+                <div>
+                  <Field label="Relier à la conversation Kommo *">
+                    <div className="flex gap-2">
+                      <input
+                        autoFocus
+                        value={kommoQuery}
+                        onChange={(e) => setKommoQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") searchKommo(kommoQuery);
+                        }}
+                        placeholder="Nom, téléphone…"
+                        className="input"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => searchKommo(kommoQuery)}
+                        disabled={kommoSearching}
+                        className="whitespace-nowrap rounded-[6px] border border-[#eaeaea] px-3 py-1.5 text-sm font-medium text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+                      >
+                        {kommoSearching ? "…" : "Rechercher"}
+                      </button>
+                    </div>
+                  </Field>
+                  {answers.kommo_lead_id ? (
+                    <div className="mt-2 flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm">
+                      <span className="text-emerald-700">
+                        ✓ Relié{kommoLinkedName ? ` à « ${kommoLinkedName} »` : ""}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          patch({ kommo_lead_id: null });
+                          setKommoLinkedName("");
+                        }}
+                        className="text-xs text-neutral-500 hover:underline"
+                      >
+                        Changer
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-2 max-h-48 divide-y divide-[#eaeaea] overflow-y-auto rounded-md border border-[#eaeaea]">
+                        {kommoResults.length === 0 && !kommoSearching && (
+                          <p className="p-3 text-xs text-neutral-400">
+                            Aucun résultat — vérifie l&apos;orthographe ou le numéro.
+                          </p>
+                        )}
+                        {kommoResults.map((r) => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => {
+                              patch({ kommo_lead_id: r.id });
+                              setKommoLinkedName(r.contactName || r.name);
+                            }}
+                            className="block w-full px-3 py-2 text-left text-sm hover:bg-[#fafafa]"
+                          >
+                            <span className="font-medium text-[#171717]">
+                              {r.contactName || r.name}
+                            </span>
+                            {r.contactPhone && (
+                              <span className="ml-2 text-xs text-neutral-500">{r.contactPhone}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-xs text-[#666666]">
+                        Obligatoire pour tout dossier ne venant pas d&apos;un email — pour créer sans
+                        lien Kommo, reviens à l&apos;étape précédente et choisis le canal
+                        &quot;Email&quot;.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
               {step === "email" && (
                 <>
                   <Field label="Email">
@@ -1222,7 +1347,8 @@ export default function QuickAddClient({
                     disabled={
                       creating ||
                       (step === "nom" && !nomDraft.trim()) ||
-                      (step === "hotel" && !!(answers.hotel || "").trim() && !hotelMatch)
+                      (step === "hotel" && !!(answers.hotel || "").trim() && !hotelMatch) ||
+                      (step === "kommo_lien" && !answers.kommo_lead_id)
                     }
                     className="flex-1 rounded-[6px] bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
                   >

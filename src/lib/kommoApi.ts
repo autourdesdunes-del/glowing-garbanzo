@@ -98,6 +98,59 @@ export async function fetchKommoLead(leadId: number): Promise<{ status_id?: numb
     }
 }
 
+export type KommoLeadSearchResult = {
+  id: number;
+  name: string;
+  contactName: string;
+  contactPhone: string;
+};
+
+// Recherche de leads Kommo par nom/téléphone — sert à relier manuellement
+// un nouveau dossier client à sa conversation Kommo dès la création
+// (QuickAddClient.tsx), plutôt que de compter uniquement sur le webhook
+// automatique (demande de Mélanie, 2026-09-19 : plus aucun dossier créé à
+// la main sans lien vers sa conversation Kommo, sauf venant d'un email).
+// Kommo cherche sur le nom du lead ET les champs des contacts liés
+// (téléphone, email) avec un seul paramètre "query".
+export async function searchKommoLeads(query: string): Promise<KommoLeadSearchResult[]> {
+    const clean = query.trim();
+    if (!clean) return [];
+    try {
+          const data = (await kommoFetch(
+                `/leads?query=${encodeURIComponent(clean)}&with=contacts&limit=15`
+          )) as { _embedded?: { leads?: KommoRawLead[] } } | null;
+          const leads = data?._embedded?.leads || [];
+          const results: KommoLeadSearchResult[] = [];
+          for (const lead of leads) {
+                const contactId = lead._embedded?.contacts?.[0]?.id;
+                let contactName = "";
+                let contactPhone = "";
+                if (contactId) {
+                      const contact = (await kommoFetch(`/contacts/${contactId}`)) as KommoRawContact | null;
+                      contactName = contact?.name || "";
+                      const phoneField = contact?.custom_fields_values?.find(
+                            (f) => f.field_code === "PHONE"
+                      );
+                      contactPhone = phoneField?.values?.[0]?.value || "";
+                }
+                results.push({ id: lead.id, name: lead.name, contactName, contactPhone });
+          }
+          return results;
+    } catch {
+          return [];
+    }
+}
+
+type KommoRawLead = {
+  id: number;
+  name: string;
+  _embedded?: { contacts?: { id: number }[] };
+};
+type KommoRawContact = {
+  name?: string;
+  custom_fields_values?: { field_code: string; values?: { value: string }[] }[] | null;
+};
+
 export type KommoChatEvent = {
   id: string;
   type: "incoming_chat_message" | "outgoing_chat_message";

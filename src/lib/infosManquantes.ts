@@ -35,11 +35,23 @@ export function infosManquantesAuto(
 ): string[] {
   const result: string[] = [];
   if (!client.hotel.trim() && clientHotels.length === 0) result.push(INFO_MANQUANTE_AUTO_HOTEL);
+  // Le numéro de chambre se demande à J-1 de la toute première activité du
+  // client, pas de son arrivée à l'hôtel (client.date_debut) — même règle
+  // que Suivis > Numéros de chambre (SuivisView.tsx) et le badge du
+  // tableau de bord (DashboardView.tsx). Avant ce correctif, cette
+  // fonction-ci utilisait encore client.date_debut : un client pouvait donc
+  // être signalé "Room number manquant" ici (Dossiers incomplets, File
+  // d'attente prioritaire) alors qu'il n'apparaissait jamais dans la liste
+  // réelle Suivis > Numéros de chambre, ni dans son badge — 3 règles
+  // différentes pour la même chose (Mélanie, 2026-09-19).
+  const premiereActiviteDate = reservations
+    .filter((r) => r.client_id === client.id && r.date_debut && r.statut_resa !== "Annulée")
+    .reduce((min: string | null, r) => (!min || (r.date_debut as string) < min ? r.date_debut : min), null);
   // Le numéro de chambre n'est quasiment jamais connu avant l'arrivée —
   // le signaler dès la création du dossier créerait une fausse alerte
   // permanente. Ne compte comme vraiment manquant qu'à la veille ou le
-  // jour même de l'arrivée, quand il devient urgent de l'avoir — et
-  // seulement pour un hôtel à Hurghada/région (voir VILLES_CHAMBRE_NON_REQUISE).
+  // jour même de la première activité, quand il devient urgent de l'avoir —
+  // et seulement pour un hôtel à Hurghada/région (voir VILLES_CHAMBRE_NON_REQUISE).
   if (clientHotels.length > 0) {
     // Circuit multi-hôtels : client.hotel/client.chambre restent vides par
     // design (voir plus haut) — sans ce cas à part, chaque étape retombait
@@ -68,8 +80,8 @@ export function infosManquantesAuto(
     if (
       chambreRequisePourCetteVille &&
       !numeroLogementRempli &&
-      client.date_debut &&
-      client.date_debut <= addDays(todayStr(), 1)
+      premiereActiviteDate &&
+      premiereActiviteDate <= addDays(todayStr(), 1)
     ) {
       result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
     }

@@ -491,11 +491,6 @@ export default function SuivisView({
     <div className="mx-auto max-w-4xl space-y-4 p-6">
       {sub === "j1" && (
         <div className="space-y-6">
-          <div className="rounded-md border border-[#f5a623]/30 bg-[#f5a623]/10 p-3 text-xs text-[#666666]">
-            Règle : le pick-up réel n&apos;est communiqué au client qu&apos;à J-1, avant 18h
-            maximum — jamais avant.
-          </div>
-
           <div>
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
               Pick-ups manquants pour demain ({fmtDate(tomorrowStr)})

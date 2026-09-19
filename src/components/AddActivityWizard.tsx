@@ -2628,6 +2628,7 @@ export default function AddActivityWizard({
       nom === "Montgolfière" ||
       nom === "Abu Simbel" ||
       nom === "Privatif" ||
+      isDeuxiemeIleOption(nom) ||
       catOptions.some((co) => co.nom === nom && co.mode === "personne");
 
     const carteLieePour = (nomOption: string) =>
@@ -2711,7 +2712,16 @@ export default function AddActivityWizard({
                   onUpdateOption(
                     r.id,
                     o.id,
-                    nom === "Parachute" && !o.prix ? { nom, prix: 10, quantite: o.quantite || 1 } : { nom }
+                    nom === "Parachute" && !o.prix
+                      ? { nom, prix: 10, quantite: o.quantite || 1 }
+                      : // 10 €/pers., comme dans le catalogue (demande de
+                        // Mélanie, 2026-09-19) — sans quantite ici, le champ
+                        // "Nb participants" affiché par isQuantitePersonne
+                        // restait à 0 tant que l'employée n'y touchait pas,
+                        // et le prix ne se multipliait jamais tout seul.
+                        isDeuxiemeIleOption(nom) && !o.prix
+                        ? { nom, prix: 10, quantite: o.quantite || nbAdOptions + nbEnfOptions || 1 }
+                        : { nom }
                   );
                 }}
                 className="input"

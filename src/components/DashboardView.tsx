@@ -598,27 +598,36 @@ export default function DashboardView({
             onOpenClient={onOpenClient}
             defaultStatut="Client confirmé"
           />
+          {/* Un seul style neutre pour les 3 actions secondaires (bordure
+              grise, fond blanc) — la couleur ne sert plus qu'à teinter le
+              texte, pour un rendu moins "arc-en-ciel" que 3 bordures de
+              couleurs différentes côte à côte (demande de Mélanie,
+              2026-09-19). Seul "Nouveau client" reste plein (action
+              principale). */}
           <button
             onClick={() => setPickClientForActivityOpen(true)}
-            className="whitespace-nowrap rounded-[6px] border border-[#171717] px-3 py-1.5 text-sm font-medium text-[#171717] hover:bg-[#171717]/5"
+            className="whitespace-nowrap rounded-[6px] border border-neutral-300 px-3 py-1.5 text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
           >
             + Nouvelle activité
           </button>
           <button
             onClick={() => setPickClientForCancelOpen(true)}
-            className="whitespace-nowrap rounded-[6px] border border-red-600 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+            className="whitespace-nowrap rounded-[6px] border border-neutral-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
           >
             Annuler une activité
           </button>
           <button
             onClick={() => setPickClientForRemboursementOpen(true)}
-            className="whitespace-nowrap rounded-[6px] border border-[#0F5C56] px-3 py-1.5 text-sm font-medium text-[#0F5C56] hover:bg-[#0F5C56]/5"
+            className="whitespace-nowrap rounded-[6px] border border-neutral-300 px-3 py-1.5 text-sm font-medium text-[#0F5C56] hover:bg-[#0F5C56]/5"
           >
             + Remboursement / avoir
           </button>
+          {/* "Voir les remboursements" est une simple navigation (pas une
+              action de création) — traité en lien discret plutôt qu'un 5e
+              bouton de la même famille, pour alléger la rangée. */}
           <button
             onClick={onOpenRemboursements}
-            className="whitespace-nowrap rounded-[6px] border border-[#C9973E] px-3 py-1.5 text-sm font-medium text-[#8B4531] hover:bg-[#C9973E]/5"
+            className="whitespace-nowrap self-center px-2 text-sm font-medium text-[#8B4531] underline decoration-[#C9973E]/50 underline-offset-4 hover:text-[#5C2A1D]"
           >
             Voir les remboursements
           </button>
@@ -1211,96 +1220,103 @@ export default function DashboardView({
                   onClick={() => onOpenClient(c.id)}
                 />
               ))}
-              <ActionRow
-                icon="key"
-                title="Numéros de chambre manquants"
-                sub={
-                  roomsMissingTomorrow.length > 0
-                    ? `${roomsMissingTomorrow.length} client(s) — 1ère activité demain`
-                    : "Rien à demander"
-                }
-                count={roomsMissingTomorrow.length}
-                onClick={roomsMissingTomorrow.length > 0 ? onOpenNumerosChambre : undefined}
-              />
-              <ActionRow
-                icon="car"
-                title="Pick-ups à ajouter"
-                sub={
-                  pickupsMissingTomorrow.length > 0
-                    ? `${pickupsMissingTomorrow.length} activité(s) demain`
-                    : "Rien à ajouter"
-                }
-                count={pickupsMissingTomorrow.length}
-                onClick={pickupsMissingTomorrow.length > 0 ? onOpenPickupsChambres : undefined}
-              />
-              <ActionRow
-                icon="wallet"
-                title="RDV paiements aujourd'hui"
-                sub={rdvToday.length > 0 ? `${rdvToday.length} rendez-vous` : "Aucun aujourd'hui"}
-                count={rdvToday.length}
-                onClick={rdvToday.length > 0 ? onOpenRdvPaiements : undefined}
-              />
-              <ActionRow
-                icon="plane"
-                title="Billets d'avion en attente"
-                sub={
-                  billetsEnAttente.length > 0
-                    ? billetsEnAttente
-                        .slice(0, 3)
-                        .map((r) => {
-                          const c = clients.find((cl) => cl.id === r.client_id);
-                          return `${c?.nom || "?"} — ${fmtDate(r.billet_date)}`;
-                        })
-                        .join(" · ") + (billetsEnAttente.length > 3 ? "…" : "")
-                    : "Aucun en attente"
-                }
-                count={billetsEnAttente.length}
-                onClick={billetsEnAttente.length > 0 ? onOpenBilletsAvion : undefined}
-              />
-              <ActionRow
-                icon="clipboard"
-                title="Activités en attente de validation"
-                sub={
-                  activitesEnAttente.length > 0
-                    ? activitesEnAttente
-                        .slice(0, 3)
-                        .map((r) => {
-                          const c = clients.find((cl) => cl.id === r.client_id);
-                          return `${c?.nom || "?"} — ${cleanActivityTitle(r.nom_activite) || "Activité"}`;
-                        })
-                        .join(" · ") + (activitesEnAttente.length > 3 ? "…" : "")
-                    : "Rien en attente"
-                }
-                count={activitesEnAttente.length}
-                onClick={
-                  activitesEnAttente.length > 0 ? () => setShowActivitesEnAttenteModal(true) : undefined
-                }
-              />
-              <ActionRow
-                icon="check"
-                title="Paiements du jour"
-                sub={
-                  paiementsAPayer.length > 0
-                    ? `${paiementsAPayer.length} à payer aujourd'hui`
-                    : "Rien en attente"
-                }
-                count={paiementsAPayer.length}
-                onClick={() => setShowPaiementsDuJourModal(true)}
-              />
-              <ActionRow
-                icon="wave"
-                title="Messages au revoir"
-                sub={auRevoirToday.length > 0 ? `${auRevoirToday.length} à envoyer` : "Rien à envoyer"}
-                count={auRevoirToday.length}
-                onClick={auRevoirToday.length > 0 ? onOpenAuRevoir : undefined}
-              />
-              <ActionRow
-                icon="star"
-                title="Demandes d'avis"
-                sub={avisToday.length > 0 ? `${avisToday.length} à envoyer` : "Rien à envoyer"}
-                count={avisToday.length}
-                onClick={avisToday.length > 0 ? onOpenAvisClients : undefined}
-              />
+              {/* Chaque ligne ne s'affiche plus que s'il y a vraiment
+                  quelque chose en attente — sinon la liste restait pleine
+                  de lignes "Rien à…"/"Aucun…" tous les jours, noyant les
+                  vraies alertes (demande de Mélanie, 2026-09-19). */}
+              {roomsMissingTomorrow.length > 0 && (
+                <ActionRow
+                  icon="key"
+                  title="Numéros de chambre manquants"
+                  sub={`${roomsMissingTomorrow.length} client(s) — 1ère activité demain`}
+                  count={roomsMissingTomorrow.length}
+                  onClick={onOpenNumerosChambre}
+                />
+              )}
+              {pickupsMissingTomorrow.length > 0 && (
+                <ActionRow
+                  icon="car"
+                  title="Pick-ups à ajouter"
+                  sub={`${pickupsMissingTomorrow.length} activité(s) demain`}
+                  count={pickupsMissingTomorrow.length}
+                  onClick={onOpenPickupsChambres}
+                />
+              )}
+              {rdvToday.length > 0 && (
+                <ActionRow
+                  icon="wallet"
+                  title="RDV paiements aujourd'hui"
+                  sub={`${rdvToday.length} rendez-vous`}
+                  count={rdvToday.length}
+                  onClick={onOpenRdvPaiements}
+                />
+              )}
+              {billetsEnAttente.length > 0 && (
+                <ActionRow
+                  icon="plane"
+                  title="Billets d'avion en attente"
+                  sub={
+                    billetsEnAttente
+                      .slice(0, 3)
+                      .map((r) => {
+                        const c = clients.find((cl) => cl.id === r.client_id);
+                        return `${c?.nom || "?"} — ${fmtDate(r.billet_date)}`;
+                      })
+                      .join(" · ") + (billetsEnAttente.length > 3 ? "…" : "")
+                  }
+                  count={billetsEnAttente.length}
+                  onClick={onOpenBilletsAvion}
+                />
+              )}
+              {activitesEnAttente.length > 0 && (
+                <ActionRow
+                  icon="clipboard"
+                  title="Activités en attente de validation"
+                  sub={
+                    activitesEnAttente
+                      .slice(0, 3)
+                      .map((r) => {
+                        const c = clients.find((cl) => cl.id === r.client_id);
+                        return `${c?.nom || "?"} — ${cleanActivityTitle(r.nom_activite) || "Activité"}`;
+                      })
+                      .join(" · ") + (activitesEnAttente.length > 3 ? "…" : "")
+                  }
+                  count={activitesEnAttente.length}
+                  onClick={() => setShowActivitesEnAttenteModal(true)}
+                />
+              )}
+              {paiementsAPayer.length > 0 && (
+                <ActionRow
+                  icon="check"
+                  title="Paiements du jour"
+                  sub={`${paiementsAPayer.length} à payer aujourd'hui`}
+                  count={paiementsAPayer.length}
+                  onClick={() => setShowPaiementsDuJourModal(true)}
+                />
+              )}
+              {auRevoirToday.length > 0 && (
+                <ActionRow
+                  icon="wave"
+                  title="Messages au revoir"
+                  sub={`${auRevoirToday.length} à envoyer`}
+                  count={auRevoirToday.length}
+                  onClick={onOpenAuRevoir}
+                />
+              )}
+              {avisToday.length > 0 && (
+                <ActionRow
+                  icon="star"
+                  title="Demandes d'avis"
+                  sub={`${avisToday.length} à envoyer`}
+                  count={avisToday.length}
+                  onClick={onOpenAvisClients}
+                />
+              )}
+              {actionsRapidesTotal === 0 && (
+                <div className="px-5 py-6 text-center text-sm text-neutral-400">
+                  Rien en attente pour l&apos;instant ✔️
+                </div>
+              )}
             </div>
           </div>
 

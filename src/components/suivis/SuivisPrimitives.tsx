@@ -69,7 +69,11 @@ export function AvisStatutSelector({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as Client["avis_statut"])}
-      className={`ml-auto shrink-0 cursor-pointer rounded-full border px-3 py-1 text-xs font-medium outline-none ${AVIS_STATUT_STYLES[value]}`}
+      // appearance-none + leading-none : sans ça, le <select> natif garde la
+      // hauteur/police par défaut du système sur mobile — bien plus gros
+      // que les autres badges (même correctif que le statut de paiement,
+      // demande de Mélanie 2026-09-19).
+      className={`ml-auto max-w-[55%] shrink-0 cursor-pointer appearance-none truncate rounded-full border px-3 py-1 text-xs font-medium leading-none outline-none ${AVIS_STATUT_STYLES[value]}`}
     >
       <option value="À demander">À demander</option>
       <option value="À ne pas demander">À ne pas demander</option>

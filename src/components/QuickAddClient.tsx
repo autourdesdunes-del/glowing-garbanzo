@@ -6,6 +6,7 @@ import { useToast } from "@/components/ToastProvider";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { ActivitesStep, Field, PaiementsStep } from "@/components/client-steps";
 import HebergementSection from "@/components/clientSteps/HebergementSection";
+import { AgeChips, parseAges } from "@/components/clientSteps/ContactStepPrimitives";
 import PassportPhotosUpload from "@/components/PassportPhotosUpload";
 import DuplicateClientModal from "@/components/DuplicateClientModal";
 import { CANAUX, RELATIONS } from "@/lib/constants";
@@ -58,6 +59,16 @@ type StepId =
 // Activités et Paiements sont trop imbriqués (éditeur de réservation,
 // règle du solde unique) pour être redécoupés sans risque — on réutilise
 // les écrans existants du dossier tels quels, comme deux étapes de plus.
+// Le nombre d'enfants/bébés est saisi à l'étape précédente (compteur) —
+// prépare la liste de puces d'âge avec ce nombre d'entrées par défaut
+// (plutôt que de partir d'une liste vide qu'il faudrait remplir soi-même),
+// en gardant les âges déjà choisis si on revient sur cette étape.
+function fillAges(text: string | undefined, count: number, defaultAge: number): number[] {
+  const current = parseAges(text || "");
+  if (current.length === count) return current;
+  return Array.from({ length: count }, (_, i) => current[i] ?? defaultAge);
+}
+
 function buildSteps(a: Partial<Client>): StepId[] {
   const steps: StepId[] = ["nom", "statut", "canal"];
   if (a.canal === "Autre") steps.push("canal_autre");
@@ -1033,19 +1044,18 @@ export default function QuickAddClient({
               )}
 
               {step === "ages_enfants" && (
-                <Field label="Âge des enfants (4 à 10 ans)">
-                  <input
-                    autoFocus
-                    value={answers.ages_enfants || ""}
-                    onChange={(e) => patch({ ages_enfants: e.target.value })}
-                    placeholder="ex. 7 et 4 ans"
-                    className="input"
+                <Field label="Âge des enfants (3 à 10 ans)">
+                  <AgeChips
+                    ages={fillAges(answers.ages_enfants, answers.enfants ?? 0, 3)}
+                    min={3}
+                    max={10}
+                    onChange={(ages) => patch({ enfants: ages.length, ages_enfants: ages.join(", ") })}
                   />
                 </Field>
               )}
 
               {step === "bebes" && (
-                <Field label="Bébés (0 à 3 ans)">
+                <Field label="Bébés">
                   <input
                     autoFocus
                     type="number"
@@ -1059,13 +1069,34 @@ export default function QuickAddClient({
 
               {step === "ages_bebes" && (
                 <Field label="Âge des bébés">
-                  <input
-                    autoFocus
-                    value={answers.ages_bebes || ""}
-                    onChange={(e) => patch({ ages_bebes: e.target.value })}
-                    placeholder="ex. 1 an"
-                    className="input"
-                  />
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1 text-xs">
+                      {(["ans", "mois"] as const).map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() =>
+                            u !== answers.ages_bebes_unite &&
+                            patch({ ages_bebes_unite: u, ages_bebes: "" })
+                          }
+                          className={`rounded-full px-2 py-0.5 ${
+                            (answers.ages_bebes_unite || "ans") === u
+                              ? "bg-[#171717] text-white"
+                              : "border border-neutral-200 text-neutral-500 hover:border-neutral-400"
+                          }`}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                    <AgeChips
+                      ages={fillAges(answers.ages_bebes, answers.bebes ?? 0, 0)}
+                      min={0}
+                      max={answers.ages_bebes_unite === "mois" ? 35 : 3}
+                      unit={answers.ages_bebes_unite || "ans"}
+                      onChange={(ages) => patch({ bebes: ages.length, ages_bebes: ages.join(", ") })}
+                    />
+                  </div>
                 </Field>
               )}
 
@@ -1082,11 +1113,15 @@ export default function QuickAddClient({
                   {answers.ados_presents && (
                     <div className="mt-2">
                       <Field label="Âge des ados">
-                        <input
-                          value={answers.ages_ados || ""}
-                          onChange={(e) => patch({ ages_ados: e.target.value })}
-                          placeholder="ex. 13 et 14 ans"
-                          className="input"
+                        <AgeChips
+                          ages={
+                            parseAges(answers.ages_ados || "").length
+                              ? parseAges(answers.ages_ados || "")
+                              : [11]
+                          }
+                          min={11}
+                          max={17}
+                          onChange={(ages) => patch({ ages_ados: ages.join(", ") })}
                         />
                       </Field>
                     </div>

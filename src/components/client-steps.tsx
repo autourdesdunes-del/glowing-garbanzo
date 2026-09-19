@@ -94,7 +94,8 @@ export function buildPaxEnglish(client: Client) {
   }
   if (client.bebes > 0) {
     const ages = extractAges(client.ages_bebes);
-    parts.push(`${client.bebes} baby${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
+    const unit = client.ages_bebes_unite === "mois" ? "mo" : "yo";
+    parts.push(`${client.bebes} baby${ages.length ? ` (${joinAnd(ages)} ${unit})` : ""}`);
   }
   return parts.join(" + ");
 }
@@ -117,7 +118,8 @@ export function buildPaxEnglishForReservation(r: Reservation, client: Client) {
   }
   if (nbBebe > 0) {
     const ages = showAges ? extractAges(client.ages_bebes) : [];
-    parts.push(`${nbBebe} baby${ages.length ? ` (${joinAnd(ages)} yo)` : ""}`);
+    const unit = client.ages_bebes_unite === "mois" ? "mo" : "yo";
+    parts.push(`${nbBebe} baby${ages.length ? ` (${joinAnd(ages)} ${unit})` : ""}`);
   }
   return parts.join(" + ");
 }
@@ -327,13 +329,35 @@ export function ContactStep({
                 </PropertyRow>
               )}
               {client.bebes > 0 && (
-                <PropertyRow label="Bébés (0-2 ans)" icon={<PropIcon name="person" />}>
-                  <AgeChips
-                    ages={parseAges(client.ages_bebes)}
-                    min={0}
-                    max={2}
-                    onChange={(ages) => onChange({ bebes: ages.length, ages_bebes: ages.join(", ") })}
-                  />
+                <PropertyRow label="Bébés" icon={<PropIcon name="person" />}>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1 text-xs">
+                      {(["ans", "mois"] as const).map((u) => (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() =>
+                            u !== client.ages_bebes_unite &&
+                            onChange({ ages_bebes_unite: u, ages_bebes: "" })
+                          }
+                          className={`rounded-full px-2 py-0.5 ${
+                            (client.ages_bebes_unite || "ans") === u
+                              ? "bg-[#171717] text-white"
+                              : "border border-neutral-200 text-neutral-500 hover:border-neutral-400"
+                          }`}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                    <AgeChips
+                      ages={parseAges(client.ages_bebes)}
+                      min={0}
+                      max={client.ages_bebes_unite === "mois" ? 35 : 3}
+                      unit={client.ages_bebes_unite || "ans"}
+                      onChange={(ages) => onChange({ bebes: ages.length, ages_bebes: ages.join(", ") })}
+                    />
+                  </div>
                 </PropertyRow>
               )}
               {client.ados_presents && (

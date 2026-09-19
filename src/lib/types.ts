@@ -506,6 +506,7 @@ export type Client = {
   ages_enfants: string;
   bebes: number;
   ages_bebes: string;
+  ages_bebes_unite: "ans" | "mois";
   ados_presents: boolean;
   ages_ados: string;
   passeport_photos: string[];
@@ -693,6 +694,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   ages_enfants: "",
   bebes: 0,
   ages_bebes: "",
+  ages_bebes_unite: "ans",
   ados_presents: false,
   ages_ados: "",
   passeport_photos: [],

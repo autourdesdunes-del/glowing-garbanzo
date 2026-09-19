@@ -77,7 +77,9 @@ function paxLine(client: Client) {
     parts.push(`${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${agesLabel(client.ages_enfants)}`);
   }
   if (client.bebes > 0) {
-    parts.push(`${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes)}`);
+    parts.push(
+      `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes, client.ages_bebes_unite)}`
+    );
   }
   return parts.join(", ");
 }

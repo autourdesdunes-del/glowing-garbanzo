@@ -89,17 +89,25 @@ export function parseAges(text: string): number[] {
   return matches ? matches.map(Number) : [];
 }
 
+// Un <select> plutôt qu'un <input type="number"> : plus facile à remplir
+// (pas besoin de taper, pas de valeur hors-tranche possible) — demande de
+// Mélanie, 2026-09-19, suite à des âges saisis mal formatés ("5 ans ans",
+// tranches dépassées...).
 export function AgeChips({
   ages,
   min,
   max,
+  unit = "ans",
   onChange,
 }: {
   ages: number[];
   min: number;
   max: number;
+  unit?: "ans" | "mois";
   onChange: (ages: number[]) => void;
 }) {
+  const options: number[] = [];
+  for (let v = min; v <= max; v++) options.push(v);
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {ages.map((a, i) => (
@@ -107,21 +115,22 @@ export function AgeChips({
           key={i}
           className="flex items-center gap-1 rounded-full border border-neutral-200 bg-white pl-2 pr-1 py-0.5 text-xs text-neutral-600"
         >
-          <input
-            type="number"
-            min={min}
-            max={max}
-            value={a}
+          <select
+            value={Math.min(max, Math.max(min, a))}
             onChange={(e) => {
-              const raw = Number(e.target.value);
-              const v = Number.isFinite(raw) ? Math.min(max, Math.max(min, raw)) : min;
               const next = [...ages];
-              next[i] = v;
+              next[i] = Number(e.target.value);
               onChange(next);
             }}
-            className="w-7 border-none bg-transparent text-xs focus:outline-none"
-          />
-          <span className="text-neutral-400">ans</span>
+            className="border-none bg-transparent text-xs focus:outline-none"
+          >
+            {options.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+          <span className="text-neutral-400">{unit}</span>
           <button
             type="button"
             onClick={() => onChange(ages.filter((_, idx) => idx !== i))}

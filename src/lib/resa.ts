@@ -1829,10 +1829,12 @@ export function formatOptionLabel(o: ReservationOption) {
 // ("4, 10", saisis via l'éditeur d'âges) et parfois déjà une phrase complète
 // ("4 et 10 ans", copiée depuis Kommo) — sans ce garde-fou, l'affichage
 // ajoutait systématiquement " ans" et doublait le mot pour le second cas.
-export function agesLabel(ages: string) {
+// `unite` ne sert que pour les bébés (ages_bebes_unite peut valoir "mois") —
+// enfants/ados restent toujours en années.
+export function agesLabel(ages: string, unite: "ans" | "mois" = "ans") {
   const clean = (ages || "").trim();
   if (!clean) return "";
-  return /\bans?\b/i.test(clean) ? ` (${clean})` : ` (${clean} ans)`;
+  return /\b(ans?|mois)\b/i.test(clean) ? ` (${clean})` : ` (${clean} ${unite})`;
 }
 
 // Un ado n'a pas de compteur dédié (pas de champ "nb_ados") — juste un
@@ -1864,7 +1866,9 @@ export function paxSummary(client: Client) {
     parts.push(`${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${agesLabel(client.ages_enfants)}`);
   }
   if (client.bebes > 0) {
-    parts.push(`${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes)}`);
+    parts.push(
+      `${client.bebes} bébé${client.bebes > 1 ? "s" : ""}${agesLabel(client.ages_bebes, client.ages_bebes_unite)}`
+    );
   }
   return parts.join(", ");
 }
@@ -1909,7 +1913,7 @@ export function paxLine(r: Reservation, client: Client) {
   }
   if (nbBebe > 0) {
     let s = `${nbBebe} bébé${nbBebe > 1 ? "s" : ""}`;
-    if (showAges) s += agesLabel(client.ages_bebes);
+    if (showAges) s += agesLabel(client.ages_bebes, client.ages_bebes_unite);
     parts.push(s);
   }
   return parts.join(", ");

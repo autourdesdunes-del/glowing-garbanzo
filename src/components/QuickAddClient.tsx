@@ -1347,7 +1347,6 @@ export default function QuickAddClient({
                     disabled={
                       creating ||
                       (step === "nom" && !nomDraft.trim()) ||
-                      (step === "hotel" && !!(answers.hotel || "").trim() && !hotelMatch) ||
                       (step === "kommo_lien" && !answers.kommo_lead_id)
                     }
                     className="flex-1 rounded-[6px] bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"

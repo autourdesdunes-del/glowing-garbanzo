@@ -297,7 +297,7 @@ export default function HebergementSection({
                       </PropertyRow>
                       {client.hotel.trim() && !hotelMatch && (
                         <div className="pl-[26px] text-xs text-orange-600">
-                          ⚠ Cet hôtel n&apos;est pas répertorié — il faut l&apos;ajouter pour continuer.{" "}
+                          ⚠ Cet hôtel n&apos;est pas répertorié.{" "}
                           <button
                             type="button"
                             onClick={() => setAjouterHotelZoneOpen(true)}
@@ -467,10 +467,7 @@ export default function HebergementSection({
             </div>
             <button
               type="button"
-              disabled={
-                client.type_hebergement !== "airbnb" &&
-                (clientHotels.length === 0 ? !!client.hotel.trim() && !hotelMatch : circuitIncomplet)
-              }
+              disabled={client.type_hebergement !== "airbnb" && clientHotels.length > 0 && circuitIncomplet}
               onClick={() => setHotelModalOpen(false)}
               className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >

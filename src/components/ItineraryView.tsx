@@ -435,11 +435,13 @@ export default function ItineraryView({
                   e.stopPropagation();
                   onUpdateReservation(r.id, { paiement_statut: e.target.value });
                 }}
-                // appearance-none + leading-none : sans ça, le <select> natif
-                // garde la hauteur/police par défaut du système sur mobile,
-                // bien plus grosse que le reste des badges (constaté en vue
-                // téléphone — Mélanie, 2026-09-19).
-                className={`max-w-[60%] shrink-0 appearance-none truncate rounded-full border-0 px-2 py-0.5 text-[11px] font-medium leading-none ${badge.className}`}
+                // h-5 (hauteur fixe en px) : appearance-none seul ne suffit
+                // pas sur certains mobiles — le <select> natif garde une
+                // hauteur minimale imposée par le système malgré le padding
+                // réduit, bien plus gros que le reste des badges (vue
+                // téléphone — Mélanie, 2026-09-19, persistant après un
+                // premier correctif appearance-none/leading-none).
+                className={`box-border h-5 max-w-[60%] shrink-0 appearance-none truncate rounded-full border-0 px-2 py-0 text-[11px] font-medium leading-5 ${badge.className}`}
               >
                 {STATUT_PAIEMENT_OPTIONS.map((o) => (
                   <option key={o.key} value={o.key}>
@@ -812,7 +814,7 @@ export default function ItineraryView({
                       onChange={(e) =>
                         onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
                       }
-                      className={`w-full min-w-0 appearance-none truncate rounded-full border-0 px-2 py-0.5 text-xs font-medium leading-none ${expBadge.className}`}
+                      className={`box-border h-5 w-full min-w-0 appearance-none truncate rounded-full border-0 px-2 py-0 text-xs font-medium leading-5 ${expBadge.className}`}
                     >
                       {STATUT_PAIEMENT_OPTIONS.map((o) => (
                         <option key={o.key} value={o.key}>

@@ -458,8 +458,13 @@ export function ReservationSummaryCard({
 export function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-neutral-100 py-2 text-sm last:border-0">
-      <span className="text-neutral-500">{label}</span>
-      <span className="text-right font-medium text-[#171717]">{children}</span>
+      <span className="shrink-0 text-neutral-500">{label}</span>
+      {/* flex min-w-0 : sans ça, un <select> enfant (statut de paiement) ne
+          respecte pas son max-width et déborde à l'horizontale sur mobile
+          (même correctif que ItineraryView.tsx — Mélanie, 2026-09-19). */}
+      <span className="flex min-w-0 flex-1 justify-end text-right font-medium text-[#171717]">
+        {children}
+      </span>
     </div>
   );
 }

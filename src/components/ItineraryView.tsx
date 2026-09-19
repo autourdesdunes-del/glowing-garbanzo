@@ -807,7 +807,7 @@ export default function ItineraryView({
                       onChange={(e) =>
                         onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
                       }
-                      className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${expBadge.className}`}
+                      className={`max-w-[60%] shrink-0 appearance-none truncate rounded-full border-0 px-2 py-0.5 text-xs font-medium leading-none ${expBadge.className}`}
                     >
                       {STATUT_PAIEMENT_OPTIONS.map((o) => (
                         <option key={o.key} value={o.key}>

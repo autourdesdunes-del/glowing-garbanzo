@@ -487,7 +487,7 @@ export function ActivityDetailModal({
                 <select
                   value={r.paiement_statut || "attente"}
                   onChange={(e) => onUpdateReservation(r.id, { paiement_statut: e.target.value })}
-                  className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${badge.className}`}
+                  className={`max-w-[60%] shrink-0 appearance-none truncate rounded-full border-0 px-2 py-0.5 text-xs font-medium leading-none ${badge.className}`}
                 >
                   {STATUT_PAIEMENT_OPTIONS.map((o) => (
                     <option key={o.key} value={o.key}>

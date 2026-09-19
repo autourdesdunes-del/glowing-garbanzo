@@ -2702,7 +2702,7 @@ function AppShellInner({
                         />
                       </div>
                       <span className="whitespace-nowrap text-xs font-medium text-[#8B4531]">
-                        {rempli} / {a.capacite} places
+                        {rempli}/{a.capacite} réservées — {a.reste} restante{a.reste > 1 ? "s" : ""}
                       </span>
                     </div>
                   </div>

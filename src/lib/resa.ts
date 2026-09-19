@@ -921,8 +921,14 @@ export function noTaxeTransfert(nom: string): boolean {
 // c'est-à-dire jamais réellement saisi. Sert à alerter visuellement sur la
 // carte plutôt que de laisser un 0€ silencieux (vécu avec un client à Sahl
 // Hasheesh où la taxe n'a jamais été ajoutée).
-export function taxeTransfertManquante(r: Reservation, hotelHorsHurghada?: boolean): boolean {
+export function taxeTransfertManquante(r: Reservation, hotelHorsHurghada?: boolean, hotelVille?: string): boolean {
   if (!hotelHorsHurghada) return false;
+  // L'hôtel est lui-même dans une des villes lointaines (Louxor, Le Caire,
+  // Assouan...) : le client y séjourne sur place, ce n'est jamais un
+  // aller-retour facturé depuis Hurghada — même règle que noTaxeTransfert
+  // sur le nom de l'activité, mais ici sur la ville de l'hôtel (vécu :
+  // "Taxe de transfert manquante" affiché à tort pour un hôtel à Louxor).
+  if (hotelVille && VILLES_SANS_TAXE_TRANSFERT.includes(hotelVille)) return false;
   if (noTaxeTransfert(r.nom_activite)) return false;
   if (isAeroportTransfertHorsHurghada(r.nom_activite)) return false;
   // Ne se fie plus à transfert_inclus seul : cette activité a pu être créée

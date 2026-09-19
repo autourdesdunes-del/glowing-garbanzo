@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Client, ClientHotel, HotelReference, TransfertTaxe } from "@/lib/types";
 import { matchHotel, matchTransfertTaxe, villeTransfertInfo } from "@/lib/hotelHelp";
 import { ZONES_HOTEL } from "@/lib/constants";
+import { VILLES_SANS_TAXE_TRANSFERT } from "@/lib/resa";
 import { euros, fmtDateCourte, hebergementSummary } from "@/lib/contactStepFormat";
 import { PropertyRow } from "@/components/Field";
 import { PropIcon } from "@/components/clientSteps/ContactStepPrimitives";
@@ -159,7 +160,7 @@ export default function HebergementSection({
                     {h.nom || "Hôtel —"}
                     {h.chambre.trim() ? ` - ${h.chambre}` : ""}
                   </div>
-                  {info.kind === "hurghada" && (
+                  {(info.kind === "hurghada" || info.kind === "sur_place") && (
                     <span className="text-xs text-emerald-600">✓ Pas de taxe de transfert.</span>
                   )}
                   {info.kind === "taxe" && (
@@ -192,6 +193,14 @@ export default function HebergementSection({
             hotelMatch.sur_hurghada ? (
               <span className="text-emerald-600">
                 ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
+              </span>
+            ) : VILLES_SANS_TAXE_TRANSFERT.includes(hotelMatch.ville) ? (
+              // Le client séjourne sur place à Louxor/Le Caire/Assouan... —
+              // jamais un aller-retour facturé depuis Hurghada, donc jamais
+              // de taxe de transfert malgré l'hôtel hors Hurghada (vécu :
+              // avertissement affiché à tort pour un hôtel à Louxor).
+              <span className="text-emerald-600">
+                ✓ {hotelMatch.ville} — pas de taxe de transfert (séjour sur place).
               </span>
             ) : (
               <span className="text-orange-600">
@@ -414,6 +423,13 @@ export default function HebergementSection({
                                 return (
                                   <p className="text-xs text-emerald-600">
                                     ✓ Cet hôtel est bien sur Hurghada — pas de taxe de transfert.
+                                  </p>
+                                );
+                              }
+                              if (info.kind === "sur_place") {
+                                return (
+                                  <p className="text-xs text-emerald-600">
+                                    ✓ {info.ville} — pas de taxe de transfert (séjour sur place).
                                   </p>
                                 );
                               }

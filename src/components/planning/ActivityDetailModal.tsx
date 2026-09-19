@@ -327,7 +327,7 @@ export function ActivityDetailModal({
                 {chevalChameauBadge(r, client)}
               </span>
             )}
-            {taxeTransfertManquante(r, !!hotelMatch && !hotelMatch.sur_hurghada) && (
+            {taxeTransfertManquante(r, !!hotelMatch && !hotelMatch.sur_hurghada, hotelMatch?.ville) && (
               <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
                 ⚠ Taxe de transfert manquante
               </span>

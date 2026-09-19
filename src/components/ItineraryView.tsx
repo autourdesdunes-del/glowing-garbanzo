@@ -307,7 +307,7 @@ export default function ItineraryView({
               {siteCaireBadge(r)}
             </span>
           )}
-          {taxeTransfertManquante(r, hotelHorsHurghada) && (
+          {taxeTransfertManquante(r, hotelHorsHurghada, hotelVille) && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
               ⚠ Taxe de transfert manquante
             </span>

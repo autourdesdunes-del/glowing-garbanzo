@@ -69,7 +69,7 @@ export function ReservationSummaryCard({
   onOpenClient: (clientId: string) => void;
   size?: "full" | "medium" | "compact";
 }) {
-  const hotelHorsHurghada = (() => {
+  const { hotelHorsHurghada, hotelVille } = (() => {
     // hotelNomPourActivite résout l'étape du circuit à LA DATE de cette
     // activité — client.hotel reste vide par design en circuit
     // multi-hôtels, donc sans ça toute activité hors Hurghada d'un client
@@ -77,7 +77,7 @@ export function ReservationSummaryCard({
     // jamais signalée manquante).
     const nomEffectif = hotelNomPourActivite(clientHotels, r.date_debut, client.hotel);
     const m = matchHotel(nomEffectif, hotelsRef);
-    return !!m && !m.sur_hurghada;
+    return { hotelHorsHurghada: !!m && !m.sur_hurghada, hotelVille: m?.ville };
   })();
   const options = resaOptions[r.id] || [];
   const total = resaTotalMontant(r, client, options, resaTarifs[r.id] || []);
@@ -187,7 +187,7 @@ export function ReservationSummaryCard({
               {quadBuggyBadge(r)}
             </span>
           )}
-          {taxeTransfertManquante(r, hotelHorsHurghada) && (
+          {taxeTransfertManquante(r, hotelHorsHurghada, hotelVille) && (
             <span className="whitespace-nowrap rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
               ⚠ Taxe manquante
             </span>
@@ -400,7 +400,7 @@ export function ReservationSummaryCard({
             {quadBuggyBadge(r)}
           </span>
         )}
-        {taxeTransfertManquante(r, hotelHorsHurghada) && (
+        {taxeTransfertManquante(r, hotelHorsHurghada, hotelVille) && (
           <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
             ⚠ Taxe de transfert manquante
           </span>

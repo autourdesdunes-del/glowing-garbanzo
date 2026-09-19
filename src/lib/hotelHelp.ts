@@ -1,4 +1,5 @@
 import { ClientHotel, HotelReference, TransfertTaxe } from "@/lib/types";
+import { VILLES_SANS_TAXE_TRANSFERT } from "@/lib/resa";
 
 export function matchHotel(hotelName: string, hotels: HotelReference[]): HotelReference | null {
   const clean = hotelName.trim().toLowerCase();
@@ -187,6 +188,7 @@ export function matchTransfertTaxe(
 
 export type VilleTransfertInfo =
   | { kind: "hurghada" }
+  | { kind: "sur_place"; ville: string }
   | { kind: "taxe"; ville: string; taxe: TransfertTaxeResultat }
   | { kind: "inconnue" };
 
@@ -205,6 +207,13 @@ export function villeTransfertInfo(
   const clean = ville.trim().toLowerCase();
   if (!clean) return { kind: "inconnue" };
   if (clean === "hurghada") return { kind: "hurghada" };
+  // Le client séjourne sur place à Louxor/Le Caire/Assouan... — jamais un
+  // aller-retour facturé depuis Hurghada, donc jamais de taxe de transfert
+  // malgré la ville hors Hurghada (vécu : avertissement affiché à tort pour
+  // un hôtel à Louxor).
+  if (VILLES_SANS_TAXE_TRANSFERT.some((v) => v.trim().toLowerCase() === clean)) {
+    return { kind: "sur_place", ville: ville.trim() };
+  }
   if (!villesConnues.some((v) => v.trim().toLowerCase() === clean)) return { kind: "inconnue" };
   return { kind: "taxe", ville: ville.trim(), taxe: matchTransfertTaxe(taxes, ville, nbAdultes, nbEnfants) };
 }

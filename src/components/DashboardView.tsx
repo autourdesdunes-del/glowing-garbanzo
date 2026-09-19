@@ -15,6 +15,7 @@ import {
   UserShift,
 } from "@/lib/types";
 import {
+  billetRequisEffectif,
   cleanActivityTitle,
   joursSansReponseProspect,
   missingChampsFor,
@@ -275,7 +276,7 @@ export default function DashboardView({
     .filter(
       (r) =>
         r.statut_resa !== "Annulée" &&
-        r.billet_requis &&
+        billetRequisEffectif(r) &&
         r.billet_etape !== "termine" &&
         (!r.billet_date || r.billet_date >= todayStr)
     )
@@ -354,7 +355,7 @@ export default function DashboardView({
       // continuait d'apparaître ici indéfiniment (voir le même correctif
       // dans SuivisView.tsx > onglet Billets d'avion).
       r.statut_resa !== "Annulée" &&
-      r.billet_requis &&
+      billetRequisEffectif(r) &&
       r.billet_etape !== "a_envoyer_client" &&
       r.billet_etape !== "termine" &&
       r.billet_date &&

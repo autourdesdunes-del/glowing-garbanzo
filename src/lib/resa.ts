@@ -1384,6 +1384,21 @@ export function needsBilletInterneGenerique(nom: string) {
   return n === "billets d'avion" || n.includes("circuit");
 }
 
+// billet_requis est censé se mettre à true dès qu'une activité de ce type
+// est créée (voir AddActivityWizard.tsx), mais chaque nouvel endroit qui
+// crée/duplique/modifie une réservation (pack, import Notion, script DML,
+// futur code jamais audité) est un nouvel endroit qui peut l'oublier — vécu
+// deux fois sur "Le Caire en avion" (Manon DALLA COSTA, Sabrina ROCQ,
+// 2026-09), sans jamais réussir à isoler un unique coupable. Plutôt que de
+// compter sur CHAQUE point de création pour bien le renseigner, tout ce qui
+// décide si une activité doit apparaître dans Suivis > Billets d'avion
+// recalcule aussi directement depuis le nom — la colonne billet_requis en
+// base reste utile (rattachement du fichier, étapes Hossam) mais n'est plus
+// le SEUL chemin qui la rend visible.
+export function billetRequisEffectif(r: { nom_activite: string; billet_requis: boolean }) {
+  return r.billet_requis || isLeCaireEnAvion(r.nom_activite) || needsBilletInterneGenerique(r.nom_activite);
+}
+
 // Item catalogue générique dont le titre n'est pas fixe : au lieu du nom du
 // catalogue, on demande à l'employé de le taper lui-même dès la sélection
 // (ex. "Transfert marina aller / retour") — voir AddActivityWizard.tsx.

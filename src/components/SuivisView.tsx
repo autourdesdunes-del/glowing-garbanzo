@@ -21,6 +21,7 @@ import {
   agesLabel,
   billetAttenteBadge,
   billetEtapeShortLabel,
+  billetRequisEffectif,
   cleanActivityTitle,
   estDossierNonVerifie,
   isLeCaireEnAvion,
@@ -381,7 +382,10 @@ export default function SuivisView({
     // continuait d'apparaître ici indéfiniment — Hossam pouvait agir sur un
     // billet qui n'a plus lieu d'être acheté.
     .filter(
-      (r) => r.statut_resa !== "Annulée" && r.billet_requis && (!r.billet_date || r.billet_date >= todayStr)
+      (r) =>
+        r.statut_resa !== "Annulée" &&
+        billetRequisEffectif(r) &&
+        (!r.billet_date || r.billet_date >= todayStr)
     )
     .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
   const billetsMonthKeys = Array.from(

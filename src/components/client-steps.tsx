@@ -35,6 +35,7 @@ import {
 } from "@/lib/constants";
 import {
   acompteMinimumCaireEnAvion,
+  billetRequisEffectif,
   cleanActivityTitle,
   fmtEncaisseLe,
   hossamBilletMessage,
@@ -1444,7 +1445,9 @@ export function PaiementsStep({
   // réserve, et l'endroit le plus fréquent où cet oubli se produit.
   const checkBilletHossamReminder = () => {
     const pending = reservations.find(
-      (r) => r.billet_requis && (r.billet_etape === "attente_acompte" || r.billet_etape === "a_envoyer_hossam")
+      (r) =>
+        billetRequisEffectif(r) &&
+        (r.billet_etape === "attente_acompte" || r.billet_etape === "a_envoyer_hossam")
     );
     if (pending) setBilletHossamReminder(pending);
   };

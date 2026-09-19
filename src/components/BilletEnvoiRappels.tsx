@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Client, Reservation } from "@/lib/types";
 import { billetEnvoiRappelDueKey } from "@/lib/billetEnvoiRappel";
+import { billetRequisEffectif } from "@/lib/resa";
 
 type Alert = { r: Reservation; client: Client; key: string; phase: "initial" | "relance" };
 
@@ -32,7 +33,7 @@ export default function BilletEnvoiRappels({
         // continuait de déclencher ce pop-up indéfiniment (voir le même
         // correctif dans SuivisView.tsx > onglet Billets d'avion).
         if (r.statut_resa === "Annulée") continue;
-        if (!r.billet_requis) continue;
+        if (!billetRequisEffectif(r)) continue;
         const client = clients.find((c) => c.id === r.client_id);
         if (!client) continue;
         const storageKey = "billet-envoi-rappel-" + r.id;

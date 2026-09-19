@@ -13,6 +13,7 @@ import { deaccent } from "@/lib/deaccent";
 import {
   agesLabel,
   billetEtapeShortLabel,
+  billetRequisEffectif,
   billetUploadPatch,
   cleanActivityTitle,
   hideMoment,
@@ -571,7 +572,7 @@ export function PickupActivityCard({
           billet au client (ex. Le Caire en avion) — sans ce bouton ici, il
           fallait rouvrir Suivis > Billets d'avion à côté pour le retrouver
           (demande de Mélanie, 17/09). */}
-      {r.billet_requis && r.billet_lien && (
+      {billetRequisEffectif(r) && r.billet_lien && (
         <div className="mt-1.5">
           <BilletDownloadButton path={r.billet_lien} label="Télécharger le billet à envoyer au client" />
         </div>

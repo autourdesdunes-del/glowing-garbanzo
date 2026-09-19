@@ -1,7 +1,7 @@
 import { Client, ClientHotel, HotelReference, Reservation } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/dates";
 import { matchHotel } from "@/lib/hotelHelp";
-import { senseTransfertAeroport } from "@/lib/resa";
+import { billetRequisEffectif, senseTransfertAeroport } from "@/lib/resa";
 
 // Le numéro de chambre n'a de sens à demander que pour un hôtel situé à
 // Hurghada ou dans sa région (transferts courts, l'équipe locale y va
@@ -90,7 +90,7 @@ export function infosManquantesAuto(
       (r) =>
         r.client_id === client.id &&
         r.statut_resa !== "Annulée" &&
-        r.billet_requis &&
+        billetRequisEffectif(r) &&
         r.billet_etape !== "termine"
     )
   ) {

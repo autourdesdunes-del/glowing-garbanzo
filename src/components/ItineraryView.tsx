@@ -430,7 +430,11 @@ export default function ItineraryView({
                   e.stopPropagation();
                   onUpdateReservation(r.id, { paiement_statut: e.target.value });
                 }}
-                className={`rounded-full border-0 px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
+                // appearance-none + leading-none : sans ça, le <select> natif
+                // garde la hauteur/police par défaut du système sur mobile,
+                // bien plus grosse que le reste des badges (constaté en vue
+                // téléphone — Mélanie, 2026-09-19).
+                className={`max-w-[60%] shrink-0 appearance-none truncate rounded-full border-0 px-2 py-0.5 text-[11px] font-medium leading-none ${badge.className}`}
               >
                 {STATUT_PAIEMENT_OPTIONS.map((o) => (
                   <option key={o.key} value={o.key}>

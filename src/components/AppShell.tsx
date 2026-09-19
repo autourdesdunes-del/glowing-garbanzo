@@ -91,6 +91,7 @@ import {
   IconEye,
   IconHelp,
   IconHome,
+  IconMenu,
   IconShield,
   IconSparkles,
   IconStar,
@@ -249,6 +250,11 @@ function AppShellInner({
   // l'équipe (Justine, Laura...) et Sylvie sont représentés individuellement
   // ci-dessous, via leur vrai profil (email), pas des clés génériques.
   const [viewAs, setViewAs] = useState<string>("moi");
+  // Menu plein écran mobile (<md) — donne accès à toutes les rubriques
+  // (Prospects, Catalogue, Suivis, Direction...) au-delà des 4 raccourcis
+  // fixes en bas, ouvert via le bouton "Menu" en bas à gauche (demande de
+  // Mélanie, 2026-09-19 — l'accès complet manquait depuis leur ajout).
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const confirm = useConfirm();
   const toast = useToast();
   const supabase = useMemo(() => createClient(), []);
@@ -2299,6 +2305,7 @@ function AppShellInner({
                   setMode(t.key);
                   if (t.key === "planning") setPlanningSub("calendrier");
                   if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
+                  setMobileMenuOpen(false);
                 }}
                 className={`flex w-full items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-sm font-medium transition ${
                   active
@@ -2325,6 +2332,7 @@ function AppShellInner({
                         key={s.key}
                         onClick={() => {
                           setSuivisSub(s.key);
+                          setMobileMenuOpen(false);
                         }}
                         className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
                           suivisSub === s.key
@@ -2357,6 +2365,7 @@ function AppShellInner({
                           key={s.key}
                           onClick={() => {
                             setSuivisSub(s.key);
+                            setMobileMenuOpen(false);
                           }}
                           className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
                             suivisSub === s.key
@@ -2385,6 +2394,7 @@ function AppShellInner({
                       key={s.key}
                       onClick={() => {
                         setPlanningSub(s.key);
+                        setMobileMenuOpen(false);
                       }}
                       className={`flex w-full flex-col items-start rounded-[6px] px-2 py-1.5 text-left text-xs font-medium leading-tight transition ${
                         planningSub === s.key
@@ -2409,6 +2419,7 @@ function AppShellInner({
                       key={s.key}
                       onClick={() => {
                         setDirectionSub(s.key);
+                        setMobileMenuOpen(false);
                       }}
                       className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
                         directionSub === s.key
@@ -2428,6 +2439,7 @@ function AppShellInner({
                       key={s.key}
                       onClick={() => {
                         setHelpSub(s.key);
+                        setMobileMenuOpen(false);
                       }}
                       className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
                         helpSub === s.key
@@ -2447,6 +2459,7 @@ function AppShellInner({
                       key={s.key}
                       onClick={() => {
                         setProspectsSub(s.key);
+                        setMobileMenuOpen(false);
                       }}
                       className={`flex w-full flex-col items-start rounded-[6px] px-2 py-1.5 text-left text-xs font-medium leading-tight transition ${
                         prospectsSub === s.key
@@ -2471,6 +2484,7 @@ function AppShellInner({
                       key={s.key}
                       onClick={() => {
                         setManagerSub(s.key);
+                        setMobileMenuOpen(false);
                       }}
                       className={`flex w-full items-center justify-between rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
                         managerSub === s.key
@@ -2710,6 +2724,37 @@ function AppShellInner({
       <aside className="hidden w-56 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-white md:flex">
         {renderNavPanel()}
       </aside>
+
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex md:hidden">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileMenuOpen(false)} />
+          <div className="relative flex h-full w-72 max-w-[85vw] flex-col overflow-y-auto bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-[#eaeaea] px-3 py-3">
+              <span className="font-heading text-sm font-semibold text-[#171717]">Menu</span>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Fermer le menu"
+                className="rounded-md p-1.5 text-[#666666] hover:bg-[#fafafa]"
+              >
+                ✕
+              </button>
+            </div>
+            {renderNavPanel()}
+            <div className="border-t border-[#eaeaea] px-2.5 py-3">
+              <div className="truncate px-2.5 pb-2 text-[11px] text-[#666666]">{userEmail}</div>
+              <div className="flex flex-col gap-1">
+                <ChangePasswordButton />
+                <button
+                  onClick={handleSignOut}
+                  className="appearance-none rounded-md border border-[#eaeaea] px-3 py-2 text-left text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
+                >
+                  Déconnexion
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-2 border-b border-[#666666]/15 bg-white px-3 py-3 md:gap-3 md:px-6">
@@ -3372,6 +3417,13 @@ function AppShellInner({
       >
         {(
           [
+            {
+              key: "menu",
+              label: "Menu",
+              icon: IconMenu,
+              active: mobileMenuOpen,
+              onClick: () => setMobileMenuOpen(true),
+            },
             {
               key: "dashboard",
               label: "Accueil",

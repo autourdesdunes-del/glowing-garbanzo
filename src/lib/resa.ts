@@ -152,43 +152,43 @@ export const STATUT_PAIEMENT_OPTIONS: {
   {
     key: "paye_eur",
     label: "Payé - en espèces en €",
-    className: "bg-green-100 text-green-700",
+    className: "bg-emerald-50 text-emerald-700",
     patch: () => ({ solde_paye: true, solde_mode: "Espèces EUR" }),
   },
   {
     key: "paye_egp",
     label: "Payé - en livres égyptiennes",
-    className: "bg-green-100 text-green-700",
+    className: "bg-emerald-50 text-emerald-700",
     patch: () => ({ solde_paye: true, solde_mode: "Espèces EGP" }),
   },
   {
     key: "paye_cb",
     label: "Payé - carte bleue",
-    className: "bg-green-100 text-green-700",
+    className: "bg-emerald-50 text-emerald-700",
     patch: () => ({ solde_paye: true, solde_mode: "Carte bleue" }),
   },
   {
     key: "paye_virement",
     label: "Payé - virement bancaire",
-    className: "bg-green-100 text-green-700",
+    className: "bg-emerald-50 text-emerald-700",
     patch: () => ({ solde_paye: true, solde_mode: "Virement bancaire" }),
   },
   {
     key: "paye_paypal",
     label: "Payé - PayPal ✅",
-    className: "bg-green-100 text-green-700",
+    className: "bg-emerald-50 text-emerald-700",
     patch: () => ({ solde_paye: true, solde_mode: "PayPal" }),
   },
   {
     key: "paye_mixte",
     label: "Payé - modes différents",
-    className: "bg-green-100 text-green-700",
+    className: "bg-emerald-50 text-emerald-700",
     patch: () => ({ solde_paye: true, solde_mode: "Modes différents" }),
   },
   {
     key: "attente",
     label: "En attente",
-    className: "bg-yellow-100 text-yellow-700",
+    className: "bg-amber-50 text-amber-700",
     patch: () => ({
       solde_paye: false,
       solde_mode: "Virement bancaire",
@@ -216,7 +216,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
   {
     key: "attente_paypal",
     label: "En attente - PayPal",
-    className: "bg-yellow-100 text-yellow-700",
+    className: "bg-amber-50 text-amber-700",
     patch: () => ({
       solde_paye: false,
       solde_mode: "PayPal",
@@ -236,7 +236,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
   {
     key: "rdv_planifie",
     label: "RDV paiement planifié",
-    className: "bg-blue-100 text-blue-700",
+    className: "bg-sky-50 text-sky-700",
     patch: () => ({
       solde_paye: false,
       solde_activite_id: null,
@@ -246,7 +246,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
   {
     key: "activite_cb",
     label: "Paiement à l'activité - CB",
-    className: "bg-orange-100 text-orange-700",
+    className: "bg-orange-50 text-orange-700",
     // Même reset que "attente"/"attente_paypal" ci-dessus — sans lui, un
     // client passé par un statut RDV avant restait détecté "RDV paiement"
     // (Suivis, Dashboard) pour toujours, même une fois basculé sur
@@ -270,7 +270,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
   {
     key: "activite_eur",
     label: "Paiement à l'activité - en €",
-    className: "bg-orange-100 text-orange-700",
+    className: "bg-orange-50 text-orange-700",
     patch: (r) => ({
       solde_paye: false,
       solde_mode: "Espèces EUR",
@@ -290,7 +290,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
   {
     key: "activite_egp",
     label: "Paiement à l'activité - en EGP",
-    className: "bg-orange-100 text-orange-700",
+    className: "bg-orange-50 text-orange-700",
     patch: (r) => ({
       solde_paye: false,
       solde_mode: "Espèces EGP",
@@ -310,7 +310,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
   {
     key: "activite_virement",
     label: "Paiement à l'activité - virement bancaire",
-    className: "bg-orange-100 text-orange-700",
+    className: "bg-orange-50 text-orange-700",
     patch: (r) => ({
       solde_paye: false,
       solde_mode: "Virement bancaire",
@@ -325,7 +325,7 @@ export const STATUT_PAIEMENT_OPTIONS: {
   {
     key: "paye_agence",
     label: "Payé - pris en charge par l'agence",
-    className: "bg-green-100 text-green-700",
+    className: "bg-emerald-50 text-emerald-700",
     patch: () => ({ solde_paye: true, solde_mode: "Espèces EUR" }),
   },
 ];
@@ -544,7 +544,7 @@ export function paiementBadge(
   if (resaOptions && resaTarifs) {
     const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
     if (Number(r.avoir_utilise) > 0 && Number(r.avoir_utilise) >= total - 0.01) {
-      return { label: "Payé (avoir)", className: "bg-green-100 text-green-700" };
+      return { label: "Payé (avoir)", className: "bg-emerald-50 text-emerald-700" };
     }
   }
 
@@ -594,14 +594,14 @@ export function badgeAnnulation(
     // reste prudent plutôt que d'affirmer à tort que c'est fait.
     const remb = remboursements.find((rb) => rb.activite_id === r.id);
     if (!remb || remb.statut !== "Effectué") {
-      return { label: "Payée — en attente de remboursement", className: "bg-orange-100 text-orange-700" };
+      return { label: "Payée — en attente de remboursement", className: "bg-orange-50 text-orange-700" };
     }
     return { label: "Payée — remboursée", className: "bg-[#0F5C56]/10 text-[#0F5C56]" };
   }
   if (r.annulation_remb_avoir === "avoir") {
-    return { label: "Payée — avoir créé", className: "bg-orange-100 text-orange-700" };
+    return { label: "Payée — avoir créé", className: "bg-orange-50 text-orange-700" };
   }
-  return { label: "Payée, non remboursée", className: "bg-red-100 text-red-700" };
+  return { label: "Payée, non remboursée", className: "bg-red-50 text-red-700" };
 }
 
 // Un avoir utilisé se rattache toujours à l'activité qui en a bénéficié
@@ -1491,11 +1491,11 @@ export function billetEtapeShortLabel(etape: string) {
 // qui bloque côté billet lui-même, jaune pour ce qui bloque côté paiement.
 export function billetAttenteBadge(etape: string): { label: string; className: string } | null {
   if (etape === "attente_acompte")
-    return { label: "Acompte en attente", className: "bg-yellow-100 text-yellow-700" };
+    return { label: "Acompte en attente", className: "bg-amber-50 text-amber-700" };
   if (etape === "a_envoyer_hossam")
-    return { label: "À envoyer à Hossam", className: "bg-red-100 text-red-700" };
+    return { label: "À envoyer à Hossam", className: "bg-red-50 text-red-700" };
   if (etape === "attente_hossam")
-    return { label: "En attente du billet", className: "bg-red-100 text-red-700" };
+    return { label: "En attente du billet", className: "bg-red-50 text-red-700" };
   return null;
 }
 

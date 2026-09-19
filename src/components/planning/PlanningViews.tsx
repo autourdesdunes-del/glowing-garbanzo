@@ -22,6 +22,7 @@ import {
   monthEndOf,
   monthLabel,
   monthStartOf,
+  pickupMinutes,
   resaActiveOn,
   toStr,
   WEEKDAY_LABELS,
@@ -74,7 +75,17 @@ export function CalendarMonthView({
         if (!client) return;
         rows.push({ client, r });
       });
-      rows.sort((a, b) => (a.r.moment || "").localeCompare(b.r.moment || ""));
+      // Dès qu'un pick-up réel est renseigné, les activités du jour se
+      // trient par heure de pick-up croissante (demande de Mélanie,
+      // 2026-09-19) — celles sans pick-up gardent l'ordre par moment derrière.
+      rows.sort((a, b) => {
+        const pa = pickupMinutes(a.r.pickup_reel);
+        const pb = pickupMinutes(b.r.pickup_reel);
+        if (pa !== null && pb !== null) return pa - pb;
+        if (pa !== null) return -1;
+        if (pb !== null) return 1;
+        return (a.r.moment || "").localeCompare(b.r.moment || "");
+      });
       map.set(day, rows);
     });
     return map;
@@ -189,6 +200,9 @@ export function CalendarMonthView({
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-heading text-base font-semibold capitalize text-[#171717]">
                 {fmtDateLong(selectedDay)}
+                <span className="ml-1.5 font-normal normal-case text-neutral-400">
+                  ({selectedRows.length} activité{selectedRows.length > 1 ? "s" : ""})
+                </span>
               </h3>
               <button
                 type="button"
@@ -214,6 +228,7 @@ export function CalendarMonthView({
                   hotelsRef={hotelsRef}
                   onClick={() => onOpenActivity(row)}
                   onOpenClient={onOpenClient}
+                  size="medium"
                 />
               ))}
 

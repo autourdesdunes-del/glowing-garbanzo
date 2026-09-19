@@ -116,13 +116,13 @@ export function ReservationSummaryCard({
           {r.info_importante.trim() && (
             <span
               title={r.info_importante}
-              className="max-w-[180px] truncate whitespace-nowrap rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700"
+              className="max-w-[180px] truncate whitespace-nowrap rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-700"
             >
               ⚠ {r.info_importante}
             </span>
           )}
           {r.montgolfiere_annulee && (
-            <span className="whitespace-nowrap rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-medium text-orange-700">
+            <span className="whitespace-nowrap rounded-full bg-orange-50 px-1.5 py-0.5 text-[10px] font-medium text-orange-700">
               🎈 Montgolfière annulée
             </span>
           )}
@@ -142,17 +142,17 @@ export function ReservationSummaryCard({
             </span>
           )}
           {reductionBadge(r, client, options, resaTarifs[r.id] || []) && (
-            <span className="whitespace-nowrap rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+            <span className="whitespace-nowrap rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
               {reductionBadge(r, client, options, resaTarifs[r.id] || [])}
             </span>
           )}
           {enCoursBadge(r) && (
-            <span className="whitespace-nowrap rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+            <span className="whitespace-nowrap rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
               {enCoursBadge(r)}
             </span>
           )}
           {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id) && (
-            <span className="whitespace-nowrap rounded-full bg-[#0F5C56] px-1.5 py-0.5 text-[10px] font-medium text-white">
+            <span className="whitespace-nowrap rounded-full bg-[#0F5C56]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#0F5C56]">
               {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id)}
             </span>
           )}
@@ -178,17 +178,17 @@ export function ReservationSummaryCard({
             </span>
           )}
           {chevalChameauBadge(r, client) && (
-            <span className="whitespace-nowrap rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            <span className="whitespace-nowrap rounded-full bg-[#8B4531]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#8B4531]">
               {chevalChameauBadge(r, client)}
             </span>
           )}
           {quadBuggyBadge(r) && (
-            <span className="whitespace-nowrap rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            <span className="whitespace-nowrap rounded-full bg-[#8B4531]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#8B4531]">
               {quadBuggyBadge(r)}
             </span>
           )}
           {taxeTransfertManquante(r, hotelHorsHurghada, hotelVille) && (
-            <span className="whitespace-nowrap rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
+            <span className="whitespace-nowrap rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold text-red-700">
               ⚠ Taxe manquante
             </span>
           )}
@@ -272,12 +272,12 @@ export function ReservationSummaryCard({
             </span>
           )}
           {chevalChameauBadge(r, client) && (
-            <span className="rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            <span className="rounded-full bg-[#8B4531]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#8B4531]">
               {chevalChameauBadge(r, client)}
             </span>
           )}
           {quadBuggyBadge(r) && (
-            <span className="rounded-full bg-[#8B4531] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            <span className="rounded-full bg-[#8B4531]/15 px-1.5 py-0.5 text-[10px] font-semibold text-[#8B4531]">
               {quadBuggyBadge(r)}
             </span>
           )}
@@ -329,13 +329,13 @@ export function ReservationSummaryCard({
         {r.info_importante.trim() && (
           <span
             title={r.info_importante}
-            className="max-w-[220px] truncate rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700"
+            className="max-w-[220px] truncate rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700"
           >
             ⚠ {r.info_importante}
           </span>
         )}
         {r.montgolfiere_annulee && (
-          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+          <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
             🎈 Montgolfière annulée
           </span>
         )}
@@ -355,17 +355,17 @@ export function ReservationSummaryCard({
           </span>
         )}
         {reductionBadge(r, client, options, resaTarifs[r.id] || []) && (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
             {reductionBadge(r, client, options, resaTarifs[r.id] || [])}
           </span>
         )}
         {enCoursBadge(r) && (
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
             {enCoursBadge(r)}
           </span>
         )}
         {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id) && (
-          <span className="rounded-full bg-[#0F5C56] px-2 py-0.5 text-xs font-medium text-white">
+          <span className="rounded-full bg-[#0F5C56]/15 px-2 py-0.5 text-xs font-medium text-[#0F5C56]">
             {optionsBadge(options.filter((o) => !isDeuxiemeIleOption(o.nom)), reservations, r.id)}
           </span>
         )}
@@ -391,17 +391,17 @@ export function ReservationSummaryCard({
           </span>
         )}
         {chevalChameauBadge(r, client) && (
-          <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-[#8B4531]/15 px-2 py-0.5 text-xs font-semibold text-[#8B4531]">
             {chevalChameauBadge(r, client)}
           </span>
         )}
         {quadBuggyBadge(r) && (
-          <span className="rounded-full bg-[#8B4531] px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="rounded-full bg-[#8B4531]/15 px-2 py-0.5 text-xs font-semibold text-[#8B4531]">
             {quadBuggyBadge(r)}
           </span>
         )}
         {taxeTransfertManquante(r, hotelHorsHurghada, hotelVille) && (
-          <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+          <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">
             ⚠ Taxe de transfert manquante
           </span>
         )}

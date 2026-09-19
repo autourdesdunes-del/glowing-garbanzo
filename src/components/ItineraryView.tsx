@@ -49,6 +49,7 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
+import { StatutBadgeSelect } from "@/components/StatutBadgeSelect";
 import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import AnnulerMontgolfiereModal from "@/components/AnnulerMontgolfiereModal";
 import RetirerParticipantsModal from "@/components/RetirerParticipantsModal";
@@ -200,6 +201,7 @@ export default function ItineraryView({
   const [montgolfiereActiviteId, setMontgolfiereActiviteId] = useState<string | null>(null);
   const [retirerParticipantsActiviteId, setRetirerParticipantsActiviteId] = useState<string | null>(null);
   const [egyptOpen, setEgyptOpen] = useState(false);
+  const [egyptEditing, setEgyptEditing] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   // Le texte pré-rempli reste modifiable avant l'envoi (demande de Mélanie,
   // 2026-09-17), et la modification est conservée dans
@@ -428,21 +430,13 @@ export default function ItineraryView({
                 {badge.label}
               </span>
             ) : (
-              <select
-                value={r.paiement_statut || "attente"}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  onUpdateReservation(r.id, { paiement_statut: e.target.value });
-                }}
-                className={`rounded-full border-0 px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
-              >
-                {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+              <div onClick={(e) => e.stopPropagation()}>
+                <StatutBadgeSelect
+                  value={r.paiement_statut || "attente"}
+                  options={STATUT_PAIEMENT_OPTIONS}
+                  onChange={(v) => onUpdateReservation(r.id, { paiement_statut: v })}
+                />
+              </div>
             ))}
         </div>
       </div>
@@ -803,19 +797,13 @@ export default function ItineraryView({
                     // sur une autre activité (incident Carine LELOIR du 14/09,
                     // rétabli en menu par activité sur demande de Mélanie du
                     // 16/09, mais réellement indépendant cette fois).
-                    <select
+                    <StatutBadgeSelect
                       value={expandedReservation.paiement_statut || "attente"}
-                      onChange={(e) =>
-                        onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
+                      options={STATUT_PAIEMENT_OPTIONS}
+                      onChange={(v) =>
+                        onUpdateReservation(expandedReservation.id, { paiement_statut: v })
                       }
-                      className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${expBadge.className}`}
-                    >
-                      {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                        <option key={o.key} value={o.key}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   )}
                 </DetailRow>
               )}
@@ -874,20 +862,32 @@ export default function ItineraryView({
               <div className="mt-1 rounded-md border border-[#666666]/20 bg-white p-3">
                 {/* Hauteur plafonnée avec défilement interne — sinon la
                     boîte grossit indéfiniment avec le nombre de lignes
-                    (mobile ET desktop, Mélanie 2026-09-19). */}
-                <textarea
-                  value={egyptBlockAffiche}
-                  onChange={(e) => {
-                    setEgyptBlockEdite(e.target.value);
-                    onUpdateReservation(expandedReservation.id, { egypt_block_note: e.target.value });
-                  }}
-                  rows={8}
-                  // Pas de font-amounts (Geist Mono) ici : à taille de
-                  // police identique, une police monospace a un rendu
-                  // visuellement plus gros — pour un texte "même taille que
-                  // le reste" (Mélanie, 2026-09-19), il faut la même police.
-                  className="max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-sm"
-                />
+                    (mobile ET desktop, Mélanie 2026-09-19). Affiché en texte
+                    simple par défaut (pas un <textarea>) : sur Safari, le
+                    texte d'un <textarea> ignore parfois la taille de police
+                    CSS demandée — confirmé par capture d'écran réelle sur
+                    iPhone. Le <textarea> ne sert plus qu'en mode édition. */}
+                {egyptEditing ? (
+                  <textarea
+                    autoFocus
+                    value={egyptBlockAffiche}
+                    onChange={(e) => {
+                      setEgyptBlockEdite(e.target.value);
+                      onUpdateReservation(expandedReservation.id, { egypt_block_note: e.target.value });
+                    }}
+                    onBlur={() => setEgyptEditing(false)}
+                    rows={8}
+                    className="max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-sm"
+                  />
+                ) : (
+                  <div
+                    onClick={() => setEgyptEditing(true)}
+                    title="Cliquer pour modifier"
+                    className="max-h-40 w-full cursor-text overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-sm"
+                  >
+                    {egyptBlockAffiche}
+                  </div>
+                )}
                 <div className="mt-2 flex items-center gap-2">
                   <button
                     type="button"

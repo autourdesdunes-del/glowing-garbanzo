@@ -42,6 +42,7 @@ import { fmtAnnulationSuffix } from "@/lib/dates";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { euros, fmtDate } from "@/lib/planningViewFormat";
 import { DetailRow } from "@/components/planning/PlanningCards";
+import { StatutBadgeSelect } from "@/components/StatutBadgeSelect";
 
 // Modale de détail d'une activité (Réservations) — extraite de
 // PlanningView.tsx pour l'alléger, sans changement de comportement.
@@ -76,6 +77,12 @@ export function ActivityDetailModal({
 }) {
   const supabase = createClient();
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
+  // Affiché par défaut en texte simple (pas un <textarea>) : sur Safari, le
+  // texte d'un <textarea> ignore parfois la taille de police CSS demandée
+  // et s'affiche bien plus gros que le reste — confirmé par capture d'écran
+  // réelle sur iPhone (Mélanie, 2026-09-19). Le <textarea> ne sert plus
+  // qu'en mode édition, ouvert à la demande.
+  const [egyptEditing, setEgyptEditing] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
   const [editingPickup, setEditingPickup] = useState(false);
   const [pickupDraft, setPickupDraft] = useState(r.pickup_reel);
@@ -484,17 +491,11 @@ export function ActivityDetailModal({
               // par activité sur demande de Mélanie du 16/09, mais réellement
               // indépendant cette fois).
               return (
-                <select
+                <StatutBadgeSelect
                   value={r.paiement_statut || "attente"}
-                  onChange={(e) => onUpdateReservation(r.id, { paiement_statut: e.target.value })}
-                  className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${badge.className}`}
-                >
-                  {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                    <option key={o.key} value={o.key}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                  options={STATUT_PAIEMENT_OPTIONS}
+                  onChange={(v) => onUpdateReservation(r.id, { paiement_statut: v })}
+                />
               );
             })()}
           </DetailRow>
@@ -679,22 +680,28 @@ export function ActivityDetailModal({
           </p>
           {/* Hauteur plafonnée avec défilement interne — sans ça, le nombre
               de lignes (hôtel/pick-up/quad-buggy/vol...) fait grossir la
-              boîte indéfiniment, parfois plus grande que le reste de la
-              fiche (mobile ET desktop, Mélanie 2026-09-19). */}
-          <textarea
-            value={egyptBlockAffiche}
-            onChange={(e) => {
-              setEgyptBlockEdite(e.target.value);
-              onUpdateReservation(r.id, { egypt_block_note: e.target.value });
-            }}
-            rows={8}
-            // Pas de font-amounts (Geist Mono) ici : à taille de police
-            // identique, une police monospace a un rendu visuellement plus
-            // gros qu'une police classique — pour un texte "même taille que
-            // le reste de la fiche" comme demandé, il faut la même police,
-            // pas seulement la même valeur en px (Mélanie, 2026-09-19).
-            className="mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-sm"
-          />
+              boîte indéfiniment (Mélanie, 2026-09-19). */}
+          {egyptEditing ? (
+            <textarea
+              autoFocus
+              value={egyptBlockAffiche}
+              onChange={(e) => {
+                setEgyptBlockEdite(e.target.value);
+                onUpdateReservation(r.id, { egypt_block_note: e.target.value });
+              }}
+              onBlur={() => setEgyptEditing(false)}
+              rows={8}
+              className="mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-sm"
+            />
+          ) : (
+            <div
+              onClick={() => setEgyptEditing(true)}
+              title="Cliquer pour modifier"
+              className="mt-2 max-h-40 w-full cursor-text overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-sm"
+            >
+              {egyptBlockAffiche}
+            </div>
+          )}
           <div className="mt-2 flex items-center gap-2">
             <button
               onClick={copyEgyptBlock}

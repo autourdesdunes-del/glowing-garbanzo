@@ -683,7 +683,7 @@ export function ActivityDetailModal({
               onUpdateReservation(r.id, { egypt_block_note: e.target.value });
             }}
             rows={8}
-            className="font-amounts mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-[11px] leading-snug"
+            className="font-amounts mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-sm"
           />
           <div className="mt-2 flex items-center gap-2">
             <button

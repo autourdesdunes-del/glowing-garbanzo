@@ -869,7 +869,7 @@ export default function ItineraryView({
                     onUpdateReservation(expandedReservation.id, { egypt_block_note: e.target.value });
                   }}
                   rows={8}
-                  className="font-amounts max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-[11px] leading-snug"
+                  className="font-amounts max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-sm"
                 />
                 <div className="mt-2 flex items-center gap-2">
                   <button

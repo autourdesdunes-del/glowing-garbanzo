@@ -955,17 +955,19 @@ export function PaypalHistorique({
   onOpenClient: (id: string) => void;
 }) {
   const [selected, setSelected] = useState<PaypalPaiement | null>(null);
+  // Sur mobile, ce panneau prenait la moitié de la largeur en permanence
+  // rien que pour un historique consulté rarement — replié dans une icône
+  // horloge qui ouvre le même contenu en pop-up, pour laisser la liste
+  // principale ("à rattacher") toute la largeur par défaut (demande de
+  // Mélanie, 2026-09-19).
+  const [mobileOpen, setMobileOpen] = useState(false);
   const cinqJours = Date.now() - 5 * 86400000;
   const recents = paypalPaiements
     .filter((p) => Date.parse(p.paypal_recu_le) >= cinqJours)
     .sort((a, b) => b.paypal_recu_le.localeCompare(a.paypal_recu_le));
 
-  return (
-    <div className="w-56 flex-shrink-0 rounded-md border border-neutral-200 bg-[#fafafa] p-2.5">
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-neutral-500">
-        <span>🕐</span>
-        <span>Historique (5 j)</span>
-      </div>
+  const content = (
+    <>
       {recents.length === 0 ? (
         <p className="text-[11px] text-neutral-400">Rien sur les 5 derniers jours.</p>
       ) : (
@@ -997,6 +999,57 @@ export function PaypalHistorique({
           })}
         </div>
       )}
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop/tablette : panneau toujours visible, inchangé. */}
+      <div className="hidden w-56 flex-shrink-0 rounded-md border border-neutral-200 bg-[#fafafa] p-2.5 md:block">
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-neutral-500">
+          <span>🕐</span>
+          <span>Historique (5 j)</span>
+        </div>
+        {content}
+      </div>
+
+      {/* Mobile : juste l'icône, l'historique s'ouvre en pop-up au tap. */}
+      <button
+        type="button"
+        onClick={() => setMobileOpen(true)}
+        title="Historique PayPal (5 derniers jours)"
+        aria-label="Historique PayPal"
+        className="flex shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-[#fafafa] p-2 text-base md:hidden"
+      >
+        🕐
+      </button>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        >
+          <div
+            className="max-h-[70vh] w-full max-w-lg overflow-y-auto rounded-t-lg border border-neutral-200 bg-white p-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-[#171717]">
+                <span>🕐</span>
+                <span>Historique (5 j)</span>
+              </div>
+              <button
+                onClick={() => setMobileOpen(false)}
+                aria-label="Fermer"
+                className="text-neutral-400 hover:text-[#171717]"
+              >
+                ✕
+              </button>
+            </div>
+            {content}
+          </div>
+        </div>
+      )}
+
       {selected && (
         <PaypalHistoriqueDetailModal
           paiement={selected}
@@ -1009,6 +1062,6 @@ export function PaypalHistorique({
           onClose={() => setSelected(null)}
         />
       )}
-    </div>
+    </>
   );
 }

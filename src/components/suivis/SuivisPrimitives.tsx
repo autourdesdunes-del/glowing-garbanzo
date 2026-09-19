@@ -69,11 +69,11 @@ export function AvisStatutSelector({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value as Client["avis_statut"])}
-      // appearance-none + leading-none : sans ça, le <select> natif garde la
-      // hauteur/police par défaut du système sur mobile — bien plus gros
-      // que les autres badges (même correctif que le statut de paiement,
-      // demande de Mélanie 2026-09-19).
-      className={`box-border ml-auto h-6 max-w-[55%] shrink-0 cursor-pointer appearance-none truncate rounded-full border px-3 py-0 text-xs font-medium leading-6 outline-none ${AVIS_STATUT_STYLES[value]}`}
+      // Même gabarit que le bouton "Copier" juste à côté (px-2/text-[11px]/
+      // h-5) — appearance-none seul ne suffit pas sur mobile, le <select>
+      // natif garde une hauteur minimale imposée par le système malgré le
+      // padding réduit (demande de Mélanie, 2026-09-19).
+      className={`box-border ml-auto h-5 max-w-[55%] shrink-0 cursor-pointer appearance-none truncate rounded-full border px-2 py-0 text-[11px] font-medium leading-5 outline-none ${AVIS_STATUT_STYLES[value]}`}
     >
       <option value="À demander">À demander</option>
       <option value="À ne pas demander">À ne pas demander</option>

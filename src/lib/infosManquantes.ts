@@ -59,13 +59,23 @@ export function infosManquantesAuto(
     // renseigné par étape (client_hotels.chambre) n'était jamais regardé,
     // signalant "Room number" manquant en permanence dès qu'un circuit
     // était en place, même une fois tout renseigné.
+    //
+    // Même règle que le cas simple ci-dessous (J-1 de la première activité,
+    // pas de l'arrivée à l'hôtel) : une étape n'est signalée que si c'est
+    // là que le client se trouve au moment de sa première activité — sinon
+    // un circuit dont la première activité est dans plusieurs jours
+    // signalait "Room number" dès l'arrivée à la première étape, en avance
+    // (vécu sur Laure BLOT AYRIER — Mélanie, 2026-09-19).
     const seuil = addDays(todayStr(), 1);
     const etapeSansChambre = clientHotels.some(
       (h) =>
         !VILLES_CHAMBRE_NON_REQUISE.some((v) => v.trim().toLowerCase() === h.ville.trim().toLowerCase()) &&
         !h.chambre.trim() &&
+        premiereActiviteDate &&
+        premiereActiviteDate <= seuil &&
         h.date_arrivee &&
-        h.date_arrivee <= seuil
+        premiereActiviteDate >= h.date_arrivee &&
+        (!h.date_depart || premiereActiviteDate < h.date_depart)
     );
     if (etapeSansChambre) result.push(INFO_MANQUANTE_AUTO_CHAMBRE);
   } else {

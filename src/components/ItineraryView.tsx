@@ -49,7 +49,6 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
-import { StatutBadgeSelect } from "@/components/StatutBadgeSelect";
 import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import AnnulerMontgolfiereModal from "@/components/AnnulerMontgolfiereModal";
 import RetirerParticipantsModal from "@/components/RetirerParticipantsModal";
@@ -429,13 +428,21 @@ export default function ItineraryView({
                 {badge.label}
               </span>
             ) : (
-              <div onClick={(e) => e.stopPropagation()}>
-                <StatutBadgeSelect
-                  value={r.paiement_statut || "attente"}
-                  options={STATUT_PAIEMENT_OPTIONS}
-                  onChange={(v) => onUpdateReservation(r.id, { paiement_statut: v })}
-                />
-              </div>
+              <select
+                value={r.paiement_statut || "attente"}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onUpdateReservation(r.id, { paiement_statut: e.target.value });
+                }}
+                className={`rounded-full border-0 px-2 py-0.5 text-[11px] font-medium ${badge.className}`}
+              >
+                {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                  <option key={o.key} value={o.key}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             ))}
         </div>
       </div>
@@ -796,13 +803,19 @@ export default function ItineraryView({
                     // sur une autre activité (incident Carine LELOIR du 14/09,
                     // rétabli en menu par activité sur demande de Mélanie du
                     // 16/09, mais réellement indépendant cette fois).
-                    <StatutBadgeSelect
+                    <select
                       value={expandedReservation.paiement_statut || "attente"}
-                      options={STATUT_PAIEMENT_OPTIONS}
-                      onChange={(v) =>
-                        onUpdateReservation(expandedReservation.id, { paiement_statut: v })
+                      onChange={(e) =>
+                        onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
                       }
-                    />
+                      className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${expBadge.className}`}
+                    >
+                      {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                        <option key={o.key} value={o.key}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
                   )}
                 </DetailRow>
               )}

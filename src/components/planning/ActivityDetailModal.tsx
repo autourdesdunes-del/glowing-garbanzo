@@ -42,7 +42,6 @@ import { fmtAnnulationSuffix } from "@/lib/dates";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { euros, fmtDate } from "@/lib/planningViewFormat";
 import { DetailRow } from "@/components/planning/PlanningCards";
-import { StatutBadgeSelect } from "@/components/StatutBadgeSelect";
 
 // Modale de détail d'une activité (Réservations) — extraite de
 // PlanningView.tsx pour l'alléger, sans changement de comportement.
@@ -485,11 +484,17 @@ export function ActivityDetailModal({
               // par activité sur demande de Mélanie du 16/09, mais réellement
               // indépendant cette fois).
               return (
-                <StatutBadgeSelect
+                <select
                   value={r.paiement_statut || "attente"}
-                  options={STATUT_PAIEMENT_OPTIONS}
-                  onChange={(v) => onUpdateReservation(r.id, { paiement_statut: v })}
-                />
+                  onChange={(e) => onUpdateReservation(r.id, { paiement_statut: e.target.value })}
+                  className={`rounded-full border-0 px-2 py-0.5 text-xs font-medium ${badge.className}`}
+                >
+                  {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                    <option key={o.key} value={o.key}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
               );
             })()}
           </DetailRow>

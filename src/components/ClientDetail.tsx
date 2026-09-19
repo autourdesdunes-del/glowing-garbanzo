@@ -806,17 +806,23 @@ export default function ClientDetail({
     // en cas d'incident réseau/Auth (vécu le 2026-09-14 sur plusieurs
     // activités — Safari quad, Quad Sunset, plongée, speedboat — alors que
     // le timeout ajouté plus bas sur l'insert lui-même n'y changeait rien,
-    // puisque le blocage avait lieu avant de l'atteindre). getSession() +
-    // un timeout de 4s en repli : si ça traîne, on continue sans "créé
-    // par", jamais en bloquant la création de l'activité pour ça.
+    // puisque le blocage avait lieu avant de l'atteindre).
     const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T | null> =>
       Promise.race([p, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
-    let userId: string | null = null;
-    let creeParNom = "";
-    try {
-      const sessionResult = await withTimeout(supabase.auth.getSession(), 4000);
-      userId = sessionResult?.data?.session?.user?.id || null;
-      if (userId) {
+    // Le fix du 2026-09-14 ajoutait des timeouts, mais gardait ces deux
+    // requêtes AVANT l'insert lui-même — même sans jamais atteindre leur
+    // timeout, 2 aller-retours réseau de plus avant même de commencer à
+    // créer l'activité rendaient chaque sélection d'activité perceptiblement
+    // lente (remonté le 2026-09-19 : "très long dès qu'on sélectionne une
+    // activité"). cree_par_id/nom n'est qu'une info d'audit affichée nulle
+    // part de bloquant pour l'activité elle-même — on la remplit maintenant
+    // en arrière-plan, une fois l'activité déjà créée et visible à l'écran,
+    // au lieu de faire attendre l'employée pour elle.
+    const remplirCreePar = async (reservationId: string) => {
+      try {
+        const sessionResult = await withTimeout(supabase.auth.getSession(), 4000);
+        const userId = sessionResult?.data?.session?.user?.id || null;
+        if (!userId) return;
         const profController = new AbortController();
         const profTimeoutId = setTimeout(() => profController.abort(), 4000);
         const profResult = await supabase
@@ -826,11 +832,15 @@ export default function ClientDetail({
           .abortSignal(profController.signal)
           .single();
         clearTimeout(profTimeoutId);
-        creeParNom = profResult.data?.prenom || (profResult.data?.email || "").split("@")[0] || "";
+        const creeParNom = profResult.data?.prenom || (profResult.data?.email || "").split("@")[0] || "";
+        await supabase
+          .from("reservations")
+          .update({ cree_par_id: userId, cree_par_nom: creeParNom })
+          .eq("id", reservationId);
+      } catch {
+        // Best-effort — voir commentaire ci-dessus.
       }
-    } catch {
-      // Best-effort — voir commentaire ci-dessus.
-    }
+    };
     // Sans limite de temps, une requête bloquée par un incident réseau
     // (vécu plusieurs fois avec Supabase le 2026-09-14 : CORS/503
     // intermittents) laissait le bouton "grisé" indéfiniment — l'employée,
@@ -849,8 +859,6 @@ export default function ClientDetail({
       .insert({
         client_id: client.id,
         transfert_inclus: !hotelHorsHurghada,
-        cree_par_id: userId,
-        cree_par_nom: creeParNom,
         // Une activité ajoutée à un client déjà "Client confirmé" est
         // confirmée d'office — sinon elle reste en Brouillon pour toujours
         // tant que personne ne pense à aller cliquer "Valider" sur la carte
@@ -865,6 +873,7 @@ export default function ClientDetail({
     if (!error && data) {
       const newReservation = data as Reservation;
       setReservations((prev) => [...prev, newReservation]);
+      remplirCreePar(newReservation.id);
       // Un solde déjà marqué payé ne doit pas absorber par magie une
       // nouvelle activité ajoutée après coup (règle du solde unique) : on
       // fige ici, une seule fois, le total du séjour d'AVANT cet ajout —

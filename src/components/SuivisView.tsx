@@ -206,7 +206,7 @@ export default function SuivisView({
   };
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
-    const val = window.prompt("Pick-up réel (heure / lieu) :", "");
+    const val = window.prompt("Pick-up réel (heure égyptienne / lieu) :", "");
     if (val && val.trim()) onUpdateReservation(r.id, { pickup_reel: val.trim() });
   };
   const soldeRestantFor = (c: Client) => {
@@ -549,7 +549,7 @@ export default function SuivisView({
                       <div className="mt-2 flex flex-col gap-2">
                         <input
                           type="text"
-                          placeholder="Pick-up réel (heure / lieu)"
+                          placeholder="Pick-up réel (heure égyptienne / lieu)"
                           value={pickupDrafts[r.id] ?? ""}
                           onChange={(e) => setPickupDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
                           className="input text-xs"

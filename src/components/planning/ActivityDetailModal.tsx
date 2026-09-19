@@ -388,7 +388,7 @@ export function ActivityDetailModal({
             {fmtDate(r.date_debut || "")}
             {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}
           </DetailRow>
-          <DetailRow label="Pick-up">
+          <DetailRow label="Pick-up (heure Égypte)">
             {editingPickup ? (
               <div className="flex flex-col items-end gap-1.5">
                 <div className="flex items-center gap-1.5">
@@ -397,7 +397,7 @@ export function ActivityDetailModal({
                     autoFocus
                     value={pickupDraft}
                     onChange={(e) => setPickupDraft(e.target.value)}
-                    placeholder="Heure / lieu"
+                    placeholder="Heure Égypte / lieu"
                     className="input w-36 text-xs"
                   />
                   <button
@@ -677,14 +677,18 @@ export function ActivityDetailModal({
           <p dir="rtl" className="mt-1 text-xs text-neutral-500">
             يرجى التحقق من صحة جميع الحقول قبل الإرسال
           </p>
+          {/* Hauteur plafonnée avec défilement interne — sans ça, le nombre
+              de lignes (hôtel/pick-up/quad-buggy/vol...) fait grossir la
+              boîte indéfiniment, parfois plus grande que le reste de la
+              fiche (mobile ET desktop, Mélanie 2026-09-19). */}
           <textarea
             value={egyptBlockAffiche}
             onChange={(e) => {
               setEgyptBlockEdite(e.target.value);
               onUpdateReservation(r.id, { egypt_block_note: e.target.value });
             }}
-            rows={egyptBlockAffiche.split("\n").length + 1}
-            className="font-amounts mt-2 w-full whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs"
+            rows={8}
+            className="font-amounts mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs"
           />
           <div className="mt-2 flex items-center gap-2">
             <button

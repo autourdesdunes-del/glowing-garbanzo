@@ -69,8 +69,13 @@ function fmtDateShort(dateStr: string) {
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-neutral-100 py-2 text-sm last:border-b-0">
-      <span className="text-neutral-500">{label}</span>
-      <span className="text-right font-medium text-[#171717]">{children}</span>
+      <span className="shrink-0 text-neutral-500">{label}</span>
+      {/* flex min-w-0 : sans ça, un <select> enfant (ex. statut de paiement)
+          ne respecte pas son max-width et fait déborder toute la fiche à
+          l'horizontale sur mobile (constaté en vue téléphone). */}
+      <span className="flex min-w-0 flex-1 justify-end text-right font-medium text-[#171717]">
+        {children}
+      </span>
     </div>
   );
 }
@@ -181,7 +186,7 @@ export default function ItineraryView({
 
   const askPickup = (r: Reservation) => {
     if (!window.confirm("Pick up manquant, voulez-vous ajouter un pick up ?")) return;
-    const val = window.prompt("Pick-up réel (heure / lieu) :", "");
+    const val = window.prompt("Pick-up réel (heure égyptienne / lieu) :", "");
     if (val && val.trim()) onSetPickup(r.id, val.trim());
   };
 
@@ -807,7 +812,7 @@ export default function ItineraryView({
                       onChange={(e) =>
                         onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
                       }
-                      className={`max-w-[60%] shrink-0 appearance-none truncate rounded-full border-0 px-2 py-0.5 text-xs font-medium leading-none ${expBadge.className}`}
+                      className={`w-full min-w-0 appearance-none truncate rounded-full border-0 px-2 py-0.5 text-xs font-medium leading-none ${expBadge.className}`}
                     >
                       {STATUT_PAIEMENT_OPTIONS.map((o) => (
                         <option key={o.key} value={o.key}>
@@ -871,14 +876,17 @@ export default function ItineraryView({
             </button>
             {egyptOpen && (
               <div className="mt-1 rounded-md border border-[#666666]/20 bg-white p-3">
+                {/* Hauteur plafonnée avec défilement interne — sinon la
+                    boîte grossit indéfiniment avec le nombre de lignes
+                    (mobile ET desktop, Mélanie 2026-09-19). */}
                 <textarea
                   value={egyptBlockAffiche}
                   onChange={(e) => {
                     setEgyptBlockEdite(e.target.value);
                     onUpdateReservation(expandedReservation.id, { egypt_block_note: e.target.value });
                   }}
-                  rows={egyptBlockAffiche.split("\n").length + 1}
-                  className="font-amounts w-full whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-xs"
+                  rows={8}
+                  className="font-amounts max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-xs"
                 />
                 <div className="mt-2 flex items-center gap-2">
                   <button

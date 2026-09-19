@@ -197,6 +197,11 @@ export function ReservationSummaryCard({
               Avoir {euros(r.avoir_utilise)} €
             </span>
           )}
+          {paiementWarning && (
+            <span className="whitespace-nowrap text-[10px] font-medium text-red-600">
+              ⚠️ {paiementWarningLabel(paiementWarning, euros)} to pay
+            </span>
+          )}
         </div>
         {r.pickup_reel && (
           <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-[#0F5C56]">
@@ -228,12 +233,8 @@ export function ReservationSummaryCard({
             {euros(total)} €
           </span>
         </div>
-        {(paiementWarning || (!infoComplet && infoStatut)) && (
-          <p className="mt-1.5 text-xs font-medium leading-tight text-red-600">
-            {paiementWarning
-              ? `⚠️ ${paiementWarningLabel(paiementWarning, euros)} to pay`
-              : `⚠️ ${infoStatut}`}
-          </p>
+        {!infoComplet && infoStatut && (
+          <p className="mt-1.5 text-xs font-medium leading-tight text-red-600">⚠️ {infoStatut}</p>
         )}
       </div>
     );
@@ -281,6 +282,11 @@ export function ReservationSummaryCard({
               {quadBuggyBadge(r)}
             </span>
           )}
+          {paiementWarning && (
+            <span className="whitespace-nowrap text-[10px] font-medium text-red-600">
+              ⚠️ {paiementWarningLabel(paiementWarning, euros)}
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -305,12 +311,8 @@ export function ReservationSummaryCard({
             {euros(total)} €
           </span>
         </div>
-        {(paiementWarning || (!infoComplet && infoStatut)) && (
-          <p className="mt-1 text-[10px] font-medium text-red-600">
-            {paiementWarning
-              ? `⚠️ ${paiementWarningLabel(paiementWarning, euros)}`
-              : `⚠️ ${infoStatut}`}
-          </p>
+        {!infoComplet && infoStatut && (
+          <p className="mt-1 text-[10px] font-medium text-red-600">⚠️ {infoStatut}</p>
         )}
       </div>
     );

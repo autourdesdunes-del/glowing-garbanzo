@@ -332,6 +332,10 @@ export default function SuivisView({
   // Dossiers où le dernier mot revient au client (pas de réponse équipe
   // depuis) depuis plus de 48h — croise kommo_last_client_message_at et
   // kommo_last_team_reply_at (voir kommoExtraction.ts / route.ts message).
+  // attente_ack_at permet un "acquittement" manuel (nettoyage du tableau,
+  // demande de Mélanie 2026-09-19) sans toucher kommo_last_team_reply_at —
+  // ce dernier sert aussi à afficher "dernier contact" ailleurs (fiche
+  // prospect), on ne veut pas laisser croire que l'équipe a répondu.
   const attente48hRows = clients
     .filter((c) => c.kommo_last_client_message_at)
     .filter(
@@ -339,10 +343,13 @@ export default function SuivisView({
         !c.kommo_last_team_reply_at ||
         (c.kommo_last_client_message_at as string) > c.kommo_last_team_reply_at
     )
-    .map((c) => ({
-      c,
-      heures: (now.getTime() - Date.parse(c.kommo_last_client_message_at as string)) / 3600000,
-    }))
+    .map((c) => {
+      const reference =
+        c.attente_ack_at && c.attente_ack_at > (c.kommo_last_client_message_at as string)
+          ? c.attente_ack_at
+          : (c.kommo_last_client_message_at as string);
+      return { c, heures: (now.getTime() - Date.parse(reference)) / 3600000 };
+    })
     .filter((x) => x.heures >= 48)
     .sort((a, b) => b.heures - a.heures);
 

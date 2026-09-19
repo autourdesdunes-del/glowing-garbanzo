@@ -629,6 +629,7 @@ export type Client = {
   kommo_last_client_message_at: string | null;
   kommo_last_team_reply_at: string | null;
   kommo_last_team_reply_par: string;
+  attente_ack_at: string | null;
   kommo_premier_echange_le: string | null;
   kommo_synced_at: string | null;
   kommo_resume: string;
@@ -762,6 +763,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   kommo_last_client_message_at: null,
   kommo_last_team_reply_at: null,
   kommo_last_team_reply_par: "",
+  attente_ack_at: null,
   kommo_premier_echange_le: null,
   kommo_synced_at: null,
   kommo_resume: "",

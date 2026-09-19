@@ -610,6 +610,7 @@ export type Client = {
   avis_envoye_par_id: string | null;
   avis_envoye_par_nom: string;
   avis_statut: "À demander" | "À ne pas demander" | "Déjà publié";
+  avis_ne_pas_demander_le: string | null;
   tags: string[];
   prochain_appel_date: string | null;
   prochain_appel_heure: string;
@@ -746,6 +747,7 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   avis_envoye_par_id: null,
   avis_envoye_par_nom: "",
   avis_statut: "À demander",
+  avis_ne_pas_demander_le: null,
   tags: [],
   prochain_appel_date: null,
   prochain_appel_heure: "",

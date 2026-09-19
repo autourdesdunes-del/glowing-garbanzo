@@ -149,6 +149,13 @@ export default function SuivisView({
   const supabase = createClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [openRembModalId, setOpenRembModalId] = useState<string | null>(null);
+  // Repliées par défaut (demande de Mélanie, 2026-09-19) — ce sont les 3
+  // catégories "pas urgentes maintenant" de Suivis > Avis clients (déjà
+  // traité récemment ou pas encore d'actualité), contrairement à "à envoyer"
+  // qui doit rester visible d'emblée.
+  const [avisEnvoyesOuvert, setAvisEnvoyesOuvert] = useState(false);
+  const [avisNePasDemanderOuvert, setAvisNePasDemanderOuvert] = useState(false);
+  const [avisUpcomingOuvert, setAvisUpcomingOuvert] = useState(false);
   const [marquerRembourseIds, setMarquerRembourseIds] = useState<string[] | null>(null);
   // Retire une carte de la liste dès validation, sans attendre le prochain
   // rafraîchissement automatique (25s, voir AppShell.tsx) — la vraie source
@@ -317,6 +324,20 @@ export default function SuivisView({
     .filter((c) => c.avis_envoye && c.avis_envoye_le)
     .filter((c) => daysBetween(todayStr, c.avis_envoye_le as string) <= 3)
     .sort((a, b) => (b.avis_envoye_le as string).localeCompare(a.avis_envoye_le as string));
+
+  // Horodate le passage à "À ne pas demander" (et l'efface si on revient sur
+  // un autre statut) pour alimenter la catégorie "récemment" ci-dessous —
+  // sans ça impossible de distinguer un "À ne pas demander" d'hier de celui
+  // de trois mois.
+  const avisStatutPatch = (v: Client["avis_statut"]) => ({
+    avis_statut: v,
+    avis_ne_pas_demander_le: v === "À ne pas demander" ? todayStr : null,
+  });
+
+  const avisNePasDemanderRecemment = clients
+    .filter((c) => c.avis_statut === "À ne pas demander" && c.avis_ne_pas_demander_le)
+    .filter((c) => daysBetween(todayStr, c.avis_ne_pas_demander_le as string) <= 3)
+    .sort((a, b) => (b.avis_ne_pas_demander_le as string).localeCompare(a.avis_ne_pas_demander_le as string));
 
   const avisUpcomingRows = clients
     .filter((c) => c.statut !== "Client annulé" && c.date_fin && !c.avis_envoye)
@@ -1068,22 +1089,22 @@ export default function SuivisView({
       )}
 
       {sub === "avis" && (
-        <div className="space-y-8">
+        <div className="space-y-6">
           <div>
-            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">
+            <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
               Demandes d&apos;avis à envoyer (J+7)
             </h3>
             {avisRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à envoyer pour l&apos;instant.</div>
             )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
               {avisRows.map(({ c, dateCible }) => {
                 const lateDays = daysBetween(todayStr, dateCible);
                 const enRetard = lateDays > 2;
                 return (
                   <div
                     key={c.id}
-                    className={`overflow-hidden rounded-lg border bg-white p-3 shadow-sm ${
+                    className={`overflow-hidden rounded-md border bg-white p-2 text-xs shadow-sm ${
                       enRetard
                         ? "border-red-300"
                         : dateCible === todayStr
@@ -1091,32 +1112,31 @@ export default function SuivisView({
                         : "border-neutral-200"
                     }`}
                   >
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-medium text-neutral-500">
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[11px] font-medium text-neutral-500">
                         {fmtDate(dateCible)}
-                        {dateCible === todayStr ? " — aujourd'hui" : ""}
+                        {dateCible === todayStr ? " — auj." : ""}
                       </span>
                       <ClientNameLink
                         nom={c.nom}
                         onClick={() => onOpenClient(c.id)}
-                        className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                        className="font-heading text-xs font-semibold text-[#171717] hover:underline"
                       />
                       <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                     </div>
                     {enRetard && (
-                      <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
-                        ⚠️ En retard — cette demande aurait dû être envoyée il y a {lateDays} jour
-                        {lateDays > 1 ? "s" : ""}
+                      <div className="mt-1 text-[11px] font-semibold text-red-600">
+                        ⚠️ En retard de {lateDays} j.
                       </div>
                     )}
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       <button
                         onClick={() => copyText("avis-" + c.id, avisMessage(c.nom))}
-                        className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                        className="rounded-full bg-[#171717] px-2 py-0.5 text-[11px] font-medium text-white hover:opacity-90"
                       >
-                        {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier le message"}
+                        {copiedKey === "avis-" + c.id ? "Copié ✓" : "Copier"}
                       </button>
-                      <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+                      <label className="flex items-center gap-1 text-[11px] text-neutral-600">
                         <input
                           type="checkbox"
                           checked={c.avis_envoye}
@@ -1131,7 +1151,7 @@ export default function SuivisView({
                       </label>
                       <AvisStatutSelector
                         value={c.avis_statut}
-                        onChange={(v) => onUpdateClient(c.id, { avis_statut: v })}
+                        onChange={(v) => onUpdateClient(c.id, avisStatutPatch(v))}
                       />
                     </div>
                   </div>
@@ -1141,85 +1161,161 @@ export default function SuivisView({
           </div>
 
           <div>
-            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">
-              Envoyés récemment (3 derniers jours)
-            </h3>
-            {avisEnvoyesRecemment.length === 0 && (
-              <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
-            )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {avisEnvoyesRecemment.map((c) => (
-                <div
-                  key={c.id}
-                  className="overflow-hidden rounded-lg border border-green-200 bg-white p-3 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-medium text-neutral-500">
-                      Envoyé le {fmtDate(c.avis_envoye_le)}
-                    </span>
-                    <ClientNameLink
-                      nom={c.nom}
-                      onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-                    />
-                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
-                    <span className="ml-auto rounded-full bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700">
-                      Envoyé ✓
-                    </span>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <label className="flex items-center gap-1.5 text-xs text-neutral-600">
-                      <input
-                        type="checkbox"
-                        checked={c.avis_envoye}
-                        onChange={(e) =>
-                          onUpdateClient(c.id, {
-                            avis_envoye: e.target.checked,
-                            avis_envoye_le: e.target.checked ? todayStr : null,
-                          })
-                        }
-                      />
-                      Envoyé
-                    </label>
-                    <AvisStatutSelector
-                      value={c.avis_statut}
-                      onChange={(v) => onUpdateClient(c.id, { avis_statut: v })}
-                    />
-                  </div>
+            <button
+              onClick={() => setAvisEnvoyesOuvert((v) => !v)}
+              className="mb-2 flex w-full items-center justify-between text-left"
+            >
+              <h3 className="font-heading text-sm font-semibold text-[#171717]">
+                Envoyés récemment (3 derniers jours) — {avisEnvoyesRecemment.length}
+              </h3>
+              <span className="text-xs font-medium text-[#666666]">
+                {avisEnvoyesOuvert ? "Replier ▴" : "Déplier ▾"}
+              </span>
+            </button>
+            {avisEnvoyesOuvert && (
+              <>
+                {avisEnvoyesRecemment.length === 0 && (
+                  <div className="text-sm text-neutral-400">Aucun envoi récent.</div>
+                )}
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                  {avisEnvoyesRecemment.map((c) => (
+                    <div
+                      key={c.id}
+                      className="overflow-hidden rounded-md border border-green-200 bg-white p-2 text-xs shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[11px] font-medium text-neutral-500">
+                          Envoyé le {fmtDate(c.avis_envoye_le)}
+                        </span>
+                        <ClientNameLink
+                          nom={c.nom}
+                          onClick={() => onOpenClient(c.id)}
+                          className="font-heading text-xs font-semibold text-[#171717] hover:underline"
+                        />
+                        <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                        <span className="ml-auto rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">
+                          Envoyé ✓
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <label className="flex items-center gap-1 text-[11px] text-neutral-600">
+                          <input
+                            type="checkbox"
+                            checked={c.avis_envoye}
+                            onChange={(e) =>
+                              onUpdateClient(c.id, {
+                                avis_envoye: e.target.checked,
+                                avis_envoye_le: e.target.checked ? todayStr : null,
+                              })
+                            }
+                          />
+                          Envoyé
+                        </label>
+                        <AvisStatutSelector
+                          value={c.avis_statut}
+                          onChange={(v) => onUpdateClient(c.id, avisStatutPatch(v))}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </div>
 
           <div>
-            <h3 className="font-heading mb-3 text-sm font-semibold text-[#171717]">À venir</h3>
-            {avisUpcomingRows.length === 0 && (
-              <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
-            )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {avisUpcomingRows.map(({ c, dateCible }) => (
-                <div
-                  key={c.id}
-                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
-                >
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-medium text-neutral-500">{fmtDate(dateCible)}</span>
-                    <ClientNameLink
-                      nom={c.nom}
-                      onClick={() => onOpenClient(c.id)}
-                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-                    />
-                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
-                  </div>
-                  <div className="mt-3">
-                    <AvisStatutSelector
-                      value={c.avis_statut}
-                      onChange={(v) => onUpdateClient(c.id, { avis_statut: v })}
-                    />
-                  </div>
+            <button
+              onClick={() => setAvisNePasDemanderOuvert((v) => !v)}
+              className="mb-2 flex w-full items-center justify-between text-left"
+            >
+              <h3 className="font-heading text-sm font-semibold text-[#171717]">
+                À ne pas demander récemment (3 derniers jours) — {avisNePasDemanderRecemment.length}
+              </h3>
+              <span className="text-xs font-medium text-[#666666]">
+                {avisNePasDemanderOuvert ? "Replier ▴" : "Déplier ▾"}
+              </span>
+            </button>
+            {avisNePasDemanderOuvert && (
+              <>
+                {avisNePasDemanderRecemment.length === 0 && (
+                  <div className="text-sm text-neutral-400">Rien de récent.</div>
+                )}
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                  {avisNePasDemanderRecemment.map((c) => (
+                    <div
+                      key={c.id}
+                      className="overflow-hidden rounded-md border border-neutral-200 bg-white p-2 text-xs shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[11px] font-medium text-neutral-500">
+                          Le {fmtDate(c.avis_ne_pas_demander_le)}
+                        </span>
+                        <ClientNameLink
+                          nom={c.nom}
+                          onClick={() => onOpenClient(c.id)}
+                          className="font-heading text-xs font-semibold text-[#171717] hover:underline"
+                        />
+                        <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                        <span className="ml-auto rounded-full bg-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-neutral-700">
+                          À ne pas demander
+                        </span>
+                      </div>
+                      <div className="mt-1.5">
+                        <AvisStatutSelector
+                          value={c.avis_statut}
+                          onChange={(v) => onUpdateClient(c.id, avisStatutPatch(v))}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
+          </div>
+
+          <div>
+            <button
+              onClick={() => setAvisUpcomingOuvert((v) => !v)}
+              className="mb-2 flex w-full items-center justify-between text-left"
+            >
+              <h3 className="font-heading text-sm font-semibold text-[#171717]">
+                À venir — {avisUpcomingRows.length}
+              </h3>
+              <span className="text-xs font-medium text-[#666666]">
+                {avisUpcomingOuvert ? "Replier ▴" : "Déplier ▾"}
+              </span>
+            </button>
+            {avisUpcomingOuvert && (
+              <>
+                {avisUpcomingRows.length === 0 && (
+                  <div className="text-sm text-neutral-400">Rien à venir pour l&apos;instant.</div>
+                )}
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                  {avisUpcomingRows.map(({ c, dateCible }) => (
+                    <div
+                      key={c.id}
+                      className="overflow-hidden rounded-md border border-neutral-200 bg-white p-2 text-xs shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className="text-[11px] font-medium text-neutral-500">{fmtDate(dateCible)}</span>
+                        <ClientNameLink
+                          nom={c.nom}
+                          onClick={() => onOpenClient(c.id)}
+                          className="font-heading text-xs font-semibold text-[#171717] hover:underline"
+                        />
+                        <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                      </div>
+                      <div className="mt-1.5">
+                        <AvisStatutSelector
+                          value={c.avis_statut}
+                          onChange={(v) => onUpdateClient(c.id, avisStatutPatch(v))}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

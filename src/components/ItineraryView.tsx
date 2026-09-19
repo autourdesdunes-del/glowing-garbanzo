@@ -49,6 +49,7 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import AddActivityWizard from "@/components/AddActivityWizard";
+import { StatutBadgeSelect } from "@/components/StatutBadgeSelect";
 import AnnulerActiviteModal from "@/components/AnnulerActiviteModal";
 import AnnulerMontgolfiereModal from "@/components/AnnulerMontgolfiereModal";
 import RetirerParticipantsModal from "@/components/RetirerParticipantsModal";
@@ -428,32 +429,13 @@ export default function ItineraryView({
                 {badge.label}
               </span>
             ) : (
-              // Enveloppe à taille FIXE + overflow-hidden : un <select>
-              // natif ignore parfois la hauteur/police CSS demandée sur
-              // mobile (garde la taille système) — au lieu de compter sur
-              // lui, on le découpe visuellement dans une boîte de la même
-              // taille que les autres badges, quelle que soit sa taille
-              // interne réelle (Mélanie, 2026-09-19, persistant après
-              // plusieurs correctifs appearance-none/hauteur seuls).
-              <span
-                className={`inline-block h-5 max-w-[60%] shrink-0 overflow-hidden rounded-full ${badge.className}`}
-              >
-                <select
+              <div onClick={(e) => e.stopPropagation()}>
+                <StatutBadgeSelect
                   value={r.paiement_statut || "attente"}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    onUpdateReservation(r.id, { paiement_statut: e.target.value });
-                  }}
-                  className="h-5 w-full appearance-none border-0 bg-transparent px-2 py-0 text-[11px] font-medium leading-5 text-inherit"
-                >
-                  {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                    <option key={o.key} value={o.key}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </span>
+                  options={STATUT_PAIEMENT_OPTIONS}
+                  onChange={(v) => onUpdateReservation(r.id, { paiement_statut: v })}
+                />
+              </div>
             ))}
         </div>
       </div>
@@ -814,28 +796,13 @@ export default function ItineraryView({
                     // sur une autre activité (incident Carine LELOIR du 14/09,
                     // rétabli en menu par activité sur demande de Mélanie du
                     // 16/09, mais réellement indépendant cette fois).
-                    // Enveloppe à taille fixe + overflow-hidden : un <select>
-                    // natif ignore parfois la hauteur/police CSS demandée sur
-                    // mobile (garde la taille système) — on le découpe donc
-                    // visuellement dans une boîte de la même taille que les
-                    // autres badges (Mélanie, 2026-09-19).
-                    <span
-                      className={`inline-block h-5 max-w-full min-w-0 overflow-hidden rounded-full ${expBadge.className}`}
-                    >
-                      <select
-                        value={expandedReservation.paiement_statut || "attente"}
-                        onChange={(e) =>
-                          onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
-                        }
-                        className="h-5 w-full appearance-none border-0 bg-transparent px-2 py-0 text-xs font-medium leading-5 text-inherit"
-                      >
-                        {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                          <option key={o.key} value={o.key}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </span>
+                    <StatutBadgeSelect
+                      value={expandedReservation.paiement_statut || "attente"}
+                      options={STATUT_PAIEMENT_OPTIONS}
+                      onChange={(v) =>
+                        onUpdateReservation(expandedReservation.id, { paiement_statut: v })
+                      }
+                    />
                   )}
                 </DetailRow>
               )}
@@ -902,7 +869,7 @@ export default function ItineraryView({
                     onUpdateReservation(expandedReservation.id, { egypt_block_note: e.target.value });
                   }}
                   rows={8}
-                  className="font-amounts max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-xs"
+                  className="font-amounts max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-2 text-[11px] leading-snug"
                 />
                 <div className="mt-2 flex items-center gap-2">
                   <button

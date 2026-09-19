@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Client } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDate } from "@/lib/suivisFormat";
+import { StatutBadgeSelect } from "@/components/StatutBadgeSelect";
 
 // Petits composants de présentation communs aux vues Suivis — extraits de
 // SuivisView.tsx pour alléger ce fichier, sans changement de comportement.
@@ -58,6 +59,12 @@ const AVIS_STATUT_STYLES: Record<Client["avis_statut"], string> = {
   "Déjà publié": "border-[#3E8F5C]/40 bg-[#3E8F5C]/10 text-[#2C6B44]",
 };
 
+const AVIS_STATUT_OPTIONS: { key: Client["avis_statut"]; label: string; className: string }[] = [
+  { key: "À demander", label: "À demander", className: AVIS_STATUT_STYLES["À demander"] },
+  { key: "À ne pas demander", label: "À ne pas demander", className: AVIS_STATUT_STYLES["À ne pas demander"] },
+  { key: "Déjà publié", label: "Déjà publié", className: AVIS_STATUT_STYLES["Déjà publié"] },
+];
+
 export function AvisStatutSelector({
   value,
   onChange,
@@ -66,23 +73,12 @@ export function AvisStatutSelector({
   onChange: (v: Client["avis_statut"]) => void;
 }) {
   return (
-    // Enveloppe à taille FIXE + overflow-hidden : un <select> natif ignore
-    // parfois la hauteur/police CSS demandée sur mobile (garde la taille
-    // système). Même gabarit que le bouton "Copier" juste à côté
-    // (px-2/text-[11px]/h-5) — demande de Mélanie, 2026-09-19.
-    <span
-      className={`ml-auto inline-block h-5 max-w-[55%] shrink-0 overflow-hidden rounded-full border ${AVIS_STATUT_STYLES[value]}`}
-    >
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as Client["avis_statut"])}
-        className="h-5 w-full cursor-pointer appearance-none border-0 bg-transparent px-2 py-0 text-[11px] font-medium leading-5 text-inherit outline-none"
-      >
-        <option value="À demander">À demander</option>
-        <option value="À ne pas demander">À ne pas demander</option>
-        <option value="Déjà publié">Déjà publié</option>
-      </select>
-    </span>
+    <StatutBadgeSelect
+      value={value}
+      options={AVIS_STATUT_OPTIONS}
+      onChange={onChange}
+      className="ml-auto"
+    />
   );
 }
 

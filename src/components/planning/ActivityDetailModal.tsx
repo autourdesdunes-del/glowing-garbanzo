@@ -42,6 +42,7 @@ import { fmtAnnulationSuffix } from "@/lib/dates";
 import { buildEgyptActivityBlock } from "@/lib/egyptBlock";
 import { euros, fmtDate } from "@/lib/planningViewFormat";
 import { DetailRow } from "@/components/planning/PlanningCards";
+import { StatutBadgeSelect } from "@/components/StatutBadgeSelect";
 
 // Modale de détail d'une activité (Réservations) — extraite de
 // PlanningView.tsx pour l'alléger, sans changement de comportement.
@@ -483,27 +484,12 @@ export function ActivityDetailModal({
               // une autre activité (incident Carine LELOIR, rétabli en menu
               // par activité sur demande de Mélanie du 16/09, mais réellement
               // indépendant cette fois).
-              // Enveloppe à taille fixe + overflow-hidden : un <select>
-              // natif ignore parfois la hauteur/police CSS demandée sur
-              // mobile (garde la taille système) — on le découpe donc
-              // visuellement dans une boîte de la même taille que les
-              // autres badges (Mélanie, 2026-09-19).
               return (
-                <span
-                  className={`inline-block h-5 max-w-full min-w-0 overflow-hidden rounded-full ${badge.className}`}
-                >
-                  <select
-                    value={r.paiement_statut || "attente"}
-                    onChange={(e) => onUpdateReservation(r.id, { paiement_statut: e.target.value })}
-                    className="h-5 w-full appearance-none border-0 bg-transparent px-2 py-0 text-xs font-medium leading-5 text-inherit"
-                  >
-                    {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                      <option key={o.key} value={o.key}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </span>
+                <StatutBadgeSelect
+                  value={r.paiement_statut || "attente"}
+                  options={STATUT_PAIEMENT_OPTIONS}
+                  onChange={(v) => onUpdateReservation(r.id, { paiement_statut: v })}
+                />
               );
             })()}
           </DetailRow>
@@ -697,7 +683,7 @@ export function ActivityDetailModal({
               onUpdateReservation(r.id, { egypt_block_note: e.target.value });
             }}
             rows={8}
-            className="font-amounts mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-xs"
+            className="font-amounts mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-[11px] leading-snug"
           />
           <div className="mt-2 flex items-center gap-2">
             <button

@@ -683,7 +683,12 @@ export function ActivityDetailModal({
               onUpdateReservation(r.id, { egypt_block_note: e.target.value });
             }}
             rows={8}
-            className="font-amounts mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-sm"
+            // Pas de font-amounts (Geist Mono) ici : à taille de police
+            // identique, une police monospace a un rendu visuellement plus
+            // gros qu'une police classique — pour un texte "même taille que
+            // le reste de la fiche" comme demandé, il faut la même police,
+            // pas seulement la même valeur en px (Mélanie, 2026-09-19).
+            className="mt-2 max-h-40 w-full resize-y overflow-y-auto whitespace-pre-wrap rounded-md bg-[#fafafa] p-3 text-sm"
           />
           <div className="mt-2 flex items-center gap-2">
             <button

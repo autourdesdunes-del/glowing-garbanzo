@@ -66,19 +66,23 @@ export function AvisStatutSelector({
   onChange: (v: Client["avis_statut"]) => void;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value as Client["avis_statut"])}
-      // Même gabarit que le bouton "Copier" juste à côté (px-2/text-[11px]/
-      // h-5) — appearance-none seul ne suffit pas sur mobile, le <select>
-      // natif garde une hauteur minimale imposée par le système malgré le
-      // padding réduit (demande de Mélanie, 2026-09-19).
-      className={`box-border ml-auto h-5 max-w-[55%] shrink-0 cursor-pointer appearance-none truncate rounded-full border px-2 py-0 text-[11px] font-medium leading-5 outline-none ${AVIS_STATUT_STYLES[value]}`}
+    // Enveloppe à taille FIXE + overflow-hidden : un <select> natif ignore
+    // parfois la hauteur/police CSS demandée sur mobile (garde la taille
+    // système). Même gabarit que le bouton "Copier" juste à côté
+    // (px-2/text-[11px]/h-5) — demande de Mélanie, 2026-09-19.
+    <span
+      className={`ml-auto inline-block h-5 max-w-[55%] shrink-0 overflow-hidden rounded-full border ${AVIS_STATUT_STYLES[value]}`}
     >
-      <option value="À demander">À demander</option>
-      <option value="À ne pas demander">À ne pas demander</option>
-      <option value="Déjà publié">Déjà publié</option>
-    </select>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as Client["avis_statut"])}
+        className="h-5 w-full cursor-pointer appearance-none border-0 bg-transparent px-2 py-0 text-[11px] font-medium leading-5 text-inherit outline-none"
+      >
+        <option value="À demander">À demander</option>
+        <option value="À ne pas demander">À ne pas demander</option>
+        <option value="Déjà publié">Déjà publié</option>
+      </select>
+    </span>
   );
 }
 

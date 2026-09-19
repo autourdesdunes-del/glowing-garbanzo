@@ -483,18 +483,27 @@ export function ActivityDetailModal({
               // une autre activité (incident Carine LELOIR, rétabli en menu
               // par activité sur demande de Mélanie du 16/09, mais réellement
               // indépendant cette fois).
+              // Enveloppe à taille fixe + overflow-hidden : un <select>
+              // natif ignore parfois la hauteur/police CSS demandée sur
+              // mobile (garde la taille système) — on le découpe donc
+              // visuellement dans une boîte de la même taille que les
+              // autres badges (Mélanie, 2026-09-19).
               return (
-                <select
-                  value={r.paiement_statut || "attente"}
-                  onChange={(e) => onUpdateReservation(r.id, { paiement_statut: e.target.value })}
-                  className={`box-border h-5 max-w-[60%] shrink-0 appearance-none truncate rounded-full border-0 px-2 py-0 text-xs font-medium leading-5 ${badge.className}`}
+                <span
+                  className={`inline-block h-5 max-w-[60%] shrink-0 overflow-hidden rounded-full ${badge.className}`}
                 >
-                  {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                    <option key={o.key} value={o.key}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    value={r.paiement_statut || "attente"}
+                    onChange={(e) => onUpdateReservation(r.id, { paiement_statut: e.target.value })}
+                    className="h-5 w-full appearance-none border-0 bg-transparent px-2 py-0 text-xs font-medium leading-5 text-inherit"
+                  >
+                    {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                      <option key={o.key} value={o.key}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </span>
               );
             })()}
           </DetailRow>

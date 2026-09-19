@@ -428,27 +428,32 @@ export default function ItineraryView({
                 {badge.label}
               </span>
             ) : (
-              <select
-                value={r.paiement_statut || "attente"}
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  onUpdateReservation(r.id, { paiement_statut: e.target.value });
-                }}
-                // h-5 (hauteur fixe en px) : appearance-none seul ne suffit
-                // pas sur certains mobiles — le <select> natif garde une
-                // hauteur minimale imposée par le système malgré le padding
-                // réduit, bien plus gros que le reste des badges (vue
-                // téléphone — Mélanie, 2026-09-19, persistant après un
-                // premier correctif appearance-none/leading-none).
-                className={`box-border h-5 max-w-[60%] shrink-0 appearance-none truncate rounded-full border-0 px-2 py-0 text-[11px] font-medium leading-5 ${badge.className}`}
+              // Enveloppe à taille FIXE + overflow-hidden : un <select>
+              // natif ignore parfois la hauteur/police CSS demandée sur
+              // mobile (garde la taille système) — au lieu de compter sur
+              // lui, on le découpe visuellement dans une boîte de la même
+              // taille que les autres badges, quelle que soit sa taille
+              // interne réelle (Mélanie, 2026-09-19, persistant après
+              // plusieurs correctifs appearance-none/hauteur seuls).
+              <span
+                className={`inline-block h-5 max-w-[60%] shrink-0 overflow-hidden rounded-full ${badge.className}`}
               >
-                {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                <select
+                  value={r.paiement_statut || "attente"}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    onUpdateReservation(r.id, { paiement_statut: e.target.value });
+                  }}
+                  className="h-5 w-full appearance-none border-0 bg-transparent px-2 py-0 text-[11px] font-medium leading-5 text-inherit"
+                >
+                  {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                    <option key={o.key} value={o.key}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </span>
             ))}
         </div>
       </div>
@@ -809,19 +814,28 @@ export default function ItineraryView({
                     // sur une autre activité (incident Carine LELOIR du 14/09,
                     // rétabli en menu par activité sur demande de Mélanie du
                     // 16/09, mais réellement indépendant cette fois).
-                    <select
-                      value={expandedReservation.paiement_statut || "attente"}
-                      onChange={(e) =>
-                        onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
-                      }
-                      className={`box-border h-5 w-full min-w-0 appearance-none truncate rounded-full border-0 px-2 py-0 text-xs font-medium leading-5 ${expBadge.className}`}
+                    // Enveloppe à taille fixe + overflow-hidden : un <select>
+                    // natif ignore parfois la hauteur/police CSS demandée sur
+                    // mobile (garde la taille système) — on le découpe donc
+                    // visuellement dans une boîte de la même taille que les
+                    // autres badges (Mélanie, 2026-09-19).
+                    <span
+                      className={`inline-block h-5 max-w-full min-w-0 overflow-hidden rounded-full ${expBadge.className}`}
                     >
-                      {STATUT_PAIEMENT_OPTIONS.map((o) => (
-                        <option key={o.key} value={o.key}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      <select
+                        value={expandedReservation.paiement_statut || "attente"}
+                        onChange={(e) =>
+                          onUpdateReservation(expandedReservation.id, { paiement_statut: e.target.value })
+                        }
+                        className="h-5 w-full appearance-none border-0 bg-transparent px-2 py-0 text-xs font-medium leading-5 text-inherit"
+                      >
+                        {STATUT_PAIEMENT_OPTIONS.map((o) => (
+                          <option key={o.key} value={o.key}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
                   )}
                 </DetailRow>
               )}

@@ -390,6 +390,15 @@ function AppShellInner({
   // Sylvie/Laura/Justine ont aussi un nav_masque (['recap']) pour une tout
   // autre raison, ce qui leur affichait l'arabe par erreur.
   const arabicMode = ["hossam", "bodé", "bode"].includes(effectivePrenom.trim().toLowerCase());
+  // Téléchargement des passeports depuis Suivis > Réservations, réservé à
+  // Bodé et Hossam (demande de Mélanie, 2026-09-20) — même liste que
+  // arabicMode aujourd'hui mais volontairement une constante à part : ce
+  // droit-ci ne doit pas suivre silencieusement un futur ajout à l'équipe
+  // Égypte qui ne concernerait que la traduction arabe.
+  const PASSEPORT_DOWNLOAD_PRENOMS = ["bode", "bodé", "hossam"];
+  const effectiveCanDownloadPasseport = PASSEPORT_DOWNLOAD_PRENOMS.includes(
+    effectivePrenom.trim().toLowerCase()
+  );
   // Générateur de programme > Rédaction seule (pas Génération auto, qui
   // propose des activités que personne n'a choisies) — Sylvie l'avait déjà
   // via effectiveIsManager, étendu à Justine et Laura à la demande de
@@ -3141,6 +3150,7 @@ function AppShellInner({
               onUpdateReservation={updateReservationById}
               focusReservationId={focusReservationId}
               onBackToBillet={focusReservationId ? backFromReservationFocus : undefined}
+              canDownloadPasseport={effectiveCanDownloadPasseport}
             />
           )}
         </div>

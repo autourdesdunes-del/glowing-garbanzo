@@ -100,12 +100,14 @@ export default function PassportPhotosUpload({
       <div className="flex flex-wrap items-center gap-2">
         {paths.map((p) => (
           <div key={p} className="group relative">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={urls[p]}
-              alt=""
-              className="h-10 w-14 rounded-md border border-neutral-200 object-cover"
-            />
+            <a href={urls[p]} target="_blank" rel="noreferrer" title="Voir / télécharger">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={urls[p]}
+                alt=""
+                className="h-10 w-14 rounded-md border border-neutral-200 object-cover"
+              />
+            </a>
             <button
               type="button"
               onClick={() => handleRemove(p)}

@@ -49,6 +49,7 @@ export default function PlanningView({
   onUpdateReservation,
   focusReservationId,
   onBackToBillet,
+  canDownloadPasseport = false,
 }: {
   sub: PlanningSub;
   clients: Client[];
@@ -62,6 +63,9 @@ export default function PlanningView({
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   focusReservationId?: string | null;
   onBackToBillet?: () => void;
+  // Bodé/Hossam uniquement (voir AppShell.tsx) : affiche le téléchargement
+  // des passeports directement depuis la fiche activité de ActivityDetailModal.
+  canDownloadPasseport?: boolean;
 }) {
   const [vue, setVue] = useState<"liste" | "calendrier" | "par_activite">(subToVue(sub));
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>(
@@ -299,6 +303,7 @@ export default function PlanningView({
           hotelsRef={hotelsRef}
           onClose={() => setActiveActivity(null)}
           onBack={activeActivity.r.id === focusReservationId ? onBackToBillet : undefined}
+          canDownloadPasseport={canDownloadPasseport}
         />
       )}
     </div>

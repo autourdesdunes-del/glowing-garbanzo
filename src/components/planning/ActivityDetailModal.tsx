@@ -60,6 +60,7 @@ export function ActivityDetailModal({
   hotelsRef,
   onClose,
   onBack,
+  canDownloadPasseport = false,
 }: {
   client: Client;
   r: Reservation;
@@ -74,6 +75,9 @@ export function ActivityDetailModal({
   hotelsRef: HotelReference[];
   onClose: () => void;
   onBack?: () => void;
+  // Bodé/Hossam uniquement (voir AppShell.tsx) : ils gèrent les billets
+  // d'avion et ont besoin des passeports sans passer par la fiche client.
+  canDownloadPasseport?: boolean;
 }) {
   const supabase = createClient();
   const [showSoldeDetail, setShowSoldeDetail] = useState(false);
@@ -120,6 +124,23 @@ export function ActivityDetailModal({
       setPhotoVolUrl(data?.signedUrl ?? "");
     })();
   }, [r.photo_vol_path]);
+  const [passportUrls, setPassportUrls] = useState<string[]>([]);
+  useEffect(() => {
+    if (!canDownloadPasseport || !client.passeport_photos?.length) {
+      setPassportUrls([]);
+      return;
+    }
+    const supabase = createClient();
+    (async () => {
+      const entries = await Promise.all(
+        client.passeport_photos.map(async (p) => {
+          const { data } = await supabase.storage.from("passport-photos").createSignedUrl(p, 3600);
+          return data?.signedUrl ?? "";
+        })
+      );
+      setPassportUrls(entries.filter(Boolean));
+    })();
+  }, [canDownloadPasseport, client.passeport_photos]);
   const options = resaOptions[r.id] || [];
   const tarifs = resaTarifs[r.id] || [];
   const total = resaTotalMontant(r, client, options, tarifs);
@@ -391,6 +412,27 @@ export function ActivityDetailModal({
               {client.nom || "Sans nom"}
             </button>
           </DetailRow>
+          {canDownloadPasseport && (
+            <DetailRow label="Passeport(s)">
+              {passportUrls.length === 0 ? (
+                <span className="text-neutral-400">Aucun</span>
+              ) : (
+                <div className="flex flex-wrap justify-end gap-2">
+                  {passportUrls.map((url, i) => (
+                    <a
+                      key={url}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#171717] underline hover:no-underline"
+                    >
+                      Photo {i + 1}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </DetailRow>
+          )}
           <DetailRow label="Date">
             {fmtDate(r.date_debut || "")}
             {r.date_fin && r.date_fin !== r.date_debut ? ` → ${fmtDate(r.date_fin)}` : ""}

@@ -714,6 +714,21 @@ export default function ItineraryView({
                     👤−
                   </button>
                 )}
+                {expandedReservation.statut_resa === "Brouillon" && (
+                  // Jusqu'ici la seule façon de faire passer une activité de
+                  // Brouillon à Confirmée était de confirmer le CLIENT entier
+                  // (bascule tout son lot d'activités d'un coup) — aucune
+                  // action ne permettait de valider une seule activité
+                  // précise (Mélanie, 2026-09-20).
+                  <button
+                    type="button"
+                    onClick={() => onUpdateReservation(expandedReservation.id, { statut_resa: "Confirmée" })}
+                    title="Valider cette activité (passe de Brouillon à Confirmée)"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                  >
+                    ✓
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={async () => {

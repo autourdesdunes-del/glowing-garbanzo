@@ -500,12 +500,18 @@ export default function DashboardView({
   // Affiche directement pourquoi le dossier est incomplet (une pastille par
   // info manquante) plutôt qu'un motif générique "Dossier incomplet".
   incompleteUrgent.forEach((c) => {
-    infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).forEach((motif) => addToQueue(c, motif));
+    // "Room number" a sa propre carte dédiée ("Pick-ups manquants"/"Numéros
+    // de chambre" dans Actions rapides) — le compter aussi ici faisait
+    // doublon. "Relation grâce à" n'est pas assez urgent pour cette liste
+    // (demande de Mélanie, 2026-09-20).
+    infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || [])
+      .filter((motif) => motif !== "Room number" && motif !== "Relation grâce à")
+      .forEach((motif) => addToQueue(c, motif));
   });
   // Les prospects à relancer ont déjà leur propre nombre en haut du tableau
   // de bord ("Prospects à relancer") — les compter aussi ici faisait
-  // doublon (demande de Mélanie, 17/09).
-  rdvToday.forEach((c) => addToQueue(c, "RDV paiement"));
+  // doublon (demande de Mélanie, 17/09). Idem "RDV paiement" : déjà sa
+  // propre carte dédiée dans Actions rapides (demande de Mélanie, 2026-09-20).
   acompteNonPayeSemaine.forEach((c) => addToQueue(c, "Acompte non payé"));
   const priorityQueue = Array.from(queueMap.values()).sort((a, b) =>
     (a.client.date_debut || "9999").localeCompare(b.client.date_debut || "9999")

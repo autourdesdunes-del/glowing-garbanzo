@@ -1221,6 +1221,38 @@ export function ActivitesStep({
 }
 
 
+// Champ montant qui accepte la virgule française (200,93) en plus du
+// point — un <input type="number"> contrôlé directement par un nombre
+// perdait la virgule tapée (re-rendu à chaque frappe avec la valeur déjà
+// arrondie), empêchant de taper des centimes (Mélanie, 2026-09-20). Le
+// texte tapé est gardé tel quel localement ; seule la valeur numérique
+// remontée au parent est convertie.
+function MontantDecimalInput({
+  value,
+  onChange,
+  className = "input w-32",
+}: {
+  value: number;
+  onChange: (montant: number) => void;
+  className?: string;
+}) {
+  const [texte, setTexte] = useState(String(value).replace(".", ","));
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={texte}
+      onChange={(e) => {
+        const brut = e.target.value.replace(/[^0-9,.]/g, "");
+        setTexte(brut);
+        const num = Number(brut.replace(",", "."));
+        if (!Number.isNaN(num)) onChange(num);
+      }}
+      className={className}
+    />
+  );
+}
+
 export function PaiementsStep({
   client,
   onChange,
@@ -1774,11 +1806,15 @@ export function PaiementsStep({
   const confirmerEtapeActivite = () => {
     if (!etapeActiviteConfirm) return;
     const { montant, mode, date, note, candidats, choix, libre, rate } = etapeActiviteConfirm;
-    const activiteNom =
-      choix === "autre"
+    // PayPal/virement : réglés à distance, jamais rattachés à une activité
+    // précise (le picker est masqué dans le pop-up, voir ci-dessous).
+    const sansActivite = mode === "PayPal" || mode === "Virement bancaire";
+    const activiteNom = sansActivite
+      ? ""
+      : choix === "autre"
         ? libre.trim()
         : cleanActivityTitle(candidats.find((r) => r.id === choix)?.nom_activite || "");
-    if (choix === "autre" && !activiteNom) {
+    if (!sansActivite && choix === "autre" && !activiteNom) {
       toast("Indique où ce paiement a été récolté.");
       return;
     }
@@ -2708,13 +2744,9 @@ export function PaiementsStep({
               ) : (
                 <>
                   <Field label="Montant (€)">
-                    <input
-                      type="number"
+                    <MontantDecimalInput
                       value={etapeActiviteConfirm.montant}
-                      onChange={(e) =>
-                        setEtapeActiviteConfirm({ ...etapeActiviteConfirm, montant: Number(e.target.value) })
-                      }
-                      className="input w-32"
+                      onChange={(montant) => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, montant })}
                     />
                   </Field>
                   <p className="mt-1 text-xs text-neutral-500">en {etapeActiviteConfirm.mode}.</p>
@@ -2733,40 +2765,46 @@ export function PaiementsStep({
                 />
               </Field>
             </div>
-            <div className="flex flex-col gap-1.5">
-              {etapeActiviteConfirm.candidats.map((r) => (
+            {/* PayPal/virement sont réglés à distance, jamais "récoltés" à
+                une activité précise — proposer une activité ici n'aurait
+                aucun sens et risquerait de rattacher le paiement à la
+                mauvaise activité (Mélanie, 2026-09-20). */}
+            {etapeActiviteConfirm.mode !== "PayPal" && etapeActiviteConfirm.mode !== "Virement bancaire" && (
+              <div className="flex flex-col gap-1.5">
+                {etapeActiviteConfirm.candidats.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, choix: r.id })}
+                    className={`rounded-md border px-3 py-2 text-left text-sm ${
+                      etapeActiviteConfirm.choix === r.id
+                        ? "border-[#171717] bg-[#171717] text-white"
+                        : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
+                    }`}
+                  >
+                    {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
+                  </button>
+                ))}
                 <button
-                  key={r.id}
-                  onClick={() => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, choix: r.id })}
+                  onClick={() => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, choix: "autre" })}
                   className={`rounded-md border px-3 py-2 text-left text-sm ${
-                    etapeActiviteConfirm.choix === r.id
+                    etapeActiviteConfirm.choix === "autre"
                       ? "border-[#171717] bg-[#171717] text-white"
                       : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
                   }`}
                 >
-                  {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
+                  Autre
                 </button>
-              ))}
-              <button
-                onClick={() => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, choix: "autre" })}
-                className={`rounded-md border px-3 py-2 text-left text-sm ${
-                  etapeActiviteConfirm.choix === "autre"
-                    ? "border-[#171717] bg-[#171717] text-white"
-                    : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                }`}
-              >
-                Autre
-              </button>
-              {etapeActiviteConfirm.choix === "autre" && (
-                <input
-                  type="text"
-                  value={etapeActiviteConfirm.libre}
-                  onChange={(e) => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, libre: e.target.value })}
-                  placeholder="Où ce paiement a été récolté"
-                  className="input"
-                />
-              )}
-            </div>
+                {etapeActiviteConfirm.choix === "autre" && (
+                  <input
+                    type="text"
+                    value={etapeActiviteConfirm.libre}
+                    onChange={(e) => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, libre: e.target.value })}
+                    placeholder="Où ce paiement a été récolté"
+                    className="input"
+                  />
+                )}
+              </div>
+            )}
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={() => setEtapeActiviteConfirm(null)}

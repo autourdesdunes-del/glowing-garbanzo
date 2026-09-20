@@ -673,7 +673,7 @@ export default function AddActivityWizard({
   );
 
   const navButtons = (goNext: () => void, nextLabel: string) => (
-    <div className="mt-4 flex gap-2">
+    <div className="mt-4 flex items-center gap-2">
       <button
         type="button"
         onClick={step === "specifs" || step === "date" ? cancel : goBack}
@@ -688,6 +688,25 @@ export default function AddActivityWizard({
       >
         {nextLabel}
       </button>
+      {editReservationId && (
+        // "Annuler" en édition ferme sans rien supprimer (comportement
+        // volontaire, voir cancel()) — jusqu'ici, une fois en train de
+        // MODIFIER une activité (le geste naturel pour compléter une
+        // activité Brouillon incomplète), aucun bouton ne permettait de la
+        // supprimer sans d'abord tout fermer pour retrouver l'icône 🗑 de la
+        // fenêtre résumé (Mélanie, 2026-09-20).
+        <button
+          type="button"
+          onClick={async () => {
+            await onDeleteReservation(editReservationId);
+            onCancel();
+          }}
+          title="Supprimer définitivement cette activité"
+          className="shrink-0 text-xs text-red-600 hover:underline"
+        >
+          Supprimer
+        </button>
+      )}
     </div>
   );
 

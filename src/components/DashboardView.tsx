@@ -800,6 +800,12 @@ export default function DashboardView({
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-500">
                     <span>{c.canal}</span>
                     {c.telephone && <span>{c.telephone}</span>}
+                    {c.date_debut && (
+                      <span>
+                        {fmtDate(c.date_debut)}
+                        {c.date_fin ? ` → ${fmtDate(c.date_fin)}` : ""}
+                      </span>
+                    )}
                     {c.kommo_lead_id && (
                       <a
                         href={`https://autourdesdunes.kommo.com/leads/detail/${c.kommo_lead_id}`}

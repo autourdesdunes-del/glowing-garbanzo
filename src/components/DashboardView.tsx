@@ -802,12 +802,24 @@ export default function DashboardView({
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-neutral-500">
                     <span>{c.canal}</span>
                     {c.telephone && <span>{c.telephone}</span>}
-                    {c.date_debut && (
-                      <span>
-                        {fmtDate(c.date_debut)}
-                        {c.date_fin ? ` → ${fmtDate(c.date_fin)}` : ""}
-                      </span>
-                    )}
+                    {(() => {
+                      // Un prospect n'a presque jamais encore de date_debut
+                      // réelle (posée seulement à la confirmation) — se
+                      // rabattre sur l'estimation Kommo (kommo_sejour_*_estime),
+                      // celle-là même qui alimente déjà motifRelance()
+                      // ci-dessus ("Arrive dans X j"), sinon la date de séjour
+                      // n'apparaissait jamais ici en pratique.
+                      const debut = c.date_debut || c.kommo_sejour_debut_estime;
+                      const fin = c.date_fin || c.kommo_sejour_fin_estime;
+                      if (!debut) return null;
+                      return (
+                        <span>
+                          {!c.date_debut && "~ "}
+                          {fmtDate(debut)}
+                          {fin ? ` → ${fmtDate(fin)}` : ""}
+                        </span>
+                      );
+                    })()}
                     {c.kommo_lead_id && (
                       <a
                         href={`https://autourdesdunes.kommo.com/leads/detail/${c.kommo_lead_id}`}

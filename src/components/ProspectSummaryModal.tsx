@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Client } from "@/lib/types";
-import { joursSansReponseProspect, prospectStagnant } from "@/lib/resa";
+import { Client, Reservation } from "@/lib/types";
+import { cleanActivityTitle, joursSansReponseProspect, prospectStagnant } from "@/lib/resa";
 import { todayStr } from "@/lib/dates";
 
 // "autourdesdunes" = sous-domaine Kommo de l'agence (KOMMO_SUBDOMAIN côté
@@ -39,14 +39,25 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 // trop lourde pour un simple prospect pas encore qualifié).
 export default function ProspectSummaryModal({
   client,
+  reservations = [],
   onClose,
   onUpdateClient,
   onConfirmClient,
+  onUpdateReservation,
+  onDeleteReservation,
 }: {
   client: Client;
+  // Un prospect peut déjà avoir des activités (proposées via le Générateur
+  // de programme) avant même d'être confirmé — jusqu'ici, aucun écran
+  // n'exposait de moyen de les valider ou supprimer une par une : cette
+  // fenêtre était la seule accessible pour un prospect, et elle ne
+  // montrait aucune activité (Mélanie, 2026-09-20).
+  reservations?: Reservation[];
   onClose: () => void;
   onUpdateClient: (patch: Partial<Client>) => void;
   onConfirmClient: () => void;
+  onUpdateReservation?: (id: string, patch: Partial<Reservation>) => void;
+  onDeleteReservation?: (id: string) => void;
 }) {
   const [draft, setDraft] = useState(client);
   useEffect(() => {
@@ -243,6 +254,50 @@ export default function ProspectSummaryModal({
             {demandeInfosLe && <p>Demande d&apos;infos envoyée le {demandeInfosLe}</p>}
             {premierEchange && <p>Premier échange : {premierEchange}</p>}
             {dernierEchange && <p>Dernier échange : {dernierEchange}</p>}
+          </div>
+        )}
+
+        {reservations.length > 0 && (
+          <div className="mt-3 space-y-1.5 border-t border-neutral-100 pt-3">
+            <p className="text-xs font-medium text-neutral-500">Activités</p>
+            {reservations.map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between gap-2 rounded-md bg-[#fafafa] px-2.5 py-1.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-[#171717]">
+                    {cleanActivityTitle(r.nom_activite) || "Activité sans nom"}
+                  </p>
+                  <p className="text-xs text-neutral-400">
+                    {r.statut_resa}
+                    {r.date_debut ? ` — ${fmtDate(r.date_debut)}` : ""}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {r.statut_resa === "Brouillon" && onUpdateReservation && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdateReservation(r.id, { statut_resa: "Confirmée" })}
+                      title="Valider cette activité"
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                    >
+                      ✓
+                    </button>
+                  )}
+                  {onDeleteReservation && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteReservation(r.id)}
+                      title="Supprimer définitivement cette activité"
+                      className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                    >
+                      🗑
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

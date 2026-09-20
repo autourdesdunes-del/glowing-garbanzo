@@ -1729,6 +1729,23 @@ function AppShellInner({
     if (error) toast("Échec de l'enregistrement.");
   };
 
+  // Suppression simple, réservée au panneau prospect (ProspectSummaryModal)
+  // — un prospect n'a normalement encore aucun solde/reprise rattaché à ses
+  // activités, contrairement à deleteReservation (ClientDetail.tsx) qui
+  // doit gérer ces cas. Toujours confirmée, jamais silencieuse.
+  const deleteReservationSimple = async (id: string) => {
+    const ok = await confirm({
+      title: "Retirer cette activité ?",
+      message: "Ses options seront aussi retirées. Cette action est irréversible.",
+      confirmLabel: "Retirer",
+      danger: true,
+    });
+    if (!ok) return;
+    setAllReservations((prev) => prev.filter((r) => r.id !== id));
+    const { error } = await supabase.from("reservations").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
+
   const updateRemboursement = async (id: string, patch: Partial<Remboursement>) => {
     setAllRemboursements((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     const { error } = await supabase.from("remboursements").update(patch).eq("id", id);
@@ -2654,12 +2671,15 @@ function AppShellInner({
           return (
             <ProspectSummaryModal
               client={c}
+              reservations={allReservations.filter((r) => r.client_id === c.id)}
               onClose={() => setProspectSummaryId(null)}
               onUpdateClient={(patch) => updateClientById(c.id, patch)}
               onConfirmClient={async () => {
                 await updateClientById(c.id, { statut: "Client confirmé" });
                 setProspectSummaryId(null);
               }}
+              onUpdateReservation={updateReservationById}
+              onDeleteReservation={deleteReservationSimple}
             />
           );
         })()}

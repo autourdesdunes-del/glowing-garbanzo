@@ -1402,7 +1402,11 @@ export default function DashboardView({
                     key={r.id}
                     onClick={() => {
                       setShowActivitesEnAttenteModal(false);
-                      onOpenClient(r.client_id);
+                      // Ouvre directement la section Activités — sinon on
+                      // retombait sur l'onglet par défaut du client, sans
+                      // aucun lien vers l'activité Brouillon en question
+                      // (Mélanie, 2026-09-20).
+                      onOpenClientForCancelActivity(r.client_id);
                     }}
                     className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
                   >

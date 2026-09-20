@@ -661,6 +661,11 @@ export type Client = {
   confirmation_a_traiter: boolean;
   confirmation_assignee_a: string | null;
   confirmation_assignee_a_le: string | null;
+  // Copie de secours automatique vers Notion (Mélanie, 2026-09-20) :
+  // mémorise la page Notion déjà créée pour ce client, pour mettre à jour
+  // plutôt que dupliquer à chaque exécution du job.
+  notion_page_id: string | null;
+  notion_synced_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -796,6 +801,8 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   confirmation_a_traiter: false,
   confirmation_assignee_a: null,
   confirmation_assignee_a_le: null,
+  notion_page_id: null,
+  notion_synced_at: null,
 };
 
 export type UserShift = {

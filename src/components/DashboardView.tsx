@@ -451,7 +451,9 @@ export default function DashboardView({
   const incompleteRows = incompleteUpcoming.map((c) => ({
     key: c.id,
     name: c.nom || "Sans nom",
-    reason: `Manque : ${infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).join(", ")}`,
+    reason: `Manque : ${infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).join(", ")}${
+      c.date_debut ? ` — séjour du ${fmtDate(c.date_debut)}${c.date_fin ? ` au ${fmtDate(c.date_fin)}` : ""}` : ""
+    }`,
     actionLabel: "Compléter la fiche",
     onAction: () => {
       setIncompleteModalOpen(false);

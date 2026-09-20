@@ -350,21 +350,59 @@ export function PaiementResteFlow({
     });
   };
 
-  const supprimerCartePaiement = () => {
+  const CARTE_PAIEMENT_RESET: Partial<Client> = {
+    solde_rdv_valide: false,
+    solde_paye: false,
+    solde_rdv_finalise: false,
+    solde_rdv_heure: "",
+    // solde_rdv_lieu oublié ici auparavant : s'il contenait une valeur,
+    // paiementStatutKey (resa.ts) continuait de détecter "rdv_planifie"
+    // rien qu'avec ce champ, faisant réapparaître le client dans Suivis >
+    // RDV paiements juste après l'avoir "supprimé".
+    solde_rdv_lieu: "",
+    solde_activite_id: null,
+    solde_mode: "Espèces EUR",
+    solde_montant: 0,
+    paiement_integral_mode: "",
+  };
+
+  // Réservé à direction (voir isDirection ci-dessous) : suppression sans
+  // trace, pour un vrai cas d'erreur de saisie. Confirmation ajoutée le
+  // 2026-09-20 suite à une disparition de RDV paiement sans qu'on sache si
+  // quelqu'un avait cliqué ce bouton par erreur — auparavant aucune
+  // confirmation ne protégeait ce geste irréversible.
+  const supprimerCartePaiement = async () => {
+    const ok = await confirm({
+      title: "Supprimer ce paiement ?",
+      message:
+        "Cette action efface le rendez-vous/mode de paiement sans laisser de trace dans la fiche. Si le client annule simplement ce RDV, préfère plutôt \"Annuler\" pour garder une trace.",
+      confirmLabel: "Oui, supprimer",
+      cancelLabel: "Non",
+    });
+    if (!ok) return;
+    onChange(CARTE_PAIEMENT_RESET);
+  };
+
+  // Ouvert aux non-direction ("les filles") : même effet sur le dossier
+  // (le client ressort de Suivis > RDV paiements) mais une ligne reste dans
+  // les commentaires de la fiche pour qu'on sache ce qui a été annulé et
+  // quand — demande de Mélanie du 2026-09-20, suite à une disparition de RDV
+  // paiement sans trace ni auteur retrouvable.
+  const annulerCartePaiement = async () => {
+    const ok = await confirm({
+      title: "Annuler ce paiement ?",
+      message: "Le rendez-vous/mode de paiement en cours sera retiré des Suivis. Une trace en sera gardée dans la fiche.",
+      confirmLabel: "Oui, annuler",
+      cancelLabel: "Non",
+    });
+    if (!ok) return;
+    const trace =
+      client.solde_rdv_heure || client.solde_rdv_lieu
+        ? `RDV paiement — ${fmtDateDMY(client.solde_date)} à ${client.solde_rdv_heure || "—"} (${client.solde_rdv_lieu || "—"})`
+        : `Mode de paiement "${client.solde_mode || client.paiement_integral_mode || "—"}"`;
     onChange({
-      solde_rdv_valide: false,
-      solde_paye: false,
-      solde_rdv_finalise: false,
-      solde_rdv_heure: "",
-      // solde_rdv_lieu oublié ici auparavant : s'il contenait une valeur,
-      // paiementStatutKey (resa.ts) continuait de détecter "rdv_planifie"
-      // rien qu'avec ce champ, faisant réapparaître le client dans Suivis >
-      // RDV paiements juste après l'avoir "supprimé".
-      solde_rdv_lieu: "",
-      solde_activite_id: null,
-      solde_mode: "Espèces EUR",
-      solde_montant: 0,
-      paiement_integral_mode: "",
+      ...CARTE_PAIEMENT_RESET,
+      commentaires: [client.commentaires, `🚫 ${trace} annulé le ${todayStr()}.`].filter(Boolean).join("\n"),
     });
   };
 
@@ -570,13 +608,20 @@ export function PaiementResteFlow({
                   }
                   marquerLabel="Rendez-vous finalisé"
                 />
-                {isDirection && (
+                {isDirection ? (
                   <button
                     onClick={supprimerCartePaiement}
                     title="Supprimer"
                     className="p-1 text-red-500 hover:text-red-600"
                   >
                     🗑
+                  </button>
+                ) : (
+                  <button
+                    onClick={annulerCartePaiement}
+                    className="whitespace-nowrap text-[10px] font-medium text-neutral-500 underline hover:text-neutral-700"
+                  >
+                    Annuler
                   </button>
                 )}
               </div>
@@ -675,13 +720,20 @@ export function PaiementResteFlow({
                         })
                       }
                     />
-                    {isDirection && (
+                    {isDirection ? (
                       <button
                         onClick={supprimerCartePaiement}
                         title="Supprimer"
                         className="p-1 text-red-500 hover:text-red-600"
                       >
                         🗑
+                      </button>
+                    ) : (
+                      <button
+                        onClick={annulerCartePaiement}
+                        className="whitespace-nowrap text-[10px] font-medium text-neutral-500 underline hover:text-neutral-700"
+                      >
+                        Annuler
                       </button>
                     )}
                   </div>
@@ -825,13 +877,20 @@ export function PaiementResteFlow({
                             })
                     }
                   />
-                  {isDirection && (
+                  {isDirection ? (
                     <button
                       onClick={supprimerCartePaiement}
                       title="Supprimer"
                       className="p-1 text-red-500 hover:text-red-600"
                     >
                       🗑
+                    </button>
+                  ) : (
+                    <button
+                      onClick={annulerCartePaiement}
+                      className="whitespace-nowrap text-[10px] font-medium text-neutral-500 underline hover:text-neutral-700"
+                    >
+                      Annuler
                     </button>
                   )}
                 </div>

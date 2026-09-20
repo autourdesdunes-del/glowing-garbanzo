@@ -2685,6 +2685,19 @@ export function PaiementsStep({
               Où ce paiement a-t-il été récolté ?
             </h2>
             <div className="mb-3">
+              <Field label="Mode de paiement">
+                <select
+                  value={etapeActiviteConfirm.mode}
+                  onChange={(e) => setEtapeActiviteConfirm({ ...etapeActiviteConfirm, mode: e.target.value })}
+                  className="input"
+                >
+                  {MODES_PAIEMENT.map((m) => (
+                    <option key={m}>{m}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <div className="mb-3">
               {etapeActiviteConfirm.mode === "Espèces EGP" ? (
                 <MontantEgpField
                   rate={etapeActiviteConfirm.rate}

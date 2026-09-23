@@ -14,6 +14,7 @@ import {
   TransfertTaxeModificationRequest,
 } from "@/lib/types";
 import { remboursementImpact, reservationsVendues, resaTotalMontant } from "@/lib/resa";
+import { STATS_HISTORIQUES_MENSUELLES } from "@/lib/statsHistoriques";
 import { downloadCsv } from "@/lib/csv";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 import { todayStr } from "@/lib/dates";
@@ -380,6 +381,14 @@ export default function DirectionView({
     if (!key) return;
     if (!statsByMonthAll[key]) statsByMonthAll[key] = { ca: 0, marge: 0, clients: 0 };
     statsByMonthAll[key].clients += 1;
+  });
+  // Pour tout mois déjà clos où le relevé manuel de Mélanie existe (voir
+  // STATS_HISTORIQUES_MENSUELLES), on lui fait confiance plutôt qu'au calcul
+  // CRM — les réservations/coûts saisis dans le CRM ne remontent pas assez
+  // loin ni assez fiablement pour ces mois-là (import du 2026-09-23). Seul
+  // "clients" (nouveaux clients, pas suivi dans le relevé) reste calculé.
+  Object.entries(STATS_HISTORIQUES_MENSUELLES).forEach(([key, hist]) => {
+    statsByMonthAll[key] = { ...hist, clients: statsByMonthAll[key]?.clients || 0 };
   });
   const trailing = monthsTrailing.map((m) => statsByMonthAll[m] || { ca: 0, marge: 0, clients: 0 });
   const moisPrecedent = trailing[trailing.length - 2];

@@ -6,6 +6,7 @@ import {
   CatalogueModificationRequest,
   Client,
   DirectionTache,
+  Profile,
   Remboursement,
   Reservation,
   ReservationOption,
@@ -19,6 +20,7 @@ import { todayStr } from "@/lib/dates";
 import { generateMonthlyReport } from "@/lib/generateMonthlyReport";
 import RecapMoisView from "@/components/RecapMoisView";
 import CodesPromoManager from "@/components/direction/CodesPromoManager";
+import JournalActiviteView from "@/components/direction/JournalActiviteView";
 import { DirActionRow, DirMetric } from "@/components/direction/DirectionUI";
 
 const MOIS_FR = [
@@ -58,6 +60,10 @@ function fmtDate(dateStr: string) {
 // de contenu s'affiche ici.
 export const DIRECTION_SUBS = [
   { key: "dashboard", label: "Tableau de bord direction" },
+  // Qui a fait quoi, jour par jour, tous employés confondus — demande de
+  // Mélanie du 2026-09-23 (impossible jusque-là de savoir qui avait modifié
+  // quoi sur une fiche, ni de voir la journée d'une employée d'un coup).
+  { key: "journal", label: "Journal d'activité" },
   // Même contenu que Suivis > Remboursements (voir AppShell.tsx) — dupliqué
   // ici temporairement, le temps de migrer cet onglet vers le dashboard.
   { key: "remboursements", label: "Remboursements" },
@@ -101,6 +107,8 @@ export default function DirectionView({
   onAddTache,
   onUpdateTache,
   onDeleteTache,
+  teamProfiles,
+  onOpenClient,
 }: {
   sub: DirectionSub;
   clients: Client[];
@@ -119,6 +127,8 @@ export default function DirectionView({
   onAddTache: (texte: string) => void;
   onUpdateTache: (id: string, patch: Partial<DirectionTache>) => void;
   onDeleteTache: (id: string) => void;
+  teamProfiles: Profile[];
+  onOpenClient: (id: string) => void;
 }) {
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [expandedTaxeRequestId, setExpandedTaxeRequestId] = useState<string | null>(null);
@@ -321,6 +331,10 @@ export default function DirectionView({
 
   if (sub === "parametres") {
     return <CodesPromoManager />;
+  }
+
+  if (sub === "journal") {
+    return <JournalActiviteView clients={clients} teamProfiles={teamProfiles} onOpenClient={onOpenClient} />;
   }
 
   if (sub === "recap") {

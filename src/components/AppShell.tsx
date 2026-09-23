@@ -3388,6 +3388,8 @@ function AppShellInner({
               onAddTache={addDirectionTache}
               onUpdateTache={updateDirectionTache}
               onDeleteTache={deleteDirectionTache}
+              teamProfiles={teamProfiles}
+              onOpenClient={openClient}
             />
           )}
         </div>

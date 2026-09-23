@@ -11,6 +11,10 @@ export type ActivityLogEntry = {
   // cas non couverts, l'affichage retombe alors sur le libellé générique
   // action + table (voir actionLabel/tableLabel dans client-steps.tsx).
   description: string | null;
+  // Diff complet {champ: {old, new}} de TOUS les champs "utiles" modifiés
+  // (hors colonnes de synchro/bookkeeping, voir migration 0143) — null pour
+  // les entrées créées avant cette migration, ou un insert/delete simple.
+  changes: Record<string, { old: unknown; new: unknown }> | null;
 };
 
 export type CatalogueItem = {

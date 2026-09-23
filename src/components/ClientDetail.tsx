@@ -523,13 +523,9 @@ export default function ClientDetail({
     }
   };
 
+  // La double confirmation est déjà faite en amont (supprimerLignePaiement,
+  // client-steps.tsx) avant d'appeler cette fonction — pas de 3e pop-up ici.
   const deletePaiementEtape = async (id: string) => {
-    const ok = await confirm({
-      message: "Retirer cette étape de paiement ? Cette action est irréversible.",
-      confirmLabel: "Retirer",
-      danger: true,
-    });
-    if (!ok) return;
     setPaiementsEtapes((prev) => prev.filter((e) => e.id !== id));
     const { error } = await supabase.from("paiements_etapes").delete().eq("id", id);
     if (error) toast("Échec de la suppression.");

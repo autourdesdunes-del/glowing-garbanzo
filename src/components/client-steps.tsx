@@ -1856,28 +1856,43 @@ export function PaiementsStep({
     onChange({ acompte_valide: true, acompte_montant_prevu: Number(client.acompte_montant) || 0 });
   };
 
-  // Direction seule : retirer n'importe quelle ligne du "Résumé des
-  // paiements" — et la retirer veut dire l'annuler, pas la masquer. Un
-  // acompte ou un solde effacé ici redevient "à encaisser" (le montant
-  // prévu, le RDV et l'activité de collecte restent, seul l'encaissement
-  // disparaît), une étape est supprimée comme avant. Sans ça, une erreur de
-  // saisie sur l'acompte ou le solde ne se corrigeait que depuis la carte
-  // correspondante, invisible pour qui regardait le résumé.
+  // Ouvert à toute l'équipe (pas seulement direction) depuis le 2026-09-23 —
+  // retirer n'importe quelle ligne du "Résumé des paiements" — et la
+  // retirer veut dire l'annuler, pas la masquer. Un acompte ou un solde
+  // effacé ici redevient "à encaisser" (le montant prévu, le RDV et
+  // l'activité de collecte restent, seul l'encaissement disparaît), une
+  // étape est supprimée comme avant. Sans ça, une erreur de saisie sur
+  // l'acompte ou le solde ne se corrigeait que depuis la carte
+  // correspondante, invisible pour qui regardait le résumé. Double
+  // confirmation (deux pop-up successifs) demandée par Mélanie en ouvrant ce
+  // geste à toute l'équipe, pour limiter les clics accidentels.
   const supprimerLignePaiement = async (ligne: PaiementLigne) => {
+    const quoi =
+      ligne.id === "acompte"
+        ? `l'acompte de ${euros(ligne.montant)} €`
+        : ligne.etapeId
+          ? `l'étape de paiement "${ligne.label}"`
+          : `le solde de ${euros(ligne.montant)} €`;
+    const ok1 = await confirm({
+      title: "Supprimer ce règlement ?",
+      message: ligne.etapeId
+        ? `Retirer ${quoi} ? Cette action est irréversible.`
+        : `Annuler ${quoi} ? Il repassera en attente d'encaissement — le montant prévu et le rendez-vous de paiement, eux, sont conservés.`,
+      confirmLabel: "Continuer",
+      danger: true,
+    });
+    if (!ok1) return;
+    const ok2 = await confirm({
+      title: "Confirme une seconde fois",
+      message: `Es-tu sûre de vouloir supprimer ${quoi} ? Cette action ne peut pas être annulée.`,
+      confirmLabel: ligne.etapeId ? "Oui, retirer" : "Oui, annuler le règlement",
+      danger: true,
+    });
+    if (!ok2) return;
     if (ligne.etapeId) {
       onDeletePaiementEtape(ligne.etapeId);
       return;
     }
-    const quoi =
-      ligne.id === "acompte"
-        ? `l'acompte de ${euros(ligne.montant)} €`
-        : `le solde de ${euros(ligne.montant)} €`;
-    const ok = await confirm({
-      message: `Annuler ${quoi} ? Il repassera en attente d'encaissement — le montant prévu et le rendez-vous de paiement, eux, sont conservés.`,
-      confirmLabel: "Annuler le règlement",
-      danger: true,
-    });
-    if (!ok) return;
     if (ligne.id === "acompte") {
       onChange({
         acompte_paye: false,
@@ -2357,21 +2372,19 @@ export function PaiementsStep({
                       <span className="flex items-center gap-2">
                         {ligne.when}
                         {paypalMatch && <span>à {formatHeurePaypal(paypalMatch.paypal_recu_le)}</span>}
-                        {(ligne.etapeId || isDirection) && (
-                          <button
-                            onClick={() => supprimerLignePaiement(ligne)}
-                            title={
-                              ligne.etapeId
-                                ? "Retirer cette étape"
-                                : ligne.id === "acompte"
-                                  ? "Annuler cet acompte — il repassera à encaisser"
-                                  : "Annuler ce solde — il repassera à encaisser"
-                            }
-                            className="text-red-500 hover:text-red-600"
-                          >
-                            🗑
-                          </button>
-                        )}
+                        <button
+                          onClick={() => supprimerLignePaiement(ligne)}
+                          title={
+                            ligne.etapeId
+                              ? "Retirer cette étape"
+                              : ligne.id === "acompte"
+                                ? "Annuler cet acompte — il repassera à encaisser"
+                                : "Annuler ce solde — il repassera à encaisser"
+                          }
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          🗑
+                        </button>
                       </span>
                       {ligne.activite && <span>({ligne.activite})</span>}
                       {ligne.assigneA && <span>👤 {ligne.assigneA}</span>}

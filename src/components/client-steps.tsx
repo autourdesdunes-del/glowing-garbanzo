@@ -1898,7 +1898,20 @@ export function PaiementsStep({
     }
   };
 
-  const supprimerAcompte = () => {
+  // Ouvert à toute l'équipe (pas seulement direction) depuis le 2026-09-23,
+  // à la demande de Mélanie : sert quand le montant demandé au client change
+  // finalement, pour pouvoir tout ressaisir proprement plutôt que de laisser
+  // un acompte figé sur un montant devenu faux. Confirmation ajoutée par
+  // précaution (voir l'incident RDV paiement du 20/09 sur un geste similaire
+  // resté jusque-là sans confirmation ni trace).
+  const supprimerAcompte = async () => {
+    const ok = await confirm({
+      title: "Supprimer cet acompte ?",
+      message: `L'acompte de ${euros(client.acompte_montant)} € (${client.acompte_mode}) sera entièrement effacé. Utile si le montant demandé au client a finalement changé.`,
+      confirmLabel: "Oui, supprimer",
+      cancelLabel: "Non",
+    });
+    if (!ok) return;
     onChange({
       acompte_valide: false,
       acompte_paye: false,
@@ -2170,15 +2183,13 @@ export function PaiementsStep({
                       onDifferent={!client.acompte_paye ? clickMontantAcompteDifferent : undefined}
                       differentLabel="Montant de l'acompte différent ?"
                     />
-                    {isDirection && (
-                      <button
-                        onClick={supprimerAcompte}
-                        title="Supprimer"
-                        className="p-1 text-red-500 hover:text-red-600"
-                      >
-                        🗑
-                      </button>
-                    )}
+                    <button
+                      onClick={supprimerAcompte}
+                      title="Supprimer"
+                      className="p-1 text-red-500 hover:text-red-600"
+                    >
+                      🗑
+                    </button>
                   </div>
                 </div>
               )}

@@ -231,6 +231,20 @@ async function processLeadEvent(
                                     telephone = info.telephone;
                                     email = info.email;
                         }
+              } else {
+                        // Le nom du lead est déjà connu (cas très courant : un lead
+                        // EXISTANT qui change de pipeline/statut, ex. passage "Client
+                        // confirmé") — mais sans le téléphone, le rapprochement par
+                        // téléphone juste en dessous ne s'exécute jamais. Or Kommo
+                        // attribue souvent un NOUVEAU lead_id à un lead déplacé dans un
+                        // autre pipeline (ex. pipeline "gagné"/confirmé) : la fiche CRM
+                        // existante n'était alors retrouvée ni par kommo_lead_id (déjà
+                        // différent) ni par téléphone (jamais allé le chercher) → une
+                        // nouvelle fiche en doublon était créée à chaque confirmation.
+                        // On va donc chercher le téléphone même quand le nom est déjà là.
+                        const info = await fetchKommoLeadContactInfo(leadId);
+                        if (info?.telephone) telephone = info.telephone;
+                        if (info?.email) email = info.email;
               }
               nom = cleanKommoName(nom);
 

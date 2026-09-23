@@ -54,11 +54,30 @@ function fmtDate(dateStr: string) {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-// Sous-menu de gauche pour l'onglet Direction — même pattern que
-// SUIVIS_SUBS/PLANNING_SUBS (cf. SuivisView.tsx) : le libellé est affiché
-// tel quel dans la barre latérale d'AppShell.tsx, la clé pilote quel bloc
-// de contenu s'affiche ici.
-export const DIRECTION_SUBS = [
+// Toutes les clés possibles du sous-menu Direction, à plat — déclaré à part
+// (plutôt que dérivé de DIRECTION_SUBS par un type générique) pour rester
+// simple et lisible malgré l'imbrication à 2 niveaux introduite ci-dessous.
+export type DirectionSub =
+  | "dashboard"
+  | "journal"
+  | "remboursements"
+  | "comptabilite"
+  | "marketing"
+  | "statistiques"
+  | "statsAgences"
+  | "statsEmployes"
+  | "recap"
+  | "parametres";
+
+type DirectionSubLeaf = { key: DirectionSub; label: string };
+type DirectionSubNode = DirectionSubLeaf & { children?: readonly DirectionSubLeaf[] };
+
+// Sous-menu de gauche pour l'onglet Direction — arborescence à 2 niveaux
+// maximum (façon classeur Notion : une page peut avoir des sous-pages),
+// affichée par AppShell.tsx (repliable/dépliable par section) ; la clé
+// pilote quel bloc de contenu s'affiche ici, qu'elle soit de premier niveau
+// ou nichée sous "children".
+export const DIRECTION_SUBS: readonly DirectionSubNode[] = [
   { key: "dashboard", label: "Tableau de bord direction" },
   // Qui a fait quoi, jour par jour, tous employés confondus — demande de
   // Mélanie du 2026-09-23 (impossible jusque-là de savoir qui avait modifié
@@ -69,8 +88,14 @@ export const DIRECTION_SUBS = [
   { key: "remboursements", label: "Remboursements" },
   { key: "comptabilite", label: "Comptabilité" },
   { key: "marketing", label: "Digital marketing" },
-  { key: "statsAgences", label: "Stat agences" },
-  { key: "statsEmployes", label: "Stat employés" },
+  {
+    key: "statistiques",
+    label: "Statistiques",
+    children: [
+      { key: "statsAgences", label: "Stat agences" },
+      { key: "statsEmployes", label: "Stat employés" },
+    ],
+  },
   // Même contenu que l'onglet "Récap du mois" de Bodé/Hossam — pour la
   // Direction, il vit ici plutôt qu'en onglet séparé de premier niveau
   // (voir "recap" retiré du TABS top-level pour viewAs === "moi" côté
@@ -78,7 +103,19 @@ export const DIRECTION_SUBS = [
   { key: "recap", label: "Récap du mois" },
   { key: "parametres", label: "Paramètres" },
 ] as const;
-export type DirectionSub = (typeof DIRECTION_SUBS)[number]["key"];
+
+// Cherche le libellé d'une clé à n'importe quel niveau de l'arborescence —
+// sans ça, le placeholder générique affichait un titre vide pour toute
+// sous-page nichée (ex. "statsAgences", introuvable en cherchant seulement
+// au premier niveau).
+function directionSubLabel(sub: DirectionSub): string {
+  for (const node of DIRECTION_SUBS) {
+    if (node.key === sub) return node.label;
+    const child = node.children?.find((c) => c.key === sub);
+    if (child) return child.label;
+  }
+  return "";
+}
 
 function DirectionSubPlaceholder({ label }: { label: string }) {
   return (
@@ -349,7 +386,7 @@ export default function DirectionView({
   }
 
   if (sub !== "dashboard") {
-    return <DirectionSubPlaceholder label={DIRECTION_SUBS.find((s) => s.key === sub)?.label ?? ""} />;
+    return <DirectionSubPlaceholder label={directionSubLabel(sub)} />;
   }
 
   return (

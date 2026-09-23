@@ -264,6 +264,11 @@ function AppShellInner({
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
   const [planningSub, setPlanningSub] = useState<PlanningSub>("calendrier");
   const [directionSub, setDirectionSub] = useState<DirectionSub>("dashboard");
+  // Sections Direction dépliées dans la barre latérale (façon pages/
+  // sous-pages Notion) — un Set plutôt qu'une seule clé pour permettre à
+  // terme plusieurs sections dépliées à la fois, sans tout redéplier quand
+  // on en ouvre une nouvelle.
+  const [expandedDirectionKeys, setExpandedDirectionKeys] = useState<Set<string>>(new Set());
   const [helpSub, setHelpSub] = useState<HelpSub>("hotels");
   const [generateurSub, setGenerateurSub] = useState<"redaction" | "generation">("redaction");
   const [rdvAutoOpenClientId, setRdvAutoOpenClientId] = useState<string | null>(null);
@@ -2453,22 +2458,82 @@ function AppShellInner({
               )}
               {t.key === "direction" && active && effectiveIsDirection && (
                 <div className="ml-6 mt-0.5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
-                  {DIRECTION_SUBS.map((s) => (
-                    <button
-                      key={s.key}
-                      onClick={() => {
-                        setDirectionSub(s.key);
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
-                        directionSub === s.key
-                          ? "bg-[#fafafa] text-[#171717]"
-                          : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
+                  {DIRECTION_SUBS.map((s) => {
+                    const hasChildren = !!s.children?.length;
+                    // Une page avec des sous-pages s'ouvre dépliée dès qu'on
+                    // est sur elle ou une de ses sous-pages — comme Notion,
+                    // qui garde le fil des pages ouvert dans la sidebar
+                    // tant qu'on navigue dedans.
+                    const isExpanded =
+                      expandedDirectionKeys.has(s.key) ||
+                      directionSub === s.key ||
+                      !!s.children?.some((c) => c.key === directionSub);
+                    return (
+                      <div key={s.key}>
+                        <div className="flex items-center">
+                          {hasChildren && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedDirectionKeys((prev) => {
+                                  const next = new Set(prev);
+                                  if (isExpanded) next.delete(s.key);
+                                  else next.add(s.key);
+                                  return next;
+                                })
+                              }
+                              className="flex h-5 w-5 flex-shrink-0 items-center justify-center text-[#999999] hover:text-[#171717]"
+                            >
+                              <svg
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                              >
+                                <path d="M7.5 5.5 12.5 10 7.5 14.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setDirectionSub(s.key);
+                              setMobileMenuOpen(false);
+                            }}
+                            className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                              !hasChildren ? "ml-5" : ""
+                            } ${
+                              directionSub === s.key
+                                ? "bg-[#fafafa] text-[#171717]"
+                                : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                            }`}
+                          >
+                            {s.label}
+                          </button>
+                        </div>
+                        {hasChildren && isExpanded && (
+                          <div className="ml-5 space-y-0.5 border-l border-[#eaeaea] pl-2.5">
+                            {s.children!.map((c) => (
+                              <button
+                                key={c.key}
+                                onClick={() => {
+                                  setDirectionSub(c.key);
+                                  setMobileMenuOpen(false);
+                                }}
+                                className={`block w-full rounded-[6px] px-2 py-1.5 text-left text-xs font-medium transition ${
+                                  directionSub === c.key
+                                    ? "bg-[#fafafa] text-[#171717]"
+                                    : "text-[#666666] hover:bg-[#fafafa] hover:text-[#171717]"
+                                }`}
+                              >
+                                {c.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               {t.key === "help" && active && (

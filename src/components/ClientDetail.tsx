@@ -66,7 +66,6 @@ export default function ClientDetail({
   onJumpToClient,
   onDuplicateAsNewStay,
   onDeleteClientById,
-  canDelete,
   canSeeMargins,
   catalogue,
   catalogueTarifs,
@@ -87,7 +86,6 @@ export default function ClientDetail({
   onJumpToClient: (id: string) => void;
   onDuplicateAsNewStay: (source: Client) => void;
   onDeleteClientById: (id: string) => Promise<boolean> | void;
-  canDelete: boolean;
   canSeeMargins: boolean;
   catalogue: CatalogueItem[];
   catalogueTarifs: Record<string, CatalogueTarif[]>;
@@ -1870,17 +1868,15 @@ export default function ClientDetail({
                             Annuler ce client
                           </button>
                         )}
-                        {canDelete && (
-                          <button
-                            onClick={() => {
-                              setActionsMenuOpen(false);
-                              onDelete();
-                            }}
-                            className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm text-red-600 hover:bg-red-50"
-                          >
-                            Supprimer cette fiche client définitivement
-                          </button>
-                        )}
+                        <button
+                          onClick={() => {
+                            setActionsMenuOpen(false);
+                            onDelete();
+                          }}
+                          className="flex w-full items-center rounded-md px-2.5 py-1.5 text-left text-sm text-red-600 hover:bg-red-50"
+                        >
+                          Supprimer cette fiche client définitivement
+                        </button>
                       </>
                     )}
                     {actionsMenuGroup === "devisFacture" && (

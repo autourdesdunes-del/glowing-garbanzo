@@ -764,17 +764,17 @@ export function PaypalPaiementRow({
     setClientChoisi(null);
   };
 
-  // Un acompte/solde déjà renseigné ne doit jamais être écrasé — désactivé
-  // ici plutôt que de laisser cliquer pour échouer (voir garde-fou côté
-  // rattacherPaypalPaiement dans AppShell).
+  // Un acompte/solde déjà RÉGLÉ ne doit jamais être écrasé — désactivé ici
+  // plutôt que de laisser cliquer pour échouer (voir garde-fou côté
+  // rattacherPaypalPaiement dans AppShell). acompte_montant/acompte_valide
+  // sont posés dès qu'un montant est prévu (avant tout encaissement) : les
+  // exclure d'ici évite de bloquer à tort le rattachement d'un PayPal qui
+  // sert justement à encaisser cet acompte prévu.
   const acompteDejaPris =
     !!clientChoisi &&
     (clientChoisi.acompte_paye ||
-      clientChoisi.acompte_valide ||
-      Number(clientChoisi.acompte_montant) > 0 ||
       (!!clientChoisi.paiement_type && clientChoisi.paiement_type !== "acompte"));
-  const soldeDejaPris =
-    !!clientChoisi && (clientChoisi.solde_paye || Number(clientChoisi.solde_montant) > 0);
+  const soldeDejaPris = !!clientChoisi && clientChoisi.solde_paye;
   // Même raison que PaypalPaiementRappel.tsx : sans ce cas, un paiement
   // PayPal réglant une reprise en cours ne pouvait se rattacher qu'en
   // "étape", sans jamais éteindre le bandeau "En attente de règlement".
@@ -844,10 +844,10 @@ export function PaypalPaiementRow({
             <button
               onClick={() => rattacher("acompte")}
               disabled={acompteDejaPris}
-              title={acompteDejaPris ? "Un acompte est déjà renseigné — ne peut pas être écrasé" : undefined}
+              title={acompteDejaPris ? "Un acompte est déjà réglé — ne peut pas être écrasé" : undefined}
               className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             >
-              L&apos;acompte{acompteDejaPris ? " — déjà renseigné" : ""}
+              L&apos;acompte{acompteDejaPris ? " — déjà réglé" : ""}
             </button>
             <button
               onClick={() => rattacher("etape")}
@@ -858,10 +858,10 @@ export function PaypalPaiementRow({
             <button
               onClick={() => rattacher("solde")}
               disabled={soldeDejaPris}
-              title={soldeDejaPris ? "Le solde est déjà renseigné — ne peut pas être écrasé" : undefined}
+              title={soldeDejaPris ? "Le solde est déjà réglé — ne peut pas être écrasé" : undefined}
               className="rounded-md border border-neutral-300 px-2.5 py-1 text-xs hover:bg-[#fafafa] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
             >
-              Le solde{soldeDejaPris ? " — déjà renseigné" : ""}
+              Le solde{soldeDejaPris ? " — déjà réglé" : ""}
             </button>
             {repriseEnCours && (
               <button

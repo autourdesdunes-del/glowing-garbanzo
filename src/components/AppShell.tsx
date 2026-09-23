@@ -1510,18 +1510,21 @@ function AppShellInner({
     if (!client) return;
 
     if (type === "acompte") {
+      // acompte_montant/acompte_valide sont posés dès qu'un montant est
+      // PRÉVU (avant tout encaissement) — seul acompte_paye signale un
+      // acompte réellement déjà réglé. Sans ce distinguo, rattacher un
+      // PayPal pour encaisser un acompte prévu mais pas encore payé était
+      // bloqué à tort ("déjà renseigné"), pour la quasi-totalité des
+      // dossiers qui suivent le flux normal (montant prévu avant paiement).
       const acompteDejaPris =
-        client.acompte_paye ||
-        client.acompte_valide ||
-        Number(client.acompte_montant) > 0 ||
-        (!!client.paiement_type && client.paiement_type !== "acompte");
+        client.acompte_paye || (!!client.paiement_type && client.paiement_type !== "acompte");
       if (acompteDejaPris) {
-        toast("Cet acompte est déjà renseigné — impossible de l'écraser. Rattache ce paiement comme étape ou solde.");
+        toast("Cet acompte est déjà réglé — impossible de l'écraser. Rattache ce paiement comme étape ou solde.");
         return;
       }
     } else if (type === "solde") {
-      if (client.solde_paye || Number(client.solde_montant) > 0) {
-        toast("Le solde est déjà renseigné — impossible de l'écraser. Rattache ce paiement comme étape.");
+      if (client.solde_paye) {
+        toast("Le solde est déjà réglé — impossible de l'écraser. Rattache ce paiement comme étape.");
         return;
       }
     }

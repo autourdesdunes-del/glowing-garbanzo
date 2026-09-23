@@ -21,7 +21,9 @@ import { generateMonthlyReport } from "@/lib/generateMonthlyReport";
 import RecapMoisView from "@/components/RecapMoisView";
 import CodesPromoManager from "@/components/direction/CodesPromoManager";
 import JournalActiviteView from "@/components/direction/JournalActiviteView";
-import { DirActionRow, DirMetric } from "@/components/direction/DirectionUI";
+import RecentActivityFeed from "@/components/direction/RecentActivityFeed";
+import { Donut, MetricCardTrend } from "@/components/direction/DashboardWidgets";
+import { DirActionRow } from "@/components/direction/DirectionUI";
 
 const MOIS_FR = [
   "janvier",
@@ -59,6 +61,8 @@ function fmtDate(dateStr: string) {
 // simple et lisible malgré l'imbrication à 2 niveaux introduite ci-dessous.
 export type DirectionSub =
   | "dashboard"
+  | "dashboardATraiter"
+  | "dashboardRapport"
   | "journal"
   | "remboursements"
   | "comptabilite"
@@ -78,7 +82,14 @@ type DirectionSubNode = DirectionSubLeaf & { children?: readonly DirectionSubLea
 // pilote quel bloc de contenu s'affiche ici, qu'elle soit de premier niveau
 // ou nichée sous "children".
 export const DIRECTION_SUBS: readonly DirectionSubNode[] = [
-  { key: "dashboard", label: "Tableau de bord direction" },
+  {
+    key: "dashboard",
+    label: "Tableau de bord direction",
+    children: [
+      { key: "dashboardATraiter", label: "À traiter" },
+      { key: "dashboardRapport", label: "Rapport détaillé" },
+    ],
+  },
   // Qui a fait quoi, jour par jour, tous employés confondus — demande de
   // Mélanie du 2026-09-23 (impossible jusque-là de savoir qui avait modifié
   // quoi sur une fiche, ni de voir la journée d'une employée d'un coup).
@@ -335,6 +346,50 @@ export default function DirectionView({
   );
   const clientsDuMois = clients.filter((c) => (c.date_debut || "").slice(0, 7) === currentMonth);
 
+  // -- Tendance sur 6 mois (CA/marge/nouveaux clients), indépendante du
+  // sélecteur mois/plage du "Rapport détaillé" plus bas (toujours calée sur
+  // le mois en cours, glissante) — sert aux sparklines et aux % de tendance
+  // de la Vue d'ensemble (maquette Mélanie, 2026-09-23).
+  const [curY, curM] = currentMonth.split("-").map(Number);
+  const monthsTrailing = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(curY, curM - 1 - (5 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  // Fenêtre plus large pour le gros graphique "CA par mois" de la Vue
+  // d'ensemble (même logique, juste 12 mois au lieu de 6).
+  const monthsTrailing12 = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(curY, curM - 1 - (11 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const statsByMonthAll: Record<string, { ca: number; marge: number; clients: number }> = {};
+  reservationsVendues(reservations).forEach((r) => {
+    const key = (r.date_debut || "").slice(0, 7);
+    if (!key) return;
+    const client = clients.find((c) => c.id === r.client_id);
+    const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+    const cout = Number(coutsMap[r.id]) || 0;
+    const impacts = remboursements.filter((rb) => rb.activite_id === r.id).map(remboursementImpact);
+    const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
+    const impactMarge = impacts.reduce((s, i) => s + i.marge, 0);
+    if (!statsByMonthAll[key]) statsByMonthAll[key] = { ca: 0, marge: 0, clients: 0 };
+    statsByMonthAll[key].ca += total + impactCa;
+    statsByMonthAll[key].marge += total - cout + impactMarge;
+  });
+  clients.forEach((c) => {
+    const key = (c.date_debut || "").slice(0, 7);
+    if (!key) return;
+    if (!statsByMonthAll[key]) statsByMonthAll[key] = { ca: 0, marge: 0, clients: 0 };
+    statsByMonthAll[key].clients += 1;
+  });
+  const trailing = monthsTrailing.map((m) => statsByMonthAll[m] || { ca: 0, marge: 0, clients: 0 });
+  const moisPrecedent = trailing[trailing.length - 2];
+  const moisActuelTrailing = trailing[trailing.length - 1];
+  const pctChange = (actuel: number, precedent: number) =>
+    precedent > 0 ? Math.round(((actuel - precedent) / precedent) * 100) : null;
+  const trendCa = pctChange(moisActuelTrailing.ca, moisPrecedent.ca);
+  const trendMarge = pctChange(moisActuelTrailing.marge, moisPrecedent.marge);
+  const trendClients = pctChange(moisActuelTrailing.clients, moisPrecedent.clients);
+
   // -- Liste prioritaire : les remboursements en attente (donnée existante)
   // et les tâches libres que la Direction ajoute elle-même (ex. "finir le
   // CRM") — mélangées en une seule checklist, triées de la plus ancienne à
@@ -385,33 +440,26 @@ export default function DirectionView({
     );
   }
 
-  if (sub !== "dashboard") {
+  if (sub !== "dashboard" && sub !== "dashboardATraiter" && sub !== "dashboardRapport") {
     return <DirectionSubPlaceholder label={directionSubLabel(sub)} />;
   }
 
-  return (
-    <div className="mx-auto max-w-6xl space-y-8 p-8">
-      <div>
-        <h1 className="font-heading text-[26px] font-semibold text-[#171717]">Tableau de bord Direction</h1>
-        <p className="mt-1 text-sm text-[#666666]">{monthLabel(currentMonth)}</p>
-      </div>
+  // Fil d'Ariane façon Notion : "Tableau de bord direction / À traiter" —
+  // rappelle qu'on est sur une sous-page de la page dépliée dans la sidebar.
+  const breadcrumb = sub !== "dashboard" && (
+    <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+      <span>Tableau de bord direction</span>
+      <span>/</span>
+      <span className="font-medium text-[#171717]">{directionSubLabel(sub)}</span>
+    </div>
+  );
 
-      <div className="flex overflow-x-auto rounded-[6px] border border-[#eaeaea] bg-white px-5 py-4">
-        <DirMetric first label="CA du mois" value={`${euros(caMoisActuel)} €`} />
-        <DirMetric
-          label="Bénéfice du mois"
-          value={`${euros(margeMoisActuel)} €`}
-          sub={
-            sansCoutMoisActuel > 0
-              ? `${margePctMoisActuel}% de marge — ⚠️ coût manquant sur ${sansCoutMoisActuel} vente(s)`
-              : `${margePctMoisActuel}% de marge`
-          }
-        />
-        <DirMetric label="Clients en Égypte" value={String(clientsInEgypt.length)} />
-        <DirMetric label="Clients ce mois" value={String(clientsDuMois.length)} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+  if (sub === "dashboardATraiter") {
+    return (
+      <div className="mx-auto max-w-6xl space-y-6 p-8">
+        {breadcrumb}
+        <h1 className="font-heading text-[26px] font-semibold text-[#171717]">À traiter</h1>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">Liste prioritaire</h2>
           <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
@@ -624,9 +672,16 @@ export default function DirectionView({
             </div>
           </div>
         </div>
+        </div>
       </div>
+    );
+  }
 
-      <div className="flex flex-wrap items-end justify-between gap-3 border-t border-[#eaeaea] pt-6">
+  if (sub === "dashboardRapport") {
+    return (
+      <div className="mx-auto max-w-6xl space-y-8 p-8">
+        {breadcrumb}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-heading text-xl font-semibold text-[#171717]">Rapport détaillé</h2>
           <p className="mt-1 text-xs text-neutral-400">
@@ -821,6 +876,124 @@ export default function DirectionView({
           ))}
         </div>
       </section>
+      </div>
+    );
+  }
+
+  // Vue d'ensemble — page d'accueil du "classeur" Direction (maquette
+  // Mélanie, 2026-09-23) : cartes de tendance avec mini-graphe, gros
+  // graphique CA/mois, tops activités/clients du mois, répartition marge vs
+  // coûts, et un aperçu de l'activité récente de l'équipe.
+  const coutMoisActuel = moisActuelTrailing.ca - moisActuelTrailing.marge;
+  return (
+    <div className="mx-auto max-w-6xl space-y-8 p-8">
+      <div>
+        <h1 className="font-heading text-[26px] font-semibold text-[#171717]">Tableau de bord Direction</h1>
+        <p className="mt-1 text-sm text-[#666666]">{monthLabel(currentMonth)}</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCardTrend
+          label="CA du mois"
+          value={`${euros(caMoisActuel)} €`}
+          trendPct={trendCa}
+          trendLabel="vs mois précédent"
+          values={trailing.map((t) => t.ca)}
+        />
+        <MetricCardTrend
+          label="Bénéfice du mois"
+          value={`${euros(margeMoisActuel)} €`}
+          trendPct={trendMarge}
+          trendLabel={
+            sansCoutMoisActuel > 0
+              ? `${margePctMoisActuel}% de marge — ⚠️ coût manquant sur ${sansCoutMoisActuel} vente(s)`
+              : `${margePctMoisActuel}% de marge`
+          }
+          values={trailing.map((t) => t.marge)}
+        />
+        <MetricCardTrend
+          label="Clients en Égypte"
+          value={String(clientsInEgypt.length)}
+          values={[clientsInEgypt.length, clientsInEgypt.length]}
+        />
+        <MetricCardTrend
+          label="Clients ce mois"
+          value={String(clientsDuMois.length)}
+          trendPct={trendClients}
+          trendLabel="vs mois précédent"
+          values={trailing.map((t) => t.clients)}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4 lg:col-span-2">
+          <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">CA par mois (12 derniers mois)</h2>
+          <MonthlyBarChart
+            data={monthsTrailing12.map((m) => ({ label: m.slice(2), value: statsByMonthAll[m]?.ca || 0 }))}
+          />
+        </div>
+        <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4">
+          <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">Marge vs coûts</h2>
+          <Donut
+            segments={[
+              { label: "Marge", value: Math.max(moisActuelTrailing.marge, 0), color: "#0F5C56" },
+              { label: "Coûts", value: Math.max(coutMoisActuel, 0), color: "#C9973E" },
+            ]}
+            centerValue={`${margePctMoisActuel}%`}
+            centerLabel="marge"
+          />
+          <p className="mt-3 text-xs text-neutral-400">{monthLabel(currentMonth)}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4">
+          <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+            Activités les plus vendues — {monthLabel(currentMonth)}
+          </h2>
+          {topVendues.length === 0 ? (
+            <p className="text-sm text-neutral-400">Pas encore d&apos;activités vendues.</p>
+          ) : (
+            <div className="space-y-1">
+              {topVendues.slice(0, 5).map(([key, d], i) => (
+                <div key={key} className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-[#fafafa]">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#fafafa] text-[10px] font-semibold text-neutral-500">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[#171717]">{d.nom}</span>
+                  <span className="flex-shrink-0 text-xs text-neutral-400">{d.count} vente(s)</span>
+                  <span className="flex-shrink-0 font-semibold text-[#171717]">{euros(d.total)} €</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4">
+          <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
+            Plus gros clients — {monthLabel(currentMonth)}
+          </h2>
+          {topClients.length === 0 ? (
+            <p className="text-sm text-neutral-400">Pas encore de clients avec activités.</p>
+          ) : (
+            <div className="space-y-1">
+              {topClients.slice(0, 5).map(([nom, total], i) => (
+                <div key={nom} className="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-[#fafafa]">
+                  <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#fafafa] text-[10px] font-semibold text-neutral-500">
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[#171717]">{nom}</span>
+                  <span className="flex-shrink-0 font-semibold text-[#171717]">{euros(total)} €</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-[6px] border border-[#eaeaea] bg-white p-4">
+        <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">Activité récente de l&apos;équipe</h2>
+        <RecentActivityFeed clients={clients} teamProfiles={teamProfiles} onOpenClient={onOpenClient} />
+      </div>
     </div>
   );
 }

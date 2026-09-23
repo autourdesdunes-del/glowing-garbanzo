@@ -4,6 +4,28 @@ import { addKommoLeadNote, updateKommoLeadStatus } from "@/lib/kommoApi";
 import { extractProspectInfoFromMessage, KommoExtractedInfo } from "@/lib/kommoExtraction";
 import { localDateStr } from "@/lib/dates";
 import { PROSPECT_STATUTS } from "@/lib/constants";
+import { normPhone } from "@/lib/duplicates";
+
+// Contrairement au webhook classique (kommo/webhook/route.ts), ce chemin de
+// création "premier message" ne rapprochait que par kommo_lead_id/contact_id
+// — un même client qui repart sur un NOUVEAU lead Kommo (nouveau séjour,
+// nouvelle conversation) créait donc systématiquement un doublon, même hors
+// tout incident. Même logique de rapprochement par téléphone que le webhook
+// classique, gardée volontairement séparée (fichiers indépendants) plutôt
+// que partagée, comme les autres copies de ce même garde-fou dans ce repo.
+async function findClientIdByPhone(
+  admin: ReturnType<typeof createAdminClient>,
+  telephone: string
+): Promise<string | null> {
+  const target = normPhone(telephone);
+  if (!target || target.length < 6) return null;
+  const { data, error } = await admin.from("clients").select("id, telephone").not("telephone", "is", null);
+  if (error) throw new Error(`findClientIdByPhone: ${error.message}`);
+  const match = (data as { id: string; telephone: string }[] | null)?.find(
+    (c) => normPhone(c.telephone) === target
+  );
+  return match?.id ?? null;
+}
 
 // Sans ça, le statut avancé ici serait écrasé au prochain sync : le cron
 // kommo-reconcile et le webhook classique traitent Kommo comme la seule
@@ -204,42 +226,70 @@ async function processMessage(
     const telephone = phones?.simple_value || "";
     const status = additionalData.status as { id?: number; name?: string } | undefined;
 
-    const insertRes = await admin
-      .from("clients")
-      .insert({
-        nom,
-        statut: "Prospect",
-        telephone,
-        kommo_lead_id: leadId,
-        kommo_contact_id: contactId,
-        kommo_pipeline_status_id: status?.id ?? null,
-        kommo_pipeline_status_nom: status?.name || "",
-        kommo_premier_echange_le: nowIso,
-        kommo_synced_at: nowIso,
-      })
-      .select(SELECT_FIELDS)
-      .single();
-    if (insertRes.error) {
-      // Deux messages quasi simultanés pour un même lead tout juste créé
-      // peuvent tous les deux ne trouver aucune fiche existante et tenter
-      // de la créer — le premier réussit, le second tombe sur la contrainte
-      // unique (kommo_lead_id/kommo_contact_id). Plutôt que de perdre ce
-      // message, on relit la fiche que l'autre requête vient de créer.
-      if (insertRes.error.code === "23505") {
-        const retryQuery = leadId
-          ? admin.from("clients").select(SELECT_FIELDS).eq("kommo_lead_id", leadId)
-          : admin.from("clients").select(SELECT_FIELDS).eq("kommo_contact_id", contactId);
-        const retryRes = await retryQuery.maybeSingle();
-        if (retryRes.error || !retryRes.data) {
+    // Un même client reparti sur un nouveau lead/contact Kommo (nouveau
+    // séjour, nouvelle conversation) ne doit pas créer une deuxième fiche —
+    // on rattache ce nouveau lead/contact à la fiche existante au lieu d'en
+    // créer une autre. Une exception ici (échec de la requête) ne doit
+    // jamais être traitée comme "aucun match" : mieux vaut relancer ce
+    // message au prochain appel que créer un doublon à l'aveugle.
+    let matchedId: string | null = null;
+    if (telephone) {
+      matchedId = await findClientIdByPhone(admin, telephone);
+    }
+
+    if (matchedId) {
+      const relinkRes = await admin
+        .from("clients")
+        .update({
+          kommo_lead_id: leadId ?? undefined,
+          kommo_contact_id: contactId ?? undefined,
+          kommo_premier_echange_le: nowIso,
+          kommo_synced_at: nowIso,
+        })
+        .eq("id", matchedId)
+        .select(SELECT_FIELDS)
+        .single();
+      if (relinkRes.error) throw new Error(`relink existing client failed: ${relinkRes.error.message}`);
+      existing = relinkRes.data;
+      isNewClient = false;
+    } else {
+      const insertRes = await admin
+        .from("clients")
+        .insert({
+          nom,
+          statut: "Prospect",
+          telephone,
+          kommo_lead_id: leadId,
+          kommo_contact_id: contactId,
+          kommo_pipeline_status_id: status?.id ?? null,
+          kommo_pipeline_status_nom: status?.name || "",
+          kommo_premier_echange_le: nowIso,
+          kommo_synced_at: nowIso,
+        })
+        .select(SELECT_FIELDS)
+        .single();
+      if (insertRes.error) {
+        // Deux messages quasi simultanés pour un même lead tout juste créé
+        // peuvent tous les deux ne trouver aucune fiche existante et tenter
+        // de la créer — le premier réussit, le second tombe sur la contrainte
+        // unique (kommo_lead_id/kommo_contact_id). Plutôt que de perdre ce
+        // message, on relit la fiche que l'autre requête vient de créer.
+        if (insertRes.error.code === "23505") {
+          const retryQuery = leadId
+            ? admin.from("clients").select(SELECT_FIELDS).eq("kommo_lead_id", leadId)
+            : admin.from("clients").select(SELECT_FIELDS).eq("kommo_contact_id", contactId);
+          const retryRes = await retryQuery.maybeSingle();
+          if (retryRes.error || !retryRes.data) {
+            throw new Error(`create client failed: ${insertRes.error.message}`);
+          }
+          existing = retryRes.data;
+          isNewClient = false;
+        } else {
           throw new Error(`create client failed: ${insertRes.error.message}`);
         }
-        existing = retryRes.data;
-        isNewClient = false;
       } else {
-        throw new Error(`create client failed: ${insertRes.error.message}`);
+        existing = insertRes.data;
       }
-    } else {
-      existing = insertRes.data;
     }
   }
   if (!existing) return null;

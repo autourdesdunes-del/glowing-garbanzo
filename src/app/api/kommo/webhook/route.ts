@@ -18,6 +18,14 @@ import {
 // quand même la fiche (ne jamais bloquer la synchro) mais on cherche un nom
 // proche parmi les clients existants pour la marquer "à vérifier" — voir
 // migration 0068 et DoublonPossibleAlert (pop-up) côté app.
+// Sans le check d'erreur, une requête en échec (pic de charge, timeout...)
+// renvoyait data=null exactement comme "aucun match trouvé" : la fiche
+// existante n'était jamais rapprochée et un doublon était créé à la place.
+// Probable cause du pic de doublons du 22/09 (voir migration 88f5267, même
+// jour — CPU saturé, ces requêtes non indexées étaient de bonnes
+// candidates à l'échec silencieux). On distingue maintenant l'échec
+// (exception, l'appelant doit sauter cette entrée plutôt que créer un
+// client) du "vraiment aucun match" (null).
 async function findPossibleDuplicateByName(
   admin: ReturnType<typeof createAdminClient>,
   nom: string
@@ -28,7 +36,8 @@ async function findPossibleDuplicateByName(
   // AppShell.tsx) — sans ça, un nouveau lead au nom identique pouvait être
   // proposé en doublon de l'ancienne fiche vidée par la fusion, au lieu de
   // la fiche vivante qui a récupéré l'historique réel.
-  const { data } = await admin.from("clients").select("id, nom, statut").neq("statut", "Client annulé");
+  const { data, error } = await admin.from("clients").select("id, nom, statut").neq("statut", "Client annulé");
+  if (error) throw new Error(`findPossibleDuplicateByName: ${error.message}`);
   const match = (data as { id: string; nom: string }[] | null)?.find((c) => normText(c.nom) === target);
   return match?.id ?? null;
 }
@@ -46,7 +55,8 @@ async function findClientIdByPhone(
 ): Promise<{ id: string; statut: string } | null> {
   const target = normPhone(telephone);
   if (!target || target.length < 6) return null;
-  const { data } = await admin.from("clients").select("id, telephone, statut").not("telephone", "is", null);
+  const { data, error } = await admin.from("clients").select("id, telephone, statut").not("telephone", "is", null);
+  if (error) throw new Error(`findClientIdByPhone: ${error.message}`);
   const match = (data as { id: string; telephone: string; statut: string }[] | null)?.find(
     (c) => normPhone(c.telephone) === target
   );
@@ -226,10 +236,19 @@ async function processLeadEvent(
 
               let matchedId: string | null = null;
               let matchedStatut: string | null = null;
-              if (telephone) {
-                        const found = await findClientIdByPhone(admin, telephone);
-                        matchedId = found?.id ?? null;
-                        matchedStatut = found?.statut ?? null;
+              // Une exception ici (échec de la requête, jamais un simple
+              // "pas de match") ne doit jamais tomber dans le else ci-dessous
+              // et créer un doublon — on saute ce lead pour ce webhook, il
+              // sera retraité au prochain événement Kommo le concernant.
+              try {
+                        if (telephone) {
+                                  const found = await findClientIdByPhone(admin, telephone);
+                                  matchedId = found?.id ?? null;
+                                  matchedStatut = found?.statut ?? null;
+                        }
+              } catch (e) {
+                        console.error("Kommo webhook: rapprochement par téléphone échoué, lead ignoré", leadId, e);
+                        continue;
               }
 
               if (matchedId) {
@@ -252,7 +271,13 @@ async function processLeadEvent(
                                     .eq("id", matchedId);
                         lastClientId = matchedId;
               } else {
-                        const doublonPossibleId = await findPossibleDuplicateByName(admin, nom);
+                        let doublonPossibleId: string | null = null;
+                        try {
+                                  doublonPossibleId = await findPossibleDuplicateByName(admin, nom);
+                        } catch (e) {
+                                  console.error("Kommo webhook: recherche de doublon par nom échouée, lead ignoré", leadId, e);
+                                  continue;
+                        }
                         const canalDetecte = canalParLeadId.get(leadId);
                         const { data: created } = await admin
                                     .from("clients")
@@ -317,16 +342,24 @@ async function processContactEvent(
       }
 
       // Pas de fiche existante liée à ce contact : on tente un rapprochement
-      // par téléphone/email avant de créer un doublon.
+      // par téléphone/email avant de créer un doublon. Une exception ici ne
+      // doit jamais être traitée comme "aucun match" (voir findClientIdByPhone)
+      // — on saute ce contact plutôt que de créer un doublon à l'aveugle.
       let matchedId: string | null = null;
+      try {
         if (phone) {
                 const found = await findClientIdByPhone(admin, phone);
                 matchedId = found?.id ?? null;
         }
         if (!matchedId && email) {
-                const { data } = await admin.from("clients").select("id").eq("email", email).maybeSingle();
+                const { data, error } = await admin.from("clients").select("id").eq("email", email).maybeSingle();
+                if (error) throw new Error(`lookup by email: ${error.message}`);
                 matchedId = data?.id ?? null;
         }
+      } catch (e) {
+        console.error("Kommo webhook: rapprochement de contact échoué, contact ignoré", contactId, e);
+        continue;
+      }
 
       if (matchedId) {
               await admin
@@ -339,7 +372,13 @@ async function processContactEvent(
                 .eq("id", matchedId);
               lastClientId = matchedId;
       } else {
-              const doublonPossibleId = await findPossibleDuplicateByName(admin, nom);
+              let doublonPossibleId: string | null = null;
+              try {
+                doublonPossibleId = await findPossibleDuplicateByName(admin, nom);
+              } catch (e) {
+                console.error("Kommo webhook: recherche de doublon par nom échouée, contact ignoré", contactId, e);
+                continue;
+              }
               const canalDetecte = canalParContactId.get(contactId);
               const { data: created } = await admin
                 .from("clients")

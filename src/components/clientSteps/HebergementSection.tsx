@@ -235,9 +235,16 @@ export default function HebergementSection({
 
       {hotelModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-md rounded-[6px] border border-[#eaeaea] bg-white p-6">
+          {/* Contenu seul scrollable, "Valider" toujours visible en bas —
+              sans ça, un circuit à plusieurs hôtels débordait de l'écran sur
+              mobile sans aucun moyen de scroller jusqu'au bouton (même bug
+              que le pop-up "sorties partagées", vécu par l'équipe le
+              2026-09-25 : min-h-0 indispensable pour qu'overflow-y-auto
+              fonctionne réellement dans un flex-col). */}
+          <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-[6px] border border-[#eaeaea] bg-white">
+          <div className="min-h-0 overflow-y-auto p-6 pb-0">
             <h2 className="font-heading mb-4 text-lg font-semibold text-[#171717]">Hébergement</h2>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pb-6">
               {client.type_hebergement === "airbnb" ? (
                 <>
                   <PropertyRow label="Airbnb" icon={<PropIcon name="hotel" />}>
@@ -465,14 +472,17 @@ export default function HebergementSection({
                 </>
               )}
             </div>
+          </div>
+          <div className="flex-shrink-0 p-6 pt-4">
             <button
               type="button"
               disabled={client.type_hebergement !== "airbnb" && clientHotels.length > 0 && circuitIncomplet}
               onClick={() => setHotelModalOpen(false)}
-              className="mt-5 w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-full rounded-md bg-[#171717] py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Valider
             </button>
+          </div>
           </div>
         </div>
       )}

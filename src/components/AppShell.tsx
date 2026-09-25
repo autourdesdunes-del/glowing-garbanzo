@@ -2777,20 +2777,25 @@ function AppShellInner({
         })()}
       {showSharedAlertPopup && sharedAlerts.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">📣</span>
-              <p className="font-heading text-base font-semibold text-[#171717]">
-                À remplir en priorité cette semaine
+          <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-lg border border-[#eaeaea] bg-white shadow-xl">
+            {/* Liste seule scrollable, bouton toujours visible en bas — sans
+                ça, plus de 5-6 sorties partagées poussait "J'ai compris" hors
+                de l'écran sur mobile, sans aucun moyen de scroller jusqu'à lui
+                pour fermer le pop-up (vécu par l'équipe, 2026-09-25). */}
+            <div className="overflow-y-auto p-5 pb-0">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📣</span>
+                <p className="font-heading text-base font-semibold text-[#171717]">
+                  À remplir en priorité cette semaine
+                </p>
+              </div>
+              <p className="mt-1 text-xs text-neutral-500">
+                {sharedAlerts.length} sortie{sharedAlerts.length > 1 ? "s" : ""} partagée
+                {sharedAlerts.length > 1 ? "s" : ""} {sharedAlerts.length > 1 ? "ont" : "a"} encore des
+                places libres. Poussez-les dans vos ventes.
               </p>
-            </div>
-            <p className="mt-1 text-xs text-neutral-500">
-              {sharedAlerts.length} sortie{sharedAlerts.length > 1 ? "s" : ""} partagée
-              {sharedAlerts.length > 1 ? "s" : ""} {sharedAlerts.length > 1 ? "ont" : "a"} encore des
-              places libres. Poussez-les dans vos ventes.
-            </p>
-            <div className="mt-4 space-y-2">
-              {sharedAlerts.map((a) => {
+              <div className="mt-4 space-y-2 pb-5">
+                {sharedAlerts.map((a) => {
                 const d = new Date(a.date + "T00:00:00");
                 const dateLabel = d.toLocaleDateString("fr-FR", {
                   weekday: "long",
@@ -2817,14 +2822,17 @@ function AppShellInner({
                     </div>
                   </div>
                 );
-              })}
+                })}
+              </div>
             </div>
-            <button
-              onClick={dismissSharedAlertPopup}
-              className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-            >
-              J&apos;ai compris
-            </button>
+            <div className="flex-shrink-0 p-5 pt-4">
+              <button
+                onClick={dismissSharedAlertPopup}
+                className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+              >
+                J&apos;ai compris
+              </button>
+            </div>
           </div>
         </div>
       )}

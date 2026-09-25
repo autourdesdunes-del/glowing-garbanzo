@@ -13,8 +13,13 @@ import { estDossierNonVerifie, prospectRelanceUrgente } from "@/lib/resa";
 // ces quatre tâches alors qu'il y en a en attente. Personne n'est "the
 // responsible one", tout le monde peut agir. Un seul pop-up à la fois (la
 // plus urgente d'abord) — "Plus tard" fait passer à la suivante.
-function daysSince(iso: string) {
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+// dateStr est toujours une simple date "YYYY-MM-DD" (jamais un horodatage
+// avec heure) à ce stade — dernierePersonalReponseKommo est tronqué en
+// amont. new Date("YYYY-MM-DD") est interprété en UTC minuit, pas en heure
+// locale : décalage possible d'un jour pour l'équipe (Europe/Paris), voir
+// dates.ts qui documente ce même piège pour toutes les autres dates métier.
+function daysSince(dateStr: string) {
+  return Math.floor((Date.now() - new Date(dateStr + "T00:00:00").getTime()) / 86400000);
 }
 
 function estAuRevoirEnAttente(c: Client) {
@@ -69,6 +74,7 @@ export default function PersonalNudgeAlert({
   currentUserId,
   clients,
   verifications,
+  dernierePersonalReponseKommo,
   onOpenProspectsARelancer,
   onOpenAuRevoir,
   onOpenAvisClients,
@@ -77,6 +83,12 @@ export default function PersonalNudgeAlert({
   currentUserId: string;
   clients: Client[];
   verifications: Verification[];
+  // Dernière réponse Kommo (WhatsApp/Instagram) de cette employée, tous
+  // clients confondus — voir AppShell.tsx. La file "prospects à relancer"
+  // compte déjà une réponse Kommo comme une vraie relance (derniereActiviteProspect,
+  // resa.ts) ; sans ce signal ici, le rappel personnel ignorait totalement
+  // les relances faites hors du bouton "Relancé aujourd'hui" du CRM.
+  dernierePersonalReponseKommo: string | null;
   onOpenProspectsARelancer: () => void;
   onOpenAuRevoir: () => void;
   onOpenAvisClients: () => void;
@@ -112,7 +124,10 @@ export default function PersonalNudgeAlert({
   }[] = [
     {
       cle: "relances",
-      derniere: dernierePar((c) => c.dernier_contact_par_id, (c) => c.dernier_contact_date),
+      derniere: [
+        dernierePar((c) => c.dernier_contact_par_id, (c) => c.dernier_contact_date),
+        dernierePersonalReponseKommo ? dernierePersonalReponseKommo.slice(0, 10) : null,
+      ].reduce((max: string | null, d) => (!max || (d && d > max) ? d : max), null),
       // Seulement les relances vraiment urgentes (arrivée <15j ou déjà sur
       // place) — pas tous les prospects stagnants, sinon le rappel personnel
       // brandit un chiffre à 500+ ingérable au lieu d'une vraie priorité.

@@ -335,6 +335,29 @@ function AppShellInner({
   const [modifsLoaded, setModifsLoaded] = useState(false);
   const [remarquesEmploye, setRemarquesEmploye] = useState<RemarqueEmployee[]>([]);
   const [kommoReponsesEmploye, setKommoReponsesEmploye] = useState<KommoReponseEmploye[]>([]);
+  // Dernière réponse Kommo (WhatsApp/Instagram) de CE compte, tous clients
+  // confondus — indépendant de kommoReponsesEmploye ci-dessus (chargé
+  // seulement en ouvrant Manager, donc jamais disponible pour une simple
+  // employée). Sert uniquement au rappel personnel "relances" : sans ça, une
+  // employée qui répond activement aux prospects sur Kommo/WhatsApp sans
+  // jamais cliquer "Relancé aujourd'hui" dans le CRM se voyait reprocher à
+  // tort de n'avoir "fait aucune relance depuis X jours" alors que la file
+  // d'attente "prospects à relancer" (elle) considère bien ces réponses
+  // Kommo comme une vraie relance (voir prospectRelanceUrgente, resa.ts).
+  const [dernierePersonalReponseKommo, setDernierePersonalReponseKommo] = useState<string | null>(null);
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("kommo_reponses_employe")
+        .select("reponse_at")
+        .eq("employe_id", userId)
+        .order("reponse_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      setDernierePersonalReponseKommo((data as { reponse_at: string } | null)?.reponse_at ?? null);
+    })();
+  }, [userId, supabase]);
   const [remarquesLoaded, setRemarquesLoaded] = useState(false);
   const [teamProfiles, setTeamProfiles] = useState<Profile[]>([]);
   // Options du simulateur "Aperçu vu par" — une entrée par vraie personne
@@ -2686,6 +2709,7 @@ function AppShellInner({
           currentUserId={userId}
           clients={clients}
           verifications={allVerifications}
+          dernierePersonalReponseKommo={dernierePersonalReponseKommo}
           onOpenProspectsARelancer={openProspectsARelancer}
           onOpenAuRevoir={openAuRevoir}
           onOpenAvisClients={openAvisClients}

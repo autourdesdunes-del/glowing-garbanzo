@@ -2777,12 +2777,12 @@ function AppShellInner({
         })()}
       {showSharedAlertPopup && sharedAlerts.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="flex max-h-[85vh] w-full max-w-md flex-col rounded-lg border border-[#eaeaea] bg-white shadow-xl">
+          <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-lg border border-[#eaeaea] bg-white shadow-xl">
             {/* Liste seule scrollable, bouton toujours visible en bas — sans
                 ça, plus de 5-6 sorties partagées poussait "J'ai compris" hors
                 de l'écran sur mobile, sans aucun moyen de scroller jusqu'à lui
                 pour fermer le pop-up (vécu par l'équipe, 2026-09-25). */}
-            <div className="overflow-y-auto p-5 pb-0">
+            <div className="min-h-0 overflow-y-auto p-5 pb-0">
               <div className="flex items-center gap-2">
                 <span className="text-lg">📣</span>
                 <p className="font-heading text-base font-semibold text-[#171717]">

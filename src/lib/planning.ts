@@ -14,16 +14,18 @@ export function profilesOnShiftAt(
   heure: string
 ): Profile[] {
   if (!date || !heure) return [];
+  // Un shift "coupé" (shift2_debut/shift2_fin, voir migration 0144) compte
+  // pour deux plages distinctes — sans ce second test, quelqu'un en pause
+  // entre les deux (ex. 12h-15h) apparaissait à tort en poste sur toute la
+  // plage 9h30-20h00.
   const userIds = new Set(
     planningShifts
       .filter(
         (s) =>
           s.date === date &&
           s.statut === "travail" &&
-          s.shift_debut &&
-          s.shift_fin &&
-          s.shift_debut <= heure &&
-          heure <= s.shift_fin
+          ((s.shift_debut && s.shift_fin && s.shift_debut <= heure && heure <= s.shift_fin) ||
+            (s.shift2_debut && s.shift2_fin && s.shift2_debut <= heure && heure <= s.shift2_fin))
       )
       .map((s) => s.user_id)
   );

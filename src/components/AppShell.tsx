@@ -17,6 +17,7 @@ import {
   CatalogueTransfertTarif,
   Client,
   ClientHotel,
+  Conge,
   EMPTY_CLIENT,
   JourEscalation,
   PaiementEtape,
@@ -74,6 +75,7 @@ import BilletRappels from "@/components/BilletRappels";
 import BilletEnvoiRappels from "@/components/BilletEnvoiRappels";
 import PaypalPaiementRappel from "@/components/PaypalPaiementRappel";
 import AnnulationHossamAlert from "@/components/AnnulationHossamAlert";
+import CongeDemandeAlert from "@/components/CongeDemandeAlert";
 import DoublonPossibleAlert from "@/components/DoublonPossibleAlert";
 import NouveauClientConfirmeAlert from "@/components/NouveauClientConfirmeAlert";
 import BusEscalationCenter from "@/components/BusEscalationCenter";
@@ -444,6 +446,7 @@ function AppShellInner({
   // le rôle Direction mais un navMasque non vide (voir migration 0092).
   const hideRecapTopLevel = viewAs === "moi" && isDirection && navMasque.length === 0;
   const [teamPlanningShifts, setTeamPlanningShifts] = useState<PlanningShift[]>([]);
+  const [teamConges, setTeamConges] = useState<Conge[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [catalogueTarifs, setCatalogueTarifs] = useState<Record<string, CatalogueTarif[]>>({});
   const [transfertTarifs, setTransfertTarifs] = useState<Record<string, CatalogueTransfertTarif[]>>(
@@ -471,6 +474,7 @@ function AppShellInner({
         { data: shifts },
         { data: paypal },
         { data: verifs },
+        { data: conges },
       ] = await Promise.all([
         fetchAllRows<Client>(supabase, "clients", "*", "created_at", false),
         supabase
@@ -492,12 +496,16 @@ function AppShellInner({
         // Chargé sans attendre l'ouverture d'une fiche : sert au rappel
         // personnel de vérification des dossiers (PersonalNudgeAlert).
         supabase.from("verifications").select("*"),
+        // Sert à CongeDemandeAlert (notif direction dès qu'une demande de
+        // congé arrive) — chargé sans attendre l'ouverture du Planning.
+        supabase.from("conges").select("*"),
       ]);
       setPacks((packsData as Pack[]) || []);
       setTeamProfiles((profs as Profile[]) || []);
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
       setAllVerifications((verifs as Verification[]) || []);
+      setTeamConges((conges as Conge[]) || []);
       if (!error && data) {
         setClients(data as Client[]);
         if (data.length && !selectedId) setSelectedId(data[0].id);
@@ -1040,6 +1048,7 @@ function AppShellInner({
         { data: shifts },
         { data: paypal },
         { data: verifs },
+        { data: conges },
       ] = await Promise.all([
         fetchAllRows<Client>(supabase, "clients", "*", "created_at", false),
         supabase.from("catalogue_activites").select("*").order("ordre", { ascending: true }),
@@ -1053,6 +1062,7 @@ function AppShellInner({
         supabase.from("planning_shifts").select("*"),
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
         supabase.from("verifications").select("*"),
+        supabase.from("conges").select("*"),
       ]);
       setPacks((packsData as Pack[]) || []);
 
@@ -1111,6 +1121,7 @@ function AppShellInner({
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
       setAllVerifications((verifs as Verification[]) || []);
+      setTeamConges((conges as Conge[]) || []);
 
       if (flags.planningLoaded) {
         // fetchAllRows partout ici, jamais .select("*")/.in() — même raison
@@ -2734,6 +2745,7 @@ function AppShellInner({
         />
       )}
       <AnnulationHossamAlert reservations={allReservations} clients={clients} userEmail={userEmail} />
+      <CongeDemandeAlert isDirection={isDirection} conges={teamConges} profiles={teamProfiles} />
       <DoublonPossibleAlert
         clients={clients}
         onOpenClient={openClient}

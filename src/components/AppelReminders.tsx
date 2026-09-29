@@ -53,18 +53,27 @@ export default function AppelReminders({
           )
       );
 
-      if (todayShift?.shift_debut && myCallsToday.length > 0) {
-        const debutMin = minutesSinceMidnight(todayShift.shift_debut);
-        const shiftKey = `appel-shift-notif-${currentUserId}-${todayStr}`;
-        if (
-          debutMin !== null &&
-          nowMin >= debutMin &&
-          nowMin < debutMin + 15 &&
-          !localStorage.getItem(shiftKey)
-        ) {
-          localStorage.setItem(shiftKey, "1");
-          setAlert({ kind: "shift", calls: myCallsToday });
-          return;
+      // Un shift "coupé" (shift2_debut, voir migration 0144) redéclenche la
+      // même notif à la reprise de l'après-midi — sinon les appels de la
+      // deuxième plage ne bénéficient que du rappel individuel 10 min avant,
+      // jamais du récap de début de shift.
+      const shiftStarts = [todayShift?.shift_debut, todayShift?.shift2_debut].filter(
+        (d): d is string => !!d
+      );
+      if (shiftStarts.length > 0 && myCallsToday.length > 0) {
+        for (const debut of shiftStarts) {
+          const debutMin = minutesSinceMidnight(debut);
+          const shiftKey = `appel-shift-notif-${currentUserId}-${todayStr}-${debut}`;
+          if (
+            debutMin !== null &&
+            nowMin >= debutMin &&
+            nowMin < debutMin + 15 &&
+            !localStorage.getItem(shiftKey)
+          ) {
+            localStorage.setItem(shiftKey, "1");
+            setAlert({ kind: "shift", calls: myCallsToday });
+            return;
+          }
         }
       }
 

@@ -561,7 +561,11 @@ export default function DashboardView({
                     ? "OFF aujourd'hui"
                     : plannedShift.statut === "superviseur"
                       ? "Superviseur aujourd'hui"
-                      : `Shift aujourd'hui : ${plannedShift.shift_debut} – ${plannedShift.shift_fin}`}
+                      : `Shift aujourd'hui : ${plannedShift.shift_debut} – ${plannedShift.shift_fin}${
+                          plannedShift.shift2_debut
+                            ? ` / ${plannedShift.shift2_debut} – ${plannedShift.shift2_fin}`
+                            : ""
+                        }`}
               </span>
             ) : editingShift ? (
               <span className="inline-flex items-center gap-1.5">
@@ -910,7 +914,9 @@ export default function DashboardView({
                     <span className="text-[#666666]">
                       {shift.statut === "superviseur"
                         ? "Superviseur"
-                        : `${shift.shift_debut} – ${shift.shift_fin}`}
+                        : `${shift.shift_debut} – ${shift.shift_fin}${
+                            shift.shift2_debut ? ` / ${shift.shift2_debut} – ${shift.shift2_fin}` : ""
+                          }`}
                     </span>
                   </li>
                 ))}

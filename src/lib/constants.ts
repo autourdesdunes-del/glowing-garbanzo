@@ -116,6 +116,10 @@ export const ASSIGNE_A_OPTIONS = ["Bode", "Sylvie", "Autre"] as const;
 // l'adresse réelle diffère.
 export const HOSSAM_EMAIL = "neno_hossam@yahoo.com";
 
+// Adresse perso de Mélanie pour l'email de notification "nouvelle demande
+// de congé" (demande du 2026-09-29) — distincte de son compte CRM.
+export const MELANIE_ALERT_EMAIL = "meeelanie.martin@sfr.fr";
+
 export const MOMENTS = ["Matin", "Après-midi", "Journée", "Plusieurs jours"] as const;
 export const OPTIONS_PRESETS = ["Guide francophone", "Privatif", "Parachute", "2ème île", "Autre"] as const;
 export const RAISONS_REMBOURSEMENT = [

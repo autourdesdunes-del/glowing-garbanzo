@@ -153,7 +153,7 @@ export function DetailModal({
                       >
                         <span className="font-medium text-neutral-700">{nameFor(s.user_id)}</span>
                         <span className={`rounded-full px-2 py-0.5 ${statutBadgeClass(s.statut)}`}>
-                          {statutLabel(s.statut, s.shift_debut, s.shift_fin)}
+                          {statutLabel(s.statut, s.shift_debut, s.shift_fin, s.shift2_debut, s.shift2_fin)}
                         </span>
                       </div>
                     ))}

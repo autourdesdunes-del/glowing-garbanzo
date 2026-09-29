@@ -860,22 +860,17 @@ export type PlanningShift = {
   date: string;
   shift_debut: string;
   shift_fin: string;
+  // Deuxième plage optionnelle pour un horaire "coupé" (ex. 9h30-12h00 puis
+  // 15h00-20h00, avec une vraie absence entre les deux) — vides = pas de
+  // coupure ce jour-là. Voir migration 0144.
+  shift2_debut: string;
+  shift2_fin: string;
   statut: "travail" | "conge" | "repos" | "superviseur";
   // Petite note libre sur une exception ponctuelle (ex. "OFF habituel
   // décalé", "Récup samedi 19") — affichée en icône sur la carte du shift.
   note: string;
   created_at: string;
   updated_at: string;
-};
-
-// Jour où la couverture 9h30-21h30 par au moins 2 personnes n'est pas
-// exigée (Noël, jour de l'an, raison spéciale...) — l'alerte "jour
-// incomplet" du Planning équipe ignore ces dates.
-export type PlanningJourExceptionnel = {
-  id: string;
-  date: string;
-  motif: string;
-  created_at: string;
 };
 
 export type SemaineTypeShift = {

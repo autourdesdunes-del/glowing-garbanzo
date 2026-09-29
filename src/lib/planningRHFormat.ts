@@ -59,11 +59,18 @@ export const WEEKDAY_JS_TO_FR = [
   "Samedi",
 ];
 
-export function statutLabel(statut: string, debut?: string, fin?: string) {
+export function statutLabel(
+  statut: string,
+  debut?: string,
+  fin?: string,
+  debut2?: string,
+  fin2?: string
+) {
   if (statut === "conge") return "Congé";
   if (statut === "repos") return "OFF";
   if (statut === "superviseur") return "Superviseur";
-  return debut || fin ? `${debut} – ${fin}` : "Travail";
+  if (!debut && !fin) return "Travail";
+  return debut2 || fin2 ? `${debut} – ${fin} / ${debut2} – ${fin2}` : `${debut} – ${fin}`;
 }
 
 export function statutBadgeClass(statut: string) {

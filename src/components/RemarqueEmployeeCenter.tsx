@@ -11,19 +11,23 @@ import { RemarqueEmployee } from "@/lib/types";
 function RemarqueModal({ remarque, onClose }: { remarque: RemarqueEmployee; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg border-2 border-[#C9973E] bg-white p-5 shadow-xl">
-        <h2 className="font-heading text-base font-semibold text-[#8B4531]">Remarque</h2>
-        {remarque.client_nom && (
-          <p className="mt-1 text-xs text-neutral-400">À propos du dossier {remarque.client_nom}</p>
-        )}
-        <p className="mt-2 whitespace-pre-wrap text-sm text-[#171717]">{remarque.message}</p>
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-        >
-          OK, compris
-        </button>
+      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-lg border-2 border-[#C9973E] bg-white">
+        <div className="min-h-0 overflow-y-auto p-5 pb-0">
+          <h2 className="font-heading text-base font-semibold text-[#8B4531]">Remarque</h2>
+          {remarque.client_nom && (
+            <p className="mt-1 text-xs text-neutral-400">À propos du dossier {remarque.client_nom}</p>
+          )}
+          <p className="mt-2 whitespace-pre-wrap text-sm text-[#171717]">{remarque.message}</p>
+        </div>
+        <div className="flex-shrink-0 p-5 pt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            OK, compris
+          </button>
+        </div>
       </div>
     </div>
   );

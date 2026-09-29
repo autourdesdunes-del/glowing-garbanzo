@@ -91,40 +91,47 @@ export default function AppelReminders({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
-        <h2 className="font-heading text-base font-semibold text-[#171717]">
-          {alert.kind === "shift"
-            ? plural
-              ? "Appels prévus pendant votre shift"
-              : "Appel prévu pendant votre shift"
-            : "Appel dans 10 minutes"}
-        </h2>
-        <div className="mt-3 space-y-2">
-          {alert.calls.map((c) => (
-            <div
-              key={c.id}
-              className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm"
-            >
-              <div className="font-amounts text-neutral-500">
-                {c.prochain_appel_heure}
-                {c.prochain_appel_fuseau === "egypte" ? " (heure égyptienne)" : " (heure française)"}
+      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
+        {/* Liste des appels scrollable, bouton OK toujours visible en bas —
+            un shift peut compter beaucoup d'appels, même bug que le pop-up
+            "sorties partagées" (min-h-0 indispensable). */}
+        <div className="min-h-0 overflow-y-auto p-5 pb-0">
+          <h2 className="font-heading text-base font-semibold text-[#171717]">
+            {alert.kind === "shift"
+              ? plural
+                ? "Appels prévus pendant votre shift"
+                : "Appel prévu pendant votre shift"
+              : "Appel dans 10 minutes"}
+          </h2>
+          <div className="mt-3 space-y-2 pb-3">
+            {alert.calls.map((c) => (
+              <div
+                key={c.id}
+                className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-sm"
+              >
+                <div className="font-amounts text-neutral-500">
+                  {c.prochain_appel_heure}
+                  {c.prochain_appel_fuseau === "egypte" ? " (heure égyptienne)" : " (heure française)"}
+                </div>
+                <div>
+                  <strong>{c.nom || "Sans nom"}</strong>
+                  {c.prochain_appel_plateforme ? ` — ${c.prochain_appel_plateforme}` : ""}
+                </div>
               </div>
-              <div>
-                <strong>{c.nom || "Sans nom"}</strong>
-                {c.prochain_appel_plateforme ? ` — ${c.prochain_appel_plateforme}` : ""}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <p className="text-sm text-[#666666]">
+            Merci de ne pas déléguer {plural ? "ces appels" : "cet appel"} à une personne tierce.
+          </p>
         </div>
-        <p className="mt-3 text-sm text-[#666666]">
-          Merci de ne pas déléguer {plural ? "ces appels" : "cet appel"} à une personne tierce.
-        </p>
-        <button
-          onClick={() => setAlert(null)}
-          className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
-        >
-          OK
-        </button>
+        <div className="flex-shrink-0 p-5 pt-4">
+          <button
+            onClick={() => setAlert(null)}
+            className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            OK
+          </button>
+        </div>
       </div>
     </div>
   );

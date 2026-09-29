@@ -66,7 +66,8 @@ export default function SoldePayeConfirmModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-sm rounded-[6px] border border-[#eaeaea] bg-white p-6">
+      <div className="flex max-h-[85dvh] w-full max-w-sm flex-col rounded-[6px] border border-[#eaeaea] bg-white">
+        <div className="min-h-0 overflow-y-auto p-6 pb-0">
         <h2 className="font-heading mb-2 text-lg font-semibold text-[#171717]">
           {title || `Confirmer "${newLabel}"`}
         </h2>
@@ -111,7 +112,8 @@ export default function SoldePayeConfirmModal({
             des paiements.
           </p>
         )}
-        <div className="flex justify-end gap-2">
+        </div>
+        <div className="flex flex-shrink-0 justify-end gap-2 p-6 pt-4">
           <button
             onClick={onCancel}
             className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50"

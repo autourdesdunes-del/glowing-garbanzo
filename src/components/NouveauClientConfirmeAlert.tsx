@@ -82,7 +82,11 @@ export default function NouveauClientConfirmeAlert({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
+        {/* Liste "Renvoyer à ..." scrollable — peut compter autant de boutons
+            que de personnes dans le planning équipe, même bug que le pop-up
+            "sorties partagées" (min-h-0 indispensable). */}
+        <div className="min-h-0 overflow-y-auto p-5">
         <h2 className="font-heading text-base font-semibold text-[#171717]">🆕 Nouveau client confirmé</h2>
         <p className="mt-3 text-sm text-[#171717]">
           <strong>{client.nom || "Sans nom"}</strong> vient de passer &laquo;&nbsp;Client confirmé&nbsp;&raquo; depuis Kommo.
@@ -136,6 +140,7 @@ export default function NouveauClientConfirmeAlert({
             </button>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

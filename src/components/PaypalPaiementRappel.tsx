@@ -97,7 +97,8 @@ export default function PaypalPaiementRappel({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+      <div className="flex max-h-[85dvh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
+        <div className="min-h-0 overflow-y-auto p-5 pb-0">
         <h2 className="font-heading text-base font-semibold text-[#171717]">💰 Paiement PayPal à rattacher</h2>
         <p className="mt-3 text-sm text-[#171717]">
           <strong>{p.payeur_nom || "Un client"}</strong> a envoyé{" "}
@@ -173,12 +174,15 @@ export default function PaypalPaiementRappel({
             </button>
           </div>
         )}
-        <button
-          onClick={dismiss}
-          className="mt-4 w-full rounded-md border border-[#171717]/20 px-3 py-2 text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
-        >
-          Plus tard
-        </button>
+        </div>
+        <div className="flex-shrink-0 p-5 pt-4">
+          <button
+            onClick={dismiss}
+            className="w-full rounded-md border border-[#171717]/20 px-3 py-2 text-sm font-medium text-[#171717] hover:bg-[#fafafa]"
+          >
+            Plus tard
+          </button>
+        </div>
       </div>
     </div>
   );

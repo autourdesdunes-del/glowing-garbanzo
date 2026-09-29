@@ -1503,9 +1503,9 @@ export default function SuivisView({
                 >
                   <div
                     onClick={(e) => e.stopPropagation()}
-                    className="w-full max-w-md overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl"
+                    className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-xl"
                   >
-                    <div className="flex items-center justify-between border-b border-neutral-100 px-3 py-2">
+                    <div className="flex flex-shrink-0 items-center justify-between border-b border-neutral-100 px-3 py-2">
                       <ClientNameLink
                         nom={client.nom}
                         onClick={() => onOpenClient(client.id)}
@@ -1536,7 +1536,9 @@ export default function SuivisView({
                         </button>
                       </div>
                     </div>
-                    <RemboursementSummaryCard r={r} client={client} activiteLiee={activite} />
+                    <div className="min-h-0 overflow-y-auto">
+                      <RemboursementSummaryCard r={r} client={client} activiteLiee={activite} />
+                    </div>
                   </div>
                 </div>
               );

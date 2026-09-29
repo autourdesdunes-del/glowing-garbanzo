@@ -114,9 +114,12 @@ export default function AjouterRemboursementAvoirModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
+        className="flex max-h-[85dvh] w-full max-w-sm flex-col rounded-lg border border-[#eaeaea] bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Contenu seul scrollable, bouton toujours visible en bas — même bug
+            que le pop-up "sorties partagées" (min-h-0 indispensable). */}
+        <div className="min-h-0 overflow-y-auto p-5 pb-0">
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-heading text-base font-semibold text-[#171717]">
             Remboursement / avoir — {r.nom_activite || "activité annulée"}
@@ -242,20 +245,23 @@ export default function AjouterRemboursementAvoirModal({
             )}
           </>
         )}
+        </div>
 
-        <button
-          onClick={confirmer}
-          disabled={submitting}
-          className="mt-4 w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-        >
-          {submitting
-            ? "…"
-            : type === "remboursement"
-              ? "Ajouter le remboursement"
-              : type === "avoir"
-                ? "Ajouter l'avoir"
-                : "Ajouter le remboursement + l'avoir"}
-        </button>
+        <div className="flex-shrink-0 p-5 pt-4">
+          <button
+            onClick={confirmer}
+            disabled={submitting}
+            className="w-full rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          >
+            {submitting
+              ? "…"
+              : type === "remboursement"
+                ? "Ajouter le remboursement"
+                : type === "avoir"
+                  ? "Ajouter l'avoir"
+                  : "Ajouter le remboursement + l'avoir"}
+          </button>
+        </div>
       </div>
     </div>
   );

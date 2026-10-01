@@ -47,6 +47,20 @@ export function cleanKommoName(raw: string): string {
     return `${capitalize(prenom)} ${reste.join(" ").toUpperCase()}`;
 }
 
+// Un nom Kommo (contact/lead) est souvent juste un prénom ou un pseudo
+// WhatsApp/Instagram ("Kika", "Camcam") jamais mis à jour, alors que
+// l'équipe tape le nom complet "Prénom NOM" à la main dans le CRM une fois
+// le client identifié. Sans ce garde-fou, chaque nouveau message Kommo
+// réécrasait ce nom complet par le pseudo — perte constatée le 30/09 sur
+// 257 fiches. Un nom "déjà complet" (2 mots ou plus, pas un nom provisoire
+// "Lead/Contact Kommo #...") ne doit plus jamais être réécrasé par la
+// resynchro automatique, seulement complété quand il est vide/provisoire.
+export function nomSembleComplet(nom: string | null | undefined): boolean {
+    if (!nom) return false;
+    if (/^(Lead|Contact) Kommo #/.test(nom)) return false;
+    return nom.trim().split(/\s+/).length >= 2;
+}
+
 // Correspondance entre les étapes du pipeline Kommo (compte
 // autourdesdunes, pipeline "Pipeline" id 14220187) et le statut CRM.
 // Ids récupérés via GET /api/v4/leads/pipelines le 2026-08-08 — à mettre

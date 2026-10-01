@@ -53,15 +53,18 @@ async function findPossibleDuplicateByName(
 async function findClientIdByPhone(
   admin: ReturnType<typeof createAdminClient>,
   telephone: string
-): Promise<{ id: string; statut: string; nom: string } | null> {
+): Promise<{ id: string; statut: string; nom: string; nom_verrouille: boolean } | null> {
   const target = normPhone(telephone);
   if (!target || target.length < 6) return null;
-  const { data, error } = await admin.from("clients").select("id, telephone, statut, nom").not("telephone", "is", null);
+  const { data, error } = await admin
+    .from("clients")
+    .select("id, telephone, statut, nom, nom_verrouille")
+    .not("telephone", "is", null);
   if (error) throw new Error(`findClientIdByPhone: ${error.message}`);
-  const match = (data as { id: string; telephone: string; statut: string; nom: string }[] | null)?.find(
-    (c) => normPhone(c.telephone) === target
-  );
-  return match ? { id: match.id, statut: match.statut, nom: match.nom } : null;
+  const match = (
+    data as { id: string; telephone: string; statut: string; nom: string; nom_verrouille: boolean }[] | null
+  )?.find((c) => normPhone(c.telephone) === target);
+  return match ? { id: match.id, statut: match.statut, nom: match.nom, nom_verrouille: match.nom_verrouille } : null;
 }
 
 // Id du statut Kommo "Demande d'infos envoyée" (cf. KOMMO_STATUS_MAP) — sert
@@ -170,7 +173,7 @@ async function processLeadEvent(
           
               const { data: existing } = await admin
                         .from("clients")
-                        .select("id, nom, telephone, email, statut, kommo_demande_infos_envoyee_le")
+                        .select("id, nom, telephone, email, statut, kommo_demande_infos_envoyee_le, nom_verrouille")
                         .eq("kommo_lead_id", leadId)
                         .maybeSingle();
 
@@ -201,20 +204,23 @@ async function processLeadEvent(
                                     patch.kommo_demande_infos_envoyee_le = localDateStr(new Date());
                         }
 
-                        // Le nom se resynchronise à chaque webhook, mais seulement tant
-                        // qu'aucun nom complet n'a déjà été saisi côté CRM (voir
-                        // nomSembleComplet) — sinon ça écrasait la correction manuelle de
-                        // l'équipe par un pseudo Kommo jamais mis à jour (perte constatée
-                        // le 30/09 sur 257 fiches). Priorité au nom du LEAD lui-même
-                        // (entry.name, ce que les employées éditent réellement en haut de
-                        // la fiche Kommo) — le nom du CONTACT lié (récupéré via API) ne
-                        // sert que de repli, car il peut être vide ou périmé (souvent un
-                        // pseudo Instagram/WhatsApp jamais mis à jour) même quand le lead,
-                        // lui, a été correctement renommé "Prénom NOM".
+                        // Le nom se resynchronise à chaque webhook, mais seulement tant que
+                        // personne n'a modifié le nom depuis le CRM (nom_verrouille, posé par
+                        // updateClientById/addClient dès qu'une conseillère tape un nom) —
+                        // sinon ça écrasait la correction manuelle de l'équipe par un pseudo
+                        // Kommo jamais mis à jour (perte constatée le 30/09 sur 257 fiches).
+                        // nomSembleComplet reste un filet de sécurité pour les fiches pas
+                        // encore repassées par une conseillère depuis la migration du champ.
+                        // Priorité au nom du LEAD lui-même (entry.name, ce que les employées
+                        // éditent réellement en haut de la fiche Kommo) — le nom du CONTACT
+                        // lié (récupéré via API) ne sert que de repli, car il peut être vide
+                        // ou périmé (souvent un pseudo Instagram/WhatsApp jamais mis à jour)
+                        // même quand le lead, lui, a été correctement renommé "Prénom NOM".
                         const cleanedFromEntry = cleanKommoName(entryName);
                         const info = cleanedFromEntry ? null : await fetchKommoLeadContactInfo(leadId);
                         const cleanedNom = cleanedFromEntry || cleanKommoName(info?.nom || "");
-                        if (cleanedNom && !nomSembleComplet(existing.nom)) patch.nom = cleanedNom;
+                        const nomProtege = existing.nom_verrouille || nomSembleComplet(existing.nom);
+                        if (cleanedNom && !nomProtege) patch.nom = cleanedNom;
                         if (info?.telephone && !existing.telephone) patch.telephone = info.telephone;
                         if (info?.email && !existing.email) patch.email = info.email;
 
@@ -253,6 +259,7 @@ async function processLeadEvent(
               let matchedId: string | null = null;
               let matchedStatut: string | null = null;
               let matchedNom: string | null = null;
+              let matchedNomVerrouille = false;
               // Une exception ici (échec de la requête, jamais un simple
               // "pas de match") ne doit jamais tomber dans le else ci-dessous
               // et créer un doublon — on saute ce lead pour ce webhook, il
@@ -263,6 +270,7 @@ async function processLeadEvent(
                                   matchedId = found?.id ?? null;
                                   matchedStatut = found?.statut ?? null;
                                   matchedNom = found?.nom ?? null;
+                                  matchedNomVerrouille = found?.nom_verrouille ?? false;
                         }
               } catch (e) {
                         console.error("Kommo webhook: rapprochement par téléphone échoué, lead ignoré", leadId, e);
@@ -281,7 +289,7 @@ async function processLeadEvent(
                                                   kommo_pipeline_status_nom: statusNom,
                                                   kommo_synced_at: new Date().toISOString(),
                                                   ...(mapped && !gardeStatut ? { statut: mapped.statutCrm } : {}),
-                                                  ...(nom && !nomSembleComplet(matchedNom) ? { nom } : {}),
+                                                  ...(nom && !(matchedNomVerrouille || nomSembleComplet(matchedNom)) ? { nom } : {}),
                                                   ...(nouvelleConfirmation
                                                         ? { confirmation_a_traiter: true, confirmation_assignee_a: null }
                                                         : {}),
@@ -341,18 +349,17 @@ async function processContactEvent(
 
       const { data: existing } = await admin
           .from("clients")
-          .select("id, nom, telephone, email")
+          .select("id, nom, telephone, email, nom_verrouille")
           .eq("kommo_contact_id", contactId)
           .maybeSingle();
 
       if (existing) {
               const patch: Record<string, unknown> = { kommo_synced_at: new Date().toISOString() };
-              // Le nom se resynchronise à chaque webhook, mais seulement tant
-              // qu'aucun nom complet n'a déjà été saisi côté CRM (voir
-              // nomSembleComplet, même garde-fou que processLeadEvent — perte
-              // constatée le 30/09). Téléphone/email ne se comblent eux que s'ils
-              // sont vides.
-          if (nom && !nomSembleComplet(existing.nom)) patch.nom = nom;
+              // Le nom se resynchronise à chaque webhook, mais seulement tant que
+              // personne n'a modifié le nom depuis le CRM (nom_verrouille, même
+              // garde-fou que processLeadEvent — perte constatée le 30/09).
+              // Téléphone/email ne se comblent eux que s'ils sont vides.
+          if (nom && !(existing.nom_verrouille || nomSembleComplet(existing.nom))) patch.nom = nom;
               if (!existing.telephone && phone) patch.telephone = phone;
               if (!existing.email && email) patch.email = email;
               await admin.from("clients").update(patch).eq("id", existing.id);
@@ -366,17 +373,24 @@ async function processContactEvent(
       // — on saute ce contact plutôt que de créer un doublon à l'aveugle.
       let matchedId: string | null = null;
       let matchedNom: string | null = null;
+      let matchedNomVerrouille = false;
       try {
         if (phone) {
                 const found = await findClientIdByPhone(admin, phone);
                 matchedId = found?.id ?? null;
                 matchedNom = found?.nom ?? null;
+                matchedNomVerrouille = found?.nom_verrouille ?? false;
         }
         if (!matchedId && email) {
-                const { data, error } = await admin.from("clients").select("id, nom").eq("email", email).maybeSingle();
+                const { data, error } = await admin
+                  .from("clients")
+                  .select("id, nom, nom_verrouille")
+                  .eq("email", email)
+                  .maybeSingle();
                 if (error) throw new Error(`lookup by email: ${error.message}`);
                 matchedId = data?.id ?? null;
                 matchedNom = data?.nom ?? null;
+                matchedNomVerrouille = data?.nom_verrouille ?? false;
         }
       } catch (e) {
         console.error("Kommo webhook: rapprochement de contact échoué, contact ignoré", contactId, e);
@@ -389,7 +403,7 @@ async function processContactEvent(
                 .update({
                             kommo_contact_id: contactId,
                             kommo_synced_at: new Date().toISOString(),
-                            ...(nom && !nomSembleComplet(matchedNom) ? { nom } : {}),
+                            ...(nom && !(matchedNomVerrouille || nomSembleComplet(matchedNom)) ? { nom } : {}),
                 })
                 .eq("id", matchedId);
               lastClientId = matchedId;

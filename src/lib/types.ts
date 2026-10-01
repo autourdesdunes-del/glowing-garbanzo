@@ -471,6 +471,10 @@ export type Paiement = {
 export type Client = {
   id: string;
   nom: string;
+  // true dès qu'une personne modifie le nom depuis le CRM (updateClientById/
+  // addClient, AppShell.tsx) — le webhook Kommo ne réécrase alors plus jamais
+  // le nom, quel que soit ce qu'envoie Kommo ensuite (voir migration 0145).
+  nom_verrouille: boolean;
   canal: string;
   canal_autre: string;
   // Second canal optionnel — certains clients arrivent par deux canaux à la
@@ -676,6 +680,7 @@ export type Client = {
 
 export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   nom: "",
+  nom_verrouille: false,
   canal: "WhatsApp",
   canal_autre: "",
   canal_secondaire: "",

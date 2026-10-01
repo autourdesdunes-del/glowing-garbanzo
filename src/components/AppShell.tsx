@@ -1271,7 +1271,13 @@ function AppShellInner({
     try {
       const { data, error } = await supabase
         .from("clients")
-        .insert({ ...EMPTY_CLIENT, ...quick, statut: quick?.statut || "Prospect" })
+        .insert({
+          ...EMPTY_CLIENT,
+          ...quick,
+          statut: quick?.statut || "Prospect",
+          // Nom tapé à la main dès la création — jamais écrasé par un sync Kommo.
+          ...(quick?.nom ? { nom_verrouille: true } : {}),
+        })
         .select()
         .single();
       if (!error && data) {
@@ -1363,6 +1369,14 @@ function AppShellInner({
     // l'identité simulée par "Aperçu vu par".
     const monPrenom = () => teamProfiles.find((p) => p.id === userId)?.prenom || "";
     let finalPatch: Partial<Client> = patch;
+    // Dès que le nom est modifié depuis le CRM (par une vraie personne, pas
+    // par le webhook Kommo qui ne passe jamais par cette fonction), on verrouille
+    // définitivement la resynchro automatique du nom — voir nomSembleComplet
+    // côté webhook, remplacé par ce champ explicite pour ne plus dépendre d'une
+    // heuristique sur le nombre de mots.
+    if (patch.nom) {
+      finalPatch = { ...finalPatch, nom_verrouille: true };
+    }
     if (patch.dernier_contact_date) {
       finalPatch = { ...finalPatch, dernier_contact_par_id: userId, dernier_contact_par_nom: monPrenom() };
     }

@@ -10,6 +10,12 @@ export const AGENCY_CONTACT = {
   instagram: "autourdesduneshurghada",
 };
 
+// Numéro dédié aux transferts (pick-up), distinct du numéro WhatsApp
+// principal de l'agence ci-dessus — c'est lui qui est en contact direct
+// avec les chauffeurs, à contacter en priorité pour toute question au
+// moment du transfert (demande de Mélanie, 2026-10-05).
+export const TRANSFERT_PHONE = "+201119664004";
+
 // Étapes de la pipeline Prospects, calquées sur le pipeline Kommo (mêmes
 // noms d'étape) pour que les deux restent lisibles côte à côte.
 export const PROSPECT_STATUTS: string[] = [

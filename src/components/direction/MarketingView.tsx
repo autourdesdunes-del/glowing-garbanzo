@@ -69,7 +69,15 @@ function formatLabel(type: string | null): string {
 // Pills pour les thématiques déjà utilisées (reproposées) + un champ libre
 // pour en taper une nouvelle, qui réapparaît ensuite comme suggestion
 // puisque usedThemes est recalculé à partir de ce qui est déjà en base.
-function ThemePicker({ suggestions, onPick }: { suggestions: string[]; onPick: (theme: string) => void }) {
+function ThemePicker({
+  suggestions,
+  current,
+  onPick,
+}: {
+  suggestions: string[];
+  current?: string | null;
+  onPick: (theme: string) => void;
+}) {
   const [custom, setCustom] = useState("");
   function submitCustom() {
     const trimmed = custom.trim();
@@ -79,15 +87,22 @@ function ThemePicker({ suggestions, onPick }: { suggestions: string[]; onPick: (
   }
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {suggestions.map((theme) => (
-        <button
-          key={theme}
-          onClick={() => onPick(theme)}
-          className="rounded-full border border-[#eaeaea] bg-white px-2.5 py-1 text-[11px] text-neutral-500 hover:border-[#0F5C56] hover:text-[#0F5C56]"
-        >
-          {theme}
-        </button>
-      ))}
+      {suggestions.map((theme) => {
+        const active = theme === current;
+        return (
+          <button
+            key={theme}
+            onClick={() => onPick(theme)}
+            className={
+              active
+                ? "rounded-full bg-[#0F5C56] px-2.5 py-1 text-[11px] font-semibold text-white"
+                : "rounded-full border border-[#eaeaea] bg-white px-2.5 py-1 text-[11px] text-neutral-500 hover:border-[#0F5C56] hover:text-[#0F5C56]"
+            }
+          >
+            {theme}
+          </button>
+        );
+      })}
       <input
         type="text"
         value={custom}
@@ -129,7 +144,7 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
             "id, ig_media_id, media_type, media_product_type, caption, permalink, thumbnail_url, posted_at, theme, reach, likes, comments, shares, saved, views, total_interactions"
           )
           .order("posted_at", { ascending: false })
-          .limit(200),
+          .limit(1000),
         supabase
           .from("instagram_stories")
           .select("id, ig_story_id, permalink, posted_at, reach, replies, navigation, total_interactions")
@@ -176,11 +191,13 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
   const saveValues = media30.map(saveRate).filter((v): v is number => v != null);
   const avgSaveRate = saveValues.length ? saveValues.reduce((a, b) => a + b, 0) / saveValues.length : null;
 
+  // Toutes les publications, pas seulement un top — Mélanie veut pouvoir
+  // tout parcourir et tout taguer depuis cette même liste. Celles sans
+  // portée encore connue (rate null) passent en fin de liste plutôt que
+  // d'être masquées.
   const topContenus = [...media]
     .map((m) => ({ m, rate: saveRate(m) }))
-    .filter((x) => x.rate != null)
-    .sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0))
-    .slice(0, 8);
+    .sort((a, b) => (b.rate ?? -1) - (a.rate ?? -1));
 
   // Les thématiques ne sont pas une liste fixe : ce sont celles que
   // l'équipe a déjà tapées une fois sur une publication (voir ThemePicker
@@ -198,8 +215,6 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
     .filter((t) => t.count > 0)
     .sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
   const maxThemeRate = Math.max(...themeStats.map((t) => t.avg ?? 0), 0.0001);
-
-  const untaggedMedia = media.filter((m) => !m.theme).slice(0, 10);
 
   const stories7 = stories.filter((s) => Date.now() - new Date(s.posted_at).getTime() <= 7 * 86400000);
   const storiesReach = stories7.map((s) => s.reach).filter((v): v is number => v != null);
@@ -329,21 +344,22 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
           <section>
             <div className="mb-3 flex items-baseline justify-between">
               <h2 className="font-heading text-lg font-semibold text-[#171717]">Contenus qui marchent le mieux</h2>
-              <span className="text-xs text-neutral-400">classé par taux d&apos;enregistrement</span>
+              <span className="text-xs text-neutral-400">
+                {topContenus.length} publication(s) · classées par taux d&apos;enregistrement
+              </span>
             </div>
             {topContenus.length === 0 ? (
               <p className="text-sm text-neutral-400">Pas encore assez de publications synchronisées.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {topContenus.map(({ m, rate }) => (
-                  <a
-                    key={m.id}
-                    href={m.permalink ?? "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white"
-                  >
-                    <div className="relative h-32 bg-[#f6f0e4]">
+                  <div key={m.id} className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                    <a
+                      href={m.permalink ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block h-32 bg-[#f6f0e4]"
+                    >
                       {m.thumbnail_url && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={m.thumbnail_url} alt="" className="h-full w-full object-cover" />
@@ -351,14 +367,11 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
                       <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
                         {formatLabel(m.media_product_type)}
                       </span>
-                    </div>
+                    </a>
                     <div className="p-3">
-                      <p className="line-clamp-2 text-xs font-semibold text-[#171717]">{m.caption?.split("\n")[0] || "(sans légende)"}</p>
-                      {m.theme && (
-                        <span className="mt-1.5 inline-block rounded-full bg-[#E4EFE9] px-2 py-0.5 text-[10px] font-semibold text-[#0F5C56]">
-                          {m.theme}
-                        </span>
-                      )}
+                      <a href={m.permalink ?? "#"} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        <p className="line-clamp-2 text-xs font-semibold text-[#171717]">{m.caption?.split("\n")[0] || "(sans légende)"}</p>
+                      </a>
                       <p className="font-amounts mt-1 text-[10.5px] text-neutral-400">{fmtDate(m.posted_at)}</p>
                       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-500">
                         <span>
@@ -369,8 +382,11 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
                         </span>
                         <span className="font-semibold text-[#0F5C56]">💾 {rate != null ? fmtPct(rate * 100) : "—"}</span>
                       </div>
+                      <div className="mt-2.5 border-t border-[#f0ece0] pt-2.5">
+                        <ThemePicker suggestions={usedThemes} current={m.theme} onPick={(theme) => setTheme(m.id, theme)} />
+                      </div>
                     </div>
-                  </a>
+                  </div>
                 ))}
               </div>
             )}
@@ -382,7 +398,7 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
               <span className="text-xs text-neutral-400">taux d&apos;enregistrement moyen par thème</span>
             </div>
             {themeStats.length === 0 ? (
-              <p className="text-sm text-neutral-400">Aucune publication taguée pour l&apos;instant — voir la saisie ci-dessous.</p>
+              <p className="text-sm text-neutral-400">Aucune publication taguée pour l&apos;instant — taguez-en depuis la liste ci-dessus.</p>
             ) : (
               <div className="space-y-2.5">
                 {themeStats.map((t) => (
@@ -496,24 +512,6 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
             </div>
             <p className="mt-3 text-[11px] text-neutral-400">● = jour de publication · barres dorées = jour où une publication est sortie</p>
           </section>
-
-          {untaggedMedia.length > 0 && (
-            <section>
-              <h2 className="font-heading mb-1 text-lg font-semibold text-[#171717]">Publications à taguer</h2>
-              <p className="mb-3 text-xs text-neutral-400">
-                Instagram ne connaît pas vos thématiques — attribuez-en une à chaque publication pour alimenter le classement
-                ci-dessus.
-              </p>
-              <div className="space-y-3">
-                {untaggedMedia.map((m) => (
-                  <div key={m.id} className="rounded-[6px] border border-dashed border-[#eaeaea] bg-[#fbf9f4] p-3">
-                    <p className="mb-2 text-xs font-semibold text-[#171717]">{m.caption?.split("\n")[0] || "(sans légende)"}</p>
-                    <ThemePicker suggestions={usedThemes} onPick={(theme) => setTheme(m.id, theme)} />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
         </>
       )}
     </div>

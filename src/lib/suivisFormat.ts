@@ -86,5 +86,5 @@ export function pickupClientMessage(
   // avant le bâtiment) — "côté réception" les fait avancer jusqu'au
   // bâtiment tout en restant dehors (Mélanie, 2026-10-05).
   const transfertLigne = `⚠️ Pour toute demande au moment du transfert, merci de contacter uniquement ce numéro, qui gère directement votre transfert : ${TRANSFERT_PHONE}. Il est en contact direct avec votre chauffeur et pourra répondre à votre demande. L'agence reste ouverte tous les jours de 9h30 à 21h pour répondre à toutes vos autres questions si nécessaire.`;
-  return `Bonjour ${prenom},\n\nPour votre activité ${r.nom_activite || "—"} demain, le chauffeur viendra vous récupérer à ${r.pickup_reel}, à l'extérieur, devant l'entrée de l'hôtel côté réception.\n\nÀ prévoir avec vous pour l'activité : ${aPrevoirListe}.${paiementLigne}\n\nVous retrouverez le programme complet de votre journée de demain sur votre page client. ☀️\n\n${transfertLigne}`;
+  return `Bonjour ${prenom},\n\nLe rendez-vous transfert pour votre activité ${r.nom_activite || "—"} est prévu demain à ${r.pickup_reel}, à l'extérieur, devant l'entrée de l'hôtel côté réception.\n\nN'oubliez pas d'emporter ${aPrevoirListe} 😊${paiementLigne}\n\n${transfertLigne}\nMerci ☀️`;
 }

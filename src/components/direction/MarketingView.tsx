@@ -42,14 +42,15 @@ type StoryRow = {
   total_interactions: number | null;
 };
 
-const THEMES = ["Plongée", "Désert", "Hôtel", "Équipe / coulisses", "Avis client"];
-
 function fmtNumber(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".", ",")} K`;
   return String(n);
 }
 function fmtPct(n: number): string {
   return `${n.toFixed(1).replace(".", ",")} %`;
+}
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 function engagementRate(m: MediaRow): number | null {
   if (!m.reach) return null;
@@ -63,6 +64,50 @@ function formatLabel(type: string | null): string {
   if (type === "REELS") return "Reel";
   if (type === "CAROUSEL_ALBUM") return "Carrousel";
   return "Post";
+}
+
+// Pills pour les thématiques déjà utilisées (reproposées) + un champ libre
+// pour en taper une nouvelle, qui réapparaît ensuite comme suggestion
+// puisque usedThemes est recalculé à partir de ce qui est déjà en base.
+function ThemePicker({ suggestions, onPick }: { suggestions: string[]; onPick: (theme: string) => void }) {
+  const [custom, setCustom] = useState("");
+  function submitCustom() {
+    const trimmed = custom.trim();
+    if (!trimmed) return;
+    onPick(trimmed);
+    setCustom("");
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {suggestions.map((theme) => (
+        <button
+          key={theme}
+          onClick={() => onPick(theme)}
+          className="rounded-full border border-[#eaeaea] bg-white px-2.5 py-1 text-[11px] text-neutral-500 hover:border-[#0F5C56] hover:text-[#0F5C56]"
+        >
+          {theme}
+        </button>
+      ))}
+      <input
+        type="text"
+        value={custom}
+        onChange={(e) => setCustom(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submitCustom();
+        }}
+        placeholder="+ nouvelle thématique…"
+        className="w-40 rounded-full border border-dashed border-[#eaeaea] bg-white px-2.5 py-1 text-[11px] text-neutral-600 placeholder:text-neutral-400 focus:border-[#0F5C56] focus:outline-none"
+      />
+      {custom.trim() && (
+        <button
+          onClick={submitCustom}
+          className="rounded-full bg-[#0F5C56] px-2.5 py-1 text-[11px] font-semibold text-white"
+        >
+          Ajouter
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function MarketingView({ clients }: { clients: Client[] }) {
@@ -137,7 +182,14 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
     .sort((a, b) => (b.rate ?? 0) - (a.rate ?? 0))
     .slice(0, 8);
 
-  const themeStats = THEMES.map((theme) => {
+  // Les thématiques ne sont pas une liste fixe : ce sont celles que
+  // l'équipe a déjà tapées une fois sur une publication (voir ThemePicker
+  // plus bas), qu'on représente ensuite comme suggestions.
+  const usedThemes = Array.from(new Set(media.map((m) => m.theme).filter((t): t is string => !!t))).sort((a, b) =>
+    a.localeCompare(b, "fr")
+  );
+
+  const themeStats = usedThemes.map((theme) => {
     const items = media.filter((m) => m.theme === theme);
     const rates = items.map(saveRate).filter((v): v is number => v != null);
     const avg = rates.length ? rates.reduce((a, b) => a + b, 0) / rates.length : null;
@@ -307,6 +359,7 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
                           {m.theme}
                         </span>
                       )}
+                      <p className="font-amounts mt-1 text-[10.5px] text-neutral-400">{fmtDate(m.posted_at)}</p>
                       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-500">
                         <span>
                           Portée <b className="font-amounts text-[#171717]">{fmtNumber(m.reach ?? 0)}</b>
@@ -455,17 +508,7 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
                 {untaggedMedia.map((m) => (
                   <div key={m.id} className="rounded-[6px] border border-dashed border-[#eaeaea] bg-[#fbf9f4] p-3">
                     <p className="mb-2 text-xs font-semibold text-[#171717]">{m.caption?.split("\n")[0] || "(sans légende)"}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {THEMES.map((theme) => (
-                        <button
-                          key={theme}
-                          onClick={() => setTheme(m.id, theme)}
-                          className="rounded-full border border-[#eaeaea] bg-white px-2.5 py-1 text-[11px] text-neutral-500 hover:border-[#0F5C56] hover:text-[#0F5C56]"
-                        >
-                          {theme}
-                        </button>
-                      ))}
-                    </div>
+                    <ThemePicker suggestions={usedThemes} onPick={(theme) => setTheme(m.id, theme)} />
                   </div>
                 ))}
               </div>

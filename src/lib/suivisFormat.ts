@@ -67,9 +67,14 @@ export function pickupClientMessage(
   catalogue: CatalogueItem[]
 ) {
   const prenom = firstNameOf(client.nom) || "—";
+  // Repli par nom exact quand la réservation n'est pas reliée au catalogue
+  // (catalogue_item_id vide — activité saisie en texte libre plutôt que
+  // choisie dans la liste) : sans ça, le message retombait sur "le
+  // nécessaire pour l'activité" même quand la vraie liste existe bel et
+  // bien côté catalogue, juste non reliée à cette réservation précise.
   const catalogueItem = r.catalogue_item_id
     ? catalogue.find((a) => a.id === r.catalogue_item_id)
-    : null;
+    : catalogue.find((a) => a.nom === r.nom_activite) || null;
   // Ce qu'il faut prévoir vient du catalogue (liste structurée), pas du
   // champ libre de la réservation — c'est la vraie liste tenue à jour par
   // activité, alors que la copie sur la réservation peut être vide/périmée.

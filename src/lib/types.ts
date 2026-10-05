@@ -74,6 +74,10 @@ export type CatalogueItem = {
   a_prevoir_liste: string[];
   point_rdv: string;
   photo_path: string;
+  // Visuel (PDF ou photo) envoyé en complément du message pick-up au
+  // client — un seul par activité, téléchargeable depuis Suivis > Pick-up
+  // pour que l'équipe n'ait pas à aller le chercher ailleurs à chaque fois.
+  flyer_pickup_path: string;
   valide: boolean;
   champs_requis_liste: string[];
   ordre: number;

@@ -34,6 +34,7 @@ import {
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { createClient } from "@/lib/supabase/client";
 import MarquerRembourseModal from "@/components/MarquerRembourseModal";
+import FlyerPickupDownloadLink from "@/components/FlyerPickupDownloadLink";
 import RemboursementSummaryCard from "@/components/RemboursementSummaryCard";
 import { AvisStatutSelector, ClientNameLink, DateRangeBadge } from "@/components/suivis/SuivisPrimitives";
 import {
@@ -617,6 +618,9 @@ export default function SuivisView({
                   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
                   const montantRestant = soldeRestantFor(client);
                   const clientMsg = pickupClientMessage(r, client, montantRestant, catalogue);
+                  const catalogueItem = r.catalogue_item_id
+                    ? catalogue.find((a) => a.id === r.catalogue_item_id)
+                    : null;
                   return (
                     <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3">
                       <div className="mb-1.5 flex items-center gap-2 text-xs">
@@ -646,6 +650,12 @@ export default function SuivisView({
                       >
                         {copiedKey === "pickup-client-" + r.id ? "Copié ✓" : "Copier message client"}
                       </button>
+                      {catalogueItem?.flyer_pickup_path && (
+                        <FlyerPickupDownloadLink
+                          path={catalogueItem.flyer_pickup_path}
+                          className="mt-2 w-full rounded-md border border-[#171717]/20 px-2.5 py-1.5 text-xs font-medium text-[#171717] hover:bg-[#fafafa]"
+                        />
+                      )}
                     </div>
                   );
                 })}

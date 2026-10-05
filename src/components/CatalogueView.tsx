@@ -29,6 +29,7 @@ import {
 } from "@/lib/constants";
 import { Field } from "@/components/client-steps";
 import PhotoUpload from "@/components/PhotoUpload";
+import FlyerPickupUpload from "@/components/FlyerPickupUpload";
 import CatalogueModificationRequestModal from "@/components/CatalogueModificationRequestModal";
 import { useToast } from "@/components/ToastProvider";
 import { chevalOuChameauMot, isChevalOuChameau } from "@/lib/resa";
@@ -1117,6 +1118,13 @@ export default function CatalogueView({
                 <PhotoUpload
                   path={a.photo_path}
                   onPathChange={(photo_path) => onUpdate(a.id, { photo_path })}
+                />
+              </div>
+
+              <div className="mt-3">
+                <FlyerPickupUpload
+                  path={a.flyer_pickup_path}
+                  onChange={(flyer_pickup_path) => onUpdate(a.id, { flyer_pickup_path: flyer_pickup_path ?? "" })}
                 />
               </div>
     </div>

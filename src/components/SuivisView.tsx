@@ -618,9 +618,12 @@ export default function SuivisView({
                   const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
                   const montantRestant = soldeRestantFor(client);
                   const clientMsg = pickupClientMessage(r, client, montantRestant, catalogue);
+                  // Même repli par nom que pickupClientMessage (voir suivisFormat.ts) :
+                  // sans ça, le bouton flyer restait invisible pour les réservations
+                  // non reliées au catalogue (catalogue_item_id vide).
                   const catalogueItem = r.catalogue_item_id
                     ? catalogue.find((a) => a.id === r.catalogue_item_id)
-                    : null;
+                    : catalogue.find((a) => a.nom === r.nom_activite) || null;
                   return (
                     <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3">
                       <div className="mb-1.5 flex items-center gap-2 text-xs">

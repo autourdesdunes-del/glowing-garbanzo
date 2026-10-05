@@ -16,6 +16,11 @@ import {
 const RECENT_MEDIA_REFRESH_DAYS = 14;
 const MEDIA_PAGE_SIZE = 25;
 
+// Le tout premier passage doit parcourir ~700 publications (un appel
+// insights par publication) et dépasse largement la limite par défaut —
+// Vercel Pro autorise jusqu'à 300s pour une fonction cron.
+export const maxDuration = 300;
+
 export async function GET(request: Request) {
   const auth = request.headers.get("authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {

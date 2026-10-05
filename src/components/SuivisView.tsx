@@ -656,6 +656,7 @@ export default function SuivisView({
                       {catalogueItem?.flyer_pickup_path && (
                         <FlyerPickupDownloadLink
                           path={catalogueItem.flyer_pickup_path}
+                          fileName={`flyer-pickup-${r.nom_activite || "activite"}`}
                           className="mt-2 w-full rounded-md border border-[#171717]/20 px-2.5 py-1.5 text-xs font-medium text-[#171717] hover:bg-[#fafafa]"
                         />
                       )}

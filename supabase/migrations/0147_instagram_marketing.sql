@@ -62,8 +62,8 @@ alter table instagram_account_daily enable row level security;
 alter table instagram_media enable row level security;
 alter table instagram_stories enable row level security;
 
-create policy "team full access" on instagram_account_daily for all to authenticated using (true) with check (true);
-create policy "team full access" on instagram_media for all to authenticated using (true) with check (true);
-create policy "team full access" on instagram_stories for all to authenticated using (true) with check (true);
+create policy team_full_access_iad on instagram_account_daily for all to authenticated using (true) with check (true);
+create policy team_full_access_im on instagram_media for all to authenticated using (true) with check (true);
+create policy team_full_access_is on instagram_stories for all to authenticated using (true) with check (true);
 
 notify pgrst, 'reload schema';

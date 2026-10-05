@@ -22,6 +22,7 @@ import { generateMonthlyReport } from "@/lib/generateMonthlyReport";
 import RecapMoisView from "@/components/RecapMoisView";
 import CodesPromoManager from "@/components/direction/CodesPromoManager";
 import JournalActiviteView from "@/components/direction/JournalActiviteView";
+import MarketingView from "@/components/direction/MarketingView";
 import RecentActivityFeed from "@/components/direction/RecentActivityFeed";
 import { Donut, MetricCardTrend } from "@/components/direction/DashboardWidgets";
 import { DirActionRow } from "@/components/direction/DirectionUI";
@@ -436,6 +437,10 @@ export default function DirectionView({
 
   if (sub === "journal") {
     return <JournalActiviteView clients={clients} teamProfiles={teamProfiles} onOpenClient={onOpenClient} />;
+  }
+
+  if (sub === "marketing") {
+    return <MarketingView clients={clients} />;
   }
 
   if (sub === "recap") {

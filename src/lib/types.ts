@@ -72,6 +72,11 @@ export type CatalogueItem = {
   non_inclus_liste: string[];
   a_prevoir: string;
   a_prevoir_liste: string[];
+  // Paragraphe d'instructions qui remplace entièrement la ligne "à prévoir"
+  // du message pick-up client quand rempli (ex. Louxor : breakfast box,
+  // late dinner) — certaines activités ne se résument pas à une liste
+  // d'objets à emporter.
+  message_special: string;
   point_rdv: string;
   photo_path: string;
   // Visuel (PDF ou photo) envoyé en complément du message pick-up au

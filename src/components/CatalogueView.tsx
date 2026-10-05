@@ -941,6 +941,23 @@ export default function CatalogueView({
               </div>
 
               <div className="mt-3">
+                <p className="mb-1 text-sm font-medium text-neutral-700">
+                  Message spécial (remplace &quot;À prévoir&quot; dans le message client)
+                </p>
+                <p className="mb-1.5 text-xs text-neutral-400">
+                  À utiliser seulement si cette activité a besoin d&apos;instructions particulières
+                  (ex. Louxor : breakfast box, late dinner) plutôt qu&apos;une simple liste d&apos;objets
+                  à prévoir. Laisser vide sinon.
+                </p>
+                <textarea
+                  value={a.message_special || ""}
+                  onChange={(e) => onUpdate(a.id, { message_special: e.target.value })}
+                  placeholder="Ex. Le petit-déjeuner et le dîner ne sont pas inclus…"
+                  className="input min-h-[80px] w-full resize-y"
+                />
+              </div>
+
+              <div className="mt-3">
                 <p className="mb-1.5 text-sm font-medium text-neutral-700">
                   Champs obligatoires pour réserver cette activité
                 </p>

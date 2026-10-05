@@ -81,6 +81,13 @@ export function pickupClientMessage(
   const aPrevoirListe = catalogueItem?.a_prevoir_liste?.length
     ? catalogueItem.a_prevoir_liste.join(", ")
     : catalogueItem?.a_prevoir || r.a_prevoir || "le nécessaire pour l'activité";
+  // Certaines activités (ex. Louxor : breakfast box, late dinner) ont besoin
+  // d'un vrai paragraphe d'instructions à la place de "N'oubliez pas
+  // d'emporter {liste}" — ce champ catalogue, quand rempli, remplace
+  // entièrement cette ligne.
+  const aPrevoirLigne = catalogueItem?.message_special
+    ? catalogueItem.message_special
+    : `N'oubliez pas d'emporter ${aPrevoirListe} 😊`;
   const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
   const paiementLigne = soldeIci
     ? `\n\nComme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros demain, auprès de notre représentant sur place.`
@@ -91,5 +98,5 @@ export function pickupClientMessage(
   // avant le bâtiment) — "côté réception" les fait avancer jusqu'au
   // bâtiment tout en restant dehors (Mélanie, 2026-10-05).
   const transfertLigne = `⚠️ Pour toute demande au moment du transfert, merci de contacter uniquement ce numéro, qui gère directement votre transfert : ${TRANSFERT_PHONE}. Il est en contact direct avec votre chauffeur et pourra répondre à votre demande. L'agence reste ouverte tous les jours de 9h30 à 21h pour répondre à toutes vos autres questions si nécessaire.`;
-  return `Bonjour ${prenom},\n\nLe rendez-vous transfert pour votre activité ${r.nom_activite || "—"} est prévu demain à ${r.pickup_reel}, à l'extérieur, devant l'entrée de l'hôtel côté réception.\n\nN'oubliez pas d'emporter ${aPrevoirListe} 😊${paiementLigne}\n\n${transfertLigne}\nMerci ☀️`;
+  return `Bonjour ${prenom},\n\nLe rendez-vous transfert pour votre activité ${r.nom_activite || "—"} est prévu demain à ${r.pickup_reel}, à l'extérieur, devant l'entrée de l'hôtel côté réception.\n\n${aPrevoirLigne}${paiementLigne}\n\n${transfertLigne}\nMerci ☀️`;
 }

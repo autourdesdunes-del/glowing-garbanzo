@@ -60,6 +60,18 @@ export function pickupMissingTeamMessage(r: Reservation, client: Client) {
   }`;
 }
 
+// Les activités "Transfert ville A - ville B" / "Transfert aéroport - ville"
+// n'ont pas d'"activité" au sens propre : la phrase d'intro doit décrire le
+// trajet ("de X vers Y") plutôt que citer le nom catalogue brut, et il n'y a
+// rien à "prévoir" pour un simple trajet en voiture.
+function transfertTrajet(nomActivite: string): string | null {
+  const privatif = nomActivite.match(/^Transfert privatif (.+?) - (.+)$/i);
+  if (privatif) return `de ${privatif[1]} vers ${privatif[2]}`;
+  const aeroport = nomActivite.match(/^Transfert aéroport - (.+)$/i);
+  if (aeroport) return `pour l'aéroport de ${aeroport[1]}`;
+  return null;
+}
+
 export function pickupClientMessage(
   r: Reservation,
   client: Client,
@@ -75,6 +87,10 @@ export function pickupClientMessage(
   const catalogueItem = r.catalogue_item_id
     ? catalogue.find((a) => a.id === r.catalogue_item_id)
     : catalogue.find((a) => a.nom === r.nom_activite) || null;
+  const trajet = transfertTrajet(r.nom_activite || "");
+  const introLigne = trajet
+    ? `Le rendez-vous transfert ${trajet} est prévu demain à ${r.pickup_reel}, à l'extérieur, devant l'entrée de l'hôtel côté réception.`
+    : `Le rendez-vous transfert pour votre activité ${r.nom_activite || "—"} est prévu demain à ${r.pickup_reel}, à l'extérieur, devant l'entrée de l'hôtel côté réception.`;
   // Ce qu'il faut prévoir vient du catalogue (liste structurée), pas du
   // champ libre de la réservation — c'est la vraie liste tenue à jour par
   // activité, alors que la copie sur la réservation peut être vide/périmée.
@@ -84,13 +100,16 @@ export function pickupClientMessage(
   // Certaines activités (ex. Louxor : breakfast box, late dinner) ont besoin
   // d'un vrai paragraphe d'instructions à la place de "N'oubliez pas
   // d'emporter {liste}" — ce champ catalogue, quand rempli, remplace
-  // entièrement cette ligne.
-  const aPrevoirLigne = catalogueItem?.message_special
-    ? catalogueItem.message_special
-    : `N'oubliez pas d'emporter ${aPrevoirListe} 😊`;
+  // entièrement cette ligne. Pour un simple trajet (transfert), il n'y a
+  // rien à prévoir : on omet complètement cette section.
+  const aPrevoirLigne = trajet
+    ? ""
+    : catalogueItem?.message_special
+      ? catalogueItem.message_special
+      : `N'oubliez pas d'emporter ${aPrevoirListe} 😊`;
   const soldeIci = client.solde_activite_id === r.id && !client.solde_paye;
   const paiementLigne = soldeIci
-    ? `\n\nComme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros demain, auprès de notre représentant sur place.`
+    ? `Comme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros demain, auprès de notre représentant sur place.`
     : "";
   // Point de RDV volontairement pas "devant la réception" tout court (trop
   // ambigu, lu comme "à l'intérieur") ni juste "à l'extérieur de l'hôtel"
@@ -98,5 +117,6 @@ export function pickupClientMessage(
   // avant le bâtiment) — "côté réception" les fait avancer jusqu'au
   // bâtiment tout en restant dehors (Mélanie, 2026-10-05).
   const transfertLigne = `⚠️ Pour toute demande au moment du transfert, merci de contacter uniquement ce numéro, qui gère directement votre transfert : ${TRANSFERT_PHONE}. Il est en contact direct avec votre chauffeur et pourra répondre à votre demande. L'agence reste ouverte tous les jours de 9h30 à 21h pour répondre à toutes vos autres questions si nécessaire.`;
-  return `Bonjour ${prenom},\n\nLe rendez-vous transfert pour votre activité ${r.nom_activite || "—"} est prévu demain à ${r.pickup_reel}, à l'extérieur, devant l'entrée de l'hôtel côté réception.\n\n${aPrevoirLigne}${paiementLigne}\n\n${transfertLigne}\nMerci ☀️`;
+  const corps = [introLigne, aPrevoirLigne, paiementLigne, transfertLigne].filter(Boolean);
+  return `Bonjour ${prenom},\n\n${corps.join("\n\n")}\nMerci ☀️`;
 }

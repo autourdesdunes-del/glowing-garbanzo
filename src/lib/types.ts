@@ -318,6 +318,11 @@ export type Reservation = {
   billet_demande_envoyee_le: string | null;
   billet_date: string | null;
   billet_lien: string;
+  // Plusieurs billets/photos peuvent être nécessaires pour une même
+  // activité (plusieurs passagers, plusieurs segments) — billet_lien reste
+  // pour la compatibilité des anciennes données mais l'UI lit/écrit
+  // désormais sur ce tableau.
+  billet_liens: string[];
   billet_notes: string;
   billet_verifie: boolean;
   billet_recu_le: string | null;

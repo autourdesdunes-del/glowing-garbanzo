@@ -414,8 +414,8 @@ export function BilletDetailModal({
 
         <div className="mt-3 border-t border-[#eaeaea] pt-3">
           <BilletAvionUpload
-            path={r.billet_lien || null}
-            onChange={(path) => onUpdateReservation(r.id, billetUploadPatch(r, path))}
+            paths={r.billet_liens || []}
+            onChange={(paths) => onUpdateReservation(r.id, billetUploadPatch(r, paths))}
           />
         </div>
 
@@ -572,9 +572,19 @@ export function PickupActivityCard({
           billet au client (ex. Le Caire en avion) — sans ce bouton ici, il
           fallait rouvrir Suivis > Billets d'avion à côté pour le retrouver
           (demande de Mélanie, 17/09). */}
-      {billetRequisEffectif(r) && r.billet_lien && (
-        <div className="mt-1.5">
-          <BilletDownloadButton path={r.billet_lien} label="Télécharger le billet à envoyer au client" />
+      {billetRequisEffectif(r) && (r.billet_liens || []).length > 0 && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {r.billet_liens.map((path, i) => (
+            <BilletDownloadButton
+              key={path}
+              path={path}
+              label={
+                r.billet_liens.length > 1
+                  ? `Télécharger le billet ${i + 1} à envoyer au client`
+                  : "Télécharger le billet à envoyer au client"
+              }
+            />
+          ))}
         </div>
       )}
     </div>

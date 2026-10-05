@@ -7,32 +7,37 @@ import { useToast } from "@/components/ToastProvider";
 const BUCKET = "billets-avion";
 
 export default function BilletAvionUpload({
-  path,
+  paths,
   onChange,
   hideLabel = false,
 }: {
-  path: string | null;
-  onChange: (path: string | null) => void;
+  paths: string[];
+  onChange: (paths: string[]) => void;
   // true quand ce widget est déjà inséré dans une ligne portant elle-même
   // le libellé "Billet d'avion" (ex. DetailRow dans ItineraryView) — évite
   // de l'afficher deux fois.
   hideLabel?: boolean;
 }) {
-  const [url, setUrl] = useState("");
+  const [urls, setUrls] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
-    if (!path) {
-      setUrl("");
+    if (paths.length === 0) {
+      setUrls({});
       return;
     }
     const supabase = createClient();
     (async () => {
-      const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
-      setUrl(data?.signedUrl ?? "");
+      const entries = await Promise.all(
+        paths.map(async (p) => {
+          const { data } = await supabase.storage.from(BUCKET).createSignedUrl(p, 3600);
+          return [p, data?.signedUrl ?? ""] as const;
+        })
+      );
+      setUrls(Object.fromEntries(entries));
     })();
-  }, [path]);
+  }, [paths]);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -53,56 +58,54 @@ export default function BilletAvionUpload({
       toast("Échec de l'envoi du billet.");
       return;
     }
-    // Ne retirer l'ancien fichier qu'une fois le nouveau bien envoyé —
-    // sinon un échec réseau sur l'upload laissait la fiche pointer sur un
-    // fichier déjà supprimé.
-    if (path) await supabase.storage.from(BUCKET).remove([path]);
-    onChange(newPath);
+    onChange([...paths, newPath]);
   }
 
-  async function handleRemove() {
-    if (!path) return;
+  async function handleRemove(path: string) {
     const supabase = createClient();
     await supabase.storage.from(BUCKET).remove([path]);
-    onChange(null);
+    onChange(paths.filter((p) => p !== path));
   }
 
   return (
     <div>
       {!hideLabel && (
         <span className="mb-1 block text-sm font-medium text-neutral-700">
-          Billet d&apos;avion (PDF ou photo)
+          Billet d&apos;avion (PDF ou photo — plusieurs possibles)
         </span>
       )}
-      {path ? (
-        <div className="flex items-center gap-2">
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-md border border-[#666666]/30 px-3 py-1.5 text-sm text-[#171717] hover:bg-[#fafafa]"
-          >
-            Voir le billet
-          </a>
-          <button
-            type="button"
-            onClick={handleRemove}
-            className="text-xs text-red-600 hover:underline"
-          >
-            Retirer
-          </button>
+      {paths.length > 0 && (
+        <div className="mb-2 flex flex-col gap-1.5">
+          {paths.map((path, i) => (
+            <div key={path} className="flex items-center gap-2">
+              <a
+                href={urls[path] || "#"}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md border border-[#666666]/30 px-3 py-1.5 text-sm text-[#171717] hover:bg-[#fafafa]"
+              >
+                Voir le billet {paths.length > 1 ? i + 1 : ""}
+              </a>
+              <button
+                type="button"
+                onClick={() => handleRemove(path)}
+                className="text-xs text-red-600 hover:underline"
+              >
+                Retirer
+              </button>
+            </div>
+          ))}
         </div>
-      ) : (
-        <label className="inline-flex cursor-pointer items-center rounded-md border border-dashed border-neutral-300 px-3 py-1.5 text-sm text-neutral-500 hover:border-[#171717]">
-          {uploading ? "Envoi…" : "+ Ajouter le billet"}
-          <input
-            type="file"
-            accept="image/*,application/pdf"
-            onChange={handleFile}
-            className="hidden"
-          />
-        </label>
       )}
+      <label className="inline-flex cursor-pointer items-center rounded-md border border-dashed border-neutral-300 px-3 py-1.5 text-sm text-neutral-500 hover:border-[#171717]">
+        {uploading ? "Envoi…" : paths.length > 0 ? "+ Ajouter un autre billet" : "+ Ajouter le billet"}
+        <input
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={handleFile}
+          className="hidden"
+        />
+      </label>
     </div>
   );
 }

@@ -1799,7 +1799,7 @@ export default function SuivisView({
                           >
                             {client.nom || "Sans nom"}
                           </span>
-                          {r.billet_lien && (
+                          {(r.billet_liens || []).length > 0 && (
                             <span className="ml-1.5 text-xs text-[#0F5C56]">✓ billet reçu</span>
                           )}
                         </td>

@@ -1525,9 +1525,15 @@ export function billetAttenteBadge(etape: string): { label: string; className: s
 // réception exactement de la même façon (nécessaire pour que les rappels
 // "pensez à l'envoyer au client" démarrent au bon moment, peu importe où le
 // fichier a été déposé).
-export function billetUploadPatch(r: Reservation, path: string | null): Partial<Reservation> {
-  const patch: Partial<Reservation> = { billet_lien: path || "" };
-  if (path && (r.billet_etape === "attente_hossam" || r.billet_etape === "a_envoyer_hossam")) {
+export function billetUploadPatch(r: Reservation, paths: string[]): Partial<Reservation> {
+  const hadNone = (r.billet_liens || []).length === 0;
+  const hasNow = paths.length > 0;
+  const justAdded = hadNone && hasNow;
+  const patch: Partial<Reservation> = {
+    billet_liens: paths,
+    billet_lien: paths[0] || "",
+  };
+  if (justAdded && (r.billet_etape === "attente_hossam" || r.billet_etape === "a_envoyer_hossam")) {
     patch.billet_etape = "a_envoyer_client";
     patch.billet_recu_le = new Date().toISOString();
   }
@@ -1537,7 +1543,7 @@ export function billetUploadPatch(r: Reservation, path: string | null): Partial<
   // Caire en avion" au programme) — un billet réellement joint suffit à
   // prouver qu'il était nécessaire, pas la peine d'attendre que quelqu'un
   // coche la case à part.
-  if (path && !r.billet_requis) {
+  if (justAdded && !r.billet_requis) {
     patch.billet_requis = true;
     if (isLeCaireEnAvion(r.nom_activite)) {
       patch.billet_ville_depart = patch.billet_ville_depart || r.billet_ville_depart || "Hurghada";

@@ -319,7 +319,7 @@ export default function ItineraryView({
               ⚠ Taxe de transfert manquante
             </span>
           )}
-          {r.billet_requis && !r.billet_lien && r.statut_resa !== "Annulée" && (
+          {r.billet_requis && (r.billet_liens || []).length === 0 && r.statut_resa !== "Annulée" && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
               ✈ Billet en attente
             </span>
@@ -842,9 +842,9 @@ export default function ItineraryView({
                       passer billet_requis à true si besoin dès qu'un
                       fichier est réellement déposé. */}
                   <BilletAvionUpload
-                    path={expandedReservation.billet_lien || null}
-                    onChange={(path) =>
-                      onUpdateReservation(expandedReservation.id, billetUploadPatch(expandedReservation, path))
+                    paths={expandedReservation.billet_liens || []}
+                    onChange={(paths) =>
+                      onUpdateReservation(expandedReservation.id, billetUploadPatch(expandedReservation, paths))
                     }
                     hideLabel
                   />

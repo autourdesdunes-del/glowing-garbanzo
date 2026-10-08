@@ -3347,6 +3347,7 @@ function AppShellInner({
               initialRdvModalClientId={rdvAutoOpenClientId}
               initialBilletId={billetAutoOpenId}
               onOpenReservationActivity={openReservationFromBillet}
+              onAddClient={addClient}
             />
           )}
         </div>

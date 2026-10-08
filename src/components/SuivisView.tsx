@@ -15,6 +15,8 @@ import {
   Verification,
 } from "@/lib/types";
 import { addDays, localDateStr } from "@/lib/dates";
+import { deaccent } from "@/lib/deaccent";
+import { CANAUX } from "@/lib/constants";
 import {
   acompteWaitingWarning,
   activitePaiementWarning,
@@ -118,6 +120,7 @@ export default function SuivisView({
   initialRdvModalClientId,
   initialBilletId,
   onOpenReservationActivity,
+  onAddClient,
 }: {
   sub: SuivisSub;
   clients: Client[];
@@ -147,6 +150,15 @@ export default function SuivisView({
   initialRdvModalClientId?: string | null;
   initialBilletId?: string | null;
   onOpenReservationActivity: (reservationId: string) => void;
+  // Optionnel : permet de créer un nouveau prospect directement depuis
+  // Suivis > Appels quand la personne à rappeler n'existe pas encore dans
+  // le CRM (ex. contact pris en direct, pas encore passé par Kommo).
+  onAddClient?: (quick: {
+    nom: string;
+    telephone: string;
+    canal: string;
+    statut?: "Prospect" | "Client confirmé";
+  }) => Promise<Client | null>;
 }) {
   const supabase = createClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -168,6 +180,23 @@ export default function SuivisView({
   // optimiste local.
   const [dossiersVerifiesMaintenant, setDossiersVerifiesMaintenant] = useState<Set<string>>(new Set());
   const [newAppelClientId, setNewAppelClientId] = useState("");
+  // Recherche tapée au clavier (nom du client/prospect) pour programmer un
+  // appel — le <select> listant les ~1500 clients était inutilisable pour
+  // retrouver quelqu'un (demande de Mélanie, 2026-10-08).
+  const [appelQuery, setAppelQuery] = useState("");
+  const [appelNouveauContact, setAppelNouveauContact] = useState(false);
+  const [appelNouveauNom, setAppelNouveauNom] = useState("");
+  const [appelNouveauCanal, setAppelNouveauCanal] = useState<string>("WhatsApp");
+  const [appelNouveauCoordonnee, setAppelNouveauCoordonnee] = useState("");
+  const appelMatches =
+    !appelNouveauContact && appelQuery.trim().length >= 2
+      ? clients
+          .filter((c) =>
+            deaccent((c.nom || "").toLowerCase()).includes(deaccent(appelQuery.trim().toLowerCase()))
+          )
+          .slice(0, 8)
+      : [];
+  const appelClientChoisi = clients.find((c) => c.id === newAppelClientId) || null;
   const [pickupDrafts, setPickupDrafts] = useState<Record<string, string>>({});
   // Coché quand le pick-up saisi a en fait lieu la veille au soir (ex. Le
   // Caire en mini-bus, pick-up 23:35 la veille pour un départ très matinal)
@@ -903,29 +932,140 @@ export default function SuivisView({
 
       {sub === "appels" && (
         <div className="space-y-6">
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-dashed border-neutral-300 bg-white p-3">
-            <select
-              value={newAppelClientId}
-              onChange={(e) => setNewAppelClientId(e.target.value)}
-              className="input flex-1"
-            >
-              <option value="">Choisir un client…</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nom || "Sans nom"}
-                </option>
-              ))}
-            </select>
-            <input
-              type="date"
-              onChange={(e) => {
-                if (newAppelClientId && e.target.value) {
-                  onUpdateClient(newAppelClientId, { prochain_appel_date: e.target.value });
-                  setNewAppelClientId("");
-                }
-              }}
-              className="input w-40"
-            />
+          <div className="mb-3 rounded-md border border-dashed border-neutral-300 bg-white p-3">
+            {appelNouveauContact ? (
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-medium text-neutral-500">Nom</label>
+                  <input
+                    type="text"
+                    value={appelNouveauNom}
+                    onChange={(e) => setAppelNouveauNom(e.target.value)}
+                    placeholder="Nom du prospect"
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-neutral-500">Contact via</label>
+                  <select
+                    value={appelNouveauCanal}
+                    onChange={(e) => setAppelNouveauCanal(e.target.value)}
+                    className="input w-32"
+                  >
+                    {CANAUX.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="mb-1 block text-xs font-medium text-neutral-500">
+                    Téléphone / pseudo / coordonnée
+                  </label>
+                  <input
+                    type="text"
+                    value={appelNouveauCoordonnee}
+                    onChange={(e) => setAppelNouveauCoordonnee(e.target.value)}
+                    placeholder="Numéro, pseudo Instagram…"
+                    className="input"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!appelNouveauNom.trim() || !onAddClient) return;
+                    const created = await onAddClient({
+                      nom: appelNouveauNom.trim(),
+                      telephone: appelNouveauCanal === "WhatsApp" ? appelNouveauCoordonnee.trim() : "",
+                      canal: appelNouveauCanal,
+                    });
+                    if (created) {
+                      if (appelNouveauCanal !== "WhatsApp" && appelNouveauCoordonnee.trim()) {
+                        onUpdateClient(created.id, { pseudo_contact: appelNouveauCoordonnee.trim() });
+                      }
+                      setNewAppelClientId(created.id);
+                      setAppelNouveauContact(false);
+                      setAppelNouveauNom("");
+                      setAppelNouveauCoordonnee("");
+                      setAppelQuery(created.nom);
+                    }
+                  }}
+                  disabled={!appelNouveauNom.trim()}
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+                >
+                  Créer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAppelNouveauContact(false);
+                    setAppelNouveauNom("");
+                    setAppelNouveauCoordonnee("");
+                  }}
+                  className="text-xs text-neutral-400 hover:text-[#171717] hover:underline"
+                >
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={appelClientChoisi ? appelClientChoisi.nom || "Sans nom" : appelQuery}
+                    onChange={(e) => {
+                      setAppelQuery(e.target.value);
+                      setNewAppelClientId("");
+                    }}
+                    placeholder="Taper le nom du client ou du prospect…"
+                    className="input w-full"
+                  />
+                  {appelMatches.length > 0 && (
+                    <div className="absolute z-10 mt-1 w-full divide-y divide-neutral-100 overflow-hidden rounded-md border border-neutral-200 bg-white shadow-sm">
+                      {appelMatches.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setNewAppelClientId(c.id);
+                            setAppelQuery(c.nom || "Sans nom");
+                          }}
+                          className="block w-full px-3 py-1.5 text-left text-sm hover:bg-[#fafafa]"
+                        >
+                          {c.nom || "Sans nom"}
+                          {c.statut && (
+                            <span className="ml-1.5 text-xs text-neutral-400">({c.statut})</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <input
+                  type="date"
+                  onChange={(e) => {
+                    if (newAppelClientId && e.target.value) {
+                      onUpdateClient(newAppelClientId, { prochain_appel_date: e.target.value });
+                      setNewAppelClientId("");
+                      setAppelQuery("");
+                    }
+                  }}
+                  disabled={!newAppelClientId}
+                  className="input w-40 disabled:opacity-40"
+                />
+                {onAddClient && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppelNouveauContact(true);
+                      setAppelNouveauNom(appelQuery);
+                    }}
+                    className="whitespace-nowrap text-xs text-[#0F5C56] hover:underline"
+                  >
+                    + Nouveau contact
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div>

@@ -21,6 +21,15 @@ import {
 } from "@/lib/planningRHFormat";
 import { DetailModal, MiniMonth } from "@/components/planningRH/PlanningRHPrimitives";
 
+// Laura ne travaille plus à l'agence et Bodé n'est pas concerné par le
+// planning équipe — les deux ne doivent jamais apparaître nulle part dans
+// cette vue (grille, congés, Semaine A/B, génération en masse) (demande de
+// Mélanie, 2026-10-09).
+const EXCLUS_PLANNING = new Set([
+  "69d9ee75-49ab-4ef7-8a54-b3e235cb86a6", // Laura
+  "473caa28-c6b4-4086-8706-3f56175338b0", // Bodé
+]);
+
 export default function PlanningRHView({
   isDirection,
   viewAsUserId,
@@ -154,13 +163,7 @@ export default function PlanningRHView({
   };
 
   const generatePlanning = async () => {
-    // Même exclusion que la table Semaine A/B (editableTeamProfiles,
-    // définie plus bas) : sans ça, Bodé (non concerné par ces modèles) se
-    // retrouvait avec un planning entièrement écrasé par des cases "repos"
-    // vides, et Laura (qui ne travaille plus à l'agence) réapparaissait.
-    const team = profiles.filter(
-      (p) => p.role === "equipe" && !EXCLUS_MODIFICATION_PLANNING.has(p.id)
-    );
+    const team = profiles.filter((p) => p.role === "equipe" && !EXCLUS_PLANNING.has(p.id));
     if (team.length === 0) {
       toast("Ajoute d'abord des membres d'équipe.");
       return;
@@ -391,18 +394,8 @@ export default function PlanningRHView({
   const today = todayStr();
   // Direction gère son propre planning ailleurs (shift du jour au Dashboard)
   // — ce planning d'équipe ne concerne que les employées.
-  const teamProfiles = profiles.filter((p) => p.role === "equipe");
+  const teamProfiles = profiles.filter((p) => p.role === "equipe" && !EXCLUS_PLANNING.has(p.id));
   const teamIds = new Set(teamProfiles.map((p) => p.id));
-  // Laura ne travaille plus à l'agence et Bodé n'est pas concerné par les
-  // modèles Semaine A/B — les deux encombraient l'édition en masse du
-  // planning (demande de Mélanie, 2026-10-09). Reste visibles partout
-  // ailleurs (grille normale) ; seule la section "Modification du planning"
-  // les masque.
-  const EXCLUS_MODIFICATION_PLANNING = new Set([
-    "69d9ee75-49ab-4ef7-8a54-b3e235cb86a6", // Laura
-    "473caa28-c6b4-4086-8706-3f56175338b0", // Bodé
-  ]);
-  const editableTeamProfiles = teamProfiles.filter((p) => !EXCLUS_MODIFICATION_PLANNING.has(p.id));
   const visibleConges = isDirection ? conges : conges.filter((c) => c.user_id === effectiveUserId);
   const missingPrenomProfile = isDirection
     ? teamProfiles.find((p) => !p.prenom.trim() && !skippedPrenomIds.has(p.id))
@@ -565,7 +558,7 @@ export default function PlanningRHView({
                     </tr>
                   </thead>
                   <tbody>
-                    {editableTeamProfiles.map((p) => (
+                    {teamProfiles.map((p) => (
                       <tr key={p.id} className="border-t border-neutral-100">
                         <td className="whitespace-nowrap p-1.5 font-medium text-neutral-700">
                           {nameFor(p.id)}
@@ -671,7 +664,7 @@ export default function PlanningRHView({
                   className="input min-w-[180px] flex-1"
                 >
                   <option value="">Choisir une personne…</option>
-                  {editableTeamProfiles.map((p) => (
+                  {teamProfiles.map((p) => (
                     <option key={p.id} value={p.id}>
                       {nameFor(p.id)}
                     </option>

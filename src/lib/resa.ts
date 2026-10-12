@@ -2130,7 +2130,15 @@ export function soldeRestantSejour(
 // appliquer même quand Oziréa est choisie comme île (demande de Mélanie,
 // 2026-10-12 : le supplément se déclenchait à tort sur le 4h aussi).
 export function ozireaRepasInclus(nomActivite: string) {
-  return !/demi-journée/i.test(nomActivite || "");
+  // Attention : une fois l'île choisie, le titre affiché n'est plus le nom
+  // catalogue brut ("... demi-journée avec 1 île (4h)") mais un titre
+  // généré (voir speedboatIleTitre) qui remplace "1 île" par le nom de
+  // l'île — "Speedboat privé 4h avec Oziréa" ne contient alors plus du tout
+  // "demi-journée". Seul "journée complète" survit telle quelle dans les
+  // deux formes (catalogue et titre généré), donc c'est ce qu'on teste
+  // plutôt que l'absence de "demi-journée" (bug vécu le 2026-10-12 : le
+  // supplément continuait de s'appliquer sur le 4h malgré le 1er correctif).
+  return /journée complète/i.test(nomActivite || "");
 }
 
 // Total avant réduction/activité offerte — extrait de resaTotalMontant pour

@@ -486,12 +486,28 @@ export function PaiementResteFlow({
               }
               if (m.key === "activite_eur" || m.key === "activite_egp" || m.key === "activite_mixte") {
                 selectActiviteMode(m.key);
-              } else {
+              } else if (m.key === "rdv") {
                 onChange({
                   paiement_integral_mode: m.key,
                   solde_rdv_heure: "",
                   solde_rdv_lieu: "",
                   solde_rdv_valide: false,
+                  solde_activite_id: null,
+                });
+              } else {
+                // PayPal/virement/CB : rien à planifier avant coup — pas de
+                // date à demander tant que ce n'est pas réellement encaissé
+                // (ça n'avait pas de sens de la demander avant, contrairement
+                // à un RDV paiement qui lui a une vraie date prévue —
+                // remarque de Mélanie, 2026-10-12). Le choix du mode suffit à
+                // activer le rappel "waiting" ; la date ne sera demandée
+                // qu'au moment de cliquer "encaissé".
+                onChange({
+                  paiement_integral_mode: m.key,
+                  solde_mode: INTEGRAL_MODE_SOLDE_MODE[m.key],
+                  solde_rdv_heure: "",
+                  solde_rdv_lieu: "",
+                  solde_rdv_valide: true,
                   solde_activite_id: null,
                 });
               }
@@ -664,7 +680,9 @@ export function PaiementResteFlow({
                       {modeInfo.label}
                       {client.solde_paye && client.solde_date
                         ? ` — encaissé le ${fmtEncaisseLe(client.solde_date, client.solde_encaisse_ts)}`
-                        : ` — ${fmtDateDMY(client.solde_date)}`}
+                        : client.solde_date
+                          ? ` — ${fmtDateDMY(client.solde_date)}`
+                          : " — en attente"}
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-700">

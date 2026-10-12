@@ -225,6 +225,7 @@ export default function DashboardView({
   // alors qu'aucun rendez-vous n'existe réellement.
   const rdvToday = clients.filter(
     (c) =>
+      c.statut !== "Client annulé" &&
       !c.solde_activite_id &&
       c.solde_date === todayStr &&
       !c.solde_paye &&
@@ -362,6 +363,10 @@ export default function DashboardView({
       // continuait d'apparaître ici indéfiniment (voir le même correctif
       // dans SuivisView.tsx > onglet Billets d'avion).
       r.statut_resa !== "Annulée" &&
+      // Un client dont le séjour entier est annulé ne doit plus apparaître
+      // ici non plus, même si cette réservation précise n'a pas été
+      // individuellement marquée annulée (demande de Mélanie, 2026-10-13).
+      clientById(r.client_id)?.statut !== "Client annulé" &&
       billetRequisEffectif(r) &&
       r.billet_etape !== "a_envoyer_client" &&
       r.billet_etape !== "termine" &&
@@ -375,6 +380,7 @@ export default function DashboardView({
   const in7Days = addDays(todayStr, 7);
   const acompteNonPayeSemaine = clients.filter(
     (c) =>
+      c.statut !== "Client annulé" &&
       c.paiement_type === "acompte" &&
       c.acompte_valide &&
       !c.acompte_paye &&

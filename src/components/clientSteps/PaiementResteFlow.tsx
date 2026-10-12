@@ -509,6 +509,13 @@ export function PaiementResteFlow({
                   solde_rdv_lieu: "",
                   solde_rdv_valide: true,
                   solde_activite_id: null,
+                  // Efface une éventuelle date restée d'un essai précédent —
+                  // sinon elle s'affichait comme si le paiement était prévu
+                  // (ou pire, pré-remplissait la date au moment de cliquer
+                  // "encaissé" plus tard, laissant croire à tort que l'argent
+                  // avait été reçu à cette date-là). Remarque de Mélanie,
+                  // 2026-10-12.
+                  solde_date: null,
                 });
               }
             }}

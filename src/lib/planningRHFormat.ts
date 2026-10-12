@@ -69,6 +69,7 @@ export function statutLabel(
   if (statut === "conge") return "Congé";
   if (statut === "repos") return "OFF";
   if (statut === "superviseur") return "Superviseur";
+  if (statut === "recup") return "Récup";
   if (!debut && !fin) return "Travail";
   return debut2 || fin2 ? `${debut} – ${fin} / ${debut2} – ${fin2}` : `${debut} – ${fin}`;
 }
@@ -77,14 +78,16 @@ export function statutBadgeClass(statut: string) {
   if (statut === "conge") return "bg-neutral-300 text-neutral-600";
   if (statut === "repos") return "bg-neutral-200 text-neutral-500";
   if (statut === "superviseur") return "bg-purple-200 text-purple-800";
+  if (statut === "recup") return "bg-amber-200 text-amber-800";
   return "bg-blue-100 text-blue-700";
 }
 
-// Tri des cartes d'une journée : OFF toujours en premier (repérable d'un
-// coup d'œil), puis congé/superviseur, puis les horaires de travail triés
-// par heure de début croissante.
+// Tri des cartes d'une journée : OFF/récup toujours en premier (repérable
+// d'un coup d'œil), puis congé/superviseur, puis les horaires de travail
+// triés par heure de début croissante.
 export function sortDayShifts(a: PlanningShift, b: PlanningShift) {
-  const rank = (s: PlanningShift) => (s.statut === "repos" ? 0 : s.statut === "travail" ? 2 : 1);
+  const rank = (s: PlanningShift) =>
+    s.statut === "repos" || s.statut === "recup" ? 0 : s.statut === "travail" ? 2 : 1;
   const ra = rank(a);
   const rb = rank(b);
   if (ra !== rb) return ra - rb;
@@ -95,7 +98,7 @@ export function sortDayShifts(a: PlanningShift, b: PlanningShift) {
 // Priorité d'affichage quand plusieurs personnes ont des statuts différents
 // le même jour (vue d'ensemble équipe) : congé/superviseur d'abord car ce
 // sont les exceptions les plus utiles à repérer d'un coup d'œil.
-const STATUT_PRIORITY = ["conge", "superviseur", "travail", "repos"];
+const STATUT_PRIORITY = ["conge", "superviseur", "recup", "travail", "repos"];
 export function dominantStatut(dayShifts: PlanningShift[]): string | null {
   if (dayShifts.length === 0) return null;
   for (const s of STATUT_PRIORITY) {

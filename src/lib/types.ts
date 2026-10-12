@@ -884,7 +884,7 @@ export type PlanningShift = {
   // coupure ce jour-là. Voir migration 0144.
   shift2_debut: string;
   shift2_fin: string;
-  statut: "travail" | "conge" | "repos" | "superviseur";
+  statut: "travail" | "conge" | "repos" | "superviseur" | "recup";
   // Petite note libre sur une exception ponctuelle (ex. "OFF habituel
   // décalé", "Récup samedi 19") — affichée en icône sur la carte du shift.
   note: string;
@@ -897,7 +897,7 @@ export type SemaineTypeShift = {
   semaine: "A" | "B";
   user_id: string;
   jour: string;
-  statut: "travail" | "conge" | "repos" | "superviseur";
+  statut: "travail" | "conge" | "repos" | "superviseur" | "recup";
   shift_debut: string;
   shift_fin: string;
   created_at: string;

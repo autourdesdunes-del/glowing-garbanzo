@@ -147,14 +147,14 @@ export function DetailModal({
                 ) : (
                   <div className="space-y-1">
                     {dayShifts.map((s) => (
-                      <div
-                        key={s.id}
-                        className="flex items-center justify-between rounded-md bg-neutral-50 px-2 py-1 text-xs"
-                      >
-                        <span className="font-medium text-neutral-700">{nameFor(s.user_id)}</span>
-                        <span className={`rounded-full px-2 py-0.5 ${statutBadgeClass(s.statut)}`}>
-                          {statutLabel(s.statut, s.shift_debut, s.shift_fin, s.shift2_debut, s.shift2_fin)}
-                        </span>
+                      <div key={s.id} className="rounded-md bg-neutral-50 px-2 py-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-neutral-700">{nameFor(s.user_id)}</span>
+                          <span className={`rounded-full px-2 py-0.5 ${statutBadgeClass(s.statut)}`}>
+                            {statutLabel(s.statut, s.shift_debut, s.shift_fin, s.shift2_debut, s.shift2_fin)}
+                          </span>
+                        </div>
+                        {s.note && <p className="mt-0.5 italic text-neutral-500">— {s.note}</p>}
                       </div>
                     ))}
                   </div>

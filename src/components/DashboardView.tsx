@@ -561,7 +561,9 @@ export default function DashboardView({
                     ? "OFF aujourd'hui"
                     : plannedShift.statut === "superviseur"
                       ? "Superviseur aujourd'hui"
-                      : `Shift aujourd'hui : ${plannedShift.shift_debut} – ${plannedShift.shift_fin}${
+                      : plannedShift.statut === "recup"
+                        ? "Récup aujourd'hui"
+                        : `Shift aujourd'hui : ${plannedShift.shift_debut} – ${plannedShift.shift_fin}${
                           plannedShift.shift2_debut
                             ? ` / ${plannedShift.shift2_debut} – ${plannedShift.shift2_fin}`
                             : ""

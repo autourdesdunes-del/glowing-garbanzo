@@ -580,6 +580,7 @@ export default function PlanningRHView({
                                 <option value="conge">Congé</option>
                                 <option value="repos">OFF</option>
                                 <option value="superviseur">Superviseur</option>
+                                <option value="recup">Récup</option>
                               </select>
                               {cell?.statut === "travail" && (
                                 <div className="mt-1 flex gap-0.5">
@@ -685,6 +686,7 @@ export default function PlanningRHView({
                   <option value="conge">Congé</option>
                   <option value="repos">OFF</option>
                   <option value="superviseur">Superviseur</option>
+                  <option value="recup">Récup</option>
                 </select>
                 {assignStatut === "travail" && (
                   <>
@@ -811,6 +813,7 @@ export default function PlanningRHView({
                       const isOff = s.statut === "repos";
                       const isConge = s.statut === "conge";
                       const isSuperviseur = s.statut === "superviseur";
+                      const isRecup = s.statut === "recup";
                       return (
                         <span
                           key={s.id}
@@ -821,12 +824,20 @@ export default function PlanningRHView({
                                 ? "border-neutral-300 bg-neutral-100 text-neutral-500"
                                 : isSuperviseur
                                   ? "border-purple-200 bg-purple-50 text-neutral-700"
-                                  : `${c.border} ${c.bg} text-neutral-700`
+                                  : isRecup
+                                    ? "border-amber-200 bg-amber-50 text-neutral-700"
+                                    : `${c.border} ${c.bg} text-neutral-700`
                           }`}
                         >
                           <span
                             className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[9px] font-semibold text-white ${
-                              isOff || isConge ? "bg-neutral-400" : isSuperviseur ? "bg-purple-400" : c.dot
+                              isOff || isConge
+                                ? "bg-neutral-400"
+                                : isSuperviseur
+                                  ? "bg-purple-400"
+                                  : isRecup
+                                    ? "bg-amber-400"
+                                    : c.dot
                             }`}
                           >
                             {name.charAt(0).toUpperCase()}

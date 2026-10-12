@@ -74,6 +74,12 @@ export default function PlanningRHView({
   const [congeDebut, setCongeDebut] = useState("");
   const [congeFin, setCongeFin] = useState("");
   const [congeMotif, setCongeMotif] = useState("");
+  // Congé posé par la Direction directement pour quelqu'un (déjà validé,
+  // pas de passage par "En attente" — voir poserCongePourQuelquun).
+  const [adminCongeUserId, setAdminCongeUserId] = useState("");
+  const [adminCongeDebut, setAdminCongeDebut] = useState("");
+  const [adminCongeFin, setAdminCongeFin] = useState("");
+  const [adminCongeMotif, setAdminCongeMotif] = useState("");
   const [prenomModalInput, setPrenomModalInput] = useState("");
   const [skippedPrenomIds, setSkippedPrenomIds] = useState<Set<string>>(new Set());
   const [adminCollapsed, setAdminCollapsed] = useState(true);
@@ -316,6 +322,55 @@ export default function PlanningRHView({
     } else {
       toast("Impossible d'envoyer la demande.");
     }
+  };
+
+  // La Direction pose un congé directement pour quelqu'un, déjà validé —
+  // contrairement à requestConge (qui crée une demande "En attente" sous le
+  // compte de la personne elle-même). Applique aussi tout de suite le
+  // planning, comme le fait updateCongeStatut en validant un congé.
+  const poserCongePourQuelquun = async () => {
+    if (!adminCongeUserId || !adminCongeDebut || !adminCongeFin) {
+      toast("Choisis la personne et les dates.");
+      return;
+    }
+    const rows: { user_id: string; date_debut: string; date_fin: string; motif: string; statut: Conge["statut"] }[] =
+      [];
+    const d = new Date(adminCongeDebut + "T00:00:00");
+    const end = new Date(adminCongeFin + "T00:00:00");
+    while (d <= end) {
+      const iso = localIso(d);
+      rows.push({ user_id: adminCongeUserId, date_debut: iso, date_fin: iso, motif: adminCongeMotif, statut: "Validé" });
+      d.setDate(d.getDate() + 1);
+    }
+    const { data, error } = await supabase.from("conges").insert(rows).select();
+    if (error || !data) {
+      toast("Impossible de poser ce congé.");
+      return;
+    }
+    setConges((prev) => [...(data as Conge[]), ...prev]);
+    const shiftRows = (data as Conge[]).map((c) => ({
+      user_id: c.user_id,
+      date: c.date_debut,
+      statut: "conge",
+      shift_debut: "",
+      shift_fin: "",
+    }));
+    const { data: shiftData, error: shiftError } = await supabase
+      .from("planning_shifts")
+      .upsert(shiftRows, { onConflict: "user_id,date" })
+      .select();
+    if (!shiftError && shiftData) {
+      setShifts((prev) => {
+        const map = new Map(prev.map((s) => [`${s.user_id}_${s.date}`, s]));
+        (shiftData as PlanningShift[]).forEach((s) => map.set(`${s.user_id}_${s.date}`, s));
+        return Array.from(map.values());
+      });
+    }
+    setAdminCongeUserId("");
+    setAdminCongeDebut("");
+    setAdminCongeFin("");
+    setAdminCongeMotif("");
+    toast(data.length > 1 ? `${data.length} jours de congé posés.` : "Congé posé.", "success");
   };
 
   const updateCongeStatut = async (id: string, statut: Conge["statut"]) => {
@@ -996,6 +1051,54 @@ export default function PlanningRHView({
                   </ul>
                 );
               })()}
+            </div>
+          )}
+
+          {isDirection && (
+            <div className="rounded-md border border-dashed border-neutral-300 bg-white p-3">
+              <p className="mb-1 text-sm font-medium text-neutral-700">Poser un congé pour quelqu&apos;un</p>
+              <p className="mb-2 text-xs text-[#666666]">
+                Déjà validé — s&apos;applique tout de suite au planning, et compte dans son total de
+                congés de l&apos;année.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={adminCongeUserId}
+                  onChange={(e) => setAdminCongeUserId(e.target.value)}
+                  className="input min-w-[140px]"
+                >
+                  <option value="">Choisir une personne…</option>
+                  {teamProfiles.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {nameFor(p.id)}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={adminCongeDebut}
+                  onChange={(e) => setAdminCongeDebut(e.target.value)}
+                  className="input w-40"
+                />
+                <input
+                  type="date"
+                  value={adminCongeFin}
+                  onChange={(e) => setAdminCongeFin(e.target.value)}
+                  className="input w-40"
+                />
+                <input
+                  value={adminCongeMotif}
+                  onChange={(e) => setAdminCongeMotif(e.target.value)}
+                  placeholder="Motif (optionnel)"
+                  className="input min-w-[160px] flex-1"
+                />
+                <button
+                  onClick={poserCongePourQuelquun}
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                >
+                  Poser le congé
+                </button>
+              </div>
             </div>
           )}
 

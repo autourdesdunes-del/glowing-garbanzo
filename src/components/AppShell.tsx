@@ -1671,6 +1671,12 @@ function AppShellInner({
         reprise_mixte_egp: 0,
         solde_montant: totalSejourReprise,
       });
+      // Même oubli que marquerRepriseRegleeGlobal : sans ça, le badge de
+      // cette activité restait "à régler" malgré le paiement PayPal reçu et
+      // rattaché (vécu sur Laura MULLER / Speedboat White Island).
+      if (activiteLiee) {
+        await updateReservationById(activiteLiee.id, { paiement_statut: "paye_paypal" });
+      }
     } else {
       // Pas de champ dédié "montant prévu"/"entre proches oublié" pour une
       // étape (contrairement à l'acompte) — l'info reste au moins visible

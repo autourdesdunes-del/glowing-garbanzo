@@ -132,6 +132,7 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
   const [media, setMedia] = useState<MediaRow[]>([]);
   const [stories, setStories] = useState<StoryRow[]>([]);
   const [followersNow, setFollowersNow] = useState<number | null>(null);
+  const [showAllContenus, setShowAllContenus] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -351,44 +352,54 @@ export default function MarketingView({ clients }: { clients: Client[] }) {
             {topContenus.length === 0 ? (
               <p className="text-sm text-neutral-400">Pas encore assez de publications synchronisées.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {topContenus.map(({ m, rate }) => (
-                  <div key={m.id} className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-                    <a
-                      href={m.permalink ?? "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="relative block h-32 bg-[#f6f0e4]"
-                    >
-                      {m.thumbnail_url && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={m.thumbnail_url} alt="" className="h-full w-full object-cover" />
-                      )}
-                      <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                        {formatLabel(m.media_product_type)}
-                      </span>
-                    </a>
-                    <div className="p-3">
-                      <a href={m.permalink ?? "#"} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                        <p className="line-clamp-2 text-xs font-semibold text-[#171717]">{m.caption?.split("\n")[0] || "(sans légende)"}</p>
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {(showAllContenus ? topContenus : topContenus.slice(0, 6)).map(({ m }) => (
+                    <div key={m.id} className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                      <a
+                        href={m.permalink ?? "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="relative block h-32 bg-[#f6f0e4]"
+                      >
+                        {m.thumbnail_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={m.thumbnail_url} alt="" className="h-full w-full object-cover" />
+                        )}
+                        <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          {formatLabel(m.media_product_type)}
+                        </span>
                       </a>
-                      <p className="font-amounts mt-1 text-[10.5px] text-neutral-400">{fmtDate(m.posted_at)}</p>
-                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-500">
-                        <span>
-                          Portée <b className="font-amounts text-[#171717]">{fmtNumber(m.reach ?? 0)}</b>
-                        </span>
-                        <span>
-                          ❤️ <b className="font-amounts text-[#171717]">{m.likes ?? 0}</b>
-                        </span>
-                        <span className="font-semibold text-[#0F5C56]">💾 {rate != null ? fmtPct(rate * 100) : "—"}</span>
-                      </div>
-                      <div className="mt-2.5 border-t border-[#f0ece0] pt-2.5">
-                        <ThemePicker suggestions={usedThemes} current={m.theme} onPick={(theme) => setTheme(m.id, theme)} />
+                      <div className="p-3">
+                        <a href={m.permalink ?? "#"} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          <p className="line-clamp-2 text-xs font-semibold text-[#171717]">{m.caption?.split("\n")[0] || "(sans légende)"}</p>
+                        </a>
+                        <p className="font-amounts mt-1 text-[10.5px] text-neutral-400">{fmtDate(m.posted_at)}</p>
+                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-500">
+                          <span>
+                            Portée <b className="font-amounts text-[#171717]">{fmtNumber(m.reach ?? 0)}</b>
+                          </span>
+                          <span>
+                            ❤️ <b className="font-amounts text-[#171717]">{m.likes ?? 0}</b>
+                          </span>
+                          <span className="font-semibold text-[#0F5C56]">💾 {m.saved ?? 0}</span>
+                        </div>
+                        <div className="mt-2.5 border-t border-[#f0ece0] pt-2.5">
+                          <ThemePicker suggestions={usedThemes} current={m.theme} onPick={(theme) => setTheme(m.id, theme)} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                {topContenus.length > 6 && (
+                  <button
+                    onClick={() => setShowAllContenus((v) => !v)}
+                    className="mt-3 text-xs font-semibold text-[#0F5C56] hover:underline"
+                  >
+                    {showAllContenus ? "Réduire" : `Déplier les ${topContenus.length} publications`}
+                  </button>
+                )}
+              </>
             )}
           </section>
 

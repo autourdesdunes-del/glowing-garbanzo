@@ -242,7 +242,7 @@ export default function ItineraryView({
       resaTarifs,
       paiementsEtapes
     );
-    const acompteWarning = acompteWaitingWarning(client, r, reservations);
+    const acompteWarning = acompteWaitingWarning(client, r, reservations, resaOptions, resaTarifs);
     const busEscalation = busEscalations.find((e) => e.reservation_id === r.id);
     const assouanVerification = assouanVerifications.find((v) => v.reservation_id === r.id);
     return (

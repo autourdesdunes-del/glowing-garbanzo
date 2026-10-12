@@ -545,7 +545,7 @@ export default function SuivisView({
                     resaTarifs,
                     clientEtapes
                   );
-                  const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
+                  const acompteWarning = acompteWaitingWarning(client, r, clientReservations, resaOptions, resaTarifs);
                   const teamMsg = pickupMissingTeamMessage(r, client);
                   return (
                     <div
@@ -644,7 +644,7 @@ export default function SuivisView({
                     resaTarifs,
                     clientEtapes
                   );
-                  const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
+                  const acompteWarning = acompteWaitingWarning(client, r, clientReservations, resaOptions, resaTarifs);
                   const montantRestant = soldeRestantFor(client);
                   const clientMsg = pickupClientMessage(r, client, montantRestant, catalogue);
                   // Même repli par nom que pickupClientMessage (voir suivisFormat.ts) :

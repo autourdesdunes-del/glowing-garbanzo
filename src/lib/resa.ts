@@ -784,7 +784,9 @@ export function paiementWarningLabel(
 export function acompteWaitingWarning(
   client: Client,
   r: Reservation,
-  reservations: Reservation[]
+  reservations: Reservation[],
+  resaOptions?: Record<string, ReservationOption[]>,
+  resaTarifs?: Record<string, ReservationTarif[]>
 ): { montant: number; mode: string } | null {
   // Reprise réglée en PayPal : affichée sur la prochaine activité à venir
   // (voir repriseActiviteCible), avec le même rappel "waiting" que l'acompte
@@ -794,6 +796,30 @@ export function acompteWaitingWarning(
   if (Number(client.reprise_montant) > 0 && client.reprise_mode === "PayPal") {
     const cible = repriseActiviteCible(client, reservations);
     if (cible?.id === r.id) return { montant: Number(client.reprise_montant) || 0, mode: client.reprise_mode };
+  }
+  // Paiement intégral choisi en PayPal/virement/CB (mode + date déjà
+  // renseignés, solde_rdv_valide) mais pas encore réellement marqué
+  // encaissé — jusqu'ici seul l'acompte affichait ce rappel "waiting", un
+  // séjour payé en intégral par ces 3 modes n'avait ce rappel nulle part
+  // (demande de Mélanie, 2026-10-12).
+  if (
+    client.paiement_type === "integral" &&
+    client.solde_rdv_valide &&
+    !client.solde_paye &&
+    ["PayPal", "Virement bancaire", "Carte bleue"].includes(client.solde_mode) &&
+    resaOptions &&
+    resaTarifs
+  ) {
+    const sortedIntegral = reservationsActives(reservations)
+      .filter((rr) => rr.date_debut)
+      .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
+    if (sortedIntegral.length > 0 && sortedIntegral[0].id === r.id) {
+      const montant = reservationsActives(reservations).reduce(
+        (sum, rr) => sum + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
+        0
+      );
+      return { montant, mode: client.solde_mode };
+    }
   }
   if (client.paiement_type !== "acompte") return null;
   if (!client.acompte_valide || client.acompte_paye) return null;

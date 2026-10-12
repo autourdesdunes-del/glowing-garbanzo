@@ -208,7 +208,7 @@ export function ActivityDetailModal({
     resaTarifs,
     clientEtapes
   );
-  const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
+  const acompteWarning = acompteWaitingWarning(client, r, clientReservations, resaOptions, resaTarifs);
 
   const hotelMatch = matchHotel(hotelNomActivite, hotelsRef);
   const egyptBlock = buildEgyptActivityBlock(

@@ -97,7 +97,7 @@ export function ReservationSummaryCard({
     resaTarifs,
     clientEtapes
   );
-  const acompteWarning = acompteWaitingWarning(client, r, clientReservations);
+  const acompteWarning = acompteWaitingWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const infosManquantes = infosManquantesToutes(client, reservations, hotelsRef, clientHotels);
   const infoComplet = infosManquantes.length === 0;
   const infoStatut = infoComplet ? null : infosManquantes[0];

@@ -36,6 +36,7 @@ import {
   Verification,
 } from "@/lib/types";
 import {
+  MODE_TO_PAIEMENT_STATUT_KEY,
   prospectStagnant,
   remboursementImpact,
   reservationsActives,
@@ -1743,6 +1744,15 @@ function AppShellInner({
       reprise_mixte_egp: 0,
       solde_montant: totalSejourReprise,
     });
+    // Sans ça, l'argent était bien encaissé et tracé (étape de paiement
+    // ci-dessus) mais le badge de CETTE activité restait "à régler" pour
+    // toujours — rien dans ce flux (contrairement au solde classique, voir
+    // SoldePayeConfirmModal) ne mettait à jour paiement_statut (vécu sur
+    // Camille MANCHERON / Balade à cheval, demande de Mélanie, 2026-10-12).
+    if (activiteLiee) {
+      const key = MODE_TO_PAIEMENT_STATUT_KEY[client.reprise_mode] || "paye_eur";
+      await updateReservationById(activiteLiee.id, { paiement_statut: key });
+    }
   };
 
   // Depuis "Paiements du jour" : régler seulement l'activité du jour (une
@@ -1752,7 +1762,15 @@ function AppShellInner({
   // au contexte complet d'une fiche client.
   const reporterResteAProchaineActiviteGlobal = async (
     clientId: string,
-    p: { montant: number; montantEgp: number; mode: string; date: string; activiteNom: string; prochaineActiviteId: string }
+    p: {
+      montant: number;
+      montantEgp: number;
+      mode: string;
+      date: string;
+      activiteId: string;
+      activiteNom: string;
+      prochaineActiviteId: string;
+    }
   ) => {
     const { data, error } = await supabase
       .from("paiements_etapes")
@@ -1776,6 +1794,12 @@ function AppShellInner({
       solde_activite_id: p.prochaineActiviteId,
       solde_rdv_heure: "",
       solde_rdv_lieu: "",
+    });
+    // Même oubli que marquerRepriseRegleeGlobal ci-dessus : l'activité du
+    // jour est bien réglée (étape de paiement ci-dessus) mais son badge
+    // restait "à régler" puisque rien ne touchait sa paiement_statut.
+    await updateReservationById(p.activiteId, {
+      paiement_statut: MODE_TO_PAIEMENT_STATUT_KEY[p.mode] || "paye_eur",
     });
   };
 

@@ -40,6 +40,7 @@ import {
   fmtEncaisseLe,
   hossamBilletMessage,
   isLeCaireEnAvion,
+  MODE_TO_PAIEMENT_STATUT_KEY,
   paiementBadge,
   paiementProgress,
   participantsFor,
@@ -1536,6 +1537,15 @@ export function PaiementsStep({
       // détecter une prochaine activité ajoutée après coup.
       solde_montant: totalSejour,
     });
+    // Sans ça, l'argent était bien encaissé et tracé (étape de paiement
+    // ci-dessus) mais le badge de CETTE activité restait "à régler" pour
+    // toujours — rien dans ce flux (contrairement au solde classique, voir
+    // SoldePayeConfirmModal) ne mettait à jour paiement_statut (vécu sur
+    // Camille MANCHERON / Balade à cheval, demande de Mélanie, 2026-10-12).
+    if (activiteLiee) {
+      const key = MODE_TO_PAIEMENT_STATUT_KEY[client.reprise_mode] || "paye_eur";
+      onUpdateReservation(activiteLiee.id, { paiement_statut: key });
+    }
   };
 
   // Contrepartie de marquerRepriseReglee pour le cas où ce reste n'a en

@@ -185,6 +185,7 @@ function soldeDe(
 // reporter le reste — permet de ne régler que l'activité du jour sans
 // obliger à tout encaisser d'un coup.
 type ReporterReste = {
+  activiteId: string;
   activiteNom: string;
   montantDefaut: number;
   candidats: { id: string; nom: string; date: string }[];
@@ -217,7 +218,7 @@ export function computePaiementsDuJour(
   onMarquerRepriseReglee: (clientId: string, date: string) => void,
   onReporterReste: (
     clientId: string,
-    p: { montant: number; montantEgp: number; mode: string; date: string; activiteNom: string; prochaineActiviteId: string }
+    p: { montant: number; montantEgp: number; mode: string; date: string; activiteId: string; activiteNom: string; prochaineActiviteId: string }
   ) => void
 ) {
   const encaisses: Ligne[] = [];
@@ -246,6 +247,7 @@ export function computePaiementsDuJour(
           .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
         if (candidats.length > 0) {
           reporterReste = {
+            activiteId: activiteLiee.id,
             activiteNom: activiteLiee.nom_activite || "activité",
             montantDefaut: resaTotalMontant(activiteLiee, c, resaOptions[activiteLiee.id] || [], resaTarifs[activiteLiee.id] || []),
             candidats: candidats.map((r) => ({ id: r.id, nom: r.nom_activite || "Activité sans nom", date: r.date_debut || "" })),
@@ -274,7 +276,7 @@ export function computePaiementsDuJour(
         onAnnulerPaye: () => onUpdateClient(c.id, { solde_paye: false, solde_date: null }),
         reporterReste,
         onReporterReste: reporterReste
-          ? (p) => onReporterReste(c.id, { ...p, activiteNom: reporterReste!.activiteNom })
+          ? (p) => onReporterReste(c.id, { ...p, activiteId: reporterReste!.activiteId, activiteNom: reporterReste!.activiteNom })
           : undefined,
       };
       (c.solde_paye ? encaisses : aPayer).push(ligne);

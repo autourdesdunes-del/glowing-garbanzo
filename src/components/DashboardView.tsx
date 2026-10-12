@@ -113,7 +113,7 @@ export default function DashboardView({
   onMarquerRepriseReglee: (clientId: string, date: string) => void;
   onReporterReste: (
     clientId: string,
-    p: { montant: number; montantEgp: number; mode: string; date: string; activiteNom: string; prochaineActiviteId: string }
+    p: { montant: number; montantEgp: number; mode: string; date: string; activiteId: string; activiteNom: string; prochaineActiviteId: string }
   ) => void;
   onDeleteClient: (id: string) => Promise<boolean>;
   catalogue: CatalogueItem[];

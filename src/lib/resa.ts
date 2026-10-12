@@ -977,6 +977,12 @@ export function taxeTransfertManquante(r: Reservation, hotelHorsHurghada?: boole
   if (hotelVille && VILLES_SANS_TAXE_TRANSFERT.includes(hotelVille)) return false;
   if (noTaxeTransfert(r.nom_activite)) return false;
   if (isAeroportTransfertHorsHurghada(r.nom_activite)) return false;
+  // Un transfert déjà tarifé par zone (zone_transfert rempli — ex.
+  // transfert aéroport Sahl Hasheesh/Makadi...) inclut déjà le supplément
+  // lié à l'éloignement de Hurghada dans son prix : jamais de taxe de
+  // transfert en plus, sinon ça fait doublon avec ce supplément (demande de
+  // Mélanie du 2026-10-12).
+  if (r.zone_transfert) return false;
   // Ne se fie plus à transfert_inclus seul : cette activité a pu être créée
   // avant que l'hôtel soit répertorié (transfert_inclus vaut alors "true"
   // par défaut faute de savoir que l'hôtel est hors Hurghada) et rester
@@ -2118,6 +2124,15 @@ export function soldeRestantSejour(
   return Math.max(totalSejour - acomptePaye - etapesSum - avoirUtilise, 0);
 }
 
+// Le supplément Oziréa (repas sur l'île) ne s'applique que sur les formules
+// "journée complète avec 1 île" (Speedboat/Catamaran) — la version "demi-
+// journée (4h)" n'inclut pas de repas sur l'île, donc pas de supplément à
+// appliquer même quand Oziréa est choisie comme île (demande de Mélanie,
+// 2026-10-12 : le supplément se déclenchait à tort sur le 4h aussi).
+export function ozireaRepasInclus(nomActivite: string) {
+  return !/demi-journée/i.test(nomActivite || "");
+}
+
 // Total avant réduction/activité offerte — extrait de resaTotalMontant pour
 // que reductionBadge (le petit badge affiché à côté du titre) puisse
 // plafonner l'affichage de la réduction exactement comme le total facturé
@@ -2157,7 +2172,8 @@ export function resaBrutMontant(
   // L'île Oziréa applique un supplément fixe par personne, quel que soit le
   // mode de tarification (forfait groupe pour ces speedboat) — appliqué
   // automatiquement dès que l'île est sélectionnée, jamais à saisir à la main.
-  const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
+  const supplementIle =
+    r.ile_selectionnee === "Oziréa" && ozireaRepasInclus(r.nom_activite) ? nbAd * 30 + nbEnf * 15 : 0;
   const supplementGEM = isGrandEgyptianMuseum(r.site_caire) ? nbAd * 20 + nbEnf * 10 : 0;
   return base + optionsTotal + tarifsTotal + transfert + supplementIle + supplementGEM;
 }
@@ -2359,7 +2375,8 @@ export function resaBreakdown(
     });
   }
 
-  const supplementIle = r.ile_selectionnee === "Oziréa" ? nbAd * 30 + nbEnf * 15 : 0;
+  const supplementIle =
+    r.ile_selectionnee === "Oziréa" && ozireaRepasInclus(r.nom_activite) ? nbAd * 30 + nbEnf * 15 : 0;
   if (supplementIle) {
     lines.push({
       label: `Supplément Oziréa (30 € x ${nbAd} ad. + 15 € x ${nbEnf} enf.)`,

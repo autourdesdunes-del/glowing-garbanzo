@@ -460,7 +460,13 @@ export default function AddActivityWizard({
   if (catalogueItem && needsMomentSpeedboat(catalogueItem.nom)) steps.push("moment");
   steps.push("participants");
   if (showMonteStep) steps.push("monte");
-  steps.push("tarifs", "options", "reduction", "transfert");
+  steps.push("tarifs", "options", "reduction");
+  // Un transfert déjà tarifé par zone (ex. transfert aéroport Sahl
+  // Hasheesh/Makadi...) inclut déjà le supplément lié à l'éloignement de
+  // Hurghada dans son prix — pas la peine de redemander une "taxe de
+  // transfert" en plus, qui ferait doublon avec ce supplément (demande de
+  // Mélanie du 2026-10-12).
+  if (!isTransfert) steps.push("transfert");
   const stepIndex = steps.indexOf(step);
 
   // Édition d'une activité existante : on saute directement l'étape

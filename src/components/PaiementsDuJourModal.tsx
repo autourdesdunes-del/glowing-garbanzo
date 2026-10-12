@@ -30,6 +30,37 @@ function prenom(nomComplet: string) {
   return (nomComplet || "").trim().split(/\s+/)[0] || "Client";
 }
 
+// Raccourcis anglais donnés explicitement par Mélanie (2026-10-12) pour les
+// activités dont le simple "premier mot" français (voir activiteMot
+// ci-dessous) était soit incompréhensible pour Bodé (ex. "Le Caire en bus"
+// → "Le"), soit resté en français alors que tout le message est en anglais
+// (voir feedback_anglais_voulu_equipe_egypte). Vérifiés dans l'ordre : le
+// premier qui matche gagne, donc les variantes les plus spécifiques (ex.
+// "Le Caire en mini-bus ViP") doivent précéder les plus génériques (ex. "Le
+// Caire en mini-bus").
+const ACTIVITE_MOT_OVERRIDES: { match: (nom: string) => boolean; label: string }[] = [
+  { match: (n) => n === "Le Caire 1 jour (déjà sur place)", label: "Cairo 1 day" },
+  { match: (n) => n === "Le Caire 2 jours (déjà sur place)", label: "Cairo 2 days" },
+  { match: (n) => n === "Le Caire en avion", label: "Cairo plane" },
+  { match: (n) => n === "Le Caire en bus", label: "Cairo bus" },
+  { match: (n) => n.startsWith("Le Caire en mini-bus ViP"), label: "Cairo van VIP" },
+  { match: (n) => n === "Le Caire en mini-bus", label: "Cairo van" },
+  { match: (n) => n === "Le Caire en voiture privée", label: "Cairo private" },
+  { match: (n) => n.startsWith("Plongée"), label: "Diving" },
+  { match: (n) => n === "RDV" || n === "RDV solde", label: "Payment meeting" },
+  { match: (n) => n.startsWith("Balade à cheval"), label: "Horse" },
+  { match: (n) => n.startsWith("Balade à chameau"), label: "Camel" },
+  { match: (n) => n.startsWith("Abu Simbel"), label: "Abu simbel" },
+  { match: (n) => n === "Louxor en bus", label: "Louxor bus" },
+  { match: (n) => n === "Louxor en mini-bus", label: "Louxor van" },
+  { match: (n) => n === "Louxor en voiture privée", label: "Louxor private" },
+  { match: (n) => n.startsWith("Vol en Montgolfière"), label: "Balloon" },
+  { match: (n) => n.includes("Louxor") && n.includes("Montgolfière"), label: "Louxor balloon" },
+  { match: (n) => n.startsWith("Orange Bay"), label: "Orange bay" },
+  { match: (n) => n.startsWith("Croisière"), label: "Nile Cruise" },
+  { match: (n) => n.startsWith("Grand Safari Bédouin"), label: "Super safari" },
+];
+
 // Premier mot du libellé d'activité (une fois le préfixe interne "Solde à
 // l'activité — "/"Reprise à l'activité — " retiré) : le catalogue nomme la
 // plupart des activités par leur mot-clé en premier ("Speedboat privé...",
@@ -39,8 +70,9 @@ function prenom(nomComplet: string) {
 function activiteMot(libelle: string) {
   const nom = libelle
     .replace(/^Solde à l'activité — /, "")
-    .replace(/^Reprise à l'activité — /, "")
-    .replace(/^RDV solde$/, "RDV");
+    .replace(/^Reprise à l'activité — /, "");
+  const override = ACTIVITE_MOT_OVERRIDES.find((o) => o.match(nom));
+  if (override) return override.label;
   return nom.trim().split(/\s+/)[0] || "";
 }
 

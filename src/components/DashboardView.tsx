@@ -261,7 +261,7 @@ export default function DashboardView({
     .sort((a, b) => a.prochain_appel_heure.localeCompare(b.prochain_appel_heure));
 
   const pickupsMissingTomorrow = reservationsActives(reservations).filter(
-    (r) => r.date_debut === tomorrowStr && !r.pickup_reel
+    (r) => r.date_debut === tomorrowStr && !r.pickup_reel && !r.pickup_non_requis
   );
 
   // Même règle que Suivis > Numéros de chambre (SuivisView.tsx) — sinon ce

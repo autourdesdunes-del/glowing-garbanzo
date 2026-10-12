@@ -168,6 +168,10 @@ export default function SuivisView({
   // traité récemment ou pas encore d'actualité), contrairement à "à envoyer"
   // qui doit rester visible d'emblée.
   const [avisEnvoyesOuvert, setAvisEnvoyesOuvert] = useState(false);
+  // Repliée par défaut — une fois qu'un pick-up est marqué "non requis", pas
+  // besoin de l'avoir sous les yeux en permanence (seul le bouton "Annuler"
+  // doit rester accessible en cas d'erreur).
+  const [pickupsNonRequisOuvert, setPickupsNonRequisOuvert] = useState(false);
   const [avisNePasDemanderOuvert, setAvisNePasDemanderOuvert] = useState(false);
   const [avisUpcomingOuvert, setAvisUpcomingOuvert] = useState(false);
   // Même logique pour Suivis > Au revoir (demande de Mélanie, 2026-09-19).
@@ -490,9 +494,13 @@ export default function SuivisView({
     .filter((x): x is { r: Reservation; client: Client } => !!x.client)
     .sort((a, b) => (a.r.moment || "").localeCompare(b.r.moment || ""));
   // Trié entre manquants et déjà renseignés — pour s'y retrouver quand il y
-  // a 50 pick-ups dans la journée.
-  const pickupsJ1Missing = pickupsJ1.filter(({ r }) => !r.pickup_reel);
-  const pickupsJ1Done = pickupsJ1.filter(({ r }) => r.pickup_reel);
+  // a 50 pick-ups dans la journée. Un pick-up marqué "non requis" (guide qui
+  // contacte le client directement, transfert aéroport avec chauffeur déjà
+  // prévu...) ne relance jamais pickup_reel — il sort des deux listes et vit
+  // à part, sinon il restait "manquant" indéfiniment.
+  const pickupsJ1NonRequis = pickupsJ1.filter(({ r }) => r.pickup_non_requis);
+  const pickupsJ1Missing = pickupsJ1.filter(({ r }) => !r.pickup_reel && !r.pickup_non_requis);
+  const pickupsJ1Done = pickupsJ1.filter(({ r }) => r.pickup_reel && !r.pickup_non_requis);
 
   // Le numéro de chambre se demande à J-1 de la toute première activité du
   // client (pas de son arrivée à l'hôtel) — donc calculé depuis la date la
@@ -617,6 +625,12 @@ export default function SuivisView({
                             ? "Copié ✓"
                             : "Rappel pick-up manquant"}
                         </button>
+                        <button
+                          onClick={() => onUpdateReservation(r.id, { pickup_non_requis: true })}
+                          className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-500 hover:border-[#171717] hover:text-[#171717]"
+                        >
+                          Pas de pick-up à envoyer (guide/chauffeur direct)
+                        </button>
                       </div>
                     </div>
                   );
@@ -624,6 +638,38 @@ export default function SuivisView({
               </div>
             )}
           </div>
+
+          {pickupsJ1NonRequis.length > 0 && (
+            <div className="mb-6">
+              <button
+                onClick={() => setPickupsNonRequisOuvert((v) => !v)}
+                className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-neutral-500 hover:text-[#171717]"
+              >
+                {pickupsNonRequisOuvert ? "▾" : "▸"} Pas de pick-up à envoyer ({pickupsJ1NonRequis.length})
+              </button>
+              {pickupsNonRequisOuvert && (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {pickupsJ1NonRequis.map(({ r, client }) => (
+                    <div key={r.id} className="rounded-md border border-neutral-200 bg-white p-3 text-xs">
+                      <button
+                        onClick={() => onOpenClient(client.id)}
+                        className="mb-1 block font-semibold text-[#171717] hover:underline"
+                      >
+                        {client.nom || "Sans nom"}
+                      </button>
+                      <p className="mb-2 text-neutral-500">{r.nom_activite || "Activité"}</p>
+                      <button
+                        onClick={() => onUpdateReservation(r.id, { pickup_non_requis: false })}
+                        className="text-[11px] font-medium text-neutral-500 underline hover:text-[#171717]"
+                      >
+                        Annuler — remettre dans les pick-ups
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {pickupsJ1Done.length > 0 && (
             <div>

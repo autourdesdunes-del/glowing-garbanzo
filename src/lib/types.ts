@@ -252,6 +252,11 @@ export type Reservation = {
   // Caire en mini-bus, pick-up 23:35 la veille pour un départ très matinal)
   // — l'activité reste affichée le jour J, seul le tri en tient compte.
   pickup_veille: boolean;
+  // Vrai quand cette activité n'a jamais de pick-up à envoyer côté agence
+  // (guide qui contacte le client directement, chauffeur déjà prévu pour un
+  // transfert aéroport...) — retire la réservation de "Pick-ups manquants"
+  // sans jamais demander de remplir pickup_reel.
+  pickup_non_requis: boolean;
   point_rdv: string;
   inclus: string;
   non_inclus: string;

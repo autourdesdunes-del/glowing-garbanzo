@@ -56,6 +56,7 @@ import {
   isSpeedboatPriveMaisonDauphins,
   joursDisponiblesMismatch,
   needsMomentSpeedboat,
+  ozireaRepasInclus,
   croisiereOptionDateProposee,
   CROISIERE_OPTION_NOMS,
   CROISIERE_OPTION_PRICING,
@@ -1739,7 +1740,7 @@ export default function AddActivityWizard({
             </button>
           ))}
         </div>
-        {r.ile_selectionnee === "Oziréa" && (
+        {r.ile_selectionnee === "Oziréa" && ozireaRepasInclus(r.nom_activite) && (
           <p className="mt-3 text-xs font-medium text-[#0F5C56]">
             ℹ️ Supplément Oziréa appliqué automatiquement : +30 € par adulte, +15 € par enfant.
           </p>

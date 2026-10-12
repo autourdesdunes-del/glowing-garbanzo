@@ -83,6 +83,17 @@ function transfertAeroportLabel(nom: string): string | null {
   return `Airport transfer ${VILLE_EN[ville] || ville}`;
 }
 
+// "Transfert privatif X - Y" (avec ou sans précision type "avec arrêts
+// Edfou et Kom Ombo" à la suite) -> "Transfer X-Y", sans "private" (demande
+// de Mélanie, 2026-10-12) — s'adapte à chaque paire de villes.
+function transfertPrivatifLabel(nom: string): string | null {
+  const m = nom.match(/^Transfert privatif ([^-]+) - ([^(]+?)(?:\s+avec .*)?$/);
+  if (!m) return null;
+  const depart = m[1].trim();
+  const arrivee = m[2].trim();
+  return `Transfer ${VILLE_EN[depart] || depart}-${VILLE_EN[arrivee] || arrivee}`;
+}
+
 // Premier mot du libellé d'activité (une fois le préfixe interne "Solde à
 // l'activité — "/"Reprise à l'activité — " retiré) : le catalogue nomme la
 // plupart des activités par leur mot-clé en premier ("Speedboat privé...",
@@ -95,6 +106,8 @@ function activiteMot(libelle: string) {
     .replace(/^Reprise à l'activité — /, "");
   const aeroport = transfertAeroportLabel(nom);
   if (aeroport) return aeroport;
+  const privatif = transfertPrivatifLabel(nom);
+  if (privatif) return privatif;
   const override = ACTIVITE_MOT_OVERRIDES.find((o) => o.match(nom));
   if (override) return override.label;
   return nom.trim().split(/\s+/)[0] || "";

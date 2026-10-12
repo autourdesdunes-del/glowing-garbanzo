@@ -59,7 +59,29 @@ const ACTIVITE_MOT_OVERRIDES: { match: (nom: string) => boolean; label: string }
   { match: (n) => n.startsWith("Orange Bay"), label: "Orange bay" },
   { match: (n) => n.startsWith("Croisière"), label: "Nile Cruise" },
   { match: (n) => n.startsWith("Grand Safari Bédouin"), label: "Super safari" },
+  { match: (n) => n.startsWith("City Tour – El Gouna") || n.startsWith("City tour El Gouna"), label: "City tour el gouna" },
+  { match: (n) => n.startsWith("City tour Hurghada"), label: "City tour hurghada" },
+  { match: (n) => n.startsWith("Maison des dauphins"), label: "Dolphin House" },
+  { match: (n) => n.startsWith("L'Oasis de Siwa"), label: "Siwa" },
+  { match: (n) => n.startsWith("Désert Blanc"), label: "White desert" },
+  { match: (n) => n.startsWith("Nage avec les dauphins"), label: "Dolphin swim" },
+  { match: (n) => n.startsWith("Spectacle dauphins"), label: "Dolphin show" },
+  { match: (n) => n.startsWith("Shooting photos avec les dauphins"), label: "Dolphin photo" },
 ];
+
+// Villes traduites pour "Transfert aéroport - X" -> "Airport transfer X" :
+// seules Assouan et Le Caire ont un nom différent en anglais, Hurghada et
+// Louxor restent identiques.
+const VILLE_EN: Record<string, string> = {
+  Assouan: "Aswan",
+  "Le Caire": "Cairo",
+};
+function transfertAeroportLabel(nom: string): string | null {
+  const m = nom.match(/^Transfert aéroport - (.+)$/);
+  if (!m) return null;
+  const ville = m[1].trim();
+  return `Airport transfer ${VILLE_EN[ville] || ville}`;
+}
 
 // Premier mot du libellé d'activité (une fois le préfixe interne "Solde à
 // l'activité — "/"Reprise à l'activité — " retiré) : le catalogue nomme la
@@ -71,6 +93,8 @@ function activiteMot(libelle: string) {
   const nom = libelle
     .replace(/^Solde à l'activité — /, "")
     .replace(/^Reprise à l'activité — /, "");
+  const aeroport = transfertAeroportLabel(nom);
+  if (aeroport) return aeroport;
   const override = ACTIVITE_MOT_OVERRIDES.find((o) => o.match(nom));
   if (override) return override.label;
   return nom.trim().split(/\s+/)[0] || "";

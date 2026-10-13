@@ -34,7 +34,6 @@ import {
   ReservationTarif,
   TransfertTaxeModificationRequest,
   Verification,
-  VerificationErreurPassee,
 } from "@/lib/types";
 import {
   MODE_TO_PAIEMENT_STATUT_KEY,
@@ -319,9 +318,6 @@ function AppShellInner({
   // avant ça, seule la fiche client individuelle avait cette info.
   const [allClientHotels, setAllClientHotels] = useState<Record<string, ClientHotel[]>>({});
   const [allVerifications, setAllVerifications] = useState<Verification[]>([]);
-  const [allVerificationErreursPassees, setAllVerificationErreursPassees] = useState<
-    VerificationErreurPassee[]
-  >([]);
   const [paypalPaiements, setPaypalPaiements] = useState<PaypalPaiement[]>([]);
   const [catalogueModificationRequests, setCatalogueModificationRequests] = useState<
     CatalogueModificationRequest[]
@@ -479,7 +475,6 @@ function AppShellInner({
         { data: shifts },
         { data: paypal },
         { data: verifs },
-        { data: erreursPassees },
         { data: conges },
       ] = await Promise.all([
         fetchAllRows<Client>(supabase, "clients", "*", "created_at", false),
@@ -502,7 +497,6 @@ function AppShellInner({
         // Chargé sans attendre l'ouverture d'une fiche : sert au rappel
         // personnel de vérification des dossiers (PersonalNudgeAlert).
         supabase.from("verifications").select("*"),
-        supabase.from("verification_erreurs_passees").select("*"),
         // Sert à CongeDemandeAlert (notif direction dès qu'une demande de
         // congé arrive) — chargé sans attendre l'ouverture du Planning.
         supabase.from("conges").select("*"),
@@ -512,7 +506,6 @@ function AppShellInner({
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
       setAllVerifications((verifs as Verification[]) || []);
-      setAllVerificationErreursPassees((erreursPassees as VerificationErreurPassee[]) || []);
       setTeamConges((conges as Conge[]) || []);
       if (!error && data) {
         setClients(data as Client[]);
@@ -1056,7 +1049,6 @@ function AppShellInner({
         { data: shifts },
         { data: paypal },
         { data: verifs },
-        { data: erreursPassees },
         { data: conges },
       ] = await Promise.all([
         fetchAllRows<Client>(supabase, "clients", "*", "created_at", false),
@@ -1071,7 +1063,6 @@ function AppShellInner({
         supabase.from("planning_shifts").select("*"),
         supabase.from("paypal_paiements").select("*").order("paypal_recu_le", { ascending: false }),
         supabase.from("verifications").select("*"),
-        supabase.from("verification_erreurs_passees").select("*"),
         supabase.from("conges").select("*"),
       ]);
       setPacks((packsData as Pack[]) || []);
@@ -1131,7 +1122,6 @@ function AppShellInner({
       setTeamPlanningShifts((shifts as PlanningShift[]) || []);
       setPaypalPaiements((paypal as PaypalPaiement[]) || []);
       setAllVerifications((verifs as Verification[]) || []);
-      setAllVerificationErreursPassees((erreursPassees as VerificationErreurPassee[]) || []);
       setTeamConges((conges as Conge[]) || []);
 
       if (flags.planningLoaded) {
@@ -1446,7 +1436,6 @@ function AppShellInner({
       "remboursements",
       "incidents",
       "verifications",
-      "verification_erreurs_passees",
       "client_hotels",
       "assouan_verifications",
       "bus_escalations",
@@ -3375,7 +3364,6 @@ function AppShellInner({
               onDeleteRemboursement={deleteRemboursement}
               isDirection={effectiveIsDirection}
               verifications={allVerifications}
-              verificationErreursPassees={allVerificationErreursPassees}
               paypalPaiements={paypalPaiements}
               onRattacherPaiement={rattacherPaypalPaiement}
               onMasquerPaiement={masquerPaypalPaiement}
@@ -3521,7 +3509,6 @@ function AppShellInner({
               onDeleteRemboursement={deleteRemboursement}
               isDirection={effectiveIsDirection}
               verifications={allVerifications}
-              verificationErreursPassees={allVerificationErreursPassees}
               paypalPaiements={paypalPaiements}
               onRattacherPaiement={rattacherPaypalPaiement}
               onMasquerPaiement={masquerPaypalPaiement}

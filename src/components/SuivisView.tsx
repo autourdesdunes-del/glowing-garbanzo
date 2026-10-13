@@ -13,7 +13,6 @@ import {
   ReservationOption,
   ReservationTarif,
   Verification,
-  VerificationErreurPassee,
 } from "@/lib/types";
 import { addDays, localDateStr } from "@/lib/dates";
 import { deaccent } from "@/lib/deaccent";
@@ -34,7 +33,7 @@ import {
   participantsFor,
   resaTotalMontant,
 } from "@/lib/resa";
-import { dernierChangementDossier, erreursDossier } from "@/lib/dossierErreurs";
+import { dernierChangementDossier, pointsAVerifier } from "@/lib/dossierChecklist";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { createClient } from "@/lib/supabase/client";
 import MarquerRembourseModal from "@/components/MarquerRembourseModal";
@@ -92,6 +91,17 @@ export const SUIVIS_SUBS = [
   { key: "avis", label: "Avis clients", labelAr: "آراء العملاء", groupe: "suivi_du_suivi" },
 ] as const;
 
+// Couleur par catégorie des points de l'outil "Vérification de dossier" —
+// neutre/informatif partout (jamais rouge "erreur"), juste pour repérer
+// vite de quel type de point il s'agit.
+const CATEGORIE_STYLE: Record<string, string> = {
+  Paiement: "border-blue-100 bg-blue-50 text-blue-800",
+  Programme: "border-amber-100 bg-amber-50 text-amber-800",
+  Documents: "border-purple-100 bg-purple-50 text-purple-800",
+  Remboursement: "border-teal-100 bg-teal-50 text-teal-800",
+  Doublon: "border-pink-100 bg-pink-50 text-pink-800",
+};
+
 // "remb" n'apparaît plus dans le sous-menu Suivi (retiré à la demande de
 // Mélanie, déplacé vers le dashboard et dupliqué dans Direction) mais reste
 // une valeur valide de sub — SuivisView sait toujours l'afficher.
@@ -109,7 +119,6 @@ export default function SuivisView({
   onDeleteRemboursement,
   isDirection = false,
   verifications,
-  verificationErreursPassees = [],
   paypalPaiements,
   onRattacherPaiement,
   onMasquerPaiement,
@@ -136,7 +145,6 @@ export default function SuivisView({
   onDeleteRemboursement?: (id: string) => void;
   isDirection?: boolean;
   verifications: Verification[];
-  verificationErreursPassees?: VerificationErreurPassee[];
   paypalPaiements: PaypalPaiement[];
   onRattacherPaiement: (
     paiementId: string,
@@ -187,12 +195,6 @@ export default function SuivisView({
   // de vérité reste la table verifications, ceci est juste un affichage
   // optimiste local.
   const [dossiersVerifiesMaintenant, setDossiersVerifiesMaintenant] = useState<Set<string>>(new Set());
-  // Erreurs "passées" ajoutées localement (affichage optimiste) en plus de
-  // celles déjà en base (verificationErreursPassees) — même principe que
-  // dossiersVerifiesMaintenant ci-dessus.
-  const [erreursPasseesMaintenant, setErreursPasseesMaintenant] = useState<VerificationErreurPassee[]>(
-    []
-  );
   const [newAppelClientId, setNewAppelClientId] = useState("");
   // Recherche tapée au clavier (nom du client/prospect) pour programmer un
   // appel — le <select> listant les ~1500 clients était inutilisable pour
@@ -335,33 +337,12 @@ export default function SuivisView({
   // Même règle de base (statut + proximité du séjour) que le rappel
   // personnel (PersonalNudgeAlert) — voir estDossierNonVerifie dans
   // lib/resa.ts. On lui passe un Set vide pour ne garder QUE cette partie
-  // (statut/date) : le "jamais vérifié" est ensuite recalculé ci-dessous,
-  // en plus riche — un dossier modifié depuis sa dernière vérification, ou
-  // sur lequel une erreur active n'a pas été passée, redevient "à vérifier"
-  // même s'il a déjà été signé une fois (demande de Mélanie, 2026-10-13).
-  const toutesErreursPassees = [...verificationErreursPassees, ...erreursPasseesMaintenant];
-  // "Passer" une erreur permet de signer quand même (sinon le bouton
-  // "Passer" ne servirait à rien) — mais ne la fait JAMAIS disparaître de
-  // "à vérifier" : le dossier y reste tant que l'erreur existe réellement
-  // encore dans les données, passée ou non (demande explicite de Mélanie,
-  // 2026-10-13). On distingue donc : erreursBrutes (tout ce qui est
-  // détecté, sert à décider si le dossier reste dans la liste) et
-  // erreursActives (celles pas encore passées, sert à bloquer le bouton
-  // Signer et à savoir lesquelles afficher avec un bouton "Passer").
-  const erreursPourClient = (c: Client) => {
-    const brutes = erreursDossier(c, reservations, remboursements, catalogue, resaOptions, resaTarifs, paiementsEtapes, clients);
-    const dernierChangement = dernierChangementDossier(c, reservations, remboursements, paiementsEtapes);
-    const passeesClient = toutesErreursPassees.filter((p) => p.client_id === c.id);
-    const passeePour = (e: { code: string; message: string }) =>
-      passeesClient.find(
-        (p) => p.erreur_code === e.code && p.erreur_message === e.message && p.created_at >= dernierChangement
-      ) || null;
-    const avecStatut = brutes.map((e) => ({ ...e, passee: passeePour(e) }));
-    return {
-      brutes: avecStatut,
-      actives: avecStatut.filter((e) => !e.passee),
-    };
-  };
+  // (statut/date) : le "jamais vérifié" est ensuite recalculé ci-dessous —
+  // un dossier modifié depuis sa dernière vérification redevient "à
+  // vérifier" même s'il a déjà été signé une fois (demande de Mélanie,
+  // 2026-10-13). La checklist elle-même (pointsAVerifier) n'est qu'un
+  // rappel des éléments à relire, jamais un verdict qui bloquerait la
+  // signature — elle ne joue aucun rôle dans cette liste.
   const verifsEligibles = clients.filter((c) => estDossierNonVerifie(c, new Set()));
   const verifsRows = verifsEligibles
     .filter((c) => !dossiersVerifiesMaintenant.has(c.id))
@@ -369,41 +350,17 @@ export default function SuivisView({
       const dernierChangement = dernierChangementDossier(c, reservations, remboursements, paiementsEtapes);
       const mesVerifs = verifications.filter((v) => v.client_id === c.id).sort((a, b) => b.created_at.localeCompare(a.created_at));
       const derniereVerif = mesVerifs[0] || null;
-      const { brutes, actives } = erreursPourClient(c);
       const dejaVerifieEtAJour = !!derniereVerif && derniereVerif.created_at >= dernierChangement;
-      if (dejaVerifieEtAJour && brutes.length === 0) return null;
-      return { client: c, erreurs: brutes, erreursActives: actives };
+      if (dejaVerifieEtAJour) return null;
+      const points = pointsAVerifier(c, reservations, remboursements, catalogue, resaOptions, resaTarifs, paiementsEtapes, clients);
+      return { client: c, points };
     })
-    .filter((x): x is { client: Client; erreurs: ReturnType<typeof erreursPourClient>["brutes"]; erreursActives: ReturnType<typeof erreursPourClient>["actives"] } => !!x)
+    .filter((x): x is { client: Client; points: ReturnType<typeof pointsAVerifier> } => !!x)
     .sort((a, b) => (a.client.date_debut || "").localeCompare(b.client.date_debut || ""));
 
   const monPrenom = profiles.find((p) => p.id === currentUserId)?.prenom || "";
 
-  const passerErreur = async (c: Client, erreur: { code: string; message: string }) => {
-    const optimiste: VerificationErreurPassee = {
-      id: `local_${crypto.randomUUID()}`,
-      client_id: c.id,
-      erreur_code: erreur.code,
-      erreur_message: erreur.message,
-      passe_nom: monPrenom,
-      passe_par_id: currentUserId,
-      created_at: new Date().toISOString(),
-    };
-    setErreursPasseesMaintenant((prev) => [...prev, optimiste]);
-    const { error } = await supabase.from("verification_erreurs_passees").insert({
-      client_id: c.id,
-      erreur_code: erreur.code,
-      erreur_message: erreur.message,
-      passe_nom: monPrenom,
-      passe_par_id: currentUserId,
-    });
-    if (error) {
-      setErreursPasseesMaintenant((prev) => prev.filter((p) => p.id !== optimiste.id));
-    }
-  };
-
   const validerVerification = async (c: Client) => {
-    if (erreursPourClient(c).actives.length > 0) return;
     setDossiersVerifiesMaintenant((prev) => new Set(prev).add(c.id));
     const { error } = await supabase.from("verifications").insert({
       client_id: c.id,
@@ -1636,15 +1593,15 @@ export default function SuivisView({
               Dossiers à vérifier ({verifsRows.length})
             </h3>
             <p className="mb-3 text-xs text-neutral-400">
-              Clients confirmés dont le séjour arrive (ou a déjà commencé), jamais vérifiés, modifiés
-              depuis leur dernière vérification, ou sur lesquels une erreur est encore active. Signer
-              n&apos;est possible qu&apos;une fois chaque erreur corrigée ou explicitement passée.
+              Clients confirmés dont le séjour arrive (ou a déjà commencé), jamais vérifiés, ou modifiés
+              depuis leur dernière vérification. Chaque point ci-dessous est un rappel à relire — le CRM
+              ne juge rien, clique dessus pour aller vérifier directement sur la fiche.
             </p>
             {verifsRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à vérifier pour l&apos;instant.</div>
             )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {verifsRows.map(({ client: c, erreurs, erreursActives }) => (
+              {verifsRows.map(({ client: c, points }) => (
                 <div
                   key={c.id}
                   className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
@@ -1657,59 +1614,31 @@ export default function SuivisView({
                     />
                     <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                   </div>
-                  {erreurs.length === 0 ? (
-                    <p className="mt-2 text-xs text-green-700">Aucune erreur détectée.</p>
-                  ) : (
-                    <ul className="mt-2 space-y-1.5">
-                      {erreurs.map((e, i) =>
-                        e.passee ? (
-                          <li
-                            key={`${e.code}_${i}`}
-                            className="rounded-md border border-neutral-200 bg-neutral-50 p-2 text-xs text-neutral-500"
-                          >
-                            <span className="mr-1 rounded-full bg-neutral-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
-                              {e.categorie}
-                            </span>
-                            <span className="line-through">{e.message}</span>
-                            <span className="ml-1 italic">
-                              — passée par {e.passee.passe_nom || "?"} le {fmtDate(e.passee.created_at.slice(0, 10))}
-                            </span>
-                          </li>
-                        ) : (
-                          <li
-                            key={`${e.code}_${i}`}
-                            className="rounded-md border border-red-100 bg-red-50 p-2 text-xs text-red-800"
-                          >
-                            <span className="mr-1 rounded-full bg-red-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-800">
-                              {e.categorie}
-                            </span>
-                            {e.message}
-                            <button
-                              type="button"
-                              onClick={() => passerErreur(c, e)}
-                              className="ml-2 text-[11px] font-medium text-red-700 underline decoration-dotted hover:text-red-900"
-                            >
-                              Passer
-                            </button>
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  )}
+                  <ul className="mt-2 space-y-1.5">
+                    {points.map((p, i) => (
+                      <li key={`${p.code}_${i}`}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            p.reservationId ? onOpenReservationActivity(p.reservationId) : onOpenClient(c.id)
+                          }
+                          className={`w-full rounded-md border p-2 text-left text-xs hover:brightness-95 ${CATEGORIE_STYLE[p.categorie]}`}
+                        >
+                          <span className="mr-1 rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                            {p.categorie}
+                          </span>
+                          {p.message}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                   <button
                     type="button"
-                    disabled={erreursActives.length > 0}
                     onClick={() => validerVerification(c)}
-                    className="mt-2 rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:bg-neutral-300"
+                    className="mt-2 rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                   >
                     Vérifié — signer {monPrenom || ""}
                   </button>
-                  {erreurs.length > 0 && erreursActives.length === 0 && (
-                    <p className="mt-1 text-[11px] text-amber-700">
-                      Toutes les erreurs ont été passées — le dossier restera dans &quot;à vérifier&quot;
-                      tant qu&apos;elles ne sont pas réellement corrigées.
-                    </p>
-                  )}
                 </div>
               ))}
             </div>

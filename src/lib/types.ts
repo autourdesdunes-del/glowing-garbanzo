@@ -451,6 +451,22 @@ export type Verification = {
   created_at: string;
 };
 
+// Trace qu'une erreur détectée automatiquement par l'outil de vérification
+// de dossier (voir src/lib/dossierErreurs.ts) a été vue puis volontairement
+// passée (pas corrigée tout de suite) — jamais une résolution : le dossier
+// reste dans "à vérifier" tant que l'erreur elle-même existe encore dans
+// les données, ceci sert uniquement de note d'accountability pour la
+// prochaine personne qui regarde le dossier.
+export type VerificationErreurPassee = {
+  id: string;
+  client_id: string;
+  erreur_code: string;
+  erreur_message: string;
+  passe_nom: string;
+  passe_par_id: string | null;
+  created_at: string;
+};
+
 // Code de réduction/promo ajouté par la Direction (onglet Direction) —
 // consultable en lecture seule par l'équipe (HELP > Codes promo) pour
 // vérifier qu'un code donné par un client est valide.

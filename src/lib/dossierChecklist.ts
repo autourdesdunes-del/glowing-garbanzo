@@ -35,11 +35,19 @@ export type DossierCheckItem = {
   reservationId?: string;
 };
 
-// Champs qu'une activité comme "City tour Hurghada — Après-midi" ou "City
-// Tour – El Gouna — Matin" porte déjà dans son propre titre (catalogue
-// séparé par créneau) — les redemander ici n'apporterait rien, la réponse
-// est déjà sous les yeux (retour de Mélanie, 2026-10-13).
-const CHAMPS_DEJA_DANS_LE_TITRE = ["Moment (matin / après-midi)", "Créneau"];
+// Une activité comme "City tour Hurghada — Après-midi" ou "City Tour – El
+// Gouna — Matin" porte déjà le matin/après-midi dans son propre titre
+// (catalogue séparé par créneau) — le redemander n'apporterait rien, la
+// réponse est déjà sous les yeux (retour de Mélanie, 2026-10-13). Testé sur
+// le TEXTE plutôt que sur un nom de champ fixe, car le champ requis
+// correspondant est parfois un preset ("Créneau"), parfois un champ
+// personnalisé du catalogue avec un intitulé légèrement différent (ex.
+// "créneau : matin / après-midi") — seul un test sur le contenu couvre les
+// deux.
+const MOMENT_RE = /matin|après-midi|apres-midi|créneau|creneau/i;
+function titreIndiqueDejaLeMoment(nomActivite: string) {
+  return MOMENT_RE.test(nomActivite);
+}
 
 export function pointsAVerifier(
   client: Client,
@@ -106,8 +114,9 @@ export function pointsAVerifier(
   // --- Programme : champs propres à l'activité (pointure, île...) -------
   for (const r of resasClient) {
     const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+    const titreOk = titreIndiqueDejaLeMoment(r.nom_activite);
     const manquants = missingChampsFor(r, catalogueItem).filter(
-      (champ) => !CHAMPS_DEJA_DANS_LE_TITRE.includes(champ)
+      (champ) => !(titreOk && MOMENT_RE.test(champ))
     );
     manquants.forEach((champ) => {
       items.push({

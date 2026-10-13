@@ -91,7 +91,12 @@ export function erreursDossier(
   }
 
   // --- Paiement : reste à payer non nul -----------------------------------
-  const progress = paiementProgress(client, reservations, resaOptions, resaTarifs, paiementsEtapes);
+  // paiementProgress attend des listes déjà filtrées sur CE client (comme
+  // partout ailleurs dans le CRM, ex. AppShell.tsx avant ClientDetail) —
+  // sans ce filtre, reservations/paiementsEtapes contiennent tous les
+  // clients et totalSejour explose (vécu : "reste à payer" à 200 000€+).
+  const resaEtapesClient = paiementsEtapes.filter((e) => e.client_id === client.id);
+  const progress = paiementProgress(client, reservations.filter((r) => r.client_id === client.id), resaOptions, resaTarifs, resaEtapesClient);
   if (progress.reste > 0.5) {
     erreurs.push({
       code: "reste_a_payer",

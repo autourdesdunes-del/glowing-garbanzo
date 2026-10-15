@@ -375,14 +375,26 @@ export default function DashboardView({
     });
   };
 
+  // Un client déjà sur place (séjour en cours) n'est jamais "à venir" au
+  // sens date_debut >= aujourd'hui, donc sortait entièrement de ce calcul —
+  // une activité encore en Brouillon pendant son séjour (ex. île pas
+  // choisie pour un speedboat dans 2 jours) devenait invisible du dashboard
+  // Direction du jour au lendemain de son arrivée. Compte quand même, mais
+  // uniquement via une activité Brouillon (pas via les infos manquantes
+  // générales type passeport/acompte, hors scope de ce correctif — Mélanie,
+  // 2026-10-15).
+  const dejaSurPlace = (c: Client) =>
+    !!c.date_debut && !!c.date_fin && c.date_debut <= todayStr && todayStr <= c.date_fin;
+
   const incompleteUpcoming = clients.filter(
     (c) =>
       c.statut === "Client confirmé" &&
-      c.date_debut &&
-      c.date_debut >= todayStr &&
-      c.date_debut <= in14Days &&
-      (infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0 ||
-        activitesBrouillonRaisonsFor(c.id).length > 0)
+      ((c.date_debut &&
+        c.date_debut >= todayStr &&
+        c.date_debut <= in14Days &&
+        (infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0 ||
+          activitesBrouillonRaisonsFor(c.id).length > 0)) ||
+        (dejaSurPlace(c) && activitesBrouillonRaisonsFor(c.id).length > 0))
   );
   // File prioritaire : un dossier incomplet n'y reste que si l'arrivée est
   // proche (3 jours) — au-delà, il y a encore le temps de le compléter sans
@@ -392,11 +404,12 @@ export default function DashboardView({
   const incompleteUrgent = clients.filter(
     (c) =>
       c.statut === "Client confirmé" &&
-      c.date_debut &&
-      c.date_debut >= todayStr &&
-      c.date_debut <= in3Days &&
-      (infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0 ||
-        activitesBrouillonRaisonsFor(c.id).length > 0)
+      ((c.date_debut &&
+        c.date_debut >= todayStr &&
+        c.date_debut <= in3Days &&
+        (infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0 ||
+          activitesBrouillonRaisonsFor(c.id).length > 0)) ||
+        (dejaSurPlace(c) && activitesBrouillonRaisonsFor(c.id).length > 0))
   );
 
   // Billet d'avion pas encore reçu (étape avant "reçu — à envoyer au

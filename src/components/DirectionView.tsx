@@ -293,30 +293,51 @@ function ComptaCourbeChart({
       >
         <path d={pathVentes} fill="none" stroke={COULEUR_VENTES} strokeWidth="2" />
         <path d={pathCa} fill="none" stroke={COULEUR_CA} strokeWidth="2" />
-        {data.map((d, i) => (
-          <g
-            key={d.mois}
-            onClick={() => onSelectMois(d.mois)}
-            className="cursor-pointer"
-            role="button"
-            aria-label={`Voir le détail de ${d.label}`}
-          >
-            <title>
-              {d.label} : {d.ventes} vente{d.ventes > 1 ? "s" : ""}, {eurosDec(d.ca)} €
-            </title>
-            <text x={xFor(i)} y={yForVentes(d.ventes) - 8} textAnchor="middle" fontSize="9" fill={COULEUR_VENTES}>
-              {d.ventes}
-            </text>
-            <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={3.5} fill={COULEUR_VENTES} />
-            <text x={xFor(i)} y={yForCa(d.ca) - 8} textAnchor="middle" fontSize="9" fill={COULEUR_CA}>
-              {eurosDec(d.ca)} €
-            </text>
-            <circle cx={xFor(i)} cy={yForCa(d.ca)} r={3.5} fill={COULEUR_CA} />
-            <text x={xFor(i)} y={height - 8} textAnchor="middle" fontSize="10" fill="#78716c">
-              {d.label}
-            </text>
-          </g>
-        ))}
+        {data.map((d, i) => {
+          // Les cercles seuls (r=3.5 dans un viewBox de 640, donc ~1-2px
+          // réels à l'écran) sont une cible bien trop petite pour cliquer —
+          // une bande transparente sur toute la hauteur du mois, elle, se
+          // clique n'importe où dans sa colonne.
+          const bandWidth = data.length > 1 ? innerW / data.length : innerW;
+          return (
+            <g
+              key={d.mois}
+              onClick={() => onSelectMois(d.mois)}
+              className="cursor-pointer"
+              role="button"
+              aria-label={`Voir le détail de ${d.label}`}
+            >
+              <title>
+                {d.label} : {d.ventes} vente{d.ventes > 1 ? "s" : ""}, {eurosDec(d.ca)} €
+              </title>
+              <rect
+                x={xFor(i) - bandWidth / 2}
+                y={padTop - 16}
+                width={bandWidth}
+                height={innerH + 16}
+                fill="transparent"
+                className="transition hover:fill-black/5"
+              />
+              <text
+                x={xFor(i)}
+                y={yForVentes(d.ventes) - 8}
+                textAnchor="middle"
+                fontSize="9"
+                fill={COULEUR_VENTES}
+              >
+                {d.ventes}
+              </text>
+              <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={3.5} fill={COULEUR_VENTES} />
+              <text x={xFor(i)} y={yForCa(d.ca) - 8} textAnchor="middle" fontSize="9" fill={COULEUR_CA}>
+                {eurosDec(d.ca)} €
+              </text>
+              <circle cx={xFor(i)} cy={yForCa(d.ca)} r={3.5} fill={COULEUR_CA} />
+              <text x={xFor(i)} y={height - 8} textAnchor="middle" fontSize="10" fill="#78716c">
+                {d.label}
+              </text>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );

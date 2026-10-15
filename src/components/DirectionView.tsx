@@ -263,6 +263,19 @@ const COMPTA_BILANS_MENSUELS: Record<number, Partial<Record<number, BilanMensuel
     // (bénéfices / CA) comme pour les autres mois.
     12: { ventes: 435, moyenneParJour: 14.03, caTotal: 95600, benefices: 18420, margePct: 19.27 },
   },
+  // 2026 en cours — seuls janvier à juin sont complets (ventes, CA,
+  // bénéfices, marge) dans la source Notion. Juillet n'a que le bénéfice
+  // (24 700,00€, pas de CA ni de ventes) : volontairement pas ajouté ici
+  // plutôt que d'inventer les champs manquants — à compléter dès que
+  // Mélanie a le reste.
+  2026: {
+    1: { ventes: 380, moyenneParJour: 12.26, caTotal: 64226, benefices: 16800, margePct: 26.15 },
+    2: { ventes: 856, moyenneParJour: 30.57, caTotal: 183149, benefices: 29370, margePct: 16.03 },
+    3: { ventes: 888, moyenneParJour: 28.65, caTotal: 153653.75, benefices: 35280, margePct: 22.92 },
+    4: { ventes: 1100, moyenneParJour: 36.67, caTotal: 241819.87, benefices: 48490, margePct: 20.05 },
+    5: { ventes: 762, moyenneParJour: 24.58, caTotal: 132739.5, benefices: 26950, margePct: 20.3 },
+    6: { ventes: 455, moyenneParJour: 15.17, caTotal: 85585, benefices: 23780, margePct: 27.78 },
+  },
 };
 
 // Mois réellement sélectionnables par année — l'agence a été créée en

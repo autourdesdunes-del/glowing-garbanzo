@@ -36,6 +36,7 @@ import AppelInfoModal from "@/components/AppelInfoModal";
 import QuickAddClient from "@/components/QuickAddClient";
 import PickClientModal from "@/components/PickClientModal";
 import PaiementsDuJourModal, { computePaiementsDuJour } from "@/components/PaiementsDuJourModal";
+import { RdvPaiementModal } from "@/components/suivis/SuivisRows";
 import { daysSince, euros, firstNameFromEmail, fmtDate } from "@/lib/dashboardFormat";
 import {
   ActionRow,
@@ -150,6 +151,9 @@ export default function DashboardView({
   const [prospectsModalOpen, setProspectsModalOpen] = useState(false);
   const [prospectSummaryId, setProspectSummaryId] = useState<string | null>(null);
   const [appelPopupClientId, setAppelPopupClientId] = useState<string | null>(null);
+  const [rdvPopupClientId, setRdvPopupClientId] = useState<string | null>(null);
+  const [rdvListModalOpen, setRdvListModalOpen] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [incompleteModalOpen, setIncompleteModalOpen] = useState(false);
   const [pickupsModalOpen, setPickupsModalOpen] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
@@ -233,6 +237,27 @@ export default function DashboardView({
       !c.solde_paye &&
       (c.solde_rdv_heure || c.solde_rdv_lieu)
   );
+  // Même calcul que Suivis > RDV paiements (SuivisView.tsx), pour que le
+  // montant affiché dans le pop-up du dashboard soit identique.
+  const soldeRestantFor = (c: Client) => {
+    const acomptePaye = c.acompte_paye ? Number(c.acompte_montant) || 0 : 0;
+    const totalSejour = reservations
+      .filter((r) => r.client_id === c.id && r.statut_resa !== "Annulée")
+      .reduce((sum, r) => sum + resaTotalMontant(r, c, resaOptions[r.id] || [], resaTarifs[r.id] || []), 0);
+    const etapesSum = paiementsEtapes
+      .filter((e) => e.client_id === c.id)
+      .reduce((s, e) => s + (Number(e.montant) || 0), 0);
+    return Math.max(totalSejour - acomptePaye - etapesSum, 0);
+  };
+  const copyText = async (key: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 1500);
+    } catch {
+      // clipboard indisponible, ignorer
+    }
+  };
   const { encaisses: paiementsEncaisses, aPayer: paiementsAPayer } = useMemo(
     () =>
       computePaiementsDuJour(
@@ -914,6 +939,37 @@ export default function DashboardView({
             />
           );
         })()}
+      {rdvPopupClientId &&
+        (() => {
+          const c = clients.find((cl) => cl.id === rdvPopupClientId);
+          if (!c) return null;
+          return (
+            <RdvPaiementModal
+              c={c}
+              montant={soldeRestantFor(c)}
+              copiedKey={copiedKey}
+              onCopy={copyText}
+              onOpenClient={onOpenClient}
+              onClose={() => setRdvPopupClientId(null)}
+            />
+          );
+        })()}
+      {rdvListModalOpen && (
+        <InfoListModal
+          title="RDV paiements aujourd'hui"
+          rows={rdvToday.map((c) => ({
+            key: c.id,
+            name: c.nom || "Sans nom",
+            reason: `${c.solde_rdv_heure || "heure ?"} — ${c.hotel || "Hôtel ?"}`,
+            actionLabel: "Voir le RDV",
+            onAction: () => {
+              setRdvListModalOpen(false);
+              setRdvPopupClientId(c.id);
+            },
+          }))}
+          onClose={() => setRdvListModalOpen(false)}
+        />
+      )}
       {incompleteModalOpen && (
         <InfoListModal
           title="Dossiers incomplets"
@@ -1320,7 +1376,11 @@ export default function DashboardView({
                   title="RDV paiements aujourd'hui"
                   sub={`${rdvToday.length} rendez-vous`}
                   count={rdvToday.length}
-                  onClick={onOpenRdvPaiements}
+                  onClick={() =>
+                    rdvToday.length === 1
+                      ? setRdvPopupClientId(rdvToday[0].id)
+                      : setRdvListModalOpen(true)
+                  }
                 />
               )}
               {billetsEnAttente.length > 0 && (

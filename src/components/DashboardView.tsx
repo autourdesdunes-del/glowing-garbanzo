@@ -268,11 +268,16 @@ export default function DashboardView({
   // badge comptait les clients arrivant demain à l'hôtel alors que la liste
   // réelle se base sur la date de leur première activité, qui peut être un
   // autre jour : badge non-vide mais liste vide au clic.
+  //
+  // Ne teste que c.chambre (source de vérité), jamais infos_manquantes :
+  // ce tableau est rempli automatiquement par un useEffect (SuivisView.tsx)
+  // mais jamais nettoyé quand la chambre est renseignée ensuite (le
+  // formulaire ne fait que `onChange({ chambre: ... })`) — un ancien "Room
+  // number" y restait indéfiniment et faisait réapparaître ici des clients
+  // dont le numéro de chambre était pourtant bien renseigné.
   const firstActivityDateByClient = useMemo(() => firstActivityDateMap(reservations), [reservations]);
   const roomsMissingTomorrow = clients.filter(
-    (c) =>
-      firstActivityDateByClient.get(c.id) === tomorrowStr &&
-      (!c.chambre || c.infos_manquantes.includes("Room number"))
+    (c) => firstActivityDateByClient.get(c.id) === tomorrowStr && !c.chambre
   );
 
   const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);

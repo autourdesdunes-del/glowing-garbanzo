@@ -344,38 +344,53 @@ function ComptaCourbeChart({
           // une bande transparente sur toute la hauteur du mois, elle, se
           // clique n'importe où dans sa colonne.
           const bandWidth = data.length > 1 ? innerW / data.length : innerW;
-          return (
-            <g
-              key={d.mois}
-              onClick={() => onSelectMois(d.mois)}
-              className="cursor-pointer"
-              role="button"
-              aria-label={`Voir le détail de ${d.label}`}
-            >
-              {/* Pas d'étiquette de valeur permanente — sur 12 mois elles se
-                  chevauchaient dès que les deux courbes se croisaient
-                  (illisible, retour de Mélanie, 2026-10-15). La valeur
-                  précise reste au survol (title) et dans le tableau du
-                  détail juste en dessous. */}
-              <title>
-                {d.label} : {d.ventes} vente{d.ventes > 1 ? "s" : ""}, {eurosDec(d.ca)} €
-              </title>
-              <rect
-                x={xFor(i) - bandWidth / 2}
-                y={padTop - 16}
-                width={bandWidth}
-                height={innerH + 16}
-                fill="transparent"
-                className="transition hover:fill-black/5"
-              />
-              <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={5.5} fill={COULEUR_VENTES} />
-              <circle cx={xFor(i)} cy={yForCa(d.ca)} r={5.5} fill={COULEUR_CA} />
-              <text x={xFor(i)} y={height - 10} textAnchor="middle" fontSize="14" fill="#78716c">
-                {d.label}
-              </text>
-            </g>
-          );
-        })}
+          // Pas d'étiquette de valeur permanente — sur 12 mois elles se
+          // chevauchaient dès que les deux courbes se croisaient (illisible,
+          // retour de Mélanie, 2026-10-15). Un <title> SVG marchait mal
+          // (natif, lent, peu fiable selon navigateur) — remplacé par une
+          // vraie bulle qui s'affiche instantanément au survol
+          // (group-hover), avec les deux valeurs dedans.
+          const topY = Math.min(yForVentes(d.ventes), yForCa(d.ca));
+          const tooltipW = 150;
+          const tooltipH = 54;
+          const tooltipX = Math.min(Math.max(xFor(i) - tooltipW / 2, 4), width - tooltipW - 4);
+          const tooltipY = Math.max(topY - tooltipH - 14, 4);
+            return (
+              <g
+                key={d.mois}
+                onClick={() => onSelectMois(d.mois)}
+                className="group cursor-pointer"
+                role="button"
+                aria-label={`Voir le détail de ${d.label}`}
+              >
+                <rect
+                  x={xFor(i) - bandWidth / 2}
+                  y={padTop - 16}
+                  width={bandWidth}
+                  height={innerH + 16}
+                  fill="transparent"
+                  className="transition group-hover:fill-black/5"
+                />
+                <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={5.5} fill={COULEUR_VENTES} />
+                <circle cx={xFor(i)} cy={yForCa(d.ca)} r={5.5} fill={COULEUR_CA} />
+                <text x={xFor(i)} y={height - 10} textAnchor="middle" fontSize="14" fill="#78716c">
+                  {d.label}
+                </text>
+                <g className="pointer-events-none opacity-0 transition group-hover:opacity-100">
+                  <rect x={tooltipX} y={tooltipY} width={tooltipW} height={tooltipH} rx={6} fill="#171717" />
+                  <text x={tooltipX + 10} y={tooltipY + 20} fontSize="13" fontWeight="600" fill="white">
+                    {d.label}
+                  </text>
+                  <text x={tooltipX + 10} y={tooltipY + 38} fontSize="12" fill={COULEUR_VENTES}>
+                    {d.ventes} vente{d.ventes > 1 ? "s" : ""}
+                  </text>
+                  <text x={tooltipX + 10} y={tooltipY + 38} fontSize="12" fill={COULEUR_CA} textAnchor="end" dx={tooltipW - 20}>
+                    {eurosDec(d.ca)} €
+                  </text>
+                </g>
+              </g>
+            );
+          })}
       </svg>
     </div>
   );
@@ -470,7 +485,7 @@ function ComptabiliteBilanPage({
             <StatTile mono={false} label="Ventes au mois" value={`${bilanMois.ventes}`} />
             <StatTile mono={false} label="Moyenne par jour" value={bilanMois.moyenneParJour.toLocaleString("fr-FR")} />
             <StatTile mono={false} label="CA total" value={`${eurosDec(bilanMois.caTotal)} €`} />
-            <StatTile mono={false} label="Bénéfices" value={`${eurosDec(bilanMois.benefices)} €`} />
+            <StatTile mono={false} tone="green" label="Bénéfices" value={`${eurosDec(bilanMois.benefices)} €`} />
             <StatTile mono={false} label="Marge (CA/Bénef)" value={`${bilanMois.margePct.toLocaleString("fr-FR")}%`} />
           </div>
         ) : (
@@ -484,7 +499,12 @@ function ComptabiliteBilanPage({
           <div className="mt-5 space-y-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <StatTile mono={false} label="CA total de l'année" value={`${eurosDec(caTotalAnnee)} €`} />
-              <StatTile mono={false} label="Bénéfices de l'année" value={`${eurosDec(beneficesAnnee)} €`} />
+              <StatTile
+                mono={false}
+                tone="green"
+                label="Bénéfices de l'année"
+                value={`${eurosDec(beneficesAnnee)} €`}
+              />
               <StatTile
                 mono={false}
                 label="Marge (CA/Bénef)"
@@ -1506,9 +1526,26 @@ export default function DirectionView({
   );
 }
 
-function StatTile({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
+function StatTile({
+  label,
+  value,
+  mono = true,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  // "green" = carte toujours en vert pastel, ex. "Bénéfices de l'année"
+  // dans Comptabilité (demande de Mélanie, 2026-10-15) — inchangé partout
+  // ailleurs.
+  tone?: "default" | "green";
+}) {
   return (
-    <div className="relative overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white p-4">
+    <div
+      className={`relative overflow-hidden rounded-[6px] border p-4 ${
+        tone === "green" ? "border-green-100 bg-green-50" : "border-[#eaeaea] bg-white"
+      }`}
+    >
       <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">{label}</p>
       <p className={`mt-1 text-2xl font-semibold text-[#171717] ${mono ? "font-amounts" : ""}`}>{value}</p>
     </div>

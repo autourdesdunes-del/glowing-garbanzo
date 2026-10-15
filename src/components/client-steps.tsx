@@ -1704,7 +1704,13 @@ export function PaiementsStep({
         : client.solde_mode === "Modes différents"
           ? `Solde — ${euros(client.solde_mixte_eur)} € + ${client.solde_mixte_egp.toLocaleString("fr-FR")} EGP`
           : `Solde — ${client.solde_mode}`,
-      montant: soldeRestant,
+      // Fait historique : une fois le solde marqué payé, le montant
+      // réellement encaissé (solde_montant_recu) ne doit jamais être
+      // remplacé par soldeRestant, qui lui bouge dès qu'une activité est
+      // supprimée/ajoutée après coup (vécu : Ethan Hayoz, Camille
+      // Mancheron — un montant déjà payé ne doit jamais s'ajuster tout
+      // seul, demande de Mélanie, 2026-10-15).
+      montant: client.solde_montant_recu > 0 ? client.solde_montant_recu : soldeRestant,
       montantEgp:
         client.solde_mode === "Espèces EGP"
           ? Number(client.egp_montant) || 0
@@ -1720,11 +1726,7 @@ export function PaiementsStep({
           : soldeActivite
             ? `Solde récolté à l'activité "${soldeActivite.nom_activite}"`
             : "Solde du séjour") +
-        (client.solde_montant_recu > 0 && client.solde_montant_recu !== soldeRestant
-          ? ` — ${euros(client.solde_montant_recu)} € réellement reçus (${
-              client.solde_entre_proches_oublie ? "oubli « Entre proches »" : "montant ajusté"
-            })`
-          : ""),
+        (client.solde_entre_proches_oublie ? " — oubli « Entre proches »" : ""),
       mode: client.solde_mode,
       assigneA: estRdvFinalise ? client.solde_assigne_a : undefined,
     });

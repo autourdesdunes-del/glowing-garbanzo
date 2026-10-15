@@ -443,13 +443,16 @@ export function paiementProgress(
   // Quand le montant réellement encaissé (solde_montant_recu) diffère de ce
   // qui était dû (ex. 87,04€ reçus au lieu de 90€, oubli "Entre proches") —
   // voir marquerEncaisse() dans PaiementResteFlow.tsx — c'est CE montant qui
-  // doit compter comme payé, jamais le total théorique du séjour. Sans ce
-  // plafond, le solde était compté couvert en entier dès que client.solde_paye
-  // passait à true, et "reste à payer" retombait à 0€ même quand un écart
-  // réel restait dû (vécu : dossier Emilie Jean-Louis, 2,96€ manquants
-  // affichés comme "reste 0€").
-  const soldeDu =
-    client.solde_montant_recu > 0 ? Math.min(Number(client.solde_montant_recu) || 0, soldeRestant) : soldeRestant;
+  // doit compter comme payé, jamais le total théorique du séjour (vécu :
+  // dossier Emilie Jean-Louis, 2,96€ manquants affichés comme "reste 0€").
+  // Ce montant encaissé est un FAIT historique : jamais plafonné par
+  // soldeRestant, qui lui bouge dès qu'une activité est supprimée/ajoutée
+  // après coup — sinon supprimer puis remettre une activité faisait
+  // apparaître un solde réellement encaissé (2745€) comme s'il n'en
+  // restait que 2400€ (vécu : Ethan Hayoz, Camille Mancheron, demande de
+  // Mélanie, 2026-10-15 : un montant déjà payé ne doit jamais s'ajuster
+  // tout seul, même s'il dépasse maintenant le total du séjour).
+  const soldeDu = client.solde_montant_recu > 0 ? Number(client.solde_montant_recu) || 0 : soldeRestant;
   const soldeCouvert = client.solde_paye ? Math.max(soldeDu - croissanceApresSolde, 0) : 0;
   const totalPaye = acomptePaye + etapesSum + avoirUtilise + soldeCouvert;
   return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0), soldeRestant };

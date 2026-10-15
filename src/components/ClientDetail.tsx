@@ -1416,13 +1416,12 @@ export default function ClientDetail({
   const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejourHeader;
   const croissanceApresSolde = Math.max(totalSejourHeader - soldeBaseline, 0);
   // Même correctif que paiementProgress() dans resa.ts — le montant
-  // réellement encaissé (solde_montant_recu) doit plafonner ce qui est
-  // compté payé, sinon un solde marqué "payé" avec un écart réel (oubli
-  // "Entre proches") s'affiche à tort comme entièrement réglé dans l'en-tête.
-  const soldeDuHeader =
-    client.solde_montant_recu > 0
-      ? Math.min(Number(client.solde_montant_recu) || 0, soldeRestantHeader)
-      : soldeRestantHeader;
+  // réellement encaissé (solde_montant_recu) est un fait historique, jamais
+  // plafonné par soldeRestantHeader (qui bouge dès qu'une activité est
+  // supprimée/ajoutée après coup — vécu : Ethan Hayoz, Camille Mancheron,
+  // demande de Mélanie, 2026-10-15, un montant déjà payé ne doit jamais
+  // s'ajuster tout seul, même au-delà du total du séjour).
+  const soldeDuHeader = client.solde_montant_recu > 0 ? Number(client.solde_montant_recu) || 0 : soldeRestantHeader;
   const soldeCouvertHeader = client.solde_paye ? Math.max(soldeDuHeader - croissanceApresSolde, 0) : 0;
   const totalPayeHeader = acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + soldeCouvertHeader;
   const paiementFullyPaid =

@@ -15,11 +15,11 @@ import {
   UserShift,
 } from "@/lib/types";
 import {
+  activiteEnAttenteRaisons,
   billetRequisEffectif,
   cleanActivityTitle,
   firstActivityDateMap,
   joursSansReponseProspect,
-  missingChampsFor,
   paxSummary,
   prospectRelanceUrgente,
   resaTotalMontant,
@@ -158,7 +158,6 @@ export default function DashboardView({
   const [pickupsModalOpen, setPickupsModalOpen] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
   const [shiftFin, setShiftFin] = useState("");
-  const [showActivitesEnAttenteModal, setShowActivitesEnAttenteModal] = useState(false);
   const [showPaiementsDuJourModal, setShowPaiementsDuJourModal] = useState(false);
 
   useEffect(() => {
@@ -324,10 +323,21 @@ export default function DashboardView({
 
   // Activités pas encore validées (Brouillon) — souvent parce qu'une info
   // requise a été passée à l'ajout (pointure, vol du client…) et jamais
-  // complétée depuis, donc facile à oublier sans liste dédiée.
-  const activitesEnAttente = reservations
-    .filter((r) => r.statut_resa === "Brouillon")
-    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
+  // complétée depuis. Avant, ces dossiers vivaient dans une carte séparée
+  // ("Activités en attente de validation") invisible nulle part ailleurs
+  // (ni badge dans le dossier client, ni dans Réservations) et qui ne se
+  // videait jamais vraiment : fusionnée dans "Dossiers incomplets", avec la
+  // même fenêtre de 14/3 jours que le reste de cette carte (Mélanie,
+  // 2026-10-15).
+  const activitesBrouillonRaisonsFor = (clientId: string): string[] =>
+    reservations
+      .filter((r) => r.client_id === clientId && r.statut_resa === "Brouillon")
+      .flatMap((r) => {
+        const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
+        const raisons = activiteEnAttenteRaisons(r, catalogueItem);
+        const titre = cleanActivityTitle(r.nom_activite) || "Activité";
+        return (raisons.length > 0 ? raisons : ["à valider"]).map((raison) => `${raison} (${titre})`);
+      });
 
   const auRevoirToday = clients.filter(
     (c) =>
@@ -371,7 +381,8 @@ export default function DashboardView({
       c.date_debut &&
       c.date_debut >= todayStr &&
       c.date_debut <= in14Days &&
-      infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0
+      (infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0 ||
+        activitesBrouillonRaisonsFor(c.id).length > 0)
   );
   // File prioritaire : un dossier incomplet n'y reste que si l'arrivée est
   // proche (3 jours) — au-delà, il y a encore le temps de le compléter sans
@@ -384,7 +395,8 @@ export default function DashboardView({
       c.date_debut &&
       c.date_debut >= todayStr &&
       c.date_debut <= in3Days &&
-      infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0
+      (infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).length > 0 ||
+        activitesBrouillonRaisonsFor(c.id).length > 0)
   );
 
   // Billet d'avion pas encore reçu (étape avant "reçu — à envoyer au
@@ -486,18 +498,24 @@ export default function DashboardView({
     return "Sans date connue";
   };
 
-  const incompleteRows = incompleteUpcoming.map((c) => ({
-    key: c.id,
-    name: c.nom || "Sans nom",
-    reason: `Manque : ${infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []).join(", ")}${
-      c.date_debut ? ` — séjour du ${fmtDate(c.date_debut)}${c.date_fin ? ` au ${fmtDate(c.date_fin)}` : ""}` : ""
-    }`,
-    actionLabel: "Compléter la fiche",
-    onAction: () => {
-      setIncompleteModalOpen(false);
-      onOpenClient(c.id);
-    },
-  }));
+  const incompleteRows = incompleteUpcoming.map((c) => {
+    const motifs = [
+      ...infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || []),
+      ...activitesBrouillonRaisonsFor(c.id),
+    ];
+    return {
+      key: c.id,
+      name: c.nom || "Sans nom",
+      reason: `Manque : ${motifs.join(", ")}${
+        c.date_debut ? ` — séjour du ${fmtDate(c.date_debut)}${c.date_fin ? ` au ${fmtDate(c.date_fin)}` : ""}` : ""
+      }`,
+      actionLabel: "Compléter la fiche",
+      onAction: () => {
+        setIncompleteModalOpen(false);
+        onOpenClient(c.id);
+      },
+    };
+  });
 
   const pickupRows = pickupsMissingTomorrow.map((r) => {
     const c = clientById(r.client_id);
@@ -522,7 +540,6 @@ export default function DashboardView({
     pickupsMissingTomorrow.length +
     rdvToday.length +
     billetsEnAttente.length +
-    activitesEnAttente.length +
     paiementsAPayer.length +
     auRevoirToday.length +
     avisToday.length;
@@ -545,6 +562,7 @@ export default function DashboardView({
     infosManquantesToutes(c, reservations, [], clientHotels?.[c.id] || [])
       .filter((motif) => motif !== "Room number" && motif !== "Relation grâce à")
       .forEach((motif) => addToQueue(c, motif));
+    activitesBrouillonRaisonsFor(c.id).forEach((motif) => addToQueue(c, motif));
   });
   // Les prospects à relancer ont déjà leur propre nombre en haut du tableau
   // de bord ("Prospects à relancer") — les compter aussi ici faisait
@@ -1400,23 +1418,6 @@ export default function DashboardView({
                   onClick={onOpenBilletsAvion}
                 />
               )}
-              {activitesEnAttente.length > 0 && (
-                <ActionRow
-                  icon="clipboard"
-                  title="Activités en attente de validation"
-                  sub={
-                    activitesEnAttente
-                      .slice(0, 3)
-                      .map((r) => {
-                        const c = clients.find((cl) => cl.id === r.client_id);
-                        return `${c?.nom || "?"} — ${cleanActivityTitle(r.nom_activite) || "Activité"}`;
-                      })
-                      .join(" · ") + (activitesEnAttente.length > 3 ? "…" : "")
-                  }
-                  count={activitesEnAttente.length}
-                  onClick={() => setShowActivitesEnAttenteModal(true)}
-                />
-              )}
               {paiementsAPayer.length > 0 && (
                 <ActionRow
                   icon="check"
@@ -1476,63 +1477,6 @@ export default function DashboardView({
           )}
         </div>
       </div>
-
-      {showActivitesEnAttenteModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setShowActivitesEnAttenteModal(false)}
-        >
-          <div
-            className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-start justify-between">
-              <h3 className="font-heading text-base font-semibold text-[#171717]">
-                Activités en attente de validation
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowActivitesEnAttenteModal(false)}
-                className="text-neutral-400 hover:text-[#171717]"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea]">
-              {activitesEnAttente.map((r) => {
-                const c = clients.find((cl) => cl.id === r.client_id);
-                const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
-                const missing = missingChampsFor(r, catalogueItem);
-                return (
-                  <div
-                    key={r.id}
-                    onClick={() => {
-                      setShowActivitesEnAttenteModal(false);
-                      // Ouvre directement la section Activités — sinon on
-                      // retombait sur l'onglet par défaut du client, sans
-                      // aucun lien vers l'activité Brouillon en question
-                      // (Mélanie, 2026-09-20).
-                      onOpenClientForCancelActivity(r.client_id);
-                    }}
-                    className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium text-[#171717]">{c?.nom || "Sans nom"}</p>
-                      <span className="whitespace-nowrap text-xs text-[#666666]">
-                        {r.date_debut ? fmtDate(r.date_debut) : "Date ?"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#666666]">{cleanActivityTitle(r.nom_activite) || "Activité"}</p>
-                    {missing.length > 0 && (
-                      <p className="mt-0.5 text-xs text-red-600">Manque : {missing.join(", ")}</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
 
       {showPaiementsDuJourModal && (
         <PaiementsDuJourModal

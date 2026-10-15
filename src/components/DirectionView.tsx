@@ -183,12 +183,64 @@ function ComptabiliteIndex({ onNavigateSub }: { onNavigateSub: (sub: DirectionSu
 // suivante doit s'ajouter.
 const COMPTA_ANNEES = [2022, 2023, 2024, 2025, 2026] as const;
 
+type BilanMensuel = {
+  ventes: number;
+  moyenneParJour: number;
+  caTotal: number;
+  benefices: number;
+  margePct: number;
+};
+
+// Données historiques saisies à la main (import Notion), mois par mois —
+// jamais calculées depuis les réservations du CRM (ces années sont
+// antérieures ou extérieures à son usage réel). 1 = janvier ... 12 = décembre.
+const COMPTA_BILANS_MENSUELS: Record<number, Partial<Record<number, BilanMensuel>>> = {
+  2022: {
+    9: { ventes: 5, moyenneParJour: 0.16, caTotal: 535, benefices: 105, margePct: 20 },
+    10: { ventes: 9, moyenneParJour: 0.29, caTotal: 881, benefices: 313.72, margePct: 36 },
+    11: { ventes: 45, moyenneParJour: 1.5, caTotal: 5589, benefices: 1074.61, margePct: 19.2 },
+    12: { ventes: 34, moyenneParJour: 1.09, caTotal: 6425, benefices: 2436.91, margePct: 37.9 },
+  },
+};
+
+// Mois réellement sélectionnables par année — l'agence a été créée en
+// septembre 2022, donc janvier à août 2022 n'ont jamais existé (demande de
+// Mélanie : "tu peux supprimer les autres mois"). Pas d'entrée = les 12 mois.
+const COMPTA_MOIS_DISPONIBLES: Partial<Record<number, number[]>> = {
+  2022: [9, 10, 11, 12],
+};
+
+function moisDisponiblesPour(annee: number) {
+  return COMPTA_MOIS_DISPONIBLES[annee] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+}
+
 function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
   const [annee, setAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
+  const moisDispos = moisDisponiblesPour(annee);
   // Le mois ne se choisit que pour "par jour" et "par mois" — "par an" reste
   // à l'échelle de l'année entière, pas de sous-rubrique mois pour celle-ci
   // (demande de Mélanie).
-  const [mois, setMois] = useState<number | null>(sub === "compta_annee" ? null : new Date().getMonth() + 1);
+  const [mois, setMois] = useState<number | null>(
+    sub === "compta_annee" ? null : moisDispos.includes(new Date().getMonth() + 1) ? new Date().getMonth() + 1 : moisDispos[0]
+  );
+
+  const changerAnnee = (a: number) => {
+    setAnnee(a);
+    if (mois !== null) {
+      const dispos = moisDisponiblesPour(a);
+      if (!dispos.includes(mois)) setMois(dispos[0]);
+    }
+  };
+
+  const bilanMois = mois !== null ? COMPTA_BILANS_MENSUELS[annee]?.[mois] : undefined;
+  const bilansAnnee = COMPTA_BILANS_MENSUELS[annee] || {};
+  const moisAvecDonnees = Object.keys(bilansAnnee)
+    .map(Number)
+    .sort((a, b) => a - b);
+  const caTotalAnnee = moisAvecDonnees.reduce((s, m) => s + (bilansAnnee[m]?.caTotal || 0), 0);
+  const beneficesAnnee = moisAvecDonnees.reduce((s, m) => s + (bilansAnnee[m]?.benefices || 0), 0);
+  const margeAnnee = caTotalAnnee > 0 ? (beneficesAnnee / caTotalAnnee) * 100 : 0;
+
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-3 flex items-center gap-1.5 text-xs text-neutral-400">
@@ -202,7 +254,7 @@ function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
           <button
             key={a}
             type="button"
-            onClick={() => setAnnee(a)}
+            onClick={() => changerAnnee(a)}
             className={`rounded-full border px-3 py-1 text-xs font-medium ${
               annee === a
                 ? "border-[#171717] bg-[#171717] text-white"
@@ -215,26 +267,69 @@ function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
       </div>
       {mois !== null && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {MOIS_FR.map((label, i) => (
+          {moisDispos.map((m) => (
             <button
-              key={label}
+              key={m}
               type="button"
-              onClick={() => setMois(i + 1)}
+              onClick={() => setMois(m)}
               className={`rounded-full border px-3 py-1 text-xs font-medium capitalize ${
-                mois === i + 1
+                mois === m
                   ? "border-[#171717] bg-[#171717] text-white"
                   : "border-[#eaeaea] text-[#666666] hover:bg-[#fafafa]"
               }`}
             >
-              {label}
+              {MOIS_FR[m - 1]}
             </button>
           ))}
         </div>
       )}
-      <p className="mt-4 text-sm text-neutral-500">
-        {directionSubLabel(sub)} — {mois !== null ? `${MOIS_FR[mois - 1]} ` : ""}
-        {annee} — rien configuré pour l&apos;instant.
-      </p>
+
+      {sub === "compta_mois" &&
+        mois !== null &&
+        (bilanMois ? (
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <StatTile label="Ventes au mois" value={`${bilanMois.ventes}`} />
+            <StatTile label="Moyenne par jour" value={bilanMois.moyenneParJour.toLocaleString("fr-FR")} />
+            <StatTile label="CA total" value={`${euros(bilanMois.caTotal)} €`} />
+            <StatTile label="Bénéfices" value={`${euros(bilanMois.benefices)} €`} />
+            <StatTile label="Marge (CA/Bénef)" value={`${bilanMois.margePct.toLocaleString("fr-FR")}%`} />
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-neutral-500">
+            {MOIS_FR[mois - 1]} {annee} — rien configuré pour l&apos;instant.
+          </p>
+        ))}
+
+      {sub === "compta_annee" &&
+        (moisAvecDonnees.length > 0 ? (
+          <div className="mt-5 space-y-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <StatTile label="CA total de l'année" value={`${euros(caTotalAnnee)} €`} />
+              <StatTile label="Bénéfices de l'année" value={`${euros(beneficesAnnee)} €`} />
+              <StatTile label="Marge (CA/Bénef)" value={`${margeAnnee.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%`} />
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                CA par mois — {annee}
+              </p>
+              <MonthlyBarChart
+                data={moisAvecDonnees.map((m) => ({
+                  label: MOIS_FR[m - 1].slice(0, 3),
+                  value: bilansAnnee[m]?.caTotal || 0,
+                }))}
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-neutral-500">{annee} — rien configuré pour l&apos;instant.</p>
+        ))}
+
+      {sub === "compta_jour" && (
+        <p className="mt-4 text-sm text-neutral-500">
+          {mois !== null ? `${MOIS_FR[mois - 1]} ` : ""}
+          {annee} — rien configuré pour l&apos;instant.
+        </p>
+      )}
     </div>
   );
 }

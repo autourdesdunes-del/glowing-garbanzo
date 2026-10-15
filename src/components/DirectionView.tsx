@@ -524,6 +524,12 @@ function ComptabiliteBilanPage({
             if (lignesAutresAnnees.length === 0) {
               return <p className="text-sm text-neutral-500">Aucune autre année avec des données.</p>;
             }
+            // Flèche verte sur l'année qui a fait le plus gros bénéfice ce
+            // mois-là, toutes années confondues (demande de Mélanie,
+            // 2026-10-15).
+            const anneeMeilleurBenef = lignesAutresAnnees.reduce((best, l) =>
+              l.bilan!.benefices > best.bilan!.benefices ? l : best
+            ).annee;
             return (
               <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
                 <table className="w-full text-sm">
@@ -549,7 +555,14 @@ function ComptabiliteBilanPage({
                         </td>
                         <td className="px-3 py-2 text-right">{bilan!.ventes}</td>
                         <td className="px-3 py-2 text-right">{eurosDec(bilan!.caTotal)} €</td>
-                        <td className="px-3 py-2 text-right">{eurosDec(bilan!.benefices)} €</td>
+                        <td className="px-3 py-2 text-right">
+                          {eurosDec(bilan!.benefices)} €
+                          {a === anneeMeilleurBenef && (
+                            <span className="ml-1 text-green-600" title="Meilleur bénéfice sur ce mois">
+                              ↑
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

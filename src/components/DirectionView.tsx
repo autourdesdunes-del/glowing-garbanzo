@@ -183,6 +183,24 @@ function ComptabiliteIndex({ onNavigateSub }: { onNavigateSub: (sub: DirectionSu
 // suivante doit s'ajouter.
 const COMPTA_ANNEES = [2022, 2023, 2024, 2025, 2026] as const;
 
+// Abréviations courtes pour l'axe du graphique — un simple .slice(0, 3) sur
+// MOIS_FR confond juin/juillet (tous deux "jui"), invisible tant que 2022
+// n'avait que 4 mois mais plus du tout une fois l'année complète affichée.
+const COMPTA_MOIS_ABREV = [
+  "janv.",
+  "févr.",
+  "mars",
+  "avr.",
+  "mai",
+  "juin",
+  "juil.",
+  "août",
+  "sept.",
+  "oct.",
+  "nov.",
+  "déc.",
+];
+
 type BilanMensuel = {
   ventes: number;
   moyenneParJour: number;
@@ -495,7 +513,7 @@ function ComptabiliteBilanPage({
               <ComptaCourbeChart
                 data={moisAvecDonnees.map((m) => ({
                   mois: m,
-                  label: MOIS_FR[m - 1].slice(0, 3),
+                  label: COMPTA_MOIS_ABREV[m - 1],
                   ventes: bilansAnnee[m]?.ventes || 0,
                   ca: bilansAnnee[m]?.caTotal || 0,
                 }))}

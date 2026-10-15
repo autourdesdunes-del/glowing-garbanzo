@@ -551,32 +551,56 @@ function ComptabiliteBilanPage({
                       <th className="px-3 py-2 text-right font-medium">Ventes</th>
                       <th className="px-3 py-2 text-right font-medium">CA</th>
                       <th className="px-3 py-2 text-right font-medium">Bénéfices</th>
+                      <th className="px-3 py-2 text-right font-medium">Vs année préc.</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#eaeaea]">
-                    {lignesAutresAnnees.map(({ annee: a, bilan }) => (
-                      <tr key={a} className={a === annee ? "bg-[#fafafa]" : ""}>
-                        <td className="px-3 py-2">
-                          <button
-                            type="button"
-                            onClick={() => setAnnee(a)}
-                            className={`hover:underline ${a === annee ? "font-semibold text-[#171717]" : ""}`}
+                    {lignesAutresAnnees.map(({ annee: a, bilan }) => {
+                      // Comparé à la vraie année a-1, pas à la ligne
+                      // précédente du tableau — une année sans données ne
+                      // doit jamais être prise comme référence silencieuse.
+                      const bilanPrecedent = COMPTA_BILANS_MENSUELS[a - 1]?.[moisFixe];
+                      const evolutionPct =
+                        bilanPrecedent && bilanPrecedent.benefices > 0
+                          ? ((bilan!.benefices - bilanPrecedent.benefices) / bilanPrecedent.benefices) * 100
+                          : null;
+                      return (
+                        <tr key={a} className={a === annee ? "bg-[#fafafa]" : ""}>
+                          <td className="px-3 py-2">
+                            <button
+                              type="button"
+                              onClick={() => setAnnee(a)}
+                              className={`hover:underline ${a === annee ? "font-semibold text-[#171717]" : ""}`}
+                            >
+                              {a}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2 text-right">{bilan!.ventes}</td>
+                          <td className="px-3 py-2 text-right">{eurosDec(bilan!.caTotal)} €</td>
+                          <td className="px-3 py-2 text-right">
+                            {eurosDec(bilan!.benefices)} €
+                            {a === anneeMeilleurBenef && (
+                              <span className="ml-1 text-green-600" title="Meilleur bénéfice sur ce mois">
+                                ↑
+                              </span>
+                            )}
+                          </td>
+                          <td
+                            className={`px-3 py-2 text-right ${
+                              evolutionPct === null
+                                ? "text-neutral-400"
+                                : evolutionPct >= 0
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                            }`}
                           >
-                            {a}
-                          </button>
-                        </td>
-                        <td className="px-3 py-2 text-right">{bilan!.ventes}</td>
-                        <td className="px-3 py-2 text-right">{eurosDec(bilan!.caTotal)} €</td>
-                        <td className="px-3 py-2 text-right">
-                          {eurosDec(bilan!.benefices)} €
-                          {a === anneeMeilleurBenef && (
-                            <span className="ml-1 text-green-600" title="Meilleur bénéfice sur ce mois">
-                              ↑
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                            {evolutionPct === null
+                              ? "—"
+                              : `${evolutionPct >= 0 ? "+" : ""}${evolutionPct.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%`}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

@@ -178,7 +178,13 @@ function ComptabiliteIndex({ onNavigateSub }: { onNavigateSub: (sub: DirectionSu
 
 // Une rubrique de Comptabilité — coquille prête à être remplie (contenu à
 // venir, au cas par cas selon ce que Mélanie veut y voir).
+// Années disponibles comme sous-rubrique de chaque bilan (jour/mois/an) —
+// 2022 à 2026, demande de Mélanie. À étendre ici le jour où une année
+// suivante doit s'ajouter.
+const COMPTA_ANNEES = [2022, 2023, 2024, 2025, 2026] as const;
+
 function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
+  const [annee, setAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-3 flex items-center gap-1.5 text-xs text-neutral-400">
@@ -187,7 +193,25 @@ function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
         <span className="font-medium text-[#171717]">{directionSubLabel(sub)}</span>
       </div>
       <h2 className="font-heading text-lg font-semibold text-[#171717]">{directionSubLabel(sub)}</h2>
-      <p className="mt-3 text-sm text-neutral-500">Rien configuré pour l&apos;instant.</p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {COMPTA_ANNEES.map((a) => (
+          <button
+            key={a}
+            type="button"
+            onClick={() => setAnnee(a)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              annee === a
+                ? "border-[#171717] bg-[#171717] text-white"
+                : "border-[#eaeaea] text-[#666666] hover:bg-[#fafafa]"
+            }`}
+          >
+            {a}
+          </button>
+        ))}
+      </div>
+      <p className="mt-4 text-sm text-neutral-500">
+        {directionSubLabel(sub)} {annee} — rien configuré pour l&apos;instant.
+      </p>
     </div>
   );
 }

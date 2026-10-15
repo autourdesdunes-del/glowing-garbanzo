@@ -561,7 +561,12 @@ export default function DirectionView({
   }
 
   if (sub === "compta_jour" || sub === "compta_mois" || sub === "compta_annee") {
-    return <ComptabiliteBilanPage sub={sub} />;
+    // key={sub} force un nouveau montage à chaque changement de rubrique —
+    // sinon React réutilise la même instance (même position dans l'arbre)
+    // et le state local (année/mois choisis) d'une rubrique "fuite" sur la
+    // suivante, ex. le sélecteur de mois de "par mois" restait affiché sur
+    // "par an" après avoir juste cliqué de l'une à l'autre.
+    return <ComptabiliteBilanPage key={sub} sub={sub} />;
   }
 
   if (sub !== "dashboard" && sub !== "dashboardATraiter" && sub !== "dashboardRapport") {

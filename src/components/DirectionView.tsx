@@ -214,15 +214,94 @@ function moisDisponiblesPour(annee: number) {
   return COMPTA_MOIS_DISPONIBLES[annee] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 }
 
-function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
-  const [annee, setAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
-  const moisDispos = moisDisponiblesPour(annee);
-  // Le mois ne se choisit que pour "par jour" et "par mois" — "par an" reste
-  // à l'échelle de l'année entière, pas de sous-rubrique mois pour celle-ci
-  // (demande de Mélanie).
-  const [mois, setMois] = useState<number | null>(
-    sub === "compta_annee" ? null : moisDispos.includes(new Date().getMonth() + 1) ? new Date().getMonth() + 1 : moisDispos[0]
+// Petit graphique dédié à "Bilan financier par an" — montre le CA de
+// chaque mois en chiffre au-dessus de la barre (pas juste au survol, pour
+// rester lisible même sur capture d'écran) et amène directement sur le
+// détail du mois cliqué (demande de Mélanie, 2026-10-15). Propre à
+// Comptabilité plutôt qu'une option ajoutée à MonthlyBarChart (partagé par
+// le tableau de bord Direction) pour ne rien changer à son comportement
+// ailleurs.
+function ComptaYearChart({
+  data,
+  onSelectMois,
+}: {
+  data: { mois: number; label: string; value: number }[];
+  onSelectMois: (mois: number) => void;
+}) {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  const width = 640;
+  const height = 180;
+  const barGap = 10;
+  const barWidthRaw = (width - barGap * (data.length - 1)) / data.length;
+  const barWidth = Math.min(barWidthRaw, 72);
+  const totalRowWidth = barWidth * data.length + barGap * (data.length - 1);
+  const offsetX = Math.max((width - totalRowWidth) / 2, 0);
+
+  return (
+    <div className="overflow-x-auto rounded-md bg-white p-4">
+      <svg viewBox={`0 0 ${width} ${height + 44}`} width="100%" role="img" aria-label="CA par mois">
+        {data.map((d, i) => {
+          const barHeight = Math.max((d.value / max) * (height - 10), d.value > 0 ? 3 : 0);
+          const x = offsetX + i * (barWidth + barGap);
+          const y = height - barHeight;
+          return (
+            <g
+              key={d.mois}
+              onClick={() => onSelectMois(d.mois)}
+              className="cursor-pointer"
+              role="button"
+              aria-label={`Voir le détail de ${d.label}`}
+            >
+              <title>
+                {d.label} : {euros(d.value)} €
+              </title>
+              <text
+                x={x + barWidth / 2}
+                y={y - 6}
+                textAnchor="middle"
+                fontSize="10"
+                className="font-amounts"
+                fill="#171717"
+              >
+                {euros(d.value)} €
+              </text>
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                rx={3}
+                fill="#171717"
+                opacity={0.85}
+                className="transition hover:opacity-100"
+              />
+              <text x={x + barWidth / 2} y={height + 16} textAnchor="middle" fontSize="10" fill="#78716c">
+                {d.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
+}
+
+function ComptabiliteBilanPage({
+  sub,
+  annee,
+  setAnnee,
+  mois,
+  setMois,
+  onNavigateSub,
+}: {
+  sub: DirectionSub;
+  annee: number;
+  setAnnee: (a: number) => void;
+  mois: number | null;
+  setMois: (m: number) => void;
+  onNavigateSub: (sub: DirectionSub) => void;
+}) {
+  const moisDispos = moisDisponiblesPour(annee);
 
   const changerAnnee = (a: number) => {
     setAnnee(a);
@@ -230,6 +309,11 @@ function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
       const dispos = moisDisponiblesPour(a);
       if (!dispos.includes(mois)) setMois(dispos[0]);
     }
+  };
+
+  const allerAuMois = (m: number) => {
+    setMois(m);
+    onNavigateSub("compta_mois");
   };
 
   const bilanMois = mois !== null ? COMPTA_BILANS_MENSUELS[annee]?.[mois] : undefined;
@@ -310,13 +394,15 @@ function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
             </div>
             <div>
               <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
-                CA par mois — {annee}
+                CA par mois — {annee} — clique un mois pour son détail
               </p>
-              <MonthlyBarChart
+              <ComptaYearChart
                 data={moisAvecDonnees.map((m) => ({
+                  mois: m,
                   label: MOIS_FR[m - 1].slice(0, 3),
                   value: bilansAnnee[m]?.caTotal || 0,
                 }))}
+                onSelectMois={allerAuMois}
               />
             </div>
           </div>
@@ -377,6 +463,12 @@ export default function DirectionView({
   onOpenClient: (id: string) => void;
   onNavigateSub: (sub: DirectionSub) => void;
 }) {
+  // Partagé entre les 3 pages Comptabilité (pas un state local à chacune) —
+  // pour que cliquer un mois dans "par an" fasse déjà atterrir "par mois"
+  // dessus, et que l'année/le mois choisis restent cohérents en naviguant
+  // de l'une à l'autre.
+  const [comptaAnnee, setComptaAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
+  const [comptaMois, setComptaMois] = useState<number>(new Date().getMonth() + 1);
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [expandedTaxeRequestId, setExpandedTaxeRequestId] = useState<string | null>(null);
   const modifCatalogueRows = [...catalogueModificationRequests].sort((a, b) =>
@@ -656,12 +748,16 @@ export default function DirectionView({
   }
 
   if (sub === "compta_jour" || sub === "compta_mois" || sub === "compta_annee") {
-    // key={sub} force un nouveau montage à chaque changement de rubrique —
-    // sinon React réutilise la même instance (même position dans l'arbre)
-    // et le state local (année/mois choisis) d'une rubrique "fuite" sur la
-    // suivante, ex. le sélecteur de mois de "par mois" restait affiché sur
-    // "par an" après avoir juste cliqué de l'une à l'autre.
-    return <ComptabiliteBilanPage key={sub} sub={sub} />;
+    return (
+      <ComptabiliteBilanPage
+        sub={sub}
+        annee={comptaAnnee}
+        setAnnee={setComptaAnnee}
+        mois={sub === "compta_annee" ? null : comptaMois}
+        setMois={setComptaMois}
+        onNavigateSub={onNavigateSub}
+      />
+    );
   }
 
   if (sub !== "dashboard" && sub !== "dashboardATraiter" && sub !== "dashboardRapport") {

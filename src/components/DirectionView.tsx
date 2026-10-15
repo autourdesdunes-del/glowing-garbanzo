@@ -254,11 +254,11 @@ function ComptaCourbeChart({
   data: { mois: number; label: string; ventes: number; ca: number }[];
   onSelectMois: (mois: number) => void;
 }) {
-  const width = 640;
-  const height = 220;
-  const padX = 28;
-  const padTop = 34;
-  const padBottom = 28;
+  const width = 900;
+  const height = 420;
+  const padX = 36;
+  const padTop = 48;
+  const padBottom = 40;
   const innerW = width - padX * 2;
   const innerH = height - padTop - padBottom;
   const maxVentes = Math.max(...data.map((d) => d.ventes), 1);
@@ -275,13 +275,13 @@ function ComptaCourbeChart({
 
   return (
     <div className="overflow-x-auto rounded-md bg-white p-4">
-      <div className="mb-2 flex items-center gap-4 text-xs text-neutral-500">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEUR_VENTES }} />
+      <div className="mb-3 flex items-center gap-5 text-sm text-neutral-500">
+        <span className="flex items-center gap-2">
+          <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEUR_VENTES }} />
           Activités vendues
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEUR_CA }} />
+        <span className="flex items-center gap-2">
+          <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEUR_CA }} />
           Chiffre d&apos;affaires
         </span>
       </div>
@@ -291,11 +291,10 @@ function ComptaCourbeChart({
         role="img"
         aria-label="Activités vendues et chiffre d'affaires par mois"
       >
-        <path d={pathVentes} fill="none" stroke={COULEUR_VENTES} strokeWidth="2" />
-        <path d={pathCa} fill="none" stroke={COULEUR_CA} strokeWidth="2" />
+        <path d={pathVentes} fill="none" stroke={COULEUR_VENTES} strokeWidth="3" />
+        <path d={pathCa} fill="none" stroke={COULEUR_CA} strokeWidth="3" />
         {data.map((d, i) => {
-          // Les cercles seuls (r=3.5 dans un viewBox de 640, donc ~1-2px
-          // réels à l'écran) sont une cible bien trop petite pour cliquer —
+          // Les cercles seuls sont une cible de clic bien trop petite —
           // une bande transparente sur toute la hauteur du mois, elle, se
           // clique n'importe où dans sa colonne.
           const bandWidth = data.length > 1 ? innerW / data.length : innerW;
@@ -320,19 +319,27 @@ function ComptaCourbeChart({
               />
               <text
                 x={xFor(i)}
-                y={yForVentes(d.ventes) - 8}
+                y={yForVentes(d.ventes) - 14}
                 textAnchor="middle"
-                fontSize="9"
+                fontSize="15"
+                fontWeight="600"
                 fill={COULEUR_VENTES}
               >
                 {d.ventes}
               </text>
-              <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={3.5} fill={COULEUR_VENTES} />
-              <text x={xFor(i)} y={yForCa(d.ca) - 8} textAnchor="middle" fontSize="9" fill={COULEUR_CA}>
+              <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={5.5} fill={COULEUR_VENTES} />
+              <text
+                x={xFor(i)}
+                y={yForCa(d.ca) - 14}
+                textAnchor="middle"
+                fontSize="15"
+                fontWeight="600"
+                fill={COULEUR_CA}
+              >
                 {eurosDec(d.ca)} €
               </text>
-              <circle cx={xFor(i)} cy={yForCa(d.ca)} r={3.5} fill={COULEUR_CA} />
-              <text x={xFor(i)} y={height - 8} textAnchor="middle" fontSize="10" fill="#78716c">
+              <circle cx={xFor(i)} cy={yForCa(d.ca)} r={5.5} fill={COULEUR_CA} />
+              <text x={xFor(i)} y={height - 10} textAnchor="middle" fontSize="14" fill="#78716c">
                 {d.label}
               </text>
             </g>
@@ -383,7 +390,7 @@ function ComptabiliteBilanPage({
   const margeAnnee = caTotalAnnee > 0 ? (beneficesAnnee / caTotalAnnee) * 100 : 0;
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className={`mx-auto p-6 ${sub === "compta_annee" ? "max-w-6xl" : "max-w-3xl"}`}>
       <div className="mb-3 flex items-center gap-1.5 text-xs text-neutral-400">
         <span>Comptabilité</span>
         <span>/</span>
@@ -453,21 +460,21 @@ function ComptabiliteBilanPage({
                 value={`${margeAnnee.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%`}
               />
             </div>
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                Activités vendues et CA par mois — {annee} — clique un mois pour son détail
+              </p>
+              <ComptaCourbeChart
+                data={moisAvecDonnees.map((m) => ({
+                  mois: m,
+                  label: MOIS_FR[m - 1].slice(0, 3),
+                  ventes: bilansAnnee[m]?.ventes || 0,
+                  ca: bilansAnnee[m]?.caTotal || 0,
+                }))}
+                onSelectMois={allerAuMois}
+              />
+            </div>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div>
-                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
-                  Activités vendues et CA par mois — {annee} — clique un mois pour son détail
-                </p>
-                <ComptaCourbeChart
-                  data={moisAvecDonnees.map((m) => ({
-                    mois: m,
-                    label: MOIS_FR[m - 1].slice(0, 3),
-                    ventes: bilansAnnee[m]?.ventes || 0,
-                    ca: bilansAnnee[m]?.caTotal || 0,
-                  }))}
-                  onSelectMois={allerAuMois}
-                />
-              </div>
               <div>
                 <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
                   Bénéfices par mois — {annee}
@@ -482,6 +489,56 @@ function ComptabiliteBilanPage({
                     centerValue={`${eurosDec(beneficesAnnee)} €`}
                     centerLabel="bénéfices"
                   />
+                </div>
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  Détail des bénéfices — {annee}
+                </p>
+                <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#eaeaea] text-left text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                        <th className="px-3 py-2 font-medium">Mois</th>
+                        <th className="px-3 py-2 text-right font-medium">Bénéfices</th>
+                        <th className="px-3 py-2 text-right font-medium">Part de l&apos;année</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#eaeaea]">
+                      {moisAvecDonnees.map((m) => {
+                        const benef = bilansAnnee[m]?.benefices || 0;
+                        const part = beneficesAnnee > 0 ? (benef / beneficesAnnee) * 100 : 0;
+                        return (
+                          <tr key={m}>
+                            <td className="px-3 py-2">
+                              <button
+                                type="button"
+                                onClick={() => allerAuMois(m)}
+                                className="flex items-center gap-1.5 text-left hover:underline"
+                              >
+                                <span
+                                  className="h-2 w-2 flex-shrink-0 rounded-full"
+                                  style={{ backgroundColor: COMPTA_MOIS_COULEURS[m - 1] }}
+                                />
+                                <span className="capitalize">{MOIS_FR[m - 1]}</span>
+                              </button>
+                            </td>
+                            <td className="px-3 py-2 text-right font-medium text-[#171717]">{eurosDec(benef)} €</td>
+                            <td className="px-3 py-2 text-right text-neutral-500">
+                              {part.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-[#eaeaea] font-semibold text-[#171717]">
+                        <td className="px-3 py-2">Total</td>
+                        <td className="px-3 py-2 text-right">{eurosDec(beneficesAnnee)} €</td>
+                        <td className="px-3 py-2 text-right">100%</td>
+                      </tr>
+                    </tfoot>
+                  </table>
                 </div>
               </div>
             </div>

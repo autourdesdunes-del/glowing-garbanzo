@@ -338,6 +338,11 @@ function ComptaCourbeChart({
               role="button"
               aria-label={`Voir le détail de ${d.label}`}
             >
+              {/* Pas d'étiquette de valeur permanente — sur 12 mois elles se
+                  chevauchaient dès que les deux courbes se croisaient
+                  (illisible, retour de Mélanie, 2026-10-15). La valeur
+                  précise reste au survol (title) et dans le tableau du
+                  détail juste en dessous. */}
               <title>
                 {d.label} : {d.ventes} vente{d.ventes > 1 ? "s" : ""}, {eurosDec(d.ca)} €
               </title>
@@ -349,42 +354,8 @@ function ComptaCourbeChart({
                 fill="transparent"
                 className="transition hover:fill-black/5"
               />
-              {(() => {
-                // Quand les deux lignes se croisent, leurs deux points sont
-                // proches en Y et les étiquettes se chevauchaient (vécu sur
-                // "oct" : "881,00 €" collé sur "9"). Celle du dessus de la
-                // paire passe au-dessus de son point, celle du dessous passe
-                // SOUS le sien — jamais les deux du même côté.
-                const yV = yForVentes(d.ventes);
-                const yC = yForCa(d.ca);
-                const ventesEnHaut = yV <= yC;
-                return (
-                  <>
-                    <text
-                      x={xFor(i)}
-                      y={ventesEnHaut ? yV - 16 : yV + 24}
-                      textAnchor="middle"
-                      fontSize="15"
-                      fontWeight="600"
-                      fill={COULEUR_VENTES}
-                    >
-                      {d.ventes}
-                    </text>
-                    <circle cx={xFor(i)} cy={yV} r={5.5} fill={COULEUR_VENTES} />
-                    <text
-                      x={xFor(i)}
-                      y={ventesEnHaut ? yC + 24 : yC - 16}
-                      textAnchor="middle"
-                      fontSize="15"
-                      fontWeight="600"
-                      fill={COULEUR_CA}
-                    >
-                      {eurosDec(d.ca)} €
-                    </text>
-                    <circle cx={xFor(i)} cy={yC} r={5.5} fill={COULEUR_CA} />
-                  </>
-                );
-              })()}
+              <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={5.5} fill={COULEUR_VENTES} />
+              <circle cx={xFor(i)} cy={yForCa(d.ca)} r={5.5} fill={COULEUR_CA} />
               <text x={xFor(i)} y={height - 10} textAnchor="middle" fontSize="14" fill="#78716c">
                 {d.label}
               </text>

@@ -15,10 +15,13 @@ import {
 
 // Kommo ne matche une fiche existante que par kommo_lead_id/téléphone/email
 // — jamais par nom, trop risqué de rapprocher deux personnes différentes
-// sans validation humaine. Quand aucun de ces signaux ne suffit, on crée
-// quand même la fiche (ne jamais bloquer la synchro) mais on cherche un nom
-// proche parmi les clients existants pour la marquer "à vérifier" — voir
-// migration 0068 et DoublonPossibleAlert (pop-up) côté app.
+// sans validation humaine. Quand aucun de ces signaux ne suffit pour un
+// PROSPECT, on crée quand même la fiche (ne jamais bloquer la synchro du
+// haut de l'entonnoir) mais on cherche un nom proche parmi les clients
+// existants pour la marquer "à vérifier" — voir migration 0068 et
+// DoublonPossibleAlert (pop-up) côté app. Un lead qui arrive directement en
+// "Client confirmé" sans fiche existante ne passe PAS par cette fonction :
+// voir le garde-fou dans processLeadEvent (demande de Mélanie, 2026-10-15).
 // Sans le check d'erreur, une requête en échec (pic de charge, timeout...)
 // renvoyait data=null exactement comme "aucun match trouvé" : la fiche
 // existante n'était jamais rapprochée et un doublon était créé à la place.
@@ -313,6 +316,15 @@ async function processLeadEvent(
                                     })
                                     .eq("id", matchedId);
                         lastClientId = matchedId;
+              } else if (mapped?.statutCrm === "Client confirmé") {
+                        // Jamais de création automatique directement en "Client confirmé" —
+                        // c'est précisément ce cas qui créait des doublons invisibles (la
+                        // fiche confirmée créée à la volée, jamais revue par une employée).
+                        // Une employée doit créer et relier la fiche elle-même ; le prochain
+                        // webhook (ou la réconciliation) la retrouvera alors normalement.
+                        // Les PROSPECTS continuent eux de se créer automatiquement
+                        // ci-dessous (demande de Mélanie, 2026-10-15).
+                        console.log("Kommo webhook: lead déjà confirmé sans fiche CRM, ignoré (création manuelle requise)", leadId);
               } else {
                         let doublonPossibleId: string | null = null;
                         try {
@@ -336,9 +348,6 @@ async function processLeadEvent(
                                                   kommo_synced_at: new Date().toISOString(),
                                                   doublon_possible_id: doublonPossibleId,
                                                   ...(canalDetecte ? { canal: canalDetecte } : {}),
-                                                  ...(mapped?.statutCrm === "Client confirmé"
-                                                        ? { confirmation_a_traiter: true }
-                                                        : {}),
                                     })
                                     .select("id")
                                     .single();
@@ -426,6 +435,9 @@ async function processContactEvent(
                 .eq("id", matchedId);
               lastClientId = matchedId;
       } else {
+              // Un contact (pas encore un lead) ne peut créer qu'un PROSPECT —
+              // jamais un client confirmé, donc pas besoin du garde-fou de
+              // processLeadEvent ici.
               let doublonPossibleId: string | null = null;
               try {
                 doublonPossibleId = await findPossibleDuplicateByName(admin, nom);

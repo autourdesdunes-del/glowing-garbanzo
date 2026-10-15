@@ -255,14 +255,7 @@ function ComptaYearChart({
               <title>
                 {d.label} : {euros(d.value)} €
               </title>
-              <text
-                x={x + barWidth / 2}
-                y={y - 6}
-                textAnchor="middle"
-                fontSize="10"
-                className="font-amounts"
-                fill="#171717"
-              >
+              <text x={x + barWidth / 2} y={y - 6} textAnchor="middle" fontSize="10" fill="#171717">
                 {euros(d.value)} €
               </text>
               <rect
@@ -372,11 +365,11 @@ function ComptabiliteBilanPage({
         mois !== null &&
         (bilanMois ? (
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <StatTile label="Ventes au mois" value={`${bilanMois.ventes}`} />
-            <StatTile label="Moyenne par jour" value={bilanMois.moyenneParJour.toLocaleString("fr-FR")} />
-            <StatTile label="CA total" value={`${euros(bilanMois.caTotal)} €`} />
-            <StatTile label="Bénéfices" value={`${euros(bilanMois.benefices)} €`} />
-            <StatTile label="Marge (CA/Bénef)" value={`${bilanMois.margePct.toLocaleString("fr-FR")}%`} />
+            <StatTile mono={false} label="Ventes au mois" value={`${bilanMois.ventes}`} />
+            <StatTile mono={false} label="Moyenne par jour" value={bilanMois.moyenneParJour.toLocaleString("fr-FR")} />
+            <StatTile mono={false} label="CA total" value={`${euros(bilanMois.caTotal)} €`} />
+            <StatTile mono={false} label="Bénéfices" value={`${euros(bilanMois.benefices)} €`} />
+            <StatTile mono={false} label="Marge (CA/Bénef)" value={`${bilanMois.margePct.toLocaleString("fr-FR")}%`} />
           </div>
         ) : (
           <p className="mt-4 text-sm text-neutral-500">
@@ -388,9 +381,13 @@ function ComptabiliteBilanPage({
         (moisAvecDonnees.length > 0 ? (
           <div className="mt-5 space-y-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <StatTile label="CA total de l'année" value={`${euros(caTotalAnnee)} €`} />
-              <StatTile label="Bénéfices de l'année" value={`${euros(beneficesAnnee)} €`} />
-              <StatTile label="Marge (CA/Bénef)" value={`${margeAnnee.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%`} />
+              <StatTile mono={false} label="CA total de l'année" value={`${euros(caTotalAnnee)} €`} />
+              <StatTile mono={false} label="Bénéfices de l'année" value={`${euros(beneficesAnnee)} €`} />
+              <StatTile
+                mono={false}
+                label="Marge (CA/Bénef)"
+                value={`${margeAnnee.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%`}
+              />
             </div>
             <div>
               <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
@@ -1318,11 +1315,11 @@ export default function DirectionView({
   );
 }
 
-function StatTile({ label, value }: { label: string; value: string }) {
+function StatTile({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="relative overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">{label}</p>
-      <p className="font-amounts mt-1 text-2xl font-semibold text-[#171717]">{value}</p>
+      <p className={`mt-1 text-2xl font-semibold text-[#171717] ${mono ? "font-amounts" : ""}`}>{value}</p>
     </div>
   );
 }

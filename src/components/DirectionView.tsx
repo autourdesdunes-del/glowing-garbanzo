@@ -497,12 +497,24 @@ function ComptabiliteBilanPage({
       {sub === "compta_mois" &&
         mois !== null &&
         (bilanMois ? (
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <StatTile mono={false} label="Ventes au mois" value={`${bilanMois.ventes}`} />
-            <StatTile mono={false} label="Moyenne par jour" value={bilanMois.moyenneParJour.toLocaleString("fr-FR")} />
-            <StatTile mono={false} tone="green" label="Bénéfices" value={`${eurosDec(bilanMois.benefices)} €`} />
-            <StatTile mono={false} tone="blue" label="CA total" value={`${eurosDec(bilanMois.caTotal)} €`} />
-            <StatTile mono={false} label="Marge (CA/Bénef)" value={`${bilanMois.margePct.toLocaleString("fr-FR")}%`} />
+          <div className="mt-5 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <StatTile mono={false} label="Ventes au mois" value={`${bilanMois.ventes}`} />
+              <StatTile
+                mono={false}
+                label="Moyenne par jour"
+                value={bilanMois.moyenneParJour.toLocaleString("fr-FR")}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <StatTile mono={false} tone="blue" label="CA total" value={`${eurosDec(bilanMois.caTotal)} €`} />
+              <StatTile mono={false} tone="green" label="Bénéfices" value={`${eurosDec(bilanMois.benefices)} €`} />
+              <StatTile
+                mono={false}
+                label="Marge (CA/Bénef)"
+                value={`${bilanMois.margePct.toLocaleString("fr-FR")}%`}
+              />
+            </div>
           </div>
         ) : (
           <p className="mt-4 text-sm text-neutral-500">

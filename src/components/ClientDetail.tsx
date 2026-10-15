@@ -1415,13 +1415,23 @@ export default function ClientDetail({
   // plutôt que d'écraser à tort un solde légitimement payé.
   const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejourHeader;
   const croissanceApresSolde = Math.max(totalSejourHeader - soldeBaseline, 0);
-  // Même correctif que paiementProgress() dans resa.ts — le montant
-  // réellement encaissé (solde_montant_recu) est un fait historique, jamais
-  // plafonné par soldeRestantHeader (qui bouge dès qu'une activité est
-  // supprimée/ajoutée après coup — vécu : Ethan Hayoz, Camille Mancheron,
-  // demande de Mélanie, 2026-10-15, un montant déjà payé ne doit jamais
-  // s'ajuster tout seul, même au-delà du total du séjour).
-  const soldeDuHeader = client.solde_montant_recu > 0 ? Number(client.solde_montant_recu) || 0 : soldeRestantHeader;
+  // Même correctif que paiementProgress() dans resa.ts : soldeRestantHeader
+  // est recalculé en direct et bouge dès qu'une activité est
+  // supprimée/ajoutée après coup — jamais la bonne base une fois le solde
+  // payé. On fige plutôt le net correspondant au total du séjour tel qu'il
+  // était au moment du règlement (soldeBaseline), vécu : Camille Mancheron,
+  // solde tombé de 537€ à 277€ après annulation d'une activité alors que
+  // solde_montant_recu n'était pas renseigné.
+  const soldeRestantHeaderBaseline = Math.max(
+    soldeBaseline - acomptePayeMontant - etapesSumHeader - avoirUtiliseHeader,
+    0
+  );
+  // Le montant réellement encaissé (solde_montant_recu) est un fait
+  // historique, jamais plafonné (vécu : Ethan Hayoz, demande de Mélanie,
+  // 2026-10-15, un montant déjà payé ne doit jamais s'ajuster tout seul,
+  // même au-delà du total du séjour).
+  const soldeDuHeader =
+    client.solde_montant_recu > 0 ? Number(client.solde_montant_recu) || 0 : soldeRestantHeaderBaseline;
   const soldeCouvertHeader = client.solde_paye ? Math.max(soldeDuHeader - croissanceApresSolde, 0) : 0;
   const totalPayeHeader = acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + soldeCouvertHeader;
   const paiementFullyPaid =

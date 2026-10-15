@@ -406,7 +406,7 @@ export function paiementProgress(
   resaOptions: Record<string, ReservationOption[]>,
   resaTarifs: Record<string, ReservationTarif[]>,
   etapes: PaiementEtape[] = []
-): { totalSejour: number; totalPaye: number; reste: number; soldeRestant: number } {
+): { totalSejour: number; totalPaye: number; reste: number; soldeRestant: number; soldeMontantRegle: number } {
   const totalSejour = reservationsActives(reservations).reduce(
     (s, rr) => s + resaTotalMontant(rr, client, resaOptions[rr.id] || [], resaTarifs[rr.id] || []),
     0
@@ -440,6 +440,16 @@ export function paiementProgress(
   // calcul plutôt que d'écraser à tort un solde légitimement payé.
   const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejour;
   const croissanceApresSolde = Math.max(totalSejour - soldeBaseline, 0);
+  // Équivalent de soldeRestant, mais figé au total du séjour tel qu'il
+  // était AU MOMENT du règlement (soldeBaseline) plutôt que recalculé en
+  // direct — sinon supprimer une activité après coup fait rétrécir
+  // soldeRestant, et donc "ce qui a été payé", alors que rien n'a changé
+  // dans ce qui a réellement été encaissé (vécu : Camille Mancheron, solde
+  // réglé "Espèces EUR" sans solde_montant_recu renseigné, tombé de 537€ à
+  // 277€ après l'annulation d'une activité). acompte/étapes/avoir ne
+  // varient pas rétroactivement : seul totalSejour bouge, donc figer
+  // soldeBaseline suffit à figer le net correspondant.
+  const soldeRestantBaseline = Math.max(soldeBaseline - acompteEngage - etapesSum - avoirUtilise, 0);
   // Quand le montant réellement encaissé (solde_montant_recu) diffère de ce
   // qui était dû (ex. 87,04€ reçus au lieu de 90€, oubli "Entre proches") —
   // voir marquerEncaisse() dans PaiementResteFlow.tsx — c'est CE montant qui
@@ -449,13 +459,23 @@ export function paiementProgress(
   // soldeRestant, qui lui bouge dès qu'une activité est supprimée/ajoutée
   // après coup — sinon supprimer puis remettre une activité faisait
   // apparaître un solde réellement encaissé (2745€) comme s'il n'en
-  // restait que 2400€ (vécu : Ethan Hayoz, Camille Mancheron, demande de
-  // Mélanie, 2026-10-15 : un montant déjà payé ne doit jamais s'ajuster
-  // tout seul, même s'il dépasse maintenant le total du séjour).
-  const soldeDu = client.solde_montant_recu > 0 ? Number(client.solde_montant_recu) || 0 : soldeRestant;
+  // restait que 2400€ (vécu : Ethan Hayoz, demande de Mélanie, 2026-10-15 :
+  // un montant déjà payé ne doit jamais s'ajuster tout seul, même s'il
+  // dépasse maintenant le total du séjour).
+  const soldeDu =
+    client.solde_montant_recu > 0 ? Number(client.solde_montant_recu) || 0 : soldeRestantBaseline;
   const soldeCouvert = client.solde_paye ? Math.max(soldeDu - croissanceApresSolde, 0) : 0;
   const totalPaye = acomptePaye + etapesSum + avoirUtilise + soldeCouvert;
-  return { totalSejour, totalPaye, reste: Math.max(totalSejour - totalPaye, 0), soldeRestant };
+  return {
+    totalSejour,
+    totalPaye,
+    reste: Math.max(totalSejour - totalPaye, 0),
+    soldeRestant,
+    // Montant à afficher pour la ligne "Solde" du résumé chronologique des
+    // paiements (client-steps.tsx) — le même fait figé que soldeDu
+    // ci-dessus, jamais recalculé en direct une fois le solde payé.
+    soldeMontantRegle: soldeDu,
+  };
 }
 
 

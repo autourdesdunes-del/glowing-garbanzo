@@ -1492,7 +1492,7 @@ export function PaiementsStep({
   // (contradiction visible avec resteApresAcompte ci-dessous, qui lui utilise
   // déjà acompte_valide), et sommait avoir_utilise sur des réservations
   // annulées.
-  const { totalSejour, totalPaye, reste, soldeRestant } = paiementProgress(
+  const { totalSejour, totalPaye, reste, soldeRestant, soldeMontantRegle } = paiementProgress(
     client,
     reservations,
     resaOptions,
@@ -1710,7 +1710,7 @@ export function PaiementsStep({
       // supprimée/ajoutée après coup (vécu : Ethan Hayoz, Camille
       // Mancheron — un montant déjà payé ne doit jamais s'ajuster tout
       // seul, demande de Mélanie, 2026-10-15).
-      montant: client.solde_montant_recu > 0 ? client.solde_montant_recu : soldeRestant,
+      montant: soldeMontantRegle,
       montantEgp:
         client.solde_mode === "Espèces EGP"
           ? Number(client.egp_montant) || 0

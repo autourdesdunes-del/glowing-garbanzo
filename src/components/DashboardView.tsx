@@ -32,6 +32,7 @@ import { addDays, localDateStr } from "@/lib/dates";
 import { STATUTS, STATUT_COLORS } from "@/lib/constants";
 import DonutChart from "@/components/charts/DonutChart";
 import ProspectSummaryModal from "@/components/ProspectSummaryModal";
+import AppelInfoModal from "@/components/AppelInfoModal";
 import QuickAddClient from "@/components/QuickAddClient";
 import PickClientModal from "@/components/PickClientModal";
 import PaiementsDuJourModal, { computePaiementsDuJour } from "@/components/PaiementsDuJourModal";
@@ -148,6 +149,7 @@ export default function DashboardView({
   const [urgentModalOpen, setUrgentModalOpen] = useState(false);
   const [prospectsModalOpen, setProspectsModalOpen] = useState(false);
   const [prospectSummaryId, setProspectSummaryId] = useState<string | null>(null);
+  const [appelPopupClientId, setAppelPopupClientId] = useState<string | null>(null);
   const [incompleteModalOpen, setIncompleteModalOpen] = useState(false);
   const [pickupsModalOpen, setPickupsModalOpen] = useState(false);
   const [shiftDebut, setShiftDebut] = useState("");
@@ -887,6 +889,31 @@ export default function DashboardView({
             />
           );
         })()}
+      {appelPopupClientId &&
+        (() => {
+          const c = clients.find((cl) => cl.id === appelPopupClientId);
+          if (!c) return null;
+          return (
+            <AppelInfoModal
+              client={c}
+              onClose={() => setAppelPopupClientId(null)}
+              onOpenDossier={() => {
+                setAppelPopupClientId(null);
+                onOpenClient(c.id);
+              }}
+              onMarquerFait={() => {
+                onUpdateClient(c.id, {
+                  prochain_appel_date: null,
+                  prochain_appel_heure: "",
+                  prochain_appel_fuseau: "france",
+                  prochain_appel_plateforme: "",
+                  prochain_appel_confirme: false,
+                });
+                setAppelPopupClientId(null);
+              }}
+            />
+          );
+        })()}
       {incompleteModalOpen && (
         <InfoListModal
           title="Dossiers incomplets"
@@ -1262,7 +1289,7 @@ export default function DashboardView({
                   icon="phone"
                   title={`Appel à ${c.prochain_appel_heure || "?"}`}
                   sub={c.nom || "Sans nom"}
-                  onClick={() => onOpenClient(c.id)}
+                  onClick={() => setAppelPopupClientId(c.id)}
                 />
               ))}
               {/* Chaque ligne ne s'affiche plus que s'il y a vraiment

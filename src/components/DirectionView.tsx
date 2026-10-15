@@ -201,6 +201,20 @@ const COMPTA_BILANS_MENSUELS: Record<number, Partial<Record<number, BilanMensuel
     11: { ventes: 45, moyenneParJour: 1.5, caTotal: 5589, benefices: 1074.61, margePct: 19.2 },
     12: { ventes: 34, moyenneParJour: 1.09, caTotal: 6425, benefices: 2436.91, margePct: 37.9 },
   },
+  2023: {
+    1: { ventes: 10, moyenneParJour: 0.32, caTotal: 1435, benefices: 331.68, margePct: 25 },
+    2: { ventes: 89, moyenneParJour: 3.17, caTotal: 9422, benefices: 3103.86, margePct: 33 },
+    3: { ventes: 175, moyenneParJour: 5.64, caTotal: 18202.5, benefices: 5524, margePct: 30.5 },
+    4: { ventes: 196, moyenneParJour: 6.53, caTotal: 36036.5, benefices: 8519, margePct: 23.5 },
+    5: { ventes: 223, moyenneParJour: 7.19, caTotal: 32852, benefices: 7743, margePct: 23.57 },
+    6: { ventes: 180, moyenneParJour: 6, caTotal: 22555, benefices: 5555, margePct: 24.63 },
+    7: { ventes: 259, moyenneParJour: 8.35, caTotal: 40070.5, benefices: 11512, margePct: 28.9 },
+    8: { ventes: 349, moyenneParJour: 11.25, caTotal: 45632.53, benefices: 12740, margePct: 28 },
+    9: { ventes: 255, moyenneParJour: 8.5, caTotal: 34202, benefices: 8337, margePct: 24.5 },
+    10: { ventes: 187, moyenneParJour: 6.03, caTotal: 39395.5, benefices: 7101, margePct: 18.3 },
+    11: { ventes: 164, moyenneParJour: 5.46, caTotal: 20476.5, benefices: 5825, margePct: 28.5 },
+    12: { ventes: 126, moyenneParJour: 4.06, caTotal: 15864.5, benefices: 4940, margePct: 31 },
+  },
 };
 
 // Mois réellement sélectionnables par année — l'agence a été créée en

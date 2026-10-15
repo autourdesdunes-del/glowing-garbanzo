@@ -68,6 +68,9 @@ export type DirectionSub =
   | "journal"
   | "remboursements"
   | "comptabilite"
+  | "compta_jour"
+  | "compta_mois"
+  | "compta_annee"
   | "marketing"
   | "statistiques"
   | "statsAgences"
@@ -99,7 +102,15 @@ export const DIRECTION_SUBS: readonly DirectionSubNode[] = [
   // Même contenu que Suivis > Remboursements (voir AppShell.tsx) — dupliqué
   // ici temporairement, le temps de migrer cet onglet vers le dashboard.
   { key: "remboursements", label: "Remboursements" },
-  { key: "comptabilite", label: "Comptabilité" },
+  {
+    key: "comptabilite",
+    label: "Comptabilité",
+    children: [
+      { key: "compta_jour", label: "Bilan financier par jour" },
+      { key: "compta_mois", label: "Bilan financier par mois" },
+      { key: "compta_annee", label: "Bilan financier par an" },
+    ],
+  },
   { key: "marketing", label: "Digital marketing" },
   {
     key: "statistiques",
@@ -139,6 +150,48 @@ function DirectionSubPlaceholder({ label }: { label: string }) {
   );
 }
 
+// Page d'accueil "Comptabilité" — façon sommaire Notion : une rubrique =
+// une sous-page, cliquer dessus y navigue (même destination que le
+// sous-menu de gauche, juste une autre porte d'entrée).
+const COMPTA_RUBRIQUES = DIRECTION_SUBS.find((s) => s.key === "comptabilite")!.children!;
+
+function ComptabiliteIndex({ onNavigateSub }: { onNavigateSub: (sub: DirectionSub) => void }) {
+  return (
+    <div className="mx-auto max-w-3xl p-6">
+      <h2 className="font-heading text-lg font-semibold text-[#171717]">Comptabilité</h2>
+      <p className="mt-1 text-sm text-neutral-500">Choisis une rubrique.</p>
+      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {COMPTA_RUBRIQUES.map((r) => (
+          <button
+            key={r.key}
+            type="button"
+            onClick={() => onNavigateSub(r.key)}
+            className="rounded-[6px] border border-[#eaeaea] bg-white p-4 text-left hover:border-[#171717]/30 hover:bg-[#fafafa]"
+          >
+            <p className="font-heading text-sm font-semibold text-[#171717]">{r.label}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Une rubrique de Comptabilité — coquille prête à être remplie (contenu à
+// venir, au cas par cas selon ce que Mélanie veut y voir).
+function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
+  return (
+    <div className="mx-auto max-w-3xl p-6">
+      <div className="mb-3 flex items-center gap-1.5 text-xs text-neutral-400">
+        <span>Comptabilité</span>
+        <span>/</span>
+        <span className="font-medium text-[#171717]">{directionSubLabel(sub)}</span>
+      </div>
+      <h2 className="font-heading text-lg font-semibold text-[#171717]">{directionSubLabel(sub)}</h2>
+      <p className="mt-3 text-sm text-neutral-500">Rien configuré pour l&apos;instant.</p>
+    </div>
+  );
+}
+
 export default function DirectionView({
   sub,
   clients,
@@ -159,6 +212,7 @@ export default function DirectionView({
   onDeleteTache,
   teamProfiles,
   onOpenClient,
+  onNavigateSub,
 }: {
   sub: DirectionSub;
   clients: Client[];
@@ -179,6 +233,7 @@ export default function DirectionView({
   onDeleteTache: (id: string) => void;
   teamProfiles: Profile[];
   onOpenClient: (id: string) => void;
+  onNavigateSub: (sub: DirectionSub) => void;
 }) {
   const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const [expandedTaxeRequestId, setExpandedTaxeRequestId] = useState<string | null>(null);
@@ -452,6 +507,14 @@ export default function DirectionView({
         resaTarifs={resaTarifs}
       />
     );
+  }
+
+  if (sub === "comptabilite") {
+    return <ComptabiliteIndex onNavigateSub={onNavigateSub} />;
+  }
+
+  if (sub === "compta_jour" || sub === "compta_mois" || sub === "compta_annee") {
+    return <ComptabiliteBilanPage sub={sub} />;
   }
 
   if (sub !== "dashboard" && sub !== "dashboardATraiter" && sub !== "dashboardRapport") {

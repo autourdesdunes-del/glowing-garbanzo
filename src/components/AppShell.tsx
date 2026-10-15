@@ -3544,6 +3544,7 @@ function AppShellInner({
               onDeleteTache={deleteDirectionTache}
               teamProfiles={teamProfiles}
               onOpenClient={openClient}
+              onNavigateSub={setDirectionSub}
             />
           )}
         </div>

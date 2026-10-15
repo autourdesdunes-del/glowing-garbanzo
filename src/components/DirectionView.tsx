@@ -500,8 +500,8 @@ function ComptabiliteBilanPage({
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatTile mono={false} label="Ventes au mois" value={`${bilanMois.ventes}`} />
             <StatTile mono={false} label="Moyenne par jour" value={bilanMois.moyenneParJour.toLocaleString("fr-FR")} />
-            <StatTile mono={false} label="CA total" value={`${eurosDec(bilanMois.caTotal)} €`} />
             <StatTile mono={false} tone="green" label="Bénéfices" value={`${eurosDec(bilanMois.benefices)} €`} />
+            <StatTile mono={false} tone="blue" label="CA total" value={`${eurosDec(bilanMois.caTotal)} €`} />
             <StatTile mono={false} label="Marge (CA/Bénef)" value={`${bilanMois.margePct.toLocaleString("fr-FR")}%`} />
           </div>
         ) : (
@@ -509,6 +509,56 @@ function ComptabiliteBilanPage({
             {MOIS_FR[mois - 1]} {annee} — rien configuré pour l&apos;instant.
           </p>
         ))}
+
+      {sub === "compta_mois" && mois !== null && (
+        <div className="mt-6">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
+            Comparatif — {MOIS_FR[mois - 1]} au fil des années
+          </p>
+          {(() => {
+            const moisFixe = mois;
+            const lignesAutresAnnees = COMPTA_ANNEES.map((a) => ({
+              annee: a,
+              bilan: COMPTA_BILANS_MENSUELS[a]?.[moisFixe],
+            })).filter((l) => l.bilan);
+            if (lignesAutresAnnees.length === 0) {
+              return <p className="text-sm text-neutral-500">Aucune autre année avec des données.</p>;
+            }
+            return (
+              <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#eaeaea] text-left text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                      <th className="px-3 py-2 font-medium">Année</th>
+                      <th className="px-3 py-2 text-right font-medium">Ventes</th>
+                      <th className="px-3 py-2 text-right font-medium">CA</th>
+                      <th className="px-3 py-2 text-right font-medium">Bénéfices</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#eaeaea]">
+                    {lignesAutresAnnees.map(({ annee: a, bilan }) => (
+                      <tr key={a} className={a === annee ? "bg-[#fafafa]" : ""}>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            onClick={() => setAnnee(a)}
+                            className={`hover:underline ${a === annee ? "font-semibold text-[#171717]" : ""}`}
+                          >
+                            {a}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 text-right">{bilan!.ventes}</td>
+                        <td className="px-3 py-2 text-right">{eurosDec(bilan!.caTotal)} €</td>
+                        <td className="px-3 py-2 text-right">{eurosDec(bilan!.benefices)} €</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {sub === "compta_annee" &&
         (moisAvecDonnees.length > 0 ? (
@@ -1552,17 +1602,15 @@ function StatTile({
   label: string;
   value: string;
   mono?: boolean;
-  // "green" = carte toujours en vert pastel, ex. "Bénéfices de l'année"
-  // dans Comptabilité (demande de Mélanie, 2026-10-15) — inchangé partout
-  // ailleurs.
-  tone?: "default" | "green";
+  // "green"/"blue" = carte toujours dans cette couleur pastel, ex.
+  // "Bénéfices" (vert) et "CA total" (bleu) dans Comptabilité (demande de
+  // Mélanie, 2026-10-15) — inchangé partout ailleurs.
+  tone?: "default" | "green" | "blue";
 }) {
+  const toneClass =
+    tone === "green" ? "border-green-100 bg-green-50" : tone === "blue" ? "border-blue-100 bg-blue-50" : "border-[#eaeaea] bg-white";
   return (
-    <div
-      className={`relative overflow-hidden rounded-[6px] border p-4 ${
-        tone === "green" ? "border-green-100 bg-green-50" : "border-[#eaeaea] bg-white"
-      }`}
-    >
+    <div className={`relative overflow-hidden rounded-[6px] border p-4 ${toneClass}`}>
       <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">{label}</p>
       <p className={`mt-1 text-2xl font-semibold text-[#171717] ${mono ? "font-amounts" : ""}`}>{value}</p>
     </div>

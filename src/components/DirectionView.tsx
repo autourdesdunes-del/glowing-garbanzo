@@ -551,31 +551,51 @@ function ComptabiliteBilanPage({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#eaeaea]">
-                      {moisAvecDonnees.map((m) => {
-                        const benef = bilansAnnee[m]?.benefices || 0;
-                        const part = beneficesAnnee > 0 ? (benef / beneficesAnnee) * 100 : 0;
-                        return (
-                          <tr key={m}>
-                            <td className="px-3 py-2">
-                              <button
-                                type="button"
-                                onClick={() => allerAuMois(m)}
-                                className="flex items-center gap-1.5 text-left hover:underline"
-                              >
-                                <span
-                                  className="h-2 w-2 flex-shrink-0 rounded-full"
-                                  style={{ backgroundColor: COMPTA_MOIS_COULEURS[m - 1] }}
-                                />
-                                <span className="capitalize">{MOIS_FR[m - 1]}</span>
-                              </button>
-                            </td>
-                            <td className="px-3 py-2 text-right font-medium text-[#171717]">{eurosDec(benef)} €</td>
-                            <td className="px-3 py-2 text-right text-neutral-500">
-                              {part.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {(() => {
+                        // Repère le mois le plus et le moins rentable de
+                        // l'année affichée — surlignés en vert/rouge pastel
+                        // pour sauter aux yeux dans le tableau (demande de
+                        // Mélanie, 2026-10-15). Seulement s'il y a plus d'un
+                        // mois, sinon la même ligne serait les deux à la fois.
+                        let moisMax: number | null = null;
+                        let moisMin: number | null = null;
+                        if (moisAvecDonnees.length > 1) {
+                          moisAvecDonnees.forEach((m) => {
+                            const benef = bilansAnnee[m]?.benefices || 0;
+                            if (moisMax === null || benef > (bilansAnnee[moisMax]?.benefices || 0)) moisMax = m;
+                            if (moisMin === null || benef < (bilansAnnee[moisMin]?.benefices || 0)) moisMin = m;
+                          });
+                        }
+                        return moisAvecDonnees.map((m) => {
+                          const benef = bilansAnnee[m]?.benefices || 0;
+                          const part = beneficesAnnee > 0 ? (benef / beneficesAnnee) * 100 : 0;
+                          const rowClass =
+                            m === moisMax ? "bg-green-50" : m === moisMin ? "bg-red-50" : "";
+                          return (
+                            <tr key={m} className={rowClass}>
+                              <td className="px-3 py-2">
+                                <button
+                                  type="button"
+                                  onClick={() => allerAuMois(m)}
+                                  className="flex items-center gap-1.5 text-left hover:underline"
+                                >
+                                  <span
+                                    className="h-2 w-2 flex-shrink-0 rounded-full"
+                                    style={{ backgroundColor: COMPTA_MOIS_COULEURS[m - 1] }}
+                                  />
+                                  <span className="capitalize">{MOIS_FR[m - 1]}</span>
+                                </button>
+                              </td>
+                              <td className="px-3 py-2 text-right font-medium text-[#171717]">
+                                {eurosDec(benef)} €
+                              </td>
+                              <td className="px-3 py-2 text-right text-neutral-500">
+                                {part.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
                     </tbody>
                     <tfoot>
                       <tr className="border-t border-[#eaeaea] font-semibold text-[#171717]">

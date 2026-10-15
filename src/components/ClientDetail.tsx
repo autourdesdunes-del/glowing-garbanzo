@@ -78,6 +78,7 @@ export default function ClientDetail({
   autoOpenSection,
   onAutoOpenSectionHandled,
   onIncidentsChanged,
+  onActiviteDataChanged,
 }: {
   client: Client;
   allClients: Client[];
@@ -110,6 +111,10 @@ export default function ClientDetail({
   // incident résolu ou créé ici restait affiché à l'ancien statut sur le
   // Dashboard jusqu'à un rechargement complet de la page).
   onIncidentsChanged?: () => void;
+  // Voir le useEffect [reservations, resaOptions, resaTarifs] plus bas —
+  // permet à AppShell de rafraîchir sa propre copie (allReservations/
+  // allResaOptions/allResaTarifs) sans attendre son minuteur 45s.
+  onActiviteDataChanged?: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const confirm = useConfirm();
@@ -779,6 +784,28 @@ export default function ClientDetail({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id, canSeeMargins]);
+
+  // Prévient AppShell qu'une réservation/option/tarif vient de changer
+  // depuis cette fiche — reservations/resaOptions/resaTarifs sont une copie
+  // locale à ClientDetail, entièrement séparée de allReservations/
+  // allResaOptions/allResaTarifs (AppShell), qui elles n'étaient rafraîchies
+  // que par le minuteur 45s (voire pas du tout si une employée avait le
+  // focus sur un champ). Un montant ajouté ici (option, enfant, site visité
+  // au Caire...) restait donc sous-évalué jusqu'à 45s ou plus partout où
+  // allReservations/allResaOptions sont lus (Réservations, bloc équipe
+  // Égypte, Suivis) — vécu : Baptiste MAHIEUX, 130€ manquants sur "Le Caire
+  // en avion" dans le bloc équipe Égypte juste après avoir complété
+  // l'activité, demande de Mélanie, 2026-10-15. Ignore le tout premier
+  // passage (chargement initial de la fiche, pas une vraie modification).
+  const skipFirstSync = useRef(true);
+  useEffect(() => {
+    if (skipFirstSync.current) {
+      skipFirstSync.current = false;
+      return;
+    }
+    onActiviteDataChanged?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reservations, resaOptions, resaTarifs]);
 
   const updateCoutReel = async (reservationId: string, value: number) => {
     setCoutsMap((prev) => ({ ...prev, [reservationId]: value }));

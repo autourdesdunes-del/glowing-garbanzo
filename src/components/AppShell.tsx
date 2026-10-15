@@ -3235,6 +3235,9 @@ function AppShellInner({
                   onAutoOpenActivityHandled={() => setActivityAutoOpenClientId(null)}
                   autoOpenSection={sectionAutoOpen?.clientId === selected.id ? sectionAutoOpen.section : undefined}
                   onAutoOpenSectionHandled={() => setSectionAutoOpen(null)}
+                  onActiviteDataChanged={() =>
+                    refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection })
+                  }
                 />
               </>
             )}

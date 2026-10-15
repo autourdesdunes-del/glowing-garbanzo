@@ -185,6 +185,10 @@ const COMPTA_ANNEES = [2022, 2023, 2024, 2025, 2026] as const;
 
 function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
   const [annee, setAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
+  // Le mois ne se choisit que pour "par jour" et "par mois" — "par an" reste
+  // à l'échelle de l'année entière, pas de sous-rubrique mois pour celle-ci
+  // (demande de Mélanie).
+  const [mois, setMois] = useState<number | null>(sub === "compta_annee" ? null : new Date().getMonth() + 1);
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-3 flex items-center gap-1.5 text-xs text-neutral-400">
@@ -209,8 +213,27 @@ function ComptabiliteBilanPage({ sub }: { sub: DirectionSub }) {
           </button>
         ))}
       </div>
+      {mois !== null && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {MOIS_FR.map((label, i) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setMois(i + 1)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium capitalize ${
+                mois === i + 1
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : "border-[#eaeaea] text-[#666666] hover:bg-[#fafafa]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <p className="mt-4 text-sm text-neutral-500">
-        {directionSubLabel(sub)} {annee} — rien configuré pour l&apos;instant.
+        {directionSubLabel(sub)} — {mois !== null ? `${MOIS_FR[mois - 1]} ` : ""}
+        {annee} — rien configuré pour l&apos;instant.
       </p>
     </div>
   );

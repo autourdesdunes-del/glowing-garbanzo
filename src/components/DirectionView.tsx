@@ -297,7 +297,7 @@ function ComptaCourbeChart({
   data,
   onSelectMois,
 }: {
-  data: { mois: number; label: string; ventes: number; ca: number }[];
+  data: { mois: number; label: string; ventes: number; ca: number; benefices: number }[];
   onSelectMois: (mois: number) => void;
 }) {
   const width = 900;
@@ -351,45 +351,45 @@ function ComptaCourbeChart({
           // vraie bulle qui s'affiche instantanément au survol
           // (group-hover), avec les deux valeurs dedans.
           const topY = Math.min(yForVentes(d.ventes), yForCa(d.ca));
-          const tooltipW = 150;
-          const tooltipH = 54;
+          const tooltipW = 220;
+          const tooltipH = 72;
           const tooltipX = Math.min(Math.max(xFor(i) - tooltipW / 2, 4), width - tooltipW - 4);
           const tooltipY = Math.max(topY - tooltipH - 14, 4);
-            return (
-              <g
-                key={d.mois}
-                onClick={() => onSelectMois(d.mois)}
-                className="group cursor-pointer"
-                role="button"
-                aria-label={`Voir le détail de ${d.label}`}
-              >
-                <rect
-                  x={xFor(i) - bandWidth / 2}
-                  y={padTop - 16}
-                  width={bandWidth}
-                  height={innerH + 16}
-                  fill="transparent"
-                  className="transition group-hover:fill-black/5"
-                />
-                <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={5.5} fill={COULEUR_VENTES} />
-                <circle cx={xFor(i)} cy={yForCa(d.ca)} r={5.5} fill={COULEUR_CA} />
-                <text x={xFor(i)} y={height - 10} textAnchor="middle" fontSize="14" fill="#78716c">
+          return (
+            <g
+              key={d.mois}
+              onClick={() => onSelectMois(d.mois)}
+              className="group cursor-pointer"
+              role="button"
+              aria-label={`Voir le détail de ${d.label}`}
+            >
+              <rect
+                x={xFor(i) - bandWidth / 2}
+                y={padTop - 16}
+                width={bandWidth}
+                height={innerH + 16}
+                fill="transparent"
+                className="transition group-hover:fill-black/5"
+              />
+              <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={5.5} fill={COULEUR_VENTES} />
+              <circle cx={xFor(i)} cy={yForCa(d.ca)} r={5.5} fill={COULEUR_CA} />
+              <text x={xFor(i)} y={height - 10} textAnchor="middle" fontSize="14" fill="#78716c">
+                {d.label}
+              </text>
+              <g className="pointer-events-none opacity-0 transition group-hover:opacity-100">
+                <rect x={tooltipX} y={tooltipY} width={tooltipW} height={tooltipH} rx={6} fill="#171717" />
+                <text x={tooltipX + 12} y={tooltipY + 20} fontSize="13" fontWeight="600" fill="white">
                   {d.label}
                 </text>
-                <g className="pointer-events-none opacity-0 transition group-hover:opacity-100">
-                  <rect x={tooltipX} y={tooltipY} width={tooltipW} height={tooltipH} rx={6} fill="#171717" />
-                  <text x={tooltipX + 10} y={tooltipY + 20} fontSize="13" fontWeight="600" fill="white">
-                    {d.label}
-                  </text>
-                  <text x={tooltipX + 10} y={tooltipY + 38} fontSize="12" fill={COULEUR_VENTES}>
-                    {d.ventes} vente{d.ventes > 1 ? "s" : ""}
-                  </text>
-                  <text x={tooltipX + 10} y={tooltipY + 38} fontSize="12" fill={COULEUR_CA} textAnchor="end" dx={tooltipW - 20}>
-                    {eurosDec(d.ca)} €
-                  </text>
-                </g>
+                <text x={tooltipX + 12} y={tooltipY + 40} fontSize="12" fill={COULEUR_VENTES}>
+                  {d.ventes} vente{d.ventes > 1 ? "s" : ""}
+                </text>
+                <text x={tooltipX + 12} y={tooltipY + 60} fontSize="12" fill={COULEUR_CA}>
+                  CA {eurosDec(d.ca)} € (bénéf. {eurosDec(d.benefices)} €)
+                </text>
               </g>
-            );
+            </g>
+          );
           })}
       </svg>
     </div>
@@ -521,6 +521,7 @@ function ComptabiliteBilanPage({
                   label: COMPTA_MOIS_ABREV[m - 1],
                   ventes: bilansAnnee[m]?.ventes || 0,
                   ca: bilansAnnee[m]?.caTotal || 0,
+                  benefices: bilansAnnee[m]?.benefices || 0,
                 }))}
                 onSelectMois={allerAuMois}
               />

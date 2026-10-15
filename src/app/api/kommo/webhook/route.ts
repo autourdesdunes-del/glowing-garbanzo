@@ -173,7 +173,7 @@ async function processLeadEvent(
           
               const { data: existing } = await admin
                         .from("clients")
-                        .select("id, nom, telephone, email, statut, kommo_demande_infos_envoyee_le, nom_verrouille")
+                        .select("id, nom, telephone, email, statut, kommo_demande_infos_envoyee_le, nom_verrouille, kommo_contact_id")
                         .eq("kommo_lead_id", leadId)
                         .maybeSingle();
 
@@ -217,12 +217,21 @@ async function processLeadEvent(
                         // ou périmé (souvent un pseudo Instagram/WhatsApp jamais mis à jour)
                         // même quand le lead, lui, a été correctement renommé "Prénom NOM".
                         const cleanedFromEntry = cleanKommoName(entryName);
-                        const info = cleanedFromEntry ? null : await fetchKommoLeadContactInfo(leadId);
+                        // Sans kommo_contact_id posé ici, un simple renommage du CONTACT côté
+                        // Kommo (webhook "contact", processContactEvent) ne retrouvait jamais
+                        // cette fiche par cet id — un doublon était créé à la place (vécu,
+                        // demande de Mélanie 2026-10-15). On va chercher l'info de contact tant
+                        // que cet id n'est pas encore connu, même quand le nom du lead suffit.
+                        const info =
+                                    cleanedFromEntry && existing.kommo_contact_id
+                                        ? null
+                                        : await fetchKommoLeadContactInfo(leadId);
                         const cleanedNom = cleanedFromEntry || cleanKommoName(info?.nom || "");
                         const nomProtege = existing.nom_verrouille || nomSembleComplet(existing.nom);
                         if (cleanedNom && !nomProtege) patch.nom = cleanedNom;
                         if (info?.telephone && !existing.telephone) patch.telephone = info.telephone;
                         if (info?.email && !existing.email) patch.email = info.email;
+                        if (info?.contactId && !existing.kommo_contact_id) patch.kommo_contact_id = info.contactId;
 
                         await admin.from("clients").update(patch).eq("id", existing.id);
                         lastClientId = existing.id;
@@ -232,12 +241,18 @@ async function processLeadEvent(
               let nom = entryName;
               let telephone = "";
               let email = "";
+              // Capturé pour être posé sur la fiche (matchée ou créée)
+              // ci-dessous — sans lui, un futur webhook "contact" (ex. simple
+              // renommage côté Kommo) ne retrouve jamais cette fiche par
+              // kommo_contact_id et crée un doublon à la place.
+              let contactId: number | null = null;
               if (!nom) {
                         const info = await fetchKommoLeadContactInfo(leadId);
                         if (info) {
                                     nom = info.nom;
                                     telephone = info.telephone;
                                     email = info.email;
+                                    contactId = info.contactId;
                         }
               } else {
                         // Le nom du lead est déjà connu (cas très courant : un lead
@@ -253,6 +268,7 @@ async function processLeadEvent(
                         const info = await fetchKommoLeadContactInfo(leadId);
                         if (info?.telephone) telephone = info.telephone;
                         if (info?.email) email = info.email;
+                        contactId = info?.contactId ?? null;
               }
               nom = cleanKommoName(nom);
 
@@ -290,6 +306,7 @@ async function processLeadEvent(
                                                   kommo_synced_at: new Date().toISOString(),
                                                   ...(mapped && !gardeStatut ? { statut: mapped.statutCrm } : {}),
                                                   ...(nom && !(matchedNomVerrouille || nomSembleComplet(matchedNom)) ? { nom } : {}),
+                                                  ...(contactId ? { kommo_contact_id: contactId } : {}),
                                                   ...(nouvelleConfirmation
                                                         ? { confirmation_a_traiter: true, confirmation_assignee_a: null }
                                                         : {}),
@@ -313,6 +330,7 @@ async function processLeadEvent(
                                                   telephone,
                                                   email,
                                                   kommo_lead_id: leadId,
+                                                  ...(contactId ? { kommo_contact_id: contactId } : {}),
                                                   kommo_pipeline_status_id: statusId,
                                                   kommo_pipeline_status_nom: statusNom,
                                                   kommo_synced_at: new Date().toISOString(),

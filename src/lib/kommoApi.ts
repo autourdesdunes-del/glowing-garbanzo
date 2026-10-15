@@ -6,6 +6,12 @@ type KommoLeadContactInfo = {
     nom: string;
     telephone: string;
     email: string;
+    // Id du contact Kommo lié à ce lead — sans lui, un client créé/retrouvé
+    // via le webhook "lead" n'avait jamais kommo_contact_id posé, donc le
+    // webhook "contact" (déclenché par exemple par un simple renommage côté
+    // Kommo) ne le retrouvait jamais par cet id et créait un doublon à la
+    // place (voir processContactEvent, route.ts).
+    contactId: number | null;
 };
 
 function kommoApiBase(): string | null {
@@ -226,6 +232,7 @@ export async function fetchKommoLeadContactInfo(
               nom: contact.name ?? "",
               telephone: extractPhoneOrEmail(contact.custom_fields_values, "PHONE"),
               email: extractPhoneOrEmail(contact.custom_fields_values, "EMAIL"),
+              contactId: mainContact.id,
       };
     } catch {
           return null;

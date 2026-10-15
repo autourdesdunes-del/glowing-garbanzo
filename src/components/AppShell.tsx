@@ -1260,7 +1260,28 @@ function AppShellInner({
       if (isTyping) return;
       refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection });
     }, 45000);
-    return () => clearInterval(id);
+    // refreshAll s'annule silencieusement tant que l'onglet n'est pas au
+    // premier plan (document.visibilityState !== "visible", tout en haut
+    // de la fonction) — pensé pour ne pas gaspiller de requêtes pendant
+    // qu'un onglet est en arrière-plan. Mais sans ce rattrapage, rien ne
+    // relance jamais ce refetch une fois l'onglet revenu au premier plan :
+    // le minuteur de 45s continue de tourner pendant que l'onglet est
+    // masqué, mais chaque tick se contente de ressortir silencieusement.
+    // Un onglet resté en arrière-plan plusieurs heures (CRM ouvert pendant
+    // qu'on travaille sur WhatsApp/Kommo) peut donc rester figé sur des
+    // données vieilles de plusieurs heures, bien au-delà des 45s prévues —
+    // vécu : bloc équipe Égypte resté faux pendant ~24h (Mélanie,
+    // 2026-10-15). On force donc un refresh immédiat dès que l'onglet
+    // redevient visible, sans attendre le prochain tick du minuteur.
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      refreshAll({ planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection });
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [loaded, planningLoaded, suivisLoaded, modifsLoaded, remarquesLoaded, isDirection, refreshAll]);
 
   const addClient = async (quick?: {

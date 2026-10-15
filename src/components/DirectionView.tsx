@@ -214,66 +214,109 @@ function moisDisponiblesPour(annee: number) {
   return COMPTA_MOIS_DISPONIBLES[annee] || [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 }
 
-// Petit graphique dédié à "Bilan financier par an" — montre le CA de
-// chaque mois en chiffre au-dessus de la barre (pas juste au survol, pour
-// rester lisible même sur capture d'écran) et amène directement sur le
-// détail du mois cliqué (demande de Mélanie, 2026-10-15). Propre à
-// Comptabilité plutôt qu'une option ajoutée à MonthlyBarChart (partagé par
-// le tableau de bord Direction) pour ne rien changer à son comportement
-// ailleurs.
-function ComptaYearChart({
+// Toujours 2 décimales pour un montant en Comptabilité (demande de
+// Mélanie, 2026-10-15) — euros() ailleurs dans ce fichier n'en affiche que
+// si la valeur en a déjà, gardé tel quel pour ne rien changer au tableau
+// de bord Direction.
+function eurosDec(n: number) {
+  return (Number(n) || 0).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Couleur par mois (1 = janvier ... 12 = décembre) — palette étendue à
+// partir des couleurs de marque (terracotta/gold/teal), pour que le
+// camembert des bénéfices reste lisible même sur une année complète.
+const COMPTA_MOIS_COULEURS = [
+  "#5C2A1D",
+  "#8B4531",
+  "#C9973E",
+  "#0F5C56",
+  "#2E86AB",
+  "#A23B72",
+  "#F18F01",
+  "#6B4226",
+  "#588157",
+  "#BC6C25",
+  "#3D405B",
+  "#E07A5F",
+];
+
+const COULEUR_VENTES = "#0F5C56";
+const COULEUR_CA = "#C9973E";
+
+// Courbe double axe (nombre d'activités vendues à gauche, CA à droite) —
+// remplace l'ancien graphique en barres, qui ne montrait que le CA
+// (demande de Mélanie, 2026-10-15). Cliquer un point amène sur le détail
+// du mois, comme avant.
+function ComptaCourbeChart({
   data,
   onSelectMois,
 }: {
-  data: { mois: number; label: string; value: number }[];
+  data: { mois: number; label: string; ventes: number; ca: number }[];
   onSelectMois: (mois: number) => void;
 }) {
-  const max = Math.max(...data.map((d) => d.value), 1);
   const width = 640;
-  const height = 180;
-  const barGap = 10;
-  const barWidthRaw = (width - barGap * (data.length - 1)) / data.length;
-  const barWidth = Math.min(barWidthRaw, 72);
-  const totalRowWidth = barWidth * data.length + barGap * (data.length - 1);
-  const offsetX = Math.max((width - totalRowWidth) / 2, 0);
+  const height = 220;
+  const padX = 28;
+  const padTop = 34;
+  const padBottom = 28;
+  const innerW = width - padX * 2;
+  const innerH = height - padTop - padBottom;
+  const maxVentes = Math.max(...data.map((d) => d.ventes), 1);
+  const maxCa = Math.max(...data.map((d) => d.ca), 1);
+  const xFor = (i: number) => (data.length > 1 ? padX + (i / (data.length - 1)) * innerW : padX + innerW / 2);
+  const yForVentes = (v: number) => padTop + innerH - (v / maxVentes) * innerH;
+  const yForCa = (v: number) => padTop + innerH - (v / maxCa) * innerH;
+  const pathVentes = data
+    .map((d, i) => `${i === 0 ? "M" : "L"}${xFor(i).toFixed(1)},${yForVentes(d.ventes).toFixed(1)}`)
+    .join(" ");
+  const pathCa = data
+    .map((d, i) => `${i === 0 ? "M" : "L"}${xFor(i).toFixed(1)},${yForCa(d.ca).toFixed(1)}`)
+    .join(" ");
 
   return (
     <div className="overflow-x-auto rounded-md bg-white p-4">
-      <svg viewBox={`0 0 ${width} ${height + 44}`} width="100%" role="img" aria-label="CA par mois">
-        {data.map((d, i) => {
-          const barHeight = Math.max((d.value / max) * (height - 10), d.value > 0 ? 3 : 0);
-          const x = offsetX + i * (barWidth + barGap);
-          const y = height - barHeight;
-          return (
-            <g
-              key={d.mois}
-              onClick={() => onSelectMois(d.mois)}
-              className="cursor-pointer"
-              role="button"
-              aria-label={`Voir le détail de ${d.label}`}
-            >
-              <title>
-                {d.label} : {euros(d.value)} €
-              </title>
-              <text x={x + barWidth / 2} y={y - 6} textAnchor="middle" fontSize="10" fill="#171717">
-                {euros(d.value)} €
-              </text>
-              <rect
-                x={x}
-                y={y}
-                width={barWidth}
-                height={barHeight}
-                rx={3}
-                fill="#171717"
-                opacity={0.85}
-                className="transition hover:opacity-100"
-              />
-              <text x={x + barWidth / 2} y={height + 16} textAnchor="middle" fontSize="10" fill="#78716c">
-                {d.label}
-              </text>
-            </g>
-          );
-        })}
+      <div className="mb-2 flex items-center gap-4 text-xs text-neutral-500">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEUR_VENTES }} />
+          Activités vendues
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEUR_CA }} />
+          Chiffre d&apos;affaires
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width="100%"
+        role="img"
+        aria-label="Activités vendues et chiffre d'affaires par mois"
+      >
+        <path d={pathVentes} fill="none" stroke={COULEUR_VENTES} strokeWidth="2" />
+        <path d={pathCa} fill="none" stroke={COULEUR_CA} strokeWidth="2" />
+        {data.map((d, i) => (
+          <g
+            key={d.mois}
+            onClick={() => onSelectMois(d.mois)}
+            className="cursor-pointer"
+            role="button"
+            aria-label={`Voir le détail de ${d.label}`}
+          >
+            <title>
+              {d.label} : {d.ventes} vente{d.ventes > 1 ? "s" : ""}, {eurosDec(d.ca)} €
+            </title>
+            <text x={xFor(i)} y={yForVentes(d.ventes) - 8} textAnchor="middle" fontSize="9" fill={COULEUR_VENTES}>
+              {d.ventes}
+            </text>
+            <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={3.5} fill={COULEUR_VENTES} />
+            <text x={xFor(i)} y={yForCa(d.ca) - 8} textAnchor="middle" fontSize="9" fill={COULEUR_CA}>
+              {eurosDec(d.ca)} €
+            </text>
+            <circle cx={xFor(i)} cy={yForCa(d.ca)} r={3.5} fill={COULEUR_CA} />
+            <text x={xFor(i)} y={height - 8} textAnchor="middle" fontSize="10" fill="#78716c">
+              {d.label}
+            </text>
+          </g>
+        ))}
       </svg>
     </div>
   );
@@ -367,8 +410,8 @@ function ComptabiliteBilanPage({
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <StatTile mono={false} label="Ventes au mois" value={`${bilanMois.ventes}`} />
             <StatTile mono={false} label="Moyenne par jour" value={bilanMois.moyenneParJour.toLocaleString("fr-FR")} />
-            <StatTile mono={false} label="CA total" value={`${euros(bilanMois.caTotal)} €`} />
-            <StatTile mono={false} label="Bénéfices" value={`${euros(bilanMois.benefices)} €`} />
+            <StatTile mono={false} label="CA total" value={`${eurosDec(bilanMois.caTotal)} €`} />
+            <StatTile mono={false} label="Bénéfices" value={`${eurosDec(bilanMois.benefices)} €`} />
             <StatTile mono={false} label="Marge (CA/Bénef)" value={`${bilanMois.margePct.toLocaleString("fr-FR")}%`} />
           </div>
         ) : (
@@ -381,26 +424,45 @@ function ComptabiliteBilanPage({
         (moisAvecDonnees.length > 0 ? (
           <div className="mt-5 space-y-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <StatTile mono={false} label="CA total de l'année" value={`${euros(caTotalAnnee)} €`} />
-              <StatTile mono={false} label="Bénéfices de l'année" value={`${euros(beneficesAnnee)} €`} />
+              <StatTile mono={false} label="CA total de l'année" value={`${eurosDec(caTotalAnnee)} €`} />
+              <StatTile mono={false} label="Bénéfices de l'année" value={`${eurosDec(beneficesAnnee)} €`} />
               <StatTile
                 mono={false}
                 label="Marge (CA/Bénef)"
                 value={`${margeAnnee.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%`}
               />
             </div>
-            <div>
-              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
-                CA par mois — {annee} — clique un mois pour son détail
-              </p>
-              <ComptaYearChart
-                data={moisAvecDonnees.map((m) => ({
-                  mois: m,
-                  label: MOIS_FR[m - 1].slice(0, 3),
-                  value: bilansAnnee[m]?.caTotal || 0,
-                }))}
-                onSelectMois={allerAuMois}
-              />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  Activités vendues et CA par mois — {annee} — clique un mois pour son détail
+                </p>
+                <ComptaCourbeChart
+                  data={moisAvecDonnees.map((m) => ({
+                    mois: m,
+                    label: MOIS_FR[m - 1].slice(0, 3),
+                    ventes: bilansAnnee[m]?.ventes || 0,
+                    ca: bilansAnnee[m]?.caTotal || 0,
+                  }))}
+                  onSelectMois={allerAuMois}
+                />
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-400">
+                  Bénéfices par mois — {annee}
+                </p>
+                <div className="rounded-md bg-white p-4">
+                  <Donut
+                    segments={moisAvecDonnees.map((m) => ({
+                      label: MOIS_FR[m - 1],
+                      value: bilansAnnee[m]?.benefices || 0,
+                      color: COMPTA_MOIS_COULEURS[m - 1],
+                    }))}
+                    centerValue={`${eurosDec(beneficesAnnee)} €`}
+                    centerLabel="bénéfices"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         ) : (

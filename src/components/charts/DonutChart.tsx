@@ -26,7 +26,7 @@ export default function DonutChart({
   }, []);
 
   return (
-    <div className="flex items-center gap-6 rounded-[6px] border border-[#eaeaea] bg-white p-6">
+    <div className="flex flex-wrap items-center gap-4 rounded-[6px] border border-[#eaeaea] bg-white p-6">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="flex-shrink-0">
         <circle
           cx={size / 2}

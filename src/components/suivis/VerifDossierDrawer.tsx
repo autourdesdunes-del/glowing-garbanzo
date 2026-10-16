@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CatalogueItem,
   CatalogueOption,
@@ -9,34 +9,38 @@ import {
   Client,
   Pack,
 } from "@/lib/types";
-import { DossierCheckItem } from "@/lib/dossierChecklist";
+import { DOSSIER_CHECKLIST_GENERALE, DossierChecklistCategorie } from "@/lib/dossierChecklistGenerale";
+import { createClient } from "@/lib/supabase/client";
 import ClientDetail from "@/components/ClientDetail";
 
-// Une rubrique de la checklist pointe vers la section de la fiche la plus
-// utile pour la vérifier — cliquer dessus y saute directement plutôt que de
-// laisser rouvrir toute la fiche au hasard.
-function sectionPour(categorie: DossierCheckItem["categorie"]): "Activités" | "Suivi" | "Paiements" | undefined {
-  if (categorie === "Paiement") return "Paiements";
-  if (categorie === "Programme" || categorie === "Documents") return "Activités";
-  if (categorie === "Remboursement") return "Suivi";
+// Une catégorie de la checklist générale pointe vers la section de la
+// fiche la plus utile pour la vérifier — cocher un item y saute
+// directement plutôt que de laisser rouvrir toute la fiche au hasard.
+function sectionPour(categorie: DossierChecklistCategorie): "Activités" | "Suivi" | "Paiements" | undefined {
+  if (categorie === "Paiements") return "Paiements";
+  if (categorie === "Activités" || categorie === "Info manquantes") return "Activités";
+  if (categorie === "Suivi") return "Suivi";
   return undefined;
 }
 
-const CATEGORIE_STYLE: Record<string, string> = {
-  Paiement: "border-blue-100 bg-blue-50 text-blue-800",
-  Programme: "border-amber-100 bg-amber-50 text-amber-800",
-  Documents: "border-purple-100 bg-purple-50 text-purple-800",
-  Remboursement: "border-teal-100 bg-teal-50 text-teal-800",
-  Doublon: "border-pink-100 bg-pink-50 text-pink-800",
-};
+const CATEGORIES_ORDRE: DossierChecklistCategorie[] = [
+  "Contact",
+  "Séjour",
+  "Activités",
+  "Info manquantes",
+  "Paiements",
+  "Documents",
+  "Suivi",
+];
 
-// Panneau large ouvert par-dessus Suivis > Vérification de dossier : la
-// checklist à gauche, la vraie fiche client à droite — pour cocher les
+// Panneau large ouvert par-dessus Suivis > Vérification de dossier : une
+// vraie checklist générale à cocher à gauche (fixe, la même pour tous les
+// dossiers — pas des points détectés par le CRM, demande explicite de
+// Mélanie, 2026-10-16) et la vraie fiche client à droite, pour cocher les
 // points en regardant les données réelles, sans quitter l'écran de
-// vérification (demande de Mélanie, 2026-10-16).
+// vérification.
 export default function VerifDossierDrawer({
   client,
-  points,
   monPrenom,
   onValider,
   onClose,
@@ -54,7 +58,6 @@ export default function VerifDossierDrawer({
   onOpenHelp,
 }: {
   client: Client;
-  points: DossierCheckItem[];
   monPrenom: string;
   onValider: (c: Client) => void;
   onClose: () => void;
@@ -71,39 +74,112 @@ export default function VerifDossierDrawer({
   packs: Pack[];
   onOpenHelp: () => void;
 }) {
+  const supabase = createClient();
   const [autoOpenSection, setAutoOpenSection] = useState<"Activités" | "Suivi" | "Paiements" | undefined>(
     undefined
   );
+  // clientId de côté pour savoir si "coches" correspond bien au client
+  // affiché (évite un setState synchrone au tout début de l'effet — on ne
+  // met à jour l'état qu'une fois la requête revenue).
+  const [checklistState, setChecklistState] = useState<{ clientId: string; coches: Set<string> } | null>(null);
+  const loaded = checklistState?.clientId === client.id;
+  const coches = loaded ? checklistState!.coches : new Set<string>();
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase
+      .from("dossier_checklist_coches")
+      .select("item_code")
+      .eq("client_id", client.id)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setChecklistState({ clientId: client.id, coches: new Set((data || []).map((r) => r.item_code)) });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client.id, supabase]);
+
+  const toggle = async (itemCode: string, categorie: DossierChecklistCategorie) => {
+    const dejaCoche = coches.has(itemCode);
+    setChecklistState((prev) => {
+      const next = new Set(prev?.coches || []);
+      if (dejaCoche) next.delete(itemCode);
+      else next.add(itemCode);
+      return { clientId: client.id, coches: next };
+    });
+    if (dejaCoche) {
+      await supabase.from("dossier_checklist_coches").delete().eq("client_id", client.id).eq("item_code", itemCode);
+    } else {
+      setAutoOpenSection(sectionPour(categorie));
+      const { data: session } = await supabase.auth.getSession();
+      await supabase.from("dossier_checklist_coches").upsert(
+        {
+          client_id: client.id,
+          item_code: itemCode,
+          coche_par_nom: monPrenom,
+          coche_par_id: session?.session?.user?.id || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "client_id,item_code" }
+      );
+    }
+  };
+
+  const nbCoches = coches.size;
+  const nbTotal = DOSSIER_CHECKLIST_GENERALE.length;
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/30">
       <div className="ml-auto flex h-full w-full max-w-6xl bg-white shadow-xl">
         <div className="flex w-80 flex-shrink-0 flex-col border-r border-[#eaeaea] bg-[#fafafa] p-4">
           <div className="mb-3 flex items-center justify-between">
-            <p className="font-heading text-sm font-semibold text-[#171717]">À vérifier</p>
+            <p className="font-heading text-sm font-semibold text-[#171717]">
+              À vérifier ({nbCoches}/{nbTotal})
+            </p>
             <button type="button" onClick={onClose} className="text-neutral-400 hover:text-neutral-600">
               ✕
             </button>
           </div>
-          <div className="flex-1 space-y-1.5 overflow-y-auto">
-            {points.length === 0 && <p className="text-xs text-neutral-400">Aucune erreur détectée.</p>}
-            {points.map((p, i) => (
-              <button
-                key={`${p.code}_${i}`}
-                type="button"
-                onClick={() => setAutoOpenSection(sectionPour(p.categorie))}
-                className={`block w-full rounded-md border p-2 text-left text-xs hover:brightness-95 ${CATEGORIE_STYLE[p.categorie]}`}
-              >
-                <span className="mr-1 rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                  {p.categorie}
-                </span>
-                {p.message}
-              </button>
-            ))}
+          <div className="flex-1 space-y-4 overflow-y-auto">
+            {CATEGORIES_ORDRE.map((categorie) => {
+              const items = DOSSIER_CHECKLIST_GENERALE.filter((it) => it.categorie === categorie);
+              if (items.length === 0) return null;
+              return (
+                <div key={categorie}>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                    {categorie}
+                  </p>
+                  <div className="space-y-1">
+                    {items.map((it) => {
+                      const coche = coches.has(it.code);
+                      return (
+                        <label
+                          key={it.code}
+                          className="flex cursor-pointer items-start gap-2 rounded-md border border-transparent p-1.5 text-xs text-[#171717] hover:border-neutral-200 hover:bg-white"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={coche}
+                            disabled={!loaded}
+                            onChange={() => toggle(it.code, it.categorie)}
+                            className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 accent-[#171717]"
+                          />
+                          <span className={coche ? "text-neutral-400 line-through" : ""}>{it.texte}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <button
             type="button"
-            onClick={() => onValider(client)}
+            onClick={async () => {
+              await supabase.from("dossier_checklist_coches").delete().eq("client_id", client.id);
+              onValider(client);
+            }}
             className="mt-3 rounded-full bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
           >
             Vérifié — signer {monPrenom}

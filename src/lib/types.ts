@@ -471,6 +471,18 @@ export type Verification = {
   created_at: string;
 };
 
+// Une case cochée dans la checklist générale du panneau "Vérification de
+// dossier" (voir src/lib/dossierChecklistGenerale.ts) — remise à zéro à
+// chaque nouvelle signature pour repartir propre au prochain tour.
+export type DossierChecklistCoche = {
+  id: string;
+  client_id: string;
+  item_code: string;
+  coche_par_nom: string;
+  coche_par_id: string | null;
+  updated_at: string;
+};
+
 // Code de réduction/promo ajouté par la Direction (onglet Direction) —
 // consultable en lecture seule par l'équipe (HELP > Codes promo) pour
 // vérifier qu'un code donné par un client est valide.

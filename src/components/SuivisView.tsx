@@ -1693,13 +1693,11 @@ export default function SuivisView({
 
       {verifDrawerClientId &&
         (() => {
-          const row = verifsRows.find((r) => r.client.id === verifDrawerClientId);
           const client = clients.find((cl) => cl.id === verifDrawerClientId);
           if (!client) return null;
           return (
             <VerifDossierDrawer
               client={client}
-              points={row?.points || []}
               monPrenom={monPrenom || ""}
               onValider={(c) => {
                 validerVerification(c);

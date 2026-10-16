@@ -2332,36 +2332,60 @@ export function PaiementsStep({
             <div className="mt-2 space-y-1.5">
               {paiementsPrevus
                 .filter((p) => p.statut === "en_attente")
-                .map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-sm"
-                  >
-                    <div>
-                      <span className="font-medium text-[#171717]">{euros(p.montant)} €</span>
-                      <span className="text-neutral-500"> — {p.mode}</span>
-                      {p.date_prevue && <span className="text-neutral-500"> · {fmtDateDMY(p.date_prevue)}</span>}
-                      {p.activite_nom && <span className="text-neutral-500"> ({p.activite_nom})</span>}
+                .map((p) => {
+                  // Une tranche prévue plus tard ne doit jamais pouvoir être
+                  // marquée réglée avant sa date — sinon un clic sur la
+                  // mauvaise ligne (plusieurs tranches en attente en même
+                  // temps, ex. 825€ le 17/10 puis 1355€ le 20/10) encaisserait
+                  // à tort un paiement pas encore reçu (demande de Mélanie,
+                  // 2026-10-16 : "le paiement du 20 doit rester en attente
+                  // jusqu'au 20").
+                  const pasEncoreEligible = !!p.date_prevue && p.date_prevue > todayStr();
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between gap-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-sm"
+                    >
+                      <div>
+                        <span className="font-medium text-[#171717]">{euros(p.montant)} €</span>
+                        <span className="text-neutral-500"> — {p.mode}</span>
+                        {p.date_prevue && <span className="text-neutral-500"> · {fmtDateDMY(p.date_prevue)}</span>}
+                        {p.activite_nom && <span className="text-neutral-500"> ({p.activite_nom})</span>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={pasEncoreEligible}
+                          title={
+                            pasEncoreEligible
+                              ? `Prévu pour le ${fmtDateDMY(p.date_prevue as string)} — pas encore encaissable`
+                              : undefined
+                          }
+                          onClick={() => {
+                            if (pasEncoreEligible) {
+                              toast(
+                                `Ce paiement est prévu pour le ${fmtDateDMY(p.date_prevue as string)}, pas avant.`
+                              );
+                              return;
+                            }
+                            onMarquerPaiementPrevuRegle(p);
+                          }}
+                          className="rounded-md bg-[#171717] px-2 py-1 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
+                        >
+                          Marquer réglé
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onSupprimerPaiementPrevu(p.id)}
+                          title="Supprimer"
+                          className="text-red-500 hover:text-red-600"
+                        >
+                          🗑
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onMarquerPaiementPrevuRegle(p)}
-                        className="rounded-md bg-[#171717] px-2 py-1 text-xs font-medium text-white hover:opacity-90"
-                      >
-                        Marquer réglé
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onSupprimerPaiementPrevu(p.id)}
-                        title="Supprimer"
-                        className="text-red-500 hover:text-red-600"
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           )}
           {addingPrevu && (

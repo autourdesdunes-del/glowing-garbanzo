@@ -3403,6 +3403,13 @@ function AppShellInner({
               initialBilletId={billetAutoOpenId}
               onOpenReservationActivity={openReservationFromBillet}
               onAddClient={addClient}
+              catalogueTarifs={catalogueTarifs}
+              transfertTarifs={transfertTarifs}
+              catalogueOptions={catalogueOptions}
+              packs={packs}
+              onDeleteClientById={deleteClient}
+              onDuplicateAsNewStay={duplicateAsNewStay}
+              onOpenHelp={() => setMode("help")}
             />
           )}
         </div>

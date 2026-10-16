@@ -3,8 +3,12 @@
 import { useEffect, useState } from "react";
 import {
   CatalogueItem,
+  CatalogueOption,
+  CatalogueTarif,
+  CatalogueTransfertTarif,
   Client,
   PaiementEtape,
+  Pack,
   PaypalPaiement,
   PlanningShift,
   Profile,
@@ -64,6 +68,7 @@ import {
   RdvPaiementModal,
   RemboursementCard,
 } from "@/components/suivis/SuivisRows";
+import VerifDossierDrawer from "@/components/suivis/VerifDossierDrawer";
 
 // Bloc copié-collé pour Hossam — le nom complet doit être recopié tel quel
 // (comme au passeport) pour éviter toute faute transmise au prestataire.
@@ -134,6 +139,13 @@ export default function SuivisView({
   initialBilletId,
   onOpenReservationActivity,
   onAddClient,
+  catalogueTarifs,
+  transfertTarifs,
+  catalogueOptions,
+  packs,
+  onDeleteClientById,
+  onDuplicateAsNewStay,
+  onOpenHelp,
 }: {
   sub: SuivisSub;
   clients: Client[];
@@ -172,6 +184,17 @@ export default function SuivisView({
     canal: string;
     statut?: "Prospect" | "Client confirmé";
   }) => Promise<Client | null>;
+  // Pour le panneau "Vérification de dossier" (sub === "verifs"), qui
+  // embarque la vraie fiche client (ClientDetail) à côté de la checklist —
+  // tout ce que ClientDetail attend en plus de ce que SuivisView reçoit
+  // déjà, voir VerifDossierDrawer.
+  catalogueTarifs?: Record<string, CatalogueTarif[]>;
+  transfertTarifs?: Record<string, CatalogueTransfertTarif[]>;
+  catalogueOptions?: Record<string, CatalogueOption[]>;
+  packs?: Pack[];
+  onDeleteClientById?: (id: string) => Promise<boolean> | void;
+  onDuplicateAsNewStay?: (source: Client) => void;
+  onOpenHelp?: () => void;
 }) {
   const supabase = createClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -196,6 +219,9 @@ export default function SuivisView({
   // de vérité reste la table verifications, ceci est juste un affichage
   // optimiste local.
   const [dossiersVerifiesMaintenant, setDossiersVerifiesMaintenant] = useState<Set<string>>(new Set());
+  // Client dont le dossier est ouvert dans le panneau de vérification
+  // (checklist + vraie fiche côte à côte) — voir VerifDossierDrawer.
+  const [verifDrawerClientId, setVerifDrawerClientId] = useState<string | null>(null);
   const [newAppelClientId, setNewAppelClientId] = useState("");
   // Recherche tapée au clavier (nom du client/prospect) pour programmer un
   // appel — le <select> listant les ~1500 clients était inutilisable pour
@@ -1615,8 +1641,8 @@ export default function SuivisView({
             </h3>
             <p className="mb-3 text-xs text-neutral-400">
               Clients confirmés dont le séjour arrive (ou a déjà commencé), jamais vérifiés, ou modifiés
-              depuis leur dernière vérification. Chaque point ci-dessous est un rappel à relire — le CRM
-              ne juge rien, clique dessus pour aller vérifier directement sur la fiche.
+              depuis leur dernière vérification. Clique un dossier pour l&apos;ouvrir avec sa checklist à
+              côté — le CRM ne juge rien, c&apos;est juste un rappel de ce qu&apos;il reste à relire.
             </p>
             {verifsRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à vérifier pour l&apos;instant.</div>
@@ -1630,7 +1656,7 @@ export default function SuivisView({
                   <div className="flex flex-wrap items-center gap-1.5">
                     <ClientNameLink
                       nom={c.nom}
-                      onClick={() => onOpenClient(c.id)}
+                      onClick={() => setVerifDrawerClientId(c.id)}
                       className="font-heading text-sm font-semibold text-[#171717] hover:underline"
                     />
                     <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
@@ -1640,9 +1666,7 @@ export default function SuivisView({
                       <li key={`${p.code}_${i}`}>
                         <button
                           type="button"
-                          onClick={() =>
-                            p.reservationId ? onOpenReservationActivity(p.reservationId) : onOpenClient(c.id)
-                          }
+                          onClick={() => setVerifDrawerClientId(c.id)}
                           className={`w-full rounded-md border p-2 text-left text-xs hover:brightness-95 ${CATEGORIE_STYLE[p.categorie]}`}
                         >
                           <span className="mr-1 rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
@@ -1666,6 +1690,41 @@ export default function SuivisView({
           </div>
         </div>
       )}
+
+      {verifDrawerClientId &&
+        (() => {
+          const row = verifsRows.find((r) => r.client.id === verifDrawerClientId);
+          const client = clients.find((cl) => cl.id === verifDrawerClientId);
+          if (!client) return null;
+          return (
+            <VerifDossierDrawer
+              client={client}
+              points={row?.points || []}
+              monPrenom={monPrenom || ""}
+              onValider={(c) => {
+                validerVerification(c);
+                setVerifDrawerClientId(null);
+              }}
+              onClose={() => setVerifDrawerClientId(null)}
+              onJumpToClient={(id) => setVerifDrawerClientId(id)}
+              allClients={clients}
+              onChangeClient={onUpdateClient}
+              onDeleteClient={async (id) => {
+                const ok = await onDeleteClientById?.(id);
+                setVerifDrawerClientId(null);
+                return !!ok;
+              }}
+              onDuplicateAsNewStay={(source) => onDuplicateAsNewStay?.(source)}
+              canSeeMargins={isDirection}
+              catalogue={catalogue}
+              catalogueTarifs={catalogueTarifs || {}}
+              transfertTarifs={transfertTarifs || {}}
+              catalogueOptions={catalogueOptions || {}}
+              packs={packs || []}
+              onOpenHelp={() => onOpenHelp?.()}
+            />
+          );
+        })()}
 
       {sub === "remb" && (
         <div className="space-y-8">

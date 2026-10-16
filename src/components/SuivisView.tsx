@@ -37,7 +37,7 @@ import {
   participantsFor,
   resaTotalMontant,
 } from "@/lib/resa";
-import { dernierChangementDossier, pointsAVerifier } from "@/lib/dossierChecklist";
+import { dernierChangementDossier } from "@/lib/dossierChecklist";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUserNom } from "@/lib/currentUser";
@@ -96,17 +96,6 @@ export const SUIVIS_SUBS = [
   { key: "aurevoir", label: "Au revoir", labelAr: "رسالة الوداع", groupe: "suivi_du_suivi" },
   { key: "avis", label: "Avis clients", labelAr: "آراء العملاء", groupe: "suivi_du_suivi" },
 ] as const;
-
-// Couleur par catégorie des points de l'outil "Vérification de dossier" —
-// neutre/informatif partout (jamais rouge "erreur"), juste pour repérer
-// vite de quel type de point il s'agit.
-const CATEGORIE_STYLE: Record<string, string> = {
-  Paiement: "border-blue-100 bg-blue-50 text-blue-800",
-  Programme: "border-amber-100 bg-amber-50 text-amber-800",
-  Documents: "border-purple-100 bg-purple-50 text-purple-800",
-  Remboursement: "border-teal-100 bg-teal-50 text-teal-800",
-  Doublon: "border-pink-100 bg-pink-50 text-pink-800",
-};
 
 // "remb" n'apparaît plus dans le sous-menu Suivi (retiré à la demande de
 // Mélanie, déplacé vers le dashboard et dupliqué dans Direction) mais reste
@@ -367,9 +356,9 @@ export default function SuivisView({
   // (statut/date) : le "jamais vérifié" est ensuite recalculé ci-dessous —
   // un dossier modifié depuis sa dernière vérification redevient "à
   // vérifier" même s'il a déjà été signé une fois (demande de Mélanie,
-  // 2026-10-13). La checklist elle-même (pointsAVerifier) n'est qu'un
-  // rappel des éléments à relire, jamais un verdict qui bloquerait la
-  // signature — elle ne joue aucun rôle dans cette liste.
+  // 2026-10-13) — la checklist générale cochée à côté (voir
+  // VerifDossierDrawer) n'est qu'un rappel des éléments à relire, jamais
+  // un verdict qui bloquerait la signature.
   const verifsEligibles = clients.filter((c) => estDossierNonVerifie(c, new Set()));
   const verifsRows = verifsEligibles
     .filter((c) => !dossiersVerifiesMaintenant.has(c.id))
@@ -379,10 +368,9 @@ export default function SuivisView({
       const derniereVerif = mesVerifs[0] || null;
       const dejaVerifieEtAJour = !!derniereVerif && derniereVerif.created_at >= dernierChangement;
       if (dejaVerifieEtAJour) return null;
-      const points = pointsAVerifier(c, reservations, remboursements, catalogue, resaOptions, resaTarifs, paiementsEtapes, clients);
-      return { client: c, points };
+      return { client: c };
     })
-    .filter((x): x is { client: Client; points: ReturnType<typeof pointsAVerifier> } => !!x)
+    .filter((x): x is { client: Client } => !!x)
     .sort((a, b) => (a.client.date_debut || "").localeCompare(b.client.date_debut || ""));
 
   const monPrenom = profiles.find((p) => p.id === currentUserId)?.prenom || "";
@@ -1647,12 +1635,9 @@ export default function SuivisView({
             {verifsRows.length === 0 && (
               <div className="text-sm text-neutral-400">Rien à vérifier pour l&apos;instant.</div>
             )}
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {verifsRows.map(({ client: c, points }) => (
-                <div
-                  key={c.id}
-                  className="overflow-hidden rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
-                >
+            <div className="divide-y divide-neutral-100 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+              {verifsRows.map(({ client: c }) => (
+                <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <ClientNameLink
                       nom={c.nom}
@@ -1661,26 +1646,10 @@ export default function SuivisView({
                     />
                     <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
                   </div>
-                  <ul className="mt-2 space-y-1.5">
-                    {points.map((p, i) => (
-                      <li key={`${p.code}_${i}`}>
-                        <button
-                          type="button"
-                          onClick={() => setVerifDrawerClientId(c.id)}
-                          className={`w-full rounded-md border p-2 text-left text-xs hover:brightness-95 ${CATEGORIE_STYLE[p.categorie]}`}
-                        >
-                          <span className="mr-1 rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                            {p.categorie}
-                          </span>
-                          {p.message}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
                   <button
                     type="button"
                     onClick={() => validerVerification(c)}
-                    className="mt-2 rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                    className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
                   >
                     Vérifié — signer {monPrenom || ""}
                   </button>

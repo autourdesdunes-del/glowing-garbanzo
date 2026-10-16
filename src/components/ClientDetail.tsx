@@ -15,6 +15,7 @@ import {
   HotelReference,
   Incident,
   PaiementEtape,
+  PaiementPrevu,
   Pack,
   PaypalPaiement,
   Reservation,
@@ -42,13 +43,13 @@ import {
   resaTotalMontant,
   avoirUtiliseTotal,
   findMomentConflict,
-  prochaineActiviteActive,
   reservationsActives,
   soldeRestantSejour,
   STATUT_PAIEMENT_OPTIONS,
   StatutPaiementKey,
 } from "@/lib/resa";
 import MontantCommuniqueAlertModal from "@/components/MontantCommuniqueAlertModal";
+import { getCurrentUserNom } from "@/lib/currentUser";
 import { todayStr } from "@/lib/dates";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import {
@@ -536,6 +537,82 @@ export default function ClientDetail({
   const deletePaiementEtape = async (id: string) => {
     setPaiementsEtapes((prev) => prev.filter((e) => e.id !== id));
     const { error } = await supabase.from("paiements_etapes").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
+
+  // Paiements à venir, en nombre libre (voir migration 0155) — contrairement
+  // à client.reprise_montant (une seule case), plusieurs tranches futures
+  // distinctes peuvent coexister (vécu : Clélia Malardenti, 825€ le 17/10 +
+  // 1355€ le 20/10, deux dates différentes — la case unique de "reprise"
+  // ne pouvait en garder qu'une seule à la fois, demande de Mélanie,
+  // 2026-10-16).
+  const [paiementsPrevus, setPaiementsPrevus] = useState<PaiementPrevu[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("paiements_prevus")
+        .select("*")
+        .eq("client_id", client.id)
+        .order("date_prevue", { ascending: true });
+      setPaiementsPrevus((data as PaiementPrevu[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client.id]);
+
+  const addPaiementPrevu = async (patch: {
+    montant: number;
+    mode: string;
+    datePrevue: string;
+    activiteId: string;
+    activiteNom: string;
+    note?: string;
+  }) => {
+    const parNom = await getCurrentUserNom(supabase);
+    const { data, error } = await supabase
+      .from("paiements_prevus")
+      .insert({
+        client_id: client.id,
+        montant: patch.montant,
+        mode: patch.mode,
+        date_prevue: patch.datePrevue || null,
+        activite_id: patch.activiteId || null,
+        activite_nom: patch.activiteNom,
+        note: patch.note || "",
+        created_par_nom: parNom,
+      })
+      .select()
+      .single();
+    if (!error && data) {
+      setPaiementsPrevus((prev) => [...prev, data as PaiementPrevu]);
+    } else {
+      toast("Impossible d'ajouter ce paiement à venir.");
+    }
+  };
+
+  // Marque une tranche comme réellement encaissée : crée la ligne
+  // paiements_etapes correspondante (c'est elle qui compte dans tous les
+  // totaux déjà calculés ailleurs) et bascule cette tranche en "regle"
+  // plutôt que de la supprimer, pour garder une trace de ce qui était prévu.
+  const marquerPaiementPrevuRegle = async (p: PaiementPrevu, montantReel?: number, modeReel?: string) => {
+    const montant = montantReel ?? p.montant;
+    const mode = modeReel ?? p.mode;
+    await addPaiementEtape(montant, mode, todayStr(), "Paiement prévu encaissé", p.activite_nom);
+    const { error } = await supabase
+      .from("paiements_prevus")
+      .update({ statut: "regle", regle_le: new Date().toISOString() })
+      .eq("id", p.id);
+    if (error) {
+      toast("Échec de la mise à jour du paiement prévu.");
+      return;
+    }
+    setPaiementsPrevus((prev) =>
+      prev.map((pp) => (pp.id === p.id ? { ...pp, statut: "regle", regle_le: new Date().toISOString() } : pp))
+    );
+  };
+
+  const supprimerPaiementPrevu = async (id: string) => {
+    setPaiementsPrevus((prev) => prev.filter((p) => p.id !== id));
+    const { error } = await supabase.from("paiements_prevus").delete().eq("id", id);
     if (error) toast("Échec de la suppression.");
   };
 
@@ -1592,26 +1669,6 @@ export default function ClientDetail({
     });
   };
 
-  // Ouverture manuelle (bouton "+ Ajouter un paiement à effectuer", visible
-  // à tout moment dans Paiements) — même formulaire que checkRepriseApresAjout
-  // mais sans attendre qu'une activité vienne d'être ajoutée sur un solde
-  // déjà réglé : Mélanie veut pouvoir prévoir un PayPal (ou tout autre mode)
-  // à venir pour n'importe quelle activité, à n'importe quel moment.
-  const ouvrirPaiementAVenir = () => {
-    const cible = prochaineActiviteActive(reservations);
-    const mode = "PayPal";
-    setRepriseModal({
-      montant: "",
-      mode,
-      activiteId: cible?.id || "",
-      mixteEur: "",
-      mixteEgp: "",
-      mixteRate: client.egp_taux || 0,
-      badge: badgeParDefautPourMode(mode),
-      manuel: true,
-    });
-  };
-
   // Appelé à chaque fin de pas-à-pas "Ajouter une activité" — regroupe les
   // deux vérifications indépendantes qui doivent s'y faire (reprise de
   // règlement, avoir à appliquer) plutôt que de dupliquer le câblage
@@ -2239,7 +2296,10 @@ export default function ClientDetail({
               onAcompteAlerte={handleAcompteAlerte}
               onAdjustAvoir={adjustAvoirOnReservation}
               paypalPaiements={paypalPaiementsClient}
-              onOuvrirPaiementAVenir={ouvrirPaiementAVenir}
+              paiementsPrevus={paiementsPrevus}
+              onAddPaiementPrevu={addPaiementPrevu}
+              onMarquerPaiementPrevuRegle={marquerPaiementPrevuRegle}
+              onSupprimerPaiementPrevu={supprimerPaiementPrevu}
             />
           </div>
         </div>

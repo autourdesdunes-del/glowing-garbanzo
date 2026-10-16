@@ -16,6 +16,7 @@ import {
   HotelReference,
   Incident,
   PaiementEtape,
+  PaiementPrevu,
   Pack,
   PaypalPaiement,
   Remboursement,
@@ -1268,7 +1269,10 @@ export function PaiementsStep({
   onAcompteAlerte,
   onAdjustAvoir,
   paypalPaiements = [],
-  onOuvrirPaiementAVenir,
+  paiementsPrevus = [],
+  onAddPaiementPrevu = async () => {},
+  onMarquerPaiementPrevuRegle = async () => {},
+  onSupprimerPaiementPrevu = () => {},
 }: StepProps & {
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
@@ -1300,10 +1304,22 @@ export function PaiementsStep({
   // ligne du "Résumé des paiements" réglée en PayPal, l'heure exacte de
   // réception et l'identité du payeur (voir matchPaypalPaiement plus bas).
   paypalPaiements?: PaypalPaiement[];
-  // Ouvre le pop-up "Prévoir un paiement à effectuer" (ClientDetail.tsx) —
-  // même formulaire que la reprise automatique, déclenché ici manuellement
-  // à tout moment (demande de Mélanie, 16/09).
-  onOuvrirPaiementAVenir?: () => void;
+  // Paiements à venir, en nombre libre (voir migration 0155 et
+  // ClientDetail.tsx) — plusieurs tranches futures distinctes peuvent
+  // coexister (ex. 825€ le 17/10, 1355€ le 20/10), contrairement à l'ancien
+  // bouton "+ Ajouter un paiement à effectuer" qui ne gardait qu'une seule
+  // case (demande de Mélanie, 2026-10-16).
+  paiementsPrevus?: PaiementPrevu[];
+  onAddPaiementPrevu?: (patch: {
+    montant: number;
+    mode: string;
+    datePrevue: string;
+    activiteId: string;
+    activiteNom: string;
+    note?: string;
+  }) => Promise<void>;
+  onMarquerPaiementPrevuRegle?: (p: PaiementPrevu, montantReel?: number, modeReel?: string) => Promise<void>;
+  onSupprimerPaiementPrevu?: (id: string) => void;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -1323,6 +1339,11 @@ export function PaiementsStep({
   const [billetHossamReminder, setBilletHossamReminder] = useState<Reservation | null>(null);
   const [copiedHossamReminder, setCopiedHossamReminder] = useState(false);
   const [addingEtape, setAddingEtape] = useState(false);
+  const [addingPrevu, setAddingPrevu] = useState(false);
+  const [prevuMontant, setPrevuMontant] = useState("");
+  const [prevuMode, setPrevuMode] = useState<string>(MODES_PAIEMENT[0] || "");
+  const [prevuDate, setPrevuDate] = useState("");
+  const [prevuActiviteId, setPrevuActiviteId] = useState("");
   // Ligne du "Résumé des paiements" dont on affiche le détail du payeur
   // PayPal (voir matchPaypalPaiement plus bas) — un seul dépliage à la
   // fois, refermé en recliquant la même ligne.
@@ -1768,6 +1789,31 @@ export function PaiementsStep({
   // demande toujours laquelle (PayPal/virement ne passent par aucune
   // activité, inutile de demander).
   const MODES_AVEC_ACTIVITE = ["Espèces EUR", "Espèces EGP", "Carte bleue"];
+
+  const resetPrevuForm = () => {
+    setPrevuMontant("");
+    setPrevuMode(MODES_PAIEMENT[0] || "");
+    setPrevuDate("");
+    setPrevuActiviteId("");
+    setAddingPrevu(false);
+  };
+
+  const ajouterPrevu = async () => {
+    const montant = Number(prevuMontant);
+    if (!montant || montant <= 0) {
+      toast("Indique un montant valide pour cette tranche.");
+      return;
+    }
+    const activite = prevuActiviteId ? reservations.find((r) => r.id === prevuActiviteId) : undefined;
+    await onAddPaiementPrevu({
+      montant,
+      mode: prevuMode,
+      datePrevue: prevuDate,
+      activiteId: prevuActiviteId,
+      activiteNom: activite ? cleanActivityTitle(activite.nom_activite) || "" : "",
+    });
+    resetPrevuForm();
+  };
 
   const resetEtapeForm = () => {
     setEtapeMontant("");
@@ -2274,16 +2320,101 @@ export function PaiementsStep({
             >
               + Ajouter un paiement effectué
             </button>
-            {onOuvrirPaiementAVenir && (
-              <button
-                type="button"
-                onClick={onOuvrirPaiementAVenir}
-                className="rounded-md border border-red-300 px-2 py-0.5 text-xs font-medium text-red-600 hover:bg-red-50"
-              >
-                + Ajouter un paiement à effectuer
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setAddingPrevu((v) => !v)}
+              className="rounded-md border border-red-300 px-2 py-0.5 text-xs font-medium text-red-600 hover:bg-red-50"
+            >
+              + Ajouter un paiement à effectuer
+            </button>
           </div>
+          {paiementsPrevus.filter((p) => p.statut === "en_attente").length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {paiementsPrevus
+                .filter((p) => p.statut === "en_attente")
+                .map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-sm"
+                  >
+                    <div>
+                      <span className="font-medium text-[#171717]">{euros(p.montant)} €</span>
+                      <span className="text-neutral-500"> — {p.mode}</span>
+                      {p.date_prevue && <span className="text-neutral-500"> · {fmtDateDMY(p.date_prevue)}</span>}
+                      {p.activite_nom && <span className="text-neutral-500"> ({p.activite_nom})</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onMarquerPaiementPrevuRegle(p)}
+                        className="rounded-md bg-[#171717] px-2 py-1 text-xs font-medium text-white hover:opacity-90"
+                      >
+                        Marquer réglé
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSupprimerPaiementPrevu(p.id)}
+                        title="Supprimer"
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+          {addingPrevu && (
+            <div className="mt-2 flex flex-col gap-2 rounded-md border border-red-200 bg-white p-2.5">
+              <div className="flex flex-wrap items-end gap-2">
+                <Field label="Montant (€)">
+                  <input
+                    type="number"
+                    value={prevuMontant}
+                    onChange={(e) => setPrevuMontant(e.target.value)}
+                    className="input w-28"
+                  />
+                </Field>
+                <Field label="Mode">
+                  <select value={prevuMode} onChange={(e) => setPrevuMode(e.target.value)} className="input">
+                    {MODES_PAIEMENT.map((m) => (
+                      <option key={m}>{m}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Date prévue">
+                  <input
+                    type="date"
+                    value={prevuDate}
+                    onChange={(e) => setPrevuDate(e.target.value)}
+                    className="input"
+                  />
+                </Field>
+              </div>
+              <Field label="Activité liée (optionnel)">
+                <select
+                  value={prevuActiviteId}
+                  onChange={(e) => setPrevuActiviteId(e.target.value)}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {reservationsActives(reservations).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {cleanActivityTitle(r.nom_activite)} ({fmtDateDMY(r.date_debut || "")})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div>
+                <button
+                  onClick={ajouterPrevu}
+                  className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          )}
           {addingEtape && (
             <div className="mt-2 flex flex-col gap-2 rounded-md border border-neutral-200 bg-white p-2.5">
               <div className="flex flex-wrap items-end gap-2">

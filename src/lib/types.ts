@@ -439,6 +439,26 @@ export type PaiementEtape = {
   created_at: string;
 };
 
+// Paiement à venir, en nombre libre — contrairement à client.reprise_montant
+// (une seule case), plusieurs lignes "en_attente" peuvent coexister pour un
+// même client (ex. 825€ le 17/10, 1355€ le 20/10 — deux tranches distinctes
+// du même reste à payer). "regle" une fois encaissé, voir confirmerPaiementPrevu
+// (ClientDetail.tsx), qui crée alors la ligne paiements_etapes correspondante.
+export type PaiementPrevu = {
+  id: string;
+  client_id: string;
+  montant: number;
+  mode: string;
+  date_prevue: string | null;
+  activite_id: string | null;
+  activite_nom: string;
+  statut: "en_attente" | "regle";
+  regle_le: string | null;
+  note: string;
+  created_par_nom: string;
+  created_at: string;
+};
+
 export type Verification = {
   id: string;
   client_id: string;

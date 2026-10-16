@@ -47,6 +47,7 @@ export default function PlanningView({
   onOpenClient,
   onOpenRdvPaiement,
   onUpdateReservation,
+  onUpdateClient,
   focusReservationId,
   onBackToBillet,
   canDownloadPasseport = false,
@@ -61,6 +62,7 @@ export default function PlanningView({
   onOpenClient: (clientId: string) => void;
   onOpenRdvPaiement: (clientId: string) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onUpdateClient: (id: string, patch: Partial<Client>) => void;
   focusReservationId?: string | null;
   onBackToBillet?: () => void;
   // Bodé/Hossam uniquement (voir AppShell.tsx) : affiche le téléchargement
@@ -300,6 +302,7 @@ export default function PlanningView({
           onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
           onOpenRdvPaiement={onOpenRdvPaiement}
           onUpdateReservation={onUpdateReservation}
+          onUpdateClient={(patch) => onUpdateClient(activeActivity.client.id, patch)}
           hotelsRef={hotelsRef}
           onClose={() => setActiveActivity(null)}
           onBack={activeActivity.r.id === focusReservationId ? onBackToBillet : undefined}

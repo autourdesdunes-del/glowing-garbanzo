@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUserNom } from "@/lib/currentUser";
 import {
   Client,
   ClientHotel,
@@ -57,6 +58,7 @@ export function ActivityDetailModal({
   onOpenActivity,
   onOpenRdvPaiement,
   onUpdateReservation,
+  onUpdateClient,
   hotelsRef,
   onClose,
   onBack,
@@ -72,6 +74,7 @@ export function ActivityDetailModal({
   onOpenActivity: (r: Reservation) => void;
   onOpenRdvPaiement: (clientId: string) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onUpdateClient: (patch: Partial<Client>) => void;
   hotelsRef: HotelReference[];
   onClose: () => void;
   onBack?: () => void;
@@ -237,6 +240,19 @@ export function ActivityDetailModal({
       await navigator.clipboard.writeText(egyptBlockAffiche);
       setCopiedEgypt(true);
       setTimeout(() => setCopiedEgypt(false), 1500);
+      // Trace ce qui vient d'être communiqué (montant à payer, pas le prix
+      // de cette seule activité) — voir MontantCommuniqueAlertModal. Only
+      // si le bloc copié contenait réellement une ligne "Payment".
+      if (paiementWarning && paiementWarning.devise === "€") {
+        const parNom = await getCurrentUserNom(supabase);
+        onUpdateClient({
+          montant_communique_montant: paiementWarning.amount,
+          montant_communique_le: new Date().toISOString(),
+          montant_communique_par_nom: parNom,
+          montant_communique_activite_id: r.id,
+          montant_communique_activite_nom: cleanActivityTitle(r.nom_activite) || "",
+        });
+      }
     } catch {
       // clipboard indisponible, ignorer
     }

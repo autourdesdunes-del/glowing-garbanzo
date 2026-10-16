@@ -36,6 +36,7 @@ import {
 import { dernierChangementDossier, pointsAVerifier } from "@/lib/dossierChecklist";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUserNom } from "@/lib/currentUser";
 import MarquerRembourseModal from "@/components/MarquerRembourseModal";
 import FlyerPickupDownloadLink from "@/components/FlyerPickupDownloadLink";
 import RemboursementSummaryCard from "@/components/RemboursementSummaryCard";
@@ -752,7 +753,27 @@ export default function SuivisView({
                         onAskPickup={askPickup}
                       />
                       <button
-                        onClick={() => copyText("pickup-client-" + r.id, clientMsg)}
+                        onClick={() => {
+                          copyText("pickup-client-" + r.id, clientMsg);
+                          // Trace ce qui vient d'être communiqué au client
+                          // (montant à payer, pas le prix de cette seule
+                          // activité) — voir MontantCommuniqueAlertModal.
+                          // Même formule que le bloc équipe Égypte
+                          // (activitePaiementWarning, déjà calculé ci-dessus
+                          // en paiementWarning) pour ne jamais comparer deux
+                          // montants calculés différemment.
+                          if (paiementWarning && paiementWarning.devise === "€") {
+                            getCurrentUserNom(supabase).then((parNom) => {
+                              onUpdateClient(client.id, {
+                                montant_communique_montant: paiementWarning.amount,
+                                montant_communique_le: new Date().toISOString(),
+                                montant_communique_par_nom: parNom,
+                                montant_communique_activite_id: r.id,
+                                montant_communique_activite_nom: cleanActivityTitle(r.nom_activite) || "",
+                              });
+                            });
+                          }
+                        }}
                         className="mt-2 w-full rounded-md bg-[#171717] px-2.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
                       >
                         {copiedKey === "pickup-client-" + r.id ? "Copié ✓" : "Copier message client"}

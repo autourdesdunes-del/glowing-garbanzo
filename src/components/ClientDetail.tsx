@@ -37,6 +37,8 @@ import { generateClientDocument } from "@/lib/generateClientDocument";
 import { matchHotel } from "@/lib/hotelHelp";
 import { DuplicateMatch, findDuplicateClients, normText } from "@/lib/duplicates";
 import {
+  activitePaiementWarning,
+  cleanActivityTitle,
   resaTotalMontant,
   avoirUtiliseTotal,
   findMomentConflict,
@@ -46,6 +48,7 @@ import {
   STATUT_PAIEMENT_OPTIONS,
   StatutPaiementKey,
 } from "@/lib/resa";
+import MontantCommuniqueAlertModal from "@/components/MontantCommuniqueAlertModal";
 import { todayStr } from "@/lib/dates";
 import { infosManquantesAuto } from "@/lib/infosManquantes";
 import {
@@ -1464,6 +1467,27 @@ export default function ClientDetail({
   const paiementFullyPaid =
     totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader && !(client.reprise_montant > 0);
 
+  // Montant à payer déjà communiqué (bloc équipe Égypte / message pick-up,
+  // voir MontantCommuniqueAlertModal) comparé au montant recalculé en
+  // direct avec exactement la même fonction que celle qui a produit le
+  // texte copié (activitePaiementWarning) — jamais le prix d'une seule
+  // activité, toujours le reste à payer pour tout le séjour (demande
+  // explicite de Mélanie, 2026-10-16). N'a plus de sens une fois le solde
+  // réglé.
+  const activiteCommuniquee =
+    dataLoaded && !client.solde_paye && client.montant_communique_activite_id
+      ? reservations.find((rr) => rr.id === client.montant_communique_activite_id) || null
+      : null;
+  const montantActuelCommunique =
+    activiteCommuniquee && client.montant_communique_montant != null
+      ? activitePaiementWarning(client, activiteCommuniquee, reservations, resaOptions, resaTarifs, paiementsEtapes)
+      : null;
+  const montantCommuniqueDiffere =
+    montantActuelCommunique != null &&
+    montantActuelCommunique.devise === "€" &&
+    Math.round(montantActuelCommunique.amount * 100) !==
+      Math.round(Number(client.montant_communique_montant) * 100);
+
   // Une activité ajoutée après un solde déjà entièrement réglé fait
   // grossir le séjour au-delà de ce qui a été figé lors de la clôture
   // (client.solde_montant) — jamais absorbée en silence dans le "Payé"
@@ -2635,6 +2659,22 @@ export default function ClientDetail({
             </div>
           </div>
         </div>
+      )}
+
+      {montantCommuniqueDiffere && montantActuelCommunique && (
+        <MontantCommuniqueAlertModal
+          activiteNom={client.montant_communique_activite_nom || cleanActivityTitle(activiteCommuniquee?.nom_activite || "")}
+          parNom={client.montant_communique_par_nom}
+          le={client.montant_communique_le || ""}
+          ancienMontant={Number(client.montant_communique_montant) || 0}
+          nouveauMontant={montantActuelCommunique.amount}
+          onConfirm={() =>
+            onChange({
+              montant_communique_montant: montantActuelCommunique.amount,
+              montant_communique_le: new Date().toISOString(),
+            })
+          }
+        />
       )}
 
       {missingInfo && (

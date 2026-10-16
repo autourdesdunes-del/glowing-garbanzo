@@ -556,6 +556,17 @@ export type Client = {
   // pour détecter une activité ajoutée après coup). 0 = jamais renseigné.
   solde_montant_recu: number;
   solde_entre_proches_oublie: boolean;
+  // Dernier "montant à payer" (reste à régler pour tout le séjour, pas le
+  // prix d'une seule activité) copié/communiqué via le bloc équipe Égypte ou
+  // le message pick-up client, pour l'activité de collecte pas encore
+  // réglée — sert à détecter si ce montant a changé depuis sans que
+  // personne n'ait prévenu qui l'a déjà communiqué (voir
+  // MontantCommuniqueAlertModal). null = jamais communiqué.
+  montant_communique_montant: number | null;
+  montant_communique_le: string | null;
+  montant_communique_par_nom: string;
+  montant_communique_activite_id: string | null;
+  montant_communique_activite_nom: string;
   // Horodatage exact (date + heure) de l'encaissement PayPal du solde — même
   // principe que acompte_encaisse_ts ; solde_date reste une simple date.
   solde_encaisse_ts: string | null;
@@ -747,6 +758,11 @@ export const EMPTY_CLIENT: Omit<Client, "id" | "created_at" | "updated_at"> = {
   solde_montant: 0,
   solde_montant_recu: 0,
   solde_entre_proches_oublie: false,
+  montant_communique_montant: null,
+  montant_communique_le: null,
+  montant_communique_par_nom: "",
+  montant_communique_activite_id: null,
+  montant_communique_activite_nom: "",
   solde_encaisse_ts: null,
   solde_mode: "Espèces EUR",
   solde_date: null,

@@ -3347,6 +3347,7 @@ function AppShellInner({
               onOpenClient={openClient}
               onOpenRdvPaiement={openRdvPaiements}
               onUpdateReservation={updateReservationById}
+              onUpdateClient={updateClientById}
               focusReservationId={focusReservationId}
               onBackToBillet={focusReservationId ? backFromReservationFocus : undefined}
               canDownloadPasseport={effectiveCanDownloadPasseport}

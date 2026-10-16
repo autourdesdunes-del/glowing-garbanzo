@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getCurrentUserNom } from "@/lib/currentUser";
 import {
   AssouanVerification,
   Avoir,
@@ -492,11 +493,29 @@ export default function ItineraryView({
       )
     : "";
   const egyptBlockAffiche = egyptBlockEdite ?? egyptBlock;
+  const egyptPaiementWarning = expandedReservation
+    ? activitePaiementWarning(client, expandedReservation, reservations, resaOptions, resaTarifs, paiementsEtapes)
+    : null;
   const copyEgyptBlock = async () => {
     try {
       await navigator.clipboard.writeText(egyptBlockAffiche);
       setCopiedEgypt(true);
       setTimeout(() => setCopiedEgypt(false), 1500);
+      // Trace ce qui vient d'être communiqué (montant à payer, pas le prix
+      // de cette seule activité) — voir MontantCommuniqueAlertModal. Only
+      // si le bloc copié contenait réellement une ligne "Payment" (sinon
+      // rien n'a été communiqué sur le montant à payer).
+      if (egyptPaiementWarning && egyptPaiementWarning.devise === "€" && expandedReservation) {
+        const supabase = createClient();
+        const parNom = await getCurrentUserNom(supabase);
+        onUpdateClient({
+          montant_communique_montant: egyptPaiementWarning.amount,
+          montant_communique_le: new Date().toISOString(),
+          montant_communique_par_nom: parNom,
+          montant_communique_activite_id: expandedReservation.id,
+          montant_communique_activite_nom: cleanActivityTitle(expandedReservation.nom_activite) || "",
+        });
+      }
     } catch {
       // clipboard indisponible, ignorer
     }

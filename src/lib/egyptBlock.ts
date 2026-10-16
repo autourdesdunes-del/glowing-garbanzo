@@ -6,6 +6,7 @@ import {
   Client,
   ClientHotel,
   PaiementEtape,
+  PaiementPrevu,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -231,7 +232,8 @@ export function buildEgyptActivityBlock(
   resaTarifs: Record<string, ReservationTarif[]>,
   etapes: PaiementEtape[],
   clientHotels: ClientHotel[],
-  hotelVille?: string
+  hotelVille?: string,
+  paiementsPrevus: PaiementPrevu[] = []
 ): string {
   const titreBase = baseActivityName(r.nom_activite);
   const titreTraduit =
@@ -280,7 +282,15 @@ export function buildEgyptActivityBlock(
   // repérable même si le reste du bloc est en anglais.
   if (r.info_importante.trim()) activiteLines.push(`IMPORTANT : ${r.info_importante.trim()}`);
 
-  const paiementWarning = activitePaiementWarning(client, r, reservations, resaOptions, resaTarifs, etapes);
+  const paiementWarning = activitePaiementWarning(
+    client,
+    r,
+    reservations,
+    resaOptions,
+    resaTarifs,
+    etapes,
+    paiementsPrevus
+  );
   // Même condition que la branche "reprise" tout en haut de
   // activitePaiementWarning (resa.ts) — sinon le mode affiché ici peut venir
   // d'une reprise réglée sur une TOUTE AUTRE activité (ou en PayPal/

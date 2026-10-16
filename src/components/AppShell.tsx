@@ -21,6 +21,7 @@ import {
   EMPTY_CLIENT,
   JourEscalation,
   PaiementEtape,
+  PaiementPrevu,
   Pack,
   PaypalPaiement,
   PlanningShift,
@@ -312,6 +313,7 @@ function AppShellInner({
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
   const [directionTaches, setDirectionTaches] = useState<DirectionTache[]>([]);
   const [allPaiementsEtapes, setAllPaiementsEtapes] = useState<PaiementEtape[]>([]);
+  const [allPaiementsPrevus, setAllPaiementsPrevus] = useState<PaiementPrevu[]>([]);
   // Tous les circuits multi-hôtels, groupés par client — permet au
   // Dashboard de ne pas signaler "Hôtel manquant" à tort pour un client qui
   // a bien un circuit renseigné (voir infosManquantesAuto/DashboardView) :
@@ -675,6 +677,8 @@ function AppShellInner({
         }
         const { data: etapes } = await supabase.from("paiements_etapes").select("*");
         setAllPaiementsEtapes((etapes as PaiementEtape[]) || []);
+        const { data: prevus } = await supabase.from("paiements_prevus").select("*");
+        setAllPaiementsPrevus((prevus as PaiementPrevu[]) || []);
         const { data: hotels } = await supabase.from("client_hotels").select("*");
         const groupedHotels: Record<string, ClientHotel[]> = {};
         ((hotels as ClientHotel[]) || []).forEach((h) => {
@@ -1191,6 +1195,8 @@ function AppShellInner({
         }
         const { data: etapes } = await supabase.from("paiements_etapes").select("*");
         setAllPaiementsEtapes((etapes as PaiementEtape[]) || []);
+        const { data: prevus } = await supabase.from("paiements_prevus").select("*");
+        setAllPaiementsPrevus((prevus as PaiementPrevu[]) || []);
         const { data: hotels } = await supabase.from("client_hotels").select("*");
         const groupedHotels: Record<string, ClientHotel[]> = {};
         ((hotels as ClientHotel[]) || []).forEach((h) => {
@@ -3343,6 +3349,7 @@ function AppShellInner({
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
               paiementsEtapes={allPaiementsEtapes}
+              paiementsPrevus={allPaiementsPrevus}
               catalogue={catalogue}
               onOpenClient={openClient}
               onOpenRdvPaiement={openRdvPaiements}
@@ -3384,6 +3391,7 @@ function AppShellInner({
               resaOptions={allResaOptions}
               resaTarifs={allResaTarifs}
               paiementsEtapes={allPaiementsEtapes}
+              paiementsPrevus={allPaiementsPrevus}
               remboursements={allRemboursements}
               onUpdateRemboursement={updateRemboursement}
               onDeleteRemboursement={deleteRemboursement}

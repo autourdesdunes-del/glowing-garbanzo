@@ -980,6 +980,7 @@ export function ActivitesStep({
   onAssouanVerification,
   assouanVerifications,
   paiementsEtapes = [],
+  paiementsPrevus = [],
   avoirs = [],
   onAddPaiementEtape,
   autoExpandReservationId,
@@ -1050,6 +1051,7 @@ export function ActivitesStep({
   onAssouanVerification: (nomActivite: string, reservationId: string) => Promise<void>;
   assouanVerifications: AssouanVerification[];
   paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
   // Ouvre directement une activité précise (depuis "Historique des
   // modifications" dans Suivi) au lieu de laisser l'employée la rechercher
   // à la main dans la liste.
@@ -1185,6 +1187,7 @@ export function ActivitesStep({
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
         paiementsEtapes={paiementsEtapes}
+        paiementsPrevus={paiementsPrevus}
         remboursements={remboursementsPourBadge}
         avoirs={avoirs}
         expandedId={expandedId}

@@ -4,6 +4,7 @@ import {
   Client,
   Pack,
   PaiementEtape,
+  PaiementPrevu,
   Remboursement,
   Reservation,
   ReservationOption,
@@ -708,8 +709,20 @@ export function activitePaiementWarning(
   reservations: Reservation[],
   resaOptions: Record<string, ReservationOption[]>,
   resaTarifs: Record<string, ReservationTarif[]>,
-  etapes: PaiementEtape[] = []
+  etapes: PaiementEtape[] = [],
+  paiementsPrevus: PaiementPrevu[] = []
 ): { amount: number; devise: "€" | "EGP"; amount2?: number; devise2?: "€" | "EGP" } | null {
+  // Tranche prévue en nombre libre (voir migration 0155, ClientDetail.tsx)
+  // — prioritaire sur tout le reste : c'est un montant explicitement
+  // rattaché à CETTE activité précise par l'employée, jamais recalculé.
+  // Sans cette branche, le badge "⚠️ X€ to pay to activity" et le bloc
+  // équipe Égypte restaient muets dès qu'un séjour utilisait plusieurs
+  // tranches au lieu du solde unique classique (vécu : Clélia Malardenti,
+  // 825€/1355€ invisibles partout, demande de Mélanie, 2026-10-16).
+  const prevuIci = paiementsPrevus.find((p) => p.statut === "en_attente" && p.activite_id === r.id);
+  if (prevuIci) {
+    return { amount: Number(prevuIci.montant) || 0, devise: prevuIci.mode === "Espèces EGP" ? "EGP" : "€" };
+  }
   // Reprise réglée en espèces/CB/EGP/virement : prioritaire sur le solde
   // d'origine, déjà "payé" par ailleurs (règle du solde unique — voir
   // repriseActiviteCible) — affichée avec le même rappel que le point de

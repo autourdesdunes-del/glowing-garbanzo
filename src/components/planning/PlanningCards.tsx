@@ -5,6 +5,7 @@ import {
   ClientHotel,
   HotelReference,
   PaiementEtape,
+  PaiementPrevu,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -48,6 +49,7 @@ export function ReservationSummaryCard({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  paiementsPrevus = [],
   hotelsRef = [],
   clientHotels = [],
   onClick,
@@ -60,6 +62,7 @@ export function ReservationSummaryCard({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
   hotelsRef?: HotelReference[];
   // Circuit multi-hôtels de CE client — sans ça, infosManquantesToutes
   // signale "Hôtel" manquant même quand un circuit complet est renseigné
@@ -95,7 +98,8 @@ export function ReservationSummaryCard({
     clientReservations,
     resaOptions,
     resaTarifs,
-    clientEtapes
+    clientEtapes,
+    paiementsPrevus.filter((p) => p.client_id === client.id)
   );
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations, resaOptions, resaTarifs);
   const infosManquantes = infosManquantesToutes(client, reservations, hotelsRef, clientHotels);

@@ -6,6 +6,7 @@ import {
   Client,
   HotelReference,
   PaiementEtape,
+  PaiementPrevu,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -39,6 +40,7 @@ export function CalendarMonthView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  paiementsPrevus = [],
   hotelsRef = [],
   onOpenActivity,
   onOpenClient,
@@ -48,6 +50,7 @@ export function CalendarMonthView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
   hotelsRef?: HotelReference[];
   onOpenActivity: (row: Row) => void;
   onOpenClient: (clientId: string) => void;
@@ -225,6 +228,7 @@ export function CalendarMonthView({
                   resaOptions={resaOptions}
                   resaTarifs={resaTarifs}
                   paiementsEtapes={paiementsEtapes}
+                  paiementsPrevus={paiementsPrevus}
                   hotelsRef={hotelsRef}
                   onClick={() => onOpenActivity(row)}
                   onOpenClient={onOpenClient}
@@ -300,6 +304,7 @@ export function ByActivityView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  paiementsPrevus = [],
   hotelsRef = [],
   catalogue,
   onOpenActivity,
@@ -310,6 +315,7 @@ export function ByActivityView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
   hotelsRef?: HotelReference[];
   catalogue: CatalogueItem[];
   onOpenActivity: (row: Row) => void;
@@ -444,6 +450,7 @@ export function ByActivityView({
                             resaOptions={resaOptions}
                             resaTarifs={resaTarifs}
                             paiementsEtapes={paiementsEtapes}
+                            paiementsPrevus={paiementsPrevus}
                             hotelsRef={hotelsRef}
                             onClick={() => onOpenActivity(row)}
                             onOpenClient={onOpenClient}

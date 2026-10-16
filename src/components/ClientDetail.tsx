@@ -1557,7 +1557,15 @@ export default function ClientDetail({
       : null;
   const montantActuelCommunique =
     activiteCommuniquee && client.montant_communique_montant != null
-      ? activitePaiementWarning(client, activiteCommuniquee, reservations, resaOptions, resaTarifs, paiementsEtapes)
+      ? activitePaiementWarning(
+          client,
+          activiteCommuniquee,
+          reservations,
+          resaOptions,
+          resaTarifs,
+          paiementsEtapes,
+          paiementsPrevus
+        )
       : null;
   const montantCommuniqueDiffere =
     montantActuelCommunique != null &&
@@ -2224,6 +2232,7 @@ export default function ClientDetail({
           onAssouanVerification={handleAssouanVerification}
           assouanVerifications={assouanVerifications}
           paiementsEtapes={paiementsEtapes}
+          paiementsPrevus={paiementsPrevus}
           avoirs={avoirs}
           onAddPaiementEtape={addPaiementEtape}
           autoExpandReservationId={autoExpandReservationId}

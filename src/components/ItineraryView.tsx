@@ -14,6 +14,7 @@ import {
   Client,
   ClientHotel,
   PaiementEtape,
+  PaiementPrevu,
   Remboursement,
   Reservation,
   ReservationOption,
@@ -91,6 +92,7 @@ export default function ItineraryView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  paiementsPrevus = [],
   remboursements = [],
   avoirs = [],
   expandedId,
@@ -126,6 +128,7 @@ export default function ItineraryView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
   remboursements?: Remboursement[];
   onAddPaiementEtape?: (
     montant: number,
@@ -241,7 +244,8 @@ export default function ItineraryView({
       reservations,
       resaOptions,
       resaTarifs,
-      paiementsEtapes
+      paiementsEtapes,
+      paiementsPrevus
     );
     const acompteWarning = acompteWaitingWarning(client, r, reservations, resaOptions, resaTarifs);
     const busEscalation = busEscalations.find((e) => e.reservation_id === r.id);
@@ -489,12 +493,21 @@ export default function ItineraryView({
         resaTarifs,
         paiementsEtapes,
         clientHotels,
-        hotelVille
+        hotelVille,
+        paiementsPrevus
       )
     : "";
   const egyptBlockAffiche = egyptBlockEdite ?? egyptBlock;
   const egyptPaiementWarning = expandedReservation
-    ? activitePaiementWarning(client, expandedReservation, reservations, resaOptions, resaTarifs, paiementsEtapes)
+    ? activitePaiementWarning(
+        client,
+        expandedReservation,
+        reservations,
+        resaOptions,
+        resaTarifs,
+        paiementsEtapes,
+        paiementsPrevus
+      )
     : null;
   const copyEgyptBlock = async () => {
     try {

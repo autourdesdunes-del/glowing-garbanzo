@@ -8,6 +8,7 @@ import {
   ClientHotel,
   HotelReference,
   PaiementEtape,
+  PaiementPrevu,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -43,6 +44,7 @@ export default function PlanningView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  paiementsPrevus = [],
   catalogue,
   onOpenClient,
   onOpenRdvPaiement,
@@ -58,6 +60,7 @@ export default function PlanningView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
   catalogue: CatalogueItem[];
   onOpenClient: (clientId: string) => void;
   onOpenRdvPaiement: (clientId: string) => void;
@@ -197,6 +200,7 @@ export default function PlanningView({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           paiementsEtapes={paiementsEtapes}
+          paiementsPrevus={paiementsPrevus}
           hotelsRef={hotelsRef}
           onOpenActivity={setActiveActivity}
           onOpenClient={onOpenClient}
@@ -208,6 +212,7 @@ export default function PlanningView({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           paiementsEtapes={paiementsEtapes}
+          paiementsPrevus={paiementsPrevus}
           hotelsRef={hotelsRef}
           catalogue={catalogue}
           onOpenActivity={setActiveActivity}
@@ -276,6 +281,7 @@ export default function PlanningView({
                     resaOptions={resaOptions}
                     resaTarifs={resaTarifs}
                     paiementsEtapes={paiementsEtapes}
+          paiementsPrevus={paiementsPrevus}
                     hotelsRef={hotelsRef}
                     clientHotels={clientHotelsMap[row.client.id] || []}
                     onClick={() => setActiveActivity(row)}
@@ -298,6 +304,7 @@ export default function PlanningView({
           resaOptions={resaOptions}
           resaTarifs={resaTarifs}
           paiementsEtapes={paiementsEtapes}
+          paiementsPrevus={paiementsPrevus}
           onOpenClient={onOpenClient}
           onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
           onOpenRdvPaiement={onOpenRdvPaiement}

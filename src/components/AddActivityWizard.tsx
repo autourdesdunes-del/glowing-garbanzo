@@ -1462,8 +1462,11 @@ export default function AddActivityWizard({
                 ...(billetInterneGenerique ? { billet_date: newDate } : {}),
                 // Activités sur plusieurs jours (Le Caire/Louxor 2 jours,
                 // Montgolfière, Siwa...) — la date de fin se présélectionne
-                // automatiquement, mais reste modifiable ensuite.
-                ...(dureeJours ? { date_fin: newDate ? addDays(newDate, dureeJours - 1) : null } : {}),
+                // automatiquement, mais reste modifiable ensuite. On l'écrit
+                // toujours (explicitement null si l'activité n'est pas
+                // multi-jours) pour effacer une éventuelle date de fin
+                // restée d'une activité multi-jours précédemment liée.
+                date_fin: dureeJours && newDate ? addDays(newDate, dureeJours - 1) : null,
               });
             }}
             className={`input max-w-[220px] ${

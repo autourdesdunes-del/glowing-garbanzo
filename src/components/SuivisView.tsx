@@ -8,6 +8,7 @@ import {
   CatalogueTransfertTarif,
   Client,
   PaiementEtape,
+  PaiementPrevu,
   Pack,
   PaypalPaiement,
   PlanningShift,
@@ -109,6 +110,7 @@ export default function SuivisView({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  paiementsPrevus = [],
   remboursements,
   onUpdateRemboursement,
   onDeleteRemboursement,
@@ -142,6 +144,7 @@ export default function SuivisView({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
   remboursements: Remboursement[];
   onUpdateRemboursement: (id: string, patch: Partial<Remboursement>) => void;
   onDeleteRemboursement?: (id: string) => void;
@@ -587,6 +590,7 @@ export default function SuivisView({
                   const urgent = pastDeadline;
                   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
                   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
+                  const clientPrevus = paiementsPrevus.filter((p) => p.client_id === client.id);
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
                   const badge = paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
                   const paiementWarning = activitePaiementWarning(
@@ -595,7 +599,8 @@ export default function SuivisView({
                     clientReservations,
                     resaOptions,
                     resaTarifs,
-                    clientEtapes
+                    clientEtapes,
+                    clientPrevus
                   );
                   const acompteWarning = acompteWaitingWarning(client, r, clientReservations, resaOptions, resaTarifs);
                   const teamMsg = pickupMissingTeamMessage(r, client);
@@ -724,6 +729,7 @@ export default function SuivisView({
                 {pickupsJ1Done.map(({ r, client }) => {
                   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
                   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
+                  const clientPrevus = paiementsPrevus.filter((p) => p.client_id === client.id);
                   const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
                   const badge = paiementBadge(client, r, clientReservations, resaOptions, resaTarifs, clientEtapes);
                   const paiementWarning = activitePaiementWarning(
@@ -732,7 +738,8 @@ export default function SuivisView({
                     clientReservations,
                     resaOptions,
                     resaTarifs,
-                    clientEtapes
+                    clientEtapes,
+                    clientPrevus
                   );
                   const acompteWarning = acompteWaitingWarning(client, r, clientReservations, resaOptions, resaTarifs);
                   const montantRestant = soldeRestantFor(client);

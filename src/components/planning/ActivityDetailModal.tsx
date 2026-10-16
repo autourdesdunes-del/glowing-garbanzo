@@ -8,6 +8,7 @@ import {
   ClientHotel,
   HotelReference,
   PaiementEtape,
+  PaiementPrevu,
   Reservation,
   ReservationOption,
   ReservationTarif,
@@ -54,6 +55,7 @@ export function ActivityDetailModal({
   resaOptions,
   resaTarifs,
   paiementsEtapes = [],
+  paiementsPrevus = [],
   onOpenClient,
   onOpenActivity,
   onOpenRdvPaiement,
@@ -70,6 +72,7 @@ export function ActivityDetailModal({
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
   paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
   onOpenClient: (clientId: string) => void;
   onOpenActivity: (r: Reservation) => void;
   onOpenRdvPaiement: (clientId: string) => void;
@@ -162,6 +165,7 @@ export function ActivityDetailModal({
   // uniquement — jamais du tableau global toutes activités confondues.
   const clientReservations = reservations.filter((rr) => rr.client_id === client.id);
   const clientEtapes = paiementsEtapes.filter((e) => e.client_id === client.id);
+  const clientPrevus = paiementsPrevus.filter((p) => p.client_id === client.id);
   // Le badge de paiement "en direct" (solde/acompte) n'a pas de sens pour une
   // activité annulée — elle resterait potentiellement affichée "Payé" alors
   // qu'elle a été remboursée. Ce modal est atteignable depuis le tiroir
@@ -209,7 +213,8 @@ export function ActivityDetailModal({
     clientReservations,
     resaOptions,
     resaTarifs,
-    clientEtapes
+    clientEtapes,
+    clientPrevus
   );
   const acompteWarning = acompteWaitingWarning(client, r, clientReservations, resaOptions, resaTarifs);
 
@@ -223,7 +228,8 @@ export function ActivityDetailModal({
     resaTarifs,
     clientEtapes,
     clientHotels,
-    hotelMatch?.ville
+    hotelMatch?.ville,
+    clientPrevus
   );
 
   // Le texte pré-rempli reste modifiable avant l'envoi (demande de Mélanie,

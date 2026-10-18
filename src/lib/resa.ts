@@ -1866,6 +1866,33 @@ export function isCityTour(nom: string) {
   return (nom || "").toLowerCase().includes("city tour");
 }
 
+// Un City tour (Hurghada, El Gouna) nécessite normalement 2 participants
+// minimum ; réservé EXCEPTIONNELLEMENT pour une seule personne, elle paie
+// le tarif de 2 personnes — jamais le tarif solo à 1 personne (demande de
+// Mélanie, 2026-10-18). On ne touche jamais aux compteurs de participants
+// réels (comme le supplément client seul déjà en place) : on ajoute le même
+// tarif que celui de l'unique participant, compté une 2e fois, plutôt que
+// de réécrire le calcul de base — reste cohérent même en mode "groupe" où
+// cette règle ne s'applique simplement pas.
+export function cityTourPlancherSupplement(
+  r: Reservation,
+  nbAd: number,
+  nbEnf: number,
+  nbBebe: number,
+  nbAcc: number,
+  nbEnf3: number
+) {
+  if (r.tarif_mode === "groupe" || !isCityTour(r.nom_activite)) return 0;
+  const total = nbAd + nbEnf + nbBebe + nbAcc + nbEnf3;
+  if (total !== 1) return 0;
+  if (nbAd === 1) return Number(r.pu_adulte) || 0;
+  if (nbEnf === 1) return Number(r.pu_enfant) || 0;
+  if (nbBebe === 1) return Number(r.pu_bebe) || 0;
+  if (nbAcc === 1) return Number(r.pu_accompagnateur) || 0;
+  if (nbEnf3 === 1) return Number(r.pu_enfant_3ans) || 0;
+  return 0;
+}
+
 // En dehors du sunset (horaire fixe), des formules "journée" fixes, et du
 // semi-privé Maison des dauphins, tous les speedboat doivent préciser
 // matin/après-midi — comme Seascope et les City Tour (Hurghada, El Gouna),
@@ -2255,7 +2282,8 @@ export function resaBrutMontant(
   const supplementIle =
     r.ile_selectionnee === "Oziréa" && ozireaRepasInclus(r.nom_activite) ? nbAd * 30 + nbEnf * 15 : 0;
   const supplementGEM = isGrandEgyptianMuseum(r.site_caire) ? nbAd * 20 + nbEnf * 10 : 0;
-  return base + optionsTotal + tarifsTotal + transfert + supplementIle + supplementGEM;
+  const cityTourPlancher = cityTourPlancherSupplement(r, nbAd, nbEnf, nbBebe, nbAcc, nbEnf3);
+  return base + optionsTotal + tarifsTotal + transfert + supplementIle + supplementGEM + cityTourPlancher;
 }
 
 export function resaTotalMontant(
@@ -2469,6 +2497,14 @@ export function resaBreakdown(
     lines.push({
       label: `Supplément Grand Egyptian Museum (20 € x ${nbAd} ad. + 10 € x ${nbEnf} enf.)`,
       amount: supplementGEM,
+    });
+  }
+
+  const cityTourPlancher = cityTourPlancherSupplement(r, nbAd, nbEnf, nbBebe, nbAcc, nbEnf3);
+  if (cityTourPlancher) {
+    lines.push({
+      label: "Minimum 2 participants (City tour)",
+      amount: cityTourPlancher,
     });
   }
 

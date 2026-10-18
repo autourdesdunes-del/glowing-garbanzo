@@ -61,6 +61,7 @@ import {
   CROISIERE_OPTION_NOMS,
   CROISIERE_OPTION_PRICING,
   participantsFor,
+  cityTourPlancherSupplement,
   resaBreakdown,
   resaTotalMontant,
   speedboatIleTitre,
@@ -2114,6 +2115,11 @@ export default function AddActivityWizard({
     // jamais rappelée au moment de créer la réservation.
     const soloClient = nbAd + nbEnf + nbBebe === 1 && nbAcc === 0;
     const supplementSoloApplicable = !!catalogueItem?.supplement_solo_actif && soloClient;
+    // City tour : 2 participants minimum normalement — réservé
+    // exceptionnellement pour 1 seule personne, elle paie le tarif de 2
+    // personnes (prix plancher, cumulable avec le supplément client seul
+    // ci-dessus qui couvre lui le transfert dédié, pas le même motif).
+    const cityTourPlancher = cityTourPlancherSupplement(r, nbAd, nbEnf, nbBebe, nbAcc, nbEnf3);
 
     return wrap(
       <>
@@ -2124,6 +2130,15 @@ export default function AddActivityWizard({
               supplément de {euros(catalogueItem?.supplement_solo_prix ?? 5)} € s&apos;applique. À
               annoncer dans le devis, pas après. La ligne « {SUPPLEMENT_SOLO_LABEL} » a été ajoutée
               automatiquement ci-dessous, dans les Tarifs supplémentaires.
+            </p>
+          </div>
+        )}
+        {cityTourPlancher > 0 && (
+          <div className="mb-3 rounded-md border border-[#C9973E]/40 bg-[#C9973E]/10 p-3">
+            <p className="text-xs text-[#8B4531]">
+              ⚠️ City tour réservé pour 1 seule personne — minimum normalement 2 participants. Le
+              tarif de 2 personnes s&apos;applique automatiquement (+{euros(cityTourPlancher)} € déjà
+              inclus dans le total ci-dessous). À annoncer dans le devis, pas après.
             </p>
           </div>
         )}

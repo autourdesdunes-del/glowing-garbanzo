@@ -20,7 +20,7 @@ export default function TransfertSensModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-md rounded-lg border border-neutral-200 bg-white p-5 shadow-xl">
         <h2 className="font-heading text-base font-semibold text-[#171717]">{nomActivite}</h2>
-        <p className="mt-2 text-sm text-[#666666]">Dans quel sens se fait ce transfert ?</p>
+        <p className="mt-2 text-sm text-[#666666]">D&apos;où part le client ?</p>
         <div className="mt-4 flex flex-col gap-2">
           {options.map((o) => (
             <button

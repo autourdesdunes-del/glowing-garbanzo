@@ -1356,6 +1356,31 @@ export function transfertSensOptions(nomCatalogue: string): SensTransfertOption[
     ];
   }
 
+  // "Louxor 1 jour visites & 1 jour Montgolfière" / "Louxor 2 jours
+  // Montgolfière" (depuis Louxor et transfert vers Hurghada) — existent
+  // parfois dans l'autre sens (client basé à Hurghada, transféré vers
+  // Louxor pour l'activité, qui y reste ensuite — pas d'aller-retour vers
+  // Hurghada, à ne pas confondre avec la variante catalogue séparée
+  // "aller-retour Hurghada"). Demande de Mélanie, 2026-10-18.
+  const louxorMontgolfiere = nomCatalogue.match(
+    /^(Louxor (?:1 jour visites & 1 jour|2 jours) Montgolfière) \(depuis Louxor et transfert vers Hurghada\)$/
+  );
+  if (louxorMontgolfiere) {
+    const base = louxorMontgolfiere[1];
+    return [
+      {
+        value: "depuis_louxor",
+        label: "Louxor",
+        titre: `${base} (depuis Louxor et transfert vers Hurghada)`,
+      },
+      {
+        value: "depuis_hurghada",
+        label: "Hurghada",
+        titre: `${base} (depuis Hurghada — reste à Louxor)`,
+      },
+    ];
+  }
+
   const privatif = nomCatalogue.match(/^Transfert privatif (.+)$/);
   if (privatif) {
     const reste = privatif[1];

@@ -5,7 +5,14 @@ import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
-import { agesLabel, reservationsActives, resaTotalMontant } from "@/lib/resa";
+import {
+  agesLabel,
+  reservationsActives,
+  resaTotalMontant,
+  paxLine as paxLineActivite,
+  optionsBadge,
+  isDeuxiemeIleOption,
+} from "@/lib/resa";
 import { PAYPAL_ME_LINK, PAYPAL_EMAIL, BANK_DETAILS } from "@/lib/constants";
 import { PAYPAL_ENTRE_PROCHES_1, PAYPAL_ENTRE_PROCHES_2 } from "@/lib/paypalScreenshots";
 import { INTEGRAL_MODES } from "@/components/clientSteps/PaiementResteFlow";
@@ -71,7 +78,7 @@ function soldeRdvInfo(client: Client) {
   return { date: client.solde_date, heure: client.solde_rdv_heure, lieu: client.solde_rdv_lieu };
 }
 
-function paxLine(client: Client) {
+function paxLineSejour(client: Client) {
   const parts: string[] = [`${client.adultes} adulte${client.adultes > 1 ? "s" : ""}`];
   if (client.enfants > 0) {
     parts.push(`${client.enfants} enfant${client.enfants > 1 ? "s" : ""}${agesLabel(client.ages_enfants)}`);
@@ -187,7 +194,7 @@ function ConfirmationTemplate({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
           <div>
             <div style={{ fontSize: 19, fontWeight: 600 }}>{client.nom || "—"}</div>
-            <div style={{ fontSize: 14.5, color: "#6B6558", marginTop: 3 }}>{paxLine(client)}</div>
+            <div style={{ fontSize: 14.5, color: "#6B6558", marginTop: 3 }}>{paxLineSejour(client)}</div>
           </div>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 12.5, color: "#948C7A" }}>Total du séjour</div>
@@ -199,13 +206,18 @@ function ConfirmationTemplate({
           <div style={{ borderRadius: 10, overflow: "hidden", background: "#FFFFFF", border: "0.5px solid #EBE6D9" }}>
             {actives.map((r, i) => {
               const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+              const options = optionsBadge(
+                (resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom)),
+                actives,
+                r.id
+              );
               return (
                 <div
                   key={r.id}
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "center",
+                    alignItems: "flex-start",
                     padding: "13px 15px",
                     borderBottom: i < actives.length - 1 ? "1px solid #EBE6D9" : "none",
                   }}
@@ -215,8 +227,12 @@ function ConfirmationTemplate({
                       {fmtDateShort(r.date_debut || "")}
                     </div>
                     <div style={{ fontSize: 15.5, fontWeight: 500, marginTop: 2 }}>{r.nom_activite || "Activité"}</div>
+                    <div style={{ fontSize: 13, color: "#8B8373", marginTop: 3 }}>{paxLineActivite(r, client)}</div>
+                    {options && (
+                      <div style={{ fontSize: 13, color: "#8B8373", marginTop: 1 }}>{options}</div>
+                    )}
                   </div>
-                  <div style={{ fontSize: 15.5, fontWeight: 600 }}>{euros(total)}</div>
+                  <div style={{ fontSize: 15.5, fontWeight: 600, whiteSpace: "nowrap", marginLeft: 12 }}>{euros(total)}</div>
                 </div>
               );
             })}

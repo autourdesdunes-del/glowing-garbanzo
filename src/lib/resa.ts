@@ -2026,7 +2026,7 @@ export function participantsFor(r: Reservation, client: Client) {
 // bébé manquait dans l'une des deux), d'où ce point d'entrée unique.
 export function paxLine(r: Reservation, client: Client) {
   if (r.pax_override) return r.pax_override;
-  const { nbAd, nbEnf, nbBebe } = participantsFor(r, client);
+  const { nbAd, nbEnf, nbBebe, nbAcc, nbEnf3 } = participantsFor(r, client);
   const showAges = r.participants_mode === "tous";
   const parts: string[] = [];
   // En mode "tous" nbAd === client.adultes — on réutilise directement
@@ -2039,10 +2039,21 @@ export function paxLine(r: Reservation, client: Client) {
     if (showAges) s += agesLabel(client.ages_enfants);
     parts.push(s);
   }
+  // Tarif enfant 3 ans et accompagnateur ne se saisissent qu'au niveau
+  // d'une réservation précise (jamais en mode "tous", voir
+  // participantsFor) — sans cette ligne ils restaient invisibles partout
+  // où paxLine est affiché (bons de confirmation, fiche client), alors
+  // qu'ils comptent comme des participants à part entière sur l'activité.
+  if (nbEnf3 > 0) {
+    parts.push(`${nbEnf3} enfant${nbEnf3 > 1 ? "s" : ""} 3 ans`);
+  }
   if (nbBebe > 0) {
     let s = `${nbBebe} bébé${nbBebe > 1 ? "s" : ""}`;
     if (showAges) s += agesLabel(client.ages_bebes, client.ages_bebes_unite);
     parts.push(s);
+  }
+  if (nbAcc > 0) {
+    parts.push(`${nbAcc} accompagnateur${nbAcc > 1 ? "s" : ""}`);
   }
   return parts.join(", ");
 }

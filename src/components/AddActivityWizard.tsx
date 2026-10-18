@@ -62,6 +62,7 @@ import {
   CROISIERE_OPTION_PRICING,
   participantsFor,
   cityTourPlancherSupplement,
+  isCityTour,
   resaBreakdown,
   resaTotalMontant,
   speedboatIleTitre,
@@ -505,6 +506,11 @@ export default function AddActivityWizard({
   // ensuite — l'employée garde la main pour la supprimer elle-même).
   useEffect(() => {
     if (!r || !catalogueItem?.supplement_solo_actif) return;
+    // Sur un City tour, le client seul paie déjà le tarif de 2 personnes
+    // (voir cityTourPlancherSupplement) — le supplément transfert solo
+    // n'a plus lieu d'être en plus, il est déjà couvert par ce prix
+    // plancher (demande de Mélanie, 2026-10-18).
+    if (isCityTour(catalogueItem.nom)) return;
     const { nbAd, nbEnf, nbBebe, nbAcc } = participantsFor(r, client);
     const solo = nbAd + nbEnf + nbBebe === 1 && nbAcc === 0;
     if (!solo) return;
@@ -2114,12 +2120,15 @@ export default function AddActivityWizard({
     // 0129) — jusqu'ici cette règle n'existait que dans la formation,
     // jamais rappelée au moment de créer la réservation.
     const soloClient = nbAd + nbEnf + nbBebe === 1 && nbAcc === 0;
-    const supplementSoloApplicable = !!catalogueItem?.supplement_solo_actif && soloClient;
     // City tour : 2 participants minimum normalement — réservé
     // exceptionnellement pour 1 seule personne, elle paie le tarif de 2
-    // personnes (prix plancher, cumulable avec le supplément client seul
-    // ci-dessus qui couvre lui le transfert dédié, pas le même motif).
+    // personnes (prix plancher). Le supplément transfert solo ci-dessous
+    // ne s'applique plus dans ce cas précis : il est déjà couvert par ce
+    // prix plancher, inutile de facturer les deux (demande de Mélanie,
+    // 2026-10-18).
     const cityTourPlancher = cityTourPlancherSupplement(r, nbAd, nbEnf, nbBebe, nbAcc, nbEnf3);
+    const supplementSoloApplicable =
+      !!catalogueItem?.supplement_solo_actif && soloClient && !isCityTour(catalogueItem?.nom || "");
 
     return wrap(
       <>

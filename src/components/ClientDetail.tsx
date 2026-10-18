@@ -31,6 +31,7 @@ import AnnulerClientModal from "@/components/AnnulerClientModal";
 import IncidentsModal from "@/components/IncidentsModal";
 import DevisPaiementModal from "@/components/DevisPaiementModal";
 import ConfirmationDocumentStage from "@/components/ConfirmationDocument";
+import ConfirmationActivitiesModal from "@/components/ConfirmationActivitiesModal";
 import DuplicateClientModal from "@/components/DuplicateClientModal";
 import AssouanHebergementAlert from "@/components/AssouanHebergementAlert";
 import { STATUT_COLORS, MODES_PAIEMENT } from "@/lib/constants";
@@ -429,6 +430,12 @@ export default function ClientDetail({
   const [showIncidentsModal, setShowIncidentsModal] = useState(false);
   const [showDevisPaiementModal, setShowDevisPaiementModal] = useState(false);
   const [confirmationFormat, setConfirmationFormat] = useState<"pdf" | "png" | null>(null);
+  // Étape intermédiaire avant génération : quel format a été choisi, en
+  // attendant que l'employée sélectionne les activités à faire figurer
+  // (voir ConfirmationActivitiesModal) — confirmationFormat n'est posé
+  // qu'une fois cette sélection validée.
+  const [confirmationPendingFormat, setConfirmationPendingFormat] = useState<"pdf" | "png" | null>(null);
+  const [confirmationActiviteIds, setConfirmationActiviteIds] = useState<string[] | null>(null);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [actionsMenuGroup, setActionsMenuGroup] = useState<"none" | "devisFacture" | "confirmation">(
     "none"
@@ -2040,7 +2047,7 @@ export default function ClientDetail({
                         </button>
                         <button
                           onClick={() => {
-                            setConfirmationFormat("pdf");
+                            setConfirmationPendingFormat("pdf");
                             setActionsMenuOpen(false);
                           }}
                           disabled={confirmationFormat !== null}
@@ -2050,7 +2057,7 @@ export default function ClientDetail({
                         </button>
                         <button
                           onClick={() => {
-                            setConfirmationFormat("png");
+                            setConfirmationPendingFormat("png");
                             setActionsMenuOpen(false);
                           }}
                           disabled={confirmationFormat !== null}
@@ -2797,6 +2804,17 @@ export default function ClientDetail({
           onClose={() => setShowDevisPaiementModal(false)}
         />
       )}
+      {confirmationPendingFormat && (
+        <ConfirmationActivitiesModal
+          reservations={reservations}
+          onCancel={() => setConfirmationPendingFormat(null)}
+          onConfirm={(selectedIds) => {
+            setConfirmationActiviteIds(selectedIds);
+            setConfirmationFormat(confirmationPendingFormat);
+            setConfirmationPendingFormat(null);
+          }}
+        />
+      )}
       <ConfirmationDocumentStage
         client={confirmationFormat ? client : null}
         reservations={reservations}
@@ -2805,8 +2823,10 @@ export default function ClientDetail({
         paiementsEtapes={paiementsEtapes}
         hotelVille={hotelMatch?.ville}
         format={confirmationFormat}
+        activitesAffichees={confirmationActiviteIds}
         onDone={() => {
           setConfirmationFormat(null);
+          setConfirmationActiviteIds(null);
           const activiteAVerifier = reservations.find((rr) => {
             const item = catalogue.find((c) => c.id === rr.catalogue_item_id);
             if (!item?.necessite_verif_hebergement_assouan) return false;

@@ -124,6 +124,7 @@ function ConfirmationTemplate({
   paiementsEtapes = [],
   hotelVille,
   qrDataUrl,
+  activitesAffichees = null,
 }: {
   client: Client;
   reservations: Reservation[];
@@ -132,6 +133,15 @@ function ConfirmationTemplate({
   paiementsEtapes?: PaiementEtape[];
   hotelVille?: string;
   qrDataUrl?: string | null;
+  // Sous-ensemble d'activités à faire figurer dans le programme (ex: on
+  // renvoie un bon seulement pour une nouvelle activité ajoutée après coup,
+  // sans réafficher les anciennes déjà passées et réglées) — null affiche
+  // tout, comme avant. Le total/acompte/solde ci-dessous restent calculés
+  // sur TOUTES les activités (actives, non filtré) : c'est ce qui fait que
+  // le solde annoncé "additionne" automatiquement un éventuel reste encore
+  // dû sur les activités non affichées, sans calcul séparé (demande de
+  // Mélanie, 2026-10-18).
+  activitesAffichees?: string[] | null;
 }) {
   // Un bon de confirmation envoyé au client ne doit jamais lister une
   // activité encore en Brouillon (prix/détails pas finalisés) comme si elle
@@ -142,10 +152,19 @@ function ConfirmationTemplate({
     .slice()
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
 
+  const activesProgramme = activitesAffichees
+    ? actives.filter((r) => activitesAffichees.includes(r.id))
+    : actives;
+
   const totalSejour = actives.reduce(
     (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
     0
   );
+  const totalAffiche = activesProgramme.reduce(
+    (s, r) => s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []),
+    0
+  );
+  const estPartiel = activesProgramme.length !== actives.length;
   const { acompteMontant, acomptePaypal, url: paypalUrl } = acomptePaypalInfo(client);
   // Un bon régénéré après un règlement partiel supplémentaire ("+ Ajouter
   // une étape", même mécanisme que resteApresAcompte dans client-steps.tsx)
@@ -184,7 +203,9 @@ function ConfirmationTemplate({
         <div style={{ fontSize: 14, fontWeight: 600, color: "#C9973E", letterSpacing: 2, textTransform: "uppercase" }}>
           Autour des Dunes
         </div>
-        <div style={{ fontSize: 30, fontWeight: 600, color: "#FFFFFF", marginTop: 10 }}>Séjour confirmé</div>
+        <div style={{ fontSize: 30, fontWeight: 600, color: "#FFFFFF", marginTop: 10 }}>
+          {estPartiel ? "Activité(s) confirmée(s)" : "Séjour confirmé"}
+        </div>
         <div style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", fontSize: 16, color: "#C9B79A", marginTop: 8 }}>
           Du {fmtDateLong(client.date_debut)} au {fmtDateLong(client.date_fin)} — {hotelVille || "Hurghada"}
         </div>
@@ -197,14 +218,14 @@ function ConfirmationTemplate({
             <div style={{ fontSize: 14.5, color: "#6B6558", marginTop: 3 }}>{paxLineSejour(client)}</div>
           </div>
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 12.5, color: "#948C7A" }}>Total du séjour</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: "#C9973E" }}>{euros(totalSejour)}</div>
+            <div style={{ fontSize: 12.5, color: "#948C7A" }}>{estPartiel ? "Total de ce bon" : "Total du séjour"}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#C9973E" }}>{euros(totalAffiche)}</div>
           </div>
         </div>
 
         <Section label="Programme">
           <div style={{ borderRadius: 10, overflow: "hidden", background: "#FFFFFF", border: "0.5px solid #EBE6D9" }}>
-            {actives.map((r, i) => {
+            {activesProgramme.map((r, i) => {
               const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
               const options = optionsBadge(
                 (resaOptions[r.id] || []).filter((o) => !isDeuxiemeIleOption(o.nom)),
@@ -219,7 +240,7 @@ function ConfirmationTemplate({
                     justifyContent: "space-between",
                     alignItems: "flex-start",
                     padding: "13px 15px",
-                    borderBottom: i < actives.length - 1 ? "1px solid #EBE6D9" : "none",
+                    borderBottom: i < activesProgramme.length - 1 ? "1px solid #EBE6D9" : "none",
                   }}
                 >
                   <div>
@@ -542,6 +563,7 @@ export default function ConfirmationDocumentStage({
   paiementsEtapes = [],
   hotelVille,
   format,
+  activitesAffichees = null,
   onDone,
 }: {
   client: Client | null;
@@ -551,6 +573,7 @@ export default function ConfirmationDocumentStage({
   paiementsEtapes?: PaiementEtape[];
   hotelVille?: string;
   format: "pdf" | "png" | null;
+  activitesAffichees?: string[] | null;
   onDone: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -679,7 +702,7 @@ export default function ConfirmationDocumentStage({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, format, qrDataUrl]);
+  }, [client, format, qrDataUrl, activitesAffichees]);
 
   if (!client || !format) return null;
 
@@ -694,6 +717,7 @@ export default function ConfirmationDocumentStage({
           paiementsEtapes={paiementsEtapes}
           hotelVille={hotelVille}
           qrDataUrl={qrDataUrl}
+          activitesAffichees={activitesAffichees}
         />
       </div>
     </div>

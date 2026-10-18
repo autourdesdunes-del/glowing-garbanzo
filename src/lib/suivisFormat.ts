@@ -1,5 +1,5 @@
 import { CatalogueItem, Client, Reservation } from "@/lib/types";
-import { hideMoment } from "@/lib/resa";
+import { hideMoment, isMontgolfiereActivity } from "@/lib/resa";
 import { TRANSFERT_PHONE } from "@/lib/constants";
 
 // Petits formateurs propres aux vues Suivis — extraits de SuivisView.tsx
@@ -111,12 +111,19 @@ export function pickupClientMessage(
   const paiementLigne = soldeIci
     ? `Comme convenu, vous pourrez régler le solde de ${euros(montantRestant)}€ en espèces en euros demain, auprès de notre représentant sur place.`
     : "";
+  // La montgolfière (y compris Louxor 1 ou 2 jours avec montgolfière) exige
+  // une pièce d'identité officielle pour l'embarquement — contrôle fait sur
+  // place, un client sans CNI/passeport sur lui ne peut pas monter (demande
+  // de Mélanie, 2026-10-18).
+  const cniLigne = isMontgolfiereActivity(r.nom_activite || "")
+    ? "🪪 Pensez à emporter avec vous votre carte d'identité ou votre passeport, obligatoire pour l'embarquement en montgolfière."
+    : "";
   // Point de RDV volontairement pas "devant la réception" tout court (trop
   // ambigu, lu comme "à l'intérieur") ni juste "à l'extérieur de l'hôtel"
   // (les clients s'arrêtaient alors à la barrière d'entrée du site, ~100m
   // avant le bâtiment) — "côté réception" les fait avancer jusqu'au
   // bâtiment tout en restant dehors (Mélanie, 2026-10-05).
   const transfertLigne = `⚠️ Pour toute demande au moment du transfert, merci de contacter uniquement ce numéro, qui gère directement votre transfert : ${TRANSFERT_PHONE}. Il est en contact direct avec votre chauffeur et pourra répondre à votre demande. L'agence reste ouverte tous les jours de 9h30 à 21h pour répondre à toutes vos autres questions si nécessaire.`;
-  const corps = [introLigne, aPrevoirLigne, paiementLigne, transfertLigne].filter(Boolean);
+  const corps = [introLigne, aPrevoirLigne, cniLigne, paiementLigne, transfertLigne].filter(Boolean);
   return `Bonjour ${prenom},\n\n${corps.join("\n\n")}\nMerci ☀️`;
 }

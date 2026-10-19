@@ -381,7 +381,18 @@ export function buildEgyptActivityBlock(
       )}`
     : `Hotel : ${hotelEgyptLinePourActivite(clientHotels, r.date_debut, client.hotel, hotelVille)}`;
 
-  return `${activiteLines.join("\n")}\n\nName : ${nomClientPourEgypte(client)}\n\n${translateFr(
+  // Un prospect (pas encore "Client confirmé") n'a rien de réel à
+  // organiser — ce bloc reste générable (l'employée peut vouloir en
+  // vérifier le contenu avant confirmation) mais doit hurler l'avertissement
+  // en tête pour qu'il ne soit jamais copié-collé à un prestataire par
+  // erreur, comme s'il s'agissait d'une vraie réservation (incident vécu :
+  // Sylvain Mormentyn, 2026-10-19).
+  const avertissementNonConfirme =
+    client.statut !== "Client confirmé"
+      ? `⚠️⚠️ PROSPECT NON CONFIRMÉ (${client.statut || "statut inconnu"}) — NE PAS TRAITER COMME UNE VRAIE RÉSERVATION ⚠️⚠️\n\n`
+      : "";
+
+  return `${avertissementNonConfirme}${activiteLines.join("\n")}\n\nName : ${nomClientPourEgypte(client)}\n\n${translateFr(
     buildPaxEnglishForReservation(r, client)
   )}\n\n${hotelLines}\nRoom Number : ${chambre || "—"}\n\nWhat's app : ${client.telephone || "—"}${
     paymentLine ? `\n\n${paymentLine}` : ""

@@ -76,6 +76,11 @@ export function CalendarMonthView({
         if (!resaActiveOn(r, day)) return;
         const client = clientById.get(r.client_id);
         if (!client) return;
+        // Un prospect (pas encore "Client confirmé") n'a rien de réel à
+        // organiser — ses activités Brouillon pré-créées ne doivent jamais
+        // atterrir dans la vue au jour le jour de l'équipe Égypte (incident
+        // vécu, 2026-10-19).
+        if (client.statut !== "Client confirmé") return;
         rows.push({ client, r });
       });
       // Dès qu'un pick-up réel est renseigné, les activités du jour se
@@ -106,6 +111,7 @@ export function CalendarMonthView({
         if (!dateRangeIncludes(r, day)) return;
         const client = clientById.get(r.client_id);
         if (!client) return;
+        if (client.statut !== "Client confirmé") return;
         rows.push({ client, r });
       });
       rows.sort((a, b) => (a.r.moment || "").localeCompare(b.r.moment || ""));
@@ -361,6 +367,9 @@ export function ByActivityView({
       }
       const client = clients.find((c) => c.id === r.client_id);
       if (!client) return;
+      // Même garde que CalendarMonthView ci-dessus : un prospect non
+      // confirmé n'a rien de réel à organiser (incident vécu, 2026-10-19).
+      if (client.statut !== "Client confirmé") return;
       const label = categoryLabel(r);
       const key = r.catalogue_item_id || `custom:${label}`;
       if (!byCategory.has(key)) byCategory.set(key, { label, byDate: new Map() });

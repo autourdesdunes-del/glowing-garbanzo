@@ -144,6 +144,13 @@ export default function PlanningView({
       if (r.statut_resa === "Annulée") return;
       const client = clients.find((c) => c.id === r.client_id);
       if (!client) return;
+      // Un prospect (ou un client perdu/annulé) n'a jamais rien de réel à
+      // organiser — ses activités "Brouillon" pré-créées par le Générateur
+      // de programme en prévision d'une confirmation ne doivent jamais
+      // atterrir ici, sans quoi l'équipe Égypte les traite comme de
+      // vraies réservations à logistiquer pour un client qui n'a jamais
+      // confirmé (incident vécu : Sylvain Mormentyn, 2026-10-19).
+      if (client.statut !== "Client confirmé") return;
 
       let include = true;
       if (filter === "hier") include = resaActiveOn(r, toStr(yesterday));

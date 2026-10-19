@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { todayStr } from "@/lib/dates";
 import {
   AcompteAlerte,
   AssouanVerification,
@@ -18,7 +17,6 @@ import {
   ReservationTarif,
 } from "@/lib/types";
 import {
-  activiteEnAttenteRaisons,
   catalogueItemPrixManquant,
   cleanActivityTitle,
   isFamilySafariBedouin,
@@ -192,21 +190,6 @@ export default function ManagerView({
 
   const clientsEnAttenteConfirmation = clients.filter((c) => c.confirmation_a_traiter);
 
-  // Un prospect (pas "Client confirmé") n'a jamais de vraie activité à
-  // valider ici — ses brouillons ne représentent qu'un programme proposé,
-  // pas une activité réelle en attente de finalisation (demande de
-  // Mélanie, 2026-10-19 : "aucun prospect dans ces endroits").
-  const activitesEnAttente = reservations
-    .filter((r) => r.statut_resa === "Brouillon")
-    .filter((r) => clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé")
-    // Une activité dont la date est déjà passée n'a plus rien à valider —
-    // trop tard pour agir dessus, elle ne fait que polluer la liste
-    // indéfiniment (demande de Mélanie, 2026-10-19). Une activité sans
-    // date du tout reste affichée : "Date pas encore choisie" est
-    // justement l'une des raisons de blocage que cette liste signale.
-    .filter((r) => !r.date_debut || r.date_debut >= todayStr())
-    .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
-
   // Un article catalogue jamais validé reste invisible pour les employées
   // (le picker "Ajouter une activité" exclut les brouillons) sans que
   // personne ne soit prévenu qu'il attend une validation — d'où cette
@@ -364,48 +347,6 @@ export default function ManagerView({
                     </p>
                   </div>
                 ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h2 className="font-heading mb-3 text-lg font-semibold text-[#171717]">
-              Activités en attente de validation
-            </h2>
-            {activitesEnAttente.length === 0 ? (
-              <p className="text-sm text-neutral-400">Rien en attente.</p>
-            ) : (
-              <div className="divide-y divide-[#eaeaea] overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
-                {activitesEnAttente.map((r) => {
-                  const c = clients.find((cl) => cl.id === r.client_id);
-                  const catalogueItem = catalogue.find((a) => a.id === r.catalogue_item_id);
-                  const raisons = activiteEnAttenteRaisons(r, catalogueItem);
-                  return (
-                    <div
-                      key={r.id}
-                      onClick={() => onOpenClient(r.client_id)}
-                      className="cursor-pointer px-4 py-3 hover:bg-[#fafafa]"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-medium text-[#171717]">{c?.nom || "Sans nom"}</p>
-                        <span className="whitespace-nowrap text-xs text-[#666666]">
-                          {fmtDate(r.date_debut)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#666666]">
-                        {cleanActivityTitle(r.nom_activite) || "Activité"}
-                      </p>
-                      <p className="mt-0.5 text-xs text-red-600">
-                        {raisons.length > 0
-                          ? `Manque : ${raisons.join(", ")}`
-                          : "Rien de manquant détecté — juste pas encore cliqué sur Valider"}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-neutral-400">
-                        Ajoutée il y a {daysSince(r.created_at)} jour{daysSince(r.created_at) > 1 ? "s" : ""}
-                      </p>
-                    </div>
-                  );
-                })}
               </div>
             )}
           </div>

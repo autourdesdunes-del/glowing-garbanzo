@@ -191,8 +191,13 @@ export default function ManagerView({
 
   const clientsEnAttenteConfirmation = clients.filter((c) => c.confirmation_a_traiter);
 
+  // Un prospect (pas "Client confirmé") n'a jamais de vraie activité à
+  // valider ici — ses brouillons ne représentent qu'un programme proposé,
+  // pas une activité réelle en attente de finalisation (demande de
+  // Mélanie, 2026-10-19 : "aucun prospect dans ces endroits").
   const activitesEnAttente = reservations
     .filter((r) => r.statut_resa === "Brouillon")
+    .filter((r) => clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé")
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
 
   // Un article catalogue jamais validé reste invisible pour les employées

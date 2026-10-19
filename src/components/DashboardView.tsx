@@ -230,7 +230,7 @@ export default function DashboardView({
   // alors qu'aucun rendez-vous n'existe réellement.
   const rdvToday = clients.filter(
     (c) =>
-      c.statut !== "Client annulé" &&
+      c.statut === "Client confirmé" &&
       !c.solde_activite_id &&
       c.solde_date === todayStr &&
       !c.solde_paye &&
@@ -343,11 +343,11 @@ export default function DashboardView({
 
   const auRevoirToday = clients.filter(
     (c) =>
-      c.statut !== "Client annulé" && c.date_fin && addDays(c.date_fin, 1) === todayStr && !c.au_revoir_envoye
+      c.statut === "Client confirmé" && c.date_fin && addDays(c.date_fin, 1) === todayStr && !c.au_revoir_envoye
   );
   const avisToday = clients.filter(
     (c) =>
-      c.statut !== "Client annulé" && c.date_fin && addDays(c.date_fin, 7) === todayStr && !c.avis_envoye
+      c.statut === "Client confirmé" && c.date_fin && addDays(c.date_fin, 7) === todayStr && !c.avis_envoye
   );
 
   // File de travail réelle de l'équipe : pas tous les prospects sans
@@ -442,7 +442,7 @@ export default function DashboardView({
   const in7Days = addDays(todayStr, 7);
   const acompteNonPayeSemaine = clients.filter(
     (c) =>
-      c.statut !== "Client annulé" &&
+      c.statut === "Client confirmé" &&
       c.paiement_type === "acompte" &&
       c.acompte_valide &&
       !c.acompte_paye &&

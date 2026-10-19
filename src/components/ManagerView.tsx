@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { todayStr } from "@/lib/dates";
 import {
   AcompteAlerte,
   AssouanVerification,
@@ -198,6 +199,12 @@ export default function ManagerView({
   const activitesEnAttente = reservations
     .filter((r) => r.statut_resa === "Brouillon")
     .filter((r) => clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé")
+    // Une activité dont la date est déjà passée n'a plus rien à valider —
+    // trop tard pour agir dessus, elle ne fait que polluer la liste
+    // indéfiniment (demande de Mélanie, 2026-10-19). Une activité sans
+    // date du tout reste affichée : "Date pas encore choisie" est
+    // justement l'une des raisons de blocage que cette liste signale.
+    .filter((r) => !r.date_debut || r.date_debut >= todayStr())
     .sort((a, b) => (a.date_debut || "").localeCompare(b.date_debut || ""));
 
   // Un article catalogue jamais validé reste invisible pour les employées

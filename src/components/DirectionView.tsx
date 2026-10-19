@@ -270,9 +270,10 @@ const COMPTA_BILANS_MENSUELS: Record<number, Partial<Record<number, BilanMensuel
     12: { ventes: 435, moyenneParJour: 14.03, caTotal: 95600, benefices: 18420, margePct: 19.27 },
   },
   // 2026 en cours — janvier à juillet sont complets (ventes, CA, bénéfices,
-  // marge) dans la source Notion. Août a ventes/moyenne/CA mais pas encore
-  // le bénéfice (demande de Mélanie, 2026-10-19) — à compléter dès qu'il
-  // est connu (voir le support des champs incomplets juste au-dessus).
+  // marge) dans la source Notion. Août et septembre ont ventes/moyenne/CA
+  // mais pas encore le bénéfice (demande de Mélanie, 2026-10-19) — à
+  // compléter dès qu'il est connu (voir le support des champs incomplets
+  // juste au-dessus).
   2026: {
     1: { ventes: 380, moyenneParJour: 12.26, caTotal: 64226, benefices: 16800, margePct: 26.15 },
     2: { ventes: 856, moyenneParJour: 30.57, caTotal: 183149, benefices: 29370, margePct: 16.03 },
@@ -282,6 +283,9 @@ const COMPTA_BILANS_MENSUELS: Record<number, Partial<Record<number, BilanMensuel
     6: { ventes: 455, moyenneParJour: 15.17, caTotal: 85585, benefices: 23780, margePct: 27.78 },
     7: { ventes: 531, moyenneParJour: 17.13, caTotal: 97875, benefices: 24700, margePct: 25.24 },
     8: { ventes: 714, moyenneParJour: 23.03, caTotal: 125693.5 },
+    // Bénéfice pas encore connu (demande de Mélanie, 2026-10-19) — à
+    // compléter dès qu'il est disponible.
+    9: { ventes: 486, moyenneParJour: 16.2, caTotal: 80332.51 },
   },
 };
 

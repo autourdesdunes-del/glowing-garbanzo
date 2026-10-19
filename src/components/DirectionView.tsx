@@ -467,10 +467,11 @@ function ComptabiliteBilanPage({
   // seul au fil des nouvelles réservations — affiché distinctement (bleu,
   // badge "En cours") pour ne jamais le confondre avec un bilan figé
   // (demande de Mélanie, 2026-10-19).
-  const todayYm = todayStr();
-  const anneeEnCours = Number(todayYm.slice(0, 4));
-  const moisEnCours = Number(todayYm.slice(5, 7));
-  const jourEnCours = Number(todayYm.slice(8, 10));
+  const todayFull = todayStr();
+  const todayYm = todayFull.slice(0, 7);
+  const anneeEnCours = Number(todayFull.slice(0, 4));
+  const moisEnCours = Number(todayFull.slice(5, 7));
+  const jourEnCours = Number(todayFull.slice(8, 10));
   const estMoisEnCours = mois !== null && annee === anneeEnCours && mois === moisEnCours;
 
   const bilanEnDirect: BilanMensuel | null = useMemo(() => {

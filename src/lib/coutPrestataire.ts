@@ -206,6 +206,29 @@ export function coutPrestataireEstimeBrut(r: Reservation, client: Client): CoutE
   }
 
   // --- Montgolfière ---
+  // Combo "Louxor 1/2 jours + Montgolfière" (quel que soit le sens —
+  // aller-retour / depuis Louxor / depuis Hurghada) : coût = visite
+  // Louxor "déjà sur place" (1 ou 2 jours) + montgolfière, les deux
+  // combinés — PAS seulement la montgolfière seule, sans quoi le guide/
+  // voiture/tickets/repas Louxor disparaissaient du coût (bug trouvé en
+  // testant le 1er octobre 2026 : Vanessa PUJOL, "bénéfice" de 756€ pour
+  // un CA de 960€, alors que la visite Louxor de 2 jours n'était pas
+  // comptée du tout).
+  if (match("louxor") && match("montgolfi") && match("jour")) {
+    const jours2 = nomL.includes("2 jours");
+    const louxor = jours2
+      ? 4000 + 3000 + (nbAd + nbEnf) * 600 + nbAd * 2650 + nbEnf * 1325 + 500
+      : 2000 + 1500 + (nbAd + nbEnf) * 300 + nbAd * 1850 + nbEnf * 925 + 500;
+    const montgolfiere = (nbAd + nbEnf) * 3000;
+    return {
+      eur: 0,
+      egp: louxor + montgolfiere,
+      avertissements: [
+        "Tarif montgolfière annoncé comme amené à changer prochainement — à vérifier avant d'utiliser ce chiffre tel quel.",
+        "Coût combiné estimé en additionnant la règle Louxor \"déjà sur place\" (1 ou 2 jours) et la règle montgolfière séparément — à vérifier.",
+      ],
+    };
+  }
   if (match("montgolfi")) {
     return {
       eur: 0,

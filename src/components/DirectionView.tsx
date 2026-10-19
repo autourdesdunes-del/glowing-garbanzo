@@ -201,15 +201,17 @@ const COMPTA_MOIS_ABREV = [
   "déc.",
 ];
 
-// benefices est le seul champ garanti — un mois peut être ajouté dès qu'on
-// connaît juste son bénéfice (ex. 2026, demande de Mélanie, 2026-10-15),
-// les autres se complètent dès qu'ils sont connus. Chaque affichage doit
-// gérer leur absence (jamais supposer 0, qui mentirait sur "rien vendu").
+// Aucun champ n'est garanti — un mois peut être ajouté dès qu'on connaît
+// ne serait-ce qu'un seul champ (ex. seulement le bénéfice, ou à
+// l'inverse ventes/CA sans le bénéfice pas encore calculé — demande de
+// Mélanie, 2026-10-15 et 2026-10-19), les autres se complètent dès qu'ils
+// sont connus. Chaque affichage doit gérer leur absence (jamais supposer
+// 0, qui mentirait sur "rien vendu"/"rien gagné").
 type BilanMensuel = {
   ventes?: number;
   moyenneParJour?: number;
   caTotal?: number;
-  benefices: number;
+  benefices?: number;
   margePct?: number;
 };
 
@@ -268,9 +270,9 @@ const COMPTA_BILANS_MENSUELS: Record<number, Partial<Record<number, BilanMensuel
     12: { ventes: 435, moyenneParJour: 14.03, caTotal: 95600, benefices: 18420, margePct: 19.27 },
   },
   // 2026 en cours — janvier à juillet sont complets (ventes, CA, bénéfices,
-  // marge) dans la source Notion. Août n'a aucune donnée pour l'instant,
-  // pas encore ajouté — à compléter dès qu'il est connu (voir le support
-  // des mois incomplets juste au-dessus, utile le temps d'avoir le reste).
+  // marge) dans la source Notion. Août a ventes/moyenne/CA mais pas encore
+  // le bénéfice (demande de Mélanie, 2026-10-19) — à compléter dès qu'il
+  // est connu (voir le support des champs incomplets juste au-dessus).
   2026: {
     1: { ventes: 380, moyenneParJour: 12.26, caTotal: 64226, benefices: 16800, margePct: 26.15 },
     2: { ventes: 856, moyenneParJour: 30.57, caTotal: 183149, benefices: 29370, margePct: 16.03 },
@@ -279,6 +281,7 @@ const COMPTA_BILANS_MENSUELS: Record<number, Partial<Record<number, BilanMensuel
     5: { ventes: 762, moyenneParJour: 24.58, caTotal: 132739.5, benefices: 26950, margePct: 20.3 },
     6: { ventes: 455, moyenneParJour: 15.17, caTotal: 85585, benefices: 23780, margePct: 27.78 },
     7: { ventes: 531, moyenneParJour: 17.13, caTotal: 97875, benefices: 24700, margePct: 25.24 },
+    8: { ventes: 714, moyenneParJour: 23.03, caTotal: 125693.5 },
   },
 };
 
@@ -330,7 +333,7 @@ function ComptaCourbeChart({
   data,
   onSelectMois,
 }: {
-  data: { mois: number; label: string; ventes: number; ca: number; benefices: number }[];
+  data: { mois: number; label: string; ventes: number; ca: number; benefices?: number }[];
   onSelectMois: (mois: number) => void;
 }) {
   const width = 900;
@@ -418,7 +421,7 @@ function ComptaCourbeChart({
                   {d.ventes} vente{d.ventes > 1 ? "s" : ""}
                 </text>
                 <text x={tooltipX + 12} y={tooltipY + 60} fontSize="12" fill={COULEUR_CA}>
-                  CA {eurosDec(d.ca)} € (bénéf. {eurosDec(d.benefices)} €)
+                  CA {eurosDec(d.ca)} € (bénéf. {d.benefices !== undefined ? `${eurosDec(d.benefices)} €` : "—"})
                 </text>
               </g>
             </g>
@@ -540,17 +543,24 @@ function ComptabiliteBilanPage({
                 label="CA total"
                 value={bilanMois.caTotal !== undefined ? `${eurosDec(bilanMois.caTotal)} €` : "—"}
               />
-              <StatTile mono={false} tone="green" label="Bénéfices" value={`${eurosDec(bilanMois.benefices)} €`} />
+              <StatTile
+                mono={false}
+                tone="green"
+                label="Bénéfices"
+                value={bilanMois.benefices !== undefined ? `${eurosDec(bilanMois.benefices)} €` : "—"}
+              />
               <StatTile
                 mono={false}
                 label="Marge (CA/Bénef)"
                 value={bilanMois.margePct !== undefined ? `${bilanMois.margePct.toLocaleString("fr-FR")}%` : "—"}
               />
             </div>
-            {(bilanMois.ventes === undefined || bilanMois.caTotal === undefined) && (
+            {(bilanMois.ventes === undefined ||
+              bilanMois.caTotal === undefined ||
+              bilanMois.benefices === undefined) && (
               <p className="text-xs text-neutral-400">
-                Dossier incomplet pour l&apos;instant — seul le bénéfice est connu, le reste s&apos;ajoutera dès
-                qu&apos;il sera transmis.
+                Dossier incomplet pour l&apos;instant — certaines informations sont encore manquantes, elles
+                s&apos;ajouteront dès qu&apos;elles seront transmises.
               </p>
             )}
           </div>
@@ -576,10 +586,14 @@ function ComptabiliteBilanPage({
             }
             // Flèche verte sur l'année qui a fait le plus gros bénéfice ce
             // mois-là, toutes années confondues (demande de Mélanie,
-            // 2026-10-15).
-            const anneeMeilleurBenef = lignesAutresAnnees.reduce((best, l) =>
-              l.bilan!.benefices > best.bilan!.benefices ? l : best
-            ).annee;
+            // 2026-10-15) — seulement parmi les années où le bénéfice est
+            // connu (ex. août 2026 pas encore).
+            const lignesAvecBenef = lignesAutresAnnees.filter((l) => l.bilan!.benefices !== undefined);
+            const anneeMeilleurBenef =
+              lignesAvecBenef.length > 0
+                ? lignesAvecBenef.reduce((best, l) => (l.bilan!.benefices! > best.bilan!.benefices! ? l : best))
+                    .annee
+                : null;
             return (
               <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
                 <table className="w-full text-sm">
@@ -599,7 +613,10 @@ function ComptabiliteBilanPage({
                       // doit jamais être prise comme référence silencieuse.
                       const bilanPrecedent = COMPTA_BILANS_MENSUELS[a - 1]?.[moisFixe];
                       const evolutionPct =
-                        bilanPrecedent && bilanPrecedent.benefices > 0
+                        bilanPrecedent &&
+                        bilanPrecedent.benefices !== undefined &&
+                        bilanPrecedent.benefices > 0 &&
+                        bilan!.benefices !== undefined
                           ? ((bilan!.benefices - bilanPrecedent.benefices) / bilanPrecedent.benefices) * 100
                           : null;
                       return (
@@ -618,8 +635,8 @@ function ComptabiliteBilanPage({
                             {bilan!.caTotal !== undefined ? `${eurosDec(bilan!.caTotal)} €` : "—"}
                           </td>
                           <td className="px-3 py-2 text-right">
-                            {eurosDec(bilan!.benefices)} €
-                            {a === anneeMeilleurBenef && (
+                            {bilan!.benefices !== undefined ? `${eurosDec(bilan!.benefices)} €` : "—"}
+                            {anneeMeilleurBenef !== null && a === anneeMeilleurBenef && (
                               <span className="ml-1 text-green-600" title="Meilleur bénéfice sur ce mois">
                                 ↑
                               </span>
@@ -672,12 +689,12 @@ function ComptabiliteBilanPage({
               </p>
               <ComptaCourbeChart
                 data={moisAvecDonnees
-                  // Un mois dont on ne connaît que le bénéfice (ex. août
-                  // 2026) n'a pas sa place ici — le tracer à 0 vente/0€ de
-                  // CA laisserait croire à un vrai mois à zéro plutôt qu'à
-                  // une donnée manquante. Il reste visible dans le
-                  // camembert et le tableau juste en dessous, qui n'ont
-                  // besoin que du bénéfice.
+                  // Un mois dont on ne connaît ni les ventes ni le CA n'a
+                  // pas sa place ici — le tracer à 0 vente/0€ laisserait
+                  // croire à un vrai mois à zéro plutôt qu'à une donnée
+                  // manquante. Le bénéfice, lui, n'est pas une condition :
+                  // un mois peut apparaître avec ventes/CA connus et
+                  // bénéfice encore "—" (ex. août 2026).
                   .filter((m) => bilansAnnee[m]?.ventes !== undefined && bilansAnnee[m]?.caTotal !== undefined)
                   .map((m) => ({
                     mois: m,
@@ -696,11 +713,17 @@ function ComptabiliteBilanPage({
                 </p>
                 <div className="rounded-md bg-white p-4">
                   <Donut
-                    segments={moisAvecDonnees.map((m) => ({
-                      label: MOIS_FR[m - 1],
-                      value: bilansAnnee[m]?.benefices || 0,
-                      color: COMPTA_MOIS_COULEURS[m - 1],
-                    }))}
+                    segments={moisAvecDonnees
+                      // Un mois sans bénéfice connu (ex. août 2026) n'a
+                      // rien à faire dans un camembert de répartition des
+                      // bénéfices — il resterait quand même listé à "0%",
+                      // ce qui laisserait croire à un vrai zéro.
+                      .filter((m) => bilansAnnee[m]?.benefices !== undefined)
+                      .map((m) => ({
+                        label: MOIS_FR[m - 1],
+                        value: bilansAnnee[m]!.benefices!,
+                        color: COMPTA_MOIS_COULEURS[m - 1],
+                      }))}
                     centerValue={`${eurosDec(beneficesAnnee)} €`}
                     centerLabel="bénéfices"
                   />
@@ -726,18 +749,22 @@ function ComptabiliteBilanPage({
                         // pour sauter aux yeux dans le tableau (demande de
                         // Mélanie, 2026-10-15). Seulement s'il y a plus d'un
                         // mois, sinon la même ligne serait les deux à la fois.
+                        // Un mois sans bénéfice connu (ex. août 2026) ne
+                        // peut pas concourir pour le max/min — ni en être
+                        // faussement exclu (il reste 0 implicite).
+                        const moisConnus = moisAvecDonnees.filter((m) => bilansAnnee[m]?.benefices !== undefined);
                         let moisMax: number | null = null;
                         let moisMin: number | null = null;
-                        if (moisAvecDonnees.length > 1) {
-                          moisAvecDonnees.forEach((m) => {
-                            const benef = bilansAnnee[m]?.benefices || 0;
-                            if (moisMax === null || benef > (bilansAnnee[moisMax]?.benefices || 0)) moisMax = m;
-                            if (moisMin === null || benef < (bilansAnnee[moisMin]?.benefices || 0)) moisMin = m;
+                        if (moisConnus.length > 1) {
+                          moisConnus.forEach((m) => {
+                            const benef = bilansAnnee[m]!.benefices!;
+                            if (moisMax === null || benef > bilansAnnee[moisMax]!.benefices!) moisMax = m;
+                            if (moisMin === null || benef < bilansAnnee[moisMin]!.benefices!) moisMin = m;
                           });
                         }
                         return moisAvecDonnees.map((m) => {
-                          const benef = bilansAnnee[m]?.benefices || 0;
-                          const part = beneficesAnnee > 0 ? (benef / beneficesAnnee) * 100 : 0;
+                          const benef = bilansAnnee[m]?.benefices;
+                          const part = benef !== undefined && beneficesAnnee > 0 ? (benef / beneficesAnnee) * 100 : null;
                           const rowClass =
                             m === moisMax ? "bg-green-50" : m === moisMin ? "bg-red-50" : "";
                           return (
@@ -756,10 +783,10 @@ function ComptabiliteBilanPage({
                                 </button>
                               </td>
                               <td className="px-3 py-2 text-right font-medium text-[#171717]">
-                                {eurosDec(benef)} €
+                                {benef !== undefined ? `${eurosDec(benef)} €` : "—"}
                               </td>
                               <td className="px-3 py-2 text-right text-neutral-500">
-                                {part.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%
+                                {part !== null ? `${part.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%` : "—"}
                               </td>
                             </tr>
                           );

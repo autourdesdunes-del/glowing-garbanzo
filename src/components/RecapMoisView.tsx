@@ -96,8 +96,15 @@ export default function RecapMoisView({
 
   const reservationsDuMois = useMemo(
     () =>
-      reservationsActives(reservations).filter((r) => r.date_debut && monthKey(r.date_debut) === mois),
-    [reservations, mois]
+      reservationsActives(reservations).filter(
+        (r) =>
+          r.date_debut &&
+          monthKey(r.date_debut) === mois &&
+          // Un prospect non confirmé n'a jamais de vraie activité à
+          // récupérer auprès d'un prestataire (incident vécu, 2026-10-19).
+          clientById[r.client_id]?.statut === "Client confirmé"
+      ),
+    [reservations, mois, clientById]
   );
 
   const parActivite = useMemo(() => {

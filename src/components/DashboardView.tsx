@@ -303,7 +303,8 @@ export default function DashboardView({
   // dont le numéro de chambre était pourtant bien renseigné.
   const firstActivityDateByClient = useMemo(() => firstActivityDateMap(reservations), [reservations]);
   const roomsMissingTomorrow = clients.filter(
-    (c) => firstActivityDateByClient.get(c.id) === tomorrowStr && !c.chambre
+    (c) =>
+      c.statut === "Client confirmé" && firstActivityDateByClient.get(c.id) === tomorrowStr && !c.chambre
   );
 
   const doublonsNonTraites = clients.filter((c) => c.doublon_possible_id && !c.doublon_traite);
@@ -317,7 +318,8 @@ export default function DashboardView({
         r.statut_resa !== "Annulée" &&
         billetRequisEffectif(r) &&
         r.billet_etape !== "termine" &&
-        (!r.billet_date || r.billet_date >= todayStr)
+        (!r.billet_date || r.billet_date >= todayStr) &&
+        clientById(r.client_id)?.statut === "Client confirmé"
     )
     .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
 
@@ -423,7 +425,10 @@ export default function DashboardView({
       // Un client dont le séjour entier est annulé ne doit plus apparaître
       // ici non plus, même si cette réservation précise n'a pas été
       // individuellement marquée annulée (demande de Mélanie, 2026-10-13).
-      clientById(r.client_id)?.statut !== "Client annulé" &&
+      // Un prospect non confirmé n'a par définition rien de réel à
+      // réserver — élargi de "!== Client annulé" à "=== Client confirmé"
+      // pour aussi l'exclure (incident vécu, 2026-10-19).
+      clientById(r.client_id)?.statut === "Client confirmé" &&
       billetRequisEffectif(r) &&
       r.billet_etape !== "a_envoyer_client" &&
       r.billet_etape !== "termine" &&

@@ -40,6 +40,10 @@ export default function BilletRappels({
         if (!billetRequisEffectif(r)) continue;
         const client = clients.find((c) => c.id === r.client_id);
         if (!client) continue;
+        // Un prospect non confirmé n'a jamais de vrai billet à acheter —
+        // ce pop-up ne doit jamais pousser Hossam à agir sur un dossier qui
+        // n'a jamais été validé (incident vécu, 2026-10-19).
+        if (client.statut !== "Client confirmé") continue;
         const storageKey = storagePrefix + r.id;
         const lastShown = localStorage.getItem(storageKey);
         const due = billetRappelDueKey(r, lastShown, now);

@@ -35,6 +35,9 @@ export default function AnnulationHossamAlert({
         if (!r.annulation_prevenir_hossam || r.statut_resa !== "Annulée") continue;
         const client = clients.find((c) => c.id === r.client_id);
         if (!client) continue;
+        // Un prospect n'a jamais eu de vraie réservation à annuler auprès
+        // d'un prestataire (incident vécu, 2026-10-19).
+        if (client.statut !== "Client confirmé") continue;
         const storageKey = "annulation-hossam-vu-" + r.id;
         if (localStorage.getItem(storageKey)) continue;
         setAlert({ r, client });

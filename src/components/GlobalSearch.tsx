@@ -30,10 +30,19 @@ export default function GlobalSearch({
 
   const matchedReservations = useMemo(() => {
     if (q.length < 2) return [];
+    // Un prospect (pas "Client confirmé") n'a jamais de vraie activité à
+    // faire remonter ici — sans ce filtre, taper le nom d'une activité
+    // affichait aussi les brouillons de simples prospects, confondus avec
+    // de vraies réservations (incident vécu, 2026-10-19).
+    const confirmedIds = new Set(
+      clients.filter((c) => c.statut === "Client confirmé").map((c) => c.id)
+    );
     return reservations
-      .filter((r) => deaccent((r.nom_activite || "").toLowerCase()).includes(q))
+      .filter(
+        (r) => deaccent((r.nom_activite || "").toLowerCase()).includes(q) && confirmedIds.has(r.client_id)
+      )
       .slice(0, 5);
-  }, [reservations, q]);
+  }, [reservations, clients, q]);
 
   const hasResults = matchedClients.length > 0 || matchedReservations.length > 0;
 

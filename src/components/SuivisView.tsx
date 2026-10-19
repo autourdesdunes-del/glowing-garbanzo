@@ -506,12 +506,14 @@ export default function SuivisView({
   const billetsAllRows = reservations
     // Une activité annulée après coup gardait billet_requis à true et
     // continuait d'apparaître ici indéfiniment — Hossam pouvait agir sur un
-    // billet qui n'a plus lieu d'être acheté.
+    // billet qui n'a plus lieu d'être acheté. Un prospect non confirmé n'a
+    // jamais de vrai billet à acheter (incident vécu, 2026-10-19).
     .filter(
       (r) =>
         r.statut_resa !== "Annulée" &&
         billetRequisEffectif(r) &&
-        (!r.billet_date || r.billet_date >= todayStr)
+        (!r.billet_date || r.billet_date >= todayStr) &&
+        clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé"
     )
     .sort((a, b) => (a.billet_date || "").localeCompare(b.billet_date || ""));
   const billetsMonthKeys = Array.from(
@@ -548,6 +550,10 @@ export default function SuivisView({
     .filter((r) => r.date_debut === tomorrowStr && r.statut_resa !== "Annulée")
     .map((r) => ({ r, client: clients.find((c) => c.id === r.client_id) }))
     .filter((x): x is { r: Reservation; client: Client } => !!x.client)
+    // Un prospect (pas "Client confirmé") n'a jamais de vrai pick-up à
+    // organiser — exclu de cette file opérationnelle J-1 (incident vécu,
+    // 2026-10-19 : demande explicite de Mélanie, "jamais au grand jamais").
+    .filter(({ client }) => client.statut === "Client confirmé")
     .sort((a, b) => (a.r.moment || "").localeCompare(b.r.moment || ""));
   // Trié entre manquants et déjà renseignés — pour s'y retrouver quand il y
   // a 50 pick-ups dans la journée. Un pick-up marqué "non requis" (guide qui
@@ -565,7 +571,7 @@ export default function SuivisView({
   // servait pas et divergeait (badge non-vide, liste ici vide).
   const firstActivityDateByClient = firstActivityDateMap(reservations);
   const roomsJ1 = clients.filter(
-    (c) => !c.chambre && firstActivityDateByClient.get(c.id) === tomorrowStr
+    (c) => c.statut === "Client confirmé" && !c.chambre && firstActivityDateByClient.get(c.id) === tomorrowStr
   );
 
   // Un client sans numéro de chambre à J-1 doit être signalé automatiquement

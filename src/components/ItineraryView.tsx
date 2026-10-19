@@ -204,6 +204,12 @@ export default function ItineraryView({
   const [rembAvoirActiviteId, setRembAvoirActiviteId] = useState<string | null>(null);
   const [montgolfiereActiviteId, setMontgolfiereActiviteId] = useState<string | null>(null);
   const [retirerParticipantsActiviteId, setRetirerParticipantsActiviteId] = useState<string | null>(null);
+  // Suggestion de coût prestataire (Direction uniquement) — calculée à la
+  // demande via l'API serveur, jamais automatiquement : la saisie reste
+  // entièrement manuelle et modifiable, ce n'est qu'un point de départ
+  // (demande de Mélanie, 2026-10-19).
+  const [coutSuggestionLoading, setCoutSuggestionLoading] = useState(false);
+  const [coutSuggestionAvertissements, setCoutSuggestionAvertissements] = useState<string[]>([]);
   const [egyptOpen, setEgyptOpen] = useState(false);
   const [egyptEditing, setEgyptEditing] = useState(false);
   const [copiedEgypt, setCopiedEgypt] = useState(false);
@@ -861,6 +867,55 @@ export default function ItineraryView({
               >
                 <DetailRow label="Total">{euros(expTotal)} €</DetailRow>
               </button>
+              {canSeeMargins && (
+                <DetailRow label="Coût réel">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={coutsMap[expandedReservation.id] ?? ""}
+                      onChange={(e) =>
+                        onUpdateCoutReel(expandedReservation.id, Number(e.target.value) || 0)
+                      }
+                      placeholder="—"
+                      className="input w-24 text-sm"
+                    />
+                    <span>€</span>
+                    <button
+                      type="button"
+                      disabled={coutSuggestionLoading}
+                      onClick={async () => {
+                        setCoutSuggestionLoading(true);
+                        setCoutSuggestionAvertissements([]);
+                        try {
+                          const res = await fetch(
+                            `/api/direction/cout-estime?reservation_id=${expandedReservation.id}`
+                          );
+                          const data = await res.json();
+                          if (data.estimation) {
+                            onUpdateCoutReel(expandedReservation.id, data.estimation.montantEur);
+                            setCoutSuggestionAvertissements(data.estimation.avertissements || []);
+                          } else {
+                            setCoutSuggestionAvertissements(["Aucune règle de coût connue pour cette activité."]);
+                          }
+                        } catch {
+                          setCoutSuggestionAvertissements(["Échec du calcul — réessaie dans un instant."]);
+                        } finally {
+                          setCoutSuggestionLoading(false);
+                        }
+                      }}
+                      className="whitespace-nowrap rounded-md border border-[#eaeaea] px-2 py-1 text-xs text-[#666666] hover:border-[#171717] hover:text-[#171717] disabled:opacity-50"
+                    >
+                      {coutSuggestionLoading ? "Calcul…" : "Suggérer"}
+                    </button>
+                  </div>
+                  {coutSuggestionAvertissements.map((a, i) => (
+                    <p key={i} className="mt-1 text-[11px] text-amber-600">
+                      ⚠ {a}
+                    </p>
+                  ))}
+                </DetailRow>
+              )}
               {(isLeCaireEnAvion(expandedReservation.nom_activite) ||
                 needsBilletInterneGenerique(expandedReservation.nom_activite) ||
                 expandedReservation.billet_requis) && (

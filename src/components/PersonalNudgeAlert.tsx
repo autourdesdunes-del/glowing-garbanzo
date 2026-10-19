@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Client, Verification } from "@/lib/types";
+import { Client, Reservation, Verification } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/dates";
 import { estDossierNonVerifie, prospectRelanceUrgente } from "@/lib/resa";
 
@@ -74,6 +74,7 @@ export default function PersonalNudgeAlert({
   currentUserId,
   clients,
   verifications,
+  reservations = [],
   dernierePersonalReponseKommo,
   onOpenProspectsARelancer,
   onOpenAuRevoir,
@@ -83,6 +84,12 @@ export default function PersonalNudgeAlert({
   currentUserId: string;
   clients: Client[];
   verifications: Verification[];
+  // Toutes activités tous clients confondus — voir estDossierNonVerifie
+  // (lib/resa.ts) : un client encore en Égypte mais sans plus aucune
+  // activité à venir ne doit plus compter dans ce rappel (demande de
+  // Mélanie, 2026-10-19). Optionnel, défaut [] pour ne pas casser un appel
+  // qui n'aurait pas encore cette donnée sous la main.
+  reservations?: Reservation[];
   // Dernière réponse Kommo (WhatsApp/Instagram) de cette employée, tous
   // clients confondus — voir AppShell.tsx. La file "prospects à relancer"
   // compte déjà une réponse Kommo comme une vraie relance (derniereActiviteProspect,
@@ -158,7 +165,7 @@ export default function PersonalNudgeAlert({
     {
       cle: "verifs",
       derniere: derniereVerifPar,
-      count: clients.filter((c) => estDossierNonVerifie(c, clientsVerifies)).length,
+      count: clients.filter((c) => estDossierNonVerifie(c, clientsVerifies, reservations)).length,
       // Une à deux fois par semaine minimum, pas tous les 2 jours comme les
       // trois autres catégories — voir SEUIL_INACTIVITE_JOURS_VERIFS.
       seuil: SEUIL_INACTIVITE_JOURS_VERIFS,

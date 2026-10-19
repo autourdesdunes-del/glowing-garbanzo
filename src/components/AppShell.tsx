@@ -2791,6 +2791,7 @@ function AppShellInner({
           currentUserId={userId}
           clients={clients}
           verifications={allVerifications}
+          reservations={allReservations}
           dernierePersonalReponseKommo={dernierePersonalReponseKommo}
           onOpenProspectsARelancer={openProspectsARelancer}
           onOpenAuRevoir={openAuRevoir}

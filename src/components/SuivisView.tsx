@@ -31,6 +31,7 @@ import {
   billetRequisEffectif,
   cleanActivityTitle,
   estDossierNonVerifie,
+  prochaineActiviteDate,
   firstActivityDateMap,
   isLeCaireEnAvion,
   missingChampsFor,
@@ -353,16 +354,16 @@ export default function SuivisView({
     .filter((c) => daysBetween(todayStr, c.au_revoir_envoye_le as string) <= 3)
     .sort((a, b) => (b.au_revoir_envoye_le as string).localeCompare(a.au_revoir_envoye_le as string));
 
-  // Même règle de base (statut + proximité du séjour) que le rappel
-  // personnel (PersonalNudgeAlert) — voir estDossierNonVerifie dans
-  // lib/resa.ts. On lui passe un Set vide pour ne garder QUE cette partie
-  // (statut/date) : le "jamais vérifié" est ensuite recalculé ci-dessous —
-  // un dossier modifié depuis sa dernière vérification redevient "à
-  // vérifier" même s'il a déjà été signé une fois (demande de Mélanie,
-  // 2026-10-13) — la checklist générale cochée à côté (voir
-  // VerifDossierDrawer) n'est qu'un rappel des éléments à relire, jamais
-  // un verdict qui bloquerait la signature.
-  const verifsEligibles = clients.filter((c) => estDossierNonVerifie(c, new Set()));
+  // Même règle de base (statut + proximité du séjour + activité à venir)
+  // que le rappel personnel (PersonalNudgeAlert) — voir estDossierNonVerifie
+  // dans lib/resa.ts. On lui passe un Set vide pour ne garder QUE cette
+  // partie (statut/date/activité à venir) : le "jamais vérifié" est ensuite
+  // recalculé ci-dessous — un dossier modifié depuis sa dernière
+  // vérification redevient "à vérifier" même s'il a déjà été signé une fois
+  // (demande de Mélanie, 2026-10-13) — la checklist générale cochée à côté
+  // (voir VerifDossierDrawer) n'est qu'un rappel des éléments à relire,
+  // jamais un verdict qui bloquerait la signature.
+  const verifsEligibles = clients.filter((c) => estDossierNonVerifie(c, new Set(), reservations));
   const verifsRows = verifsEligibles
     .filter((c) => !dossiersVerifiesMaintenant.has(c.id))
     .map((c) => {
@@ -374,7 +375,15 @@ export default function SuivisView({
       return { client: c };
     })
     .filter((x): x is { client: Client } => !!x)
-    .sort((a, b) => (a.client.date_debut || "").localeCompare(b.client.date_debut || ""));
+    // Par urgence réelle — la prochaine activité à venir du client — plutôt
+    // que par date d'arrivée du séjour, qui peut être passée depuis
+    // longtemps sur un séjour long (demande de Mélanie, 2026-10-19).
+    .sort(
+      (a, b) =>
+        (prochaineActiviteDate(a.client.id, reservations) || "").localeCompare(
+          prochaineActiviteDate(b.client.id, reservations) || ""
+        )
+    );
 
   const monPrenom = profiles.find((p) => p.id === currentUserId)?.prenom || "";
 

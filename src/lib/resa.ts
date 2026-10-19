@@ -22,11 +22,38 @@ import {
 // sans aucune ligne dans "verifications" — utilisé à la fois par le rappel
 // personnel (PersonalNudgeAlert) et par Suivis > Vérification de dossier,
 // pour que les deux s'accordent sur la même définition de "en attente".
-export function estDossierNonVerifie(c: Client, clientsVerifies: Set<string>) {
+// `reservations` (optionnel, toutes activités tous clients confondus) : un
+// client encore en Égypte (date_fin pas encore passée) mais dont il ne
+// reste plus aucune activité à venir (tout est déjà passé ou annulé) n'a
+// plus rien à vérifier avant une prochaine activité qui n'arrivera pas —
+// inutile de continuer à le proposer (demande de Mélanie, 2026-10-19).
+// Omis (défaut `[]`), ce filtre est ignoré — pour les appelants qui n'ont
+// pas cette donnée sous la main.
+export function estDossierNonVerifie(
+  c: Client,
+  clientsVerifies: Set<string>,
+  reservations: Reservation[] = []
+) {
   if (c.statut !== "Client confirmé" || !c.date_debut) return false;
   if (c.date_debut > addDays(todayStr(), 14)) return false;
   if (c.date_fin && c.date_fin < todayStr()) return false;
-  return !clientsVerifies.has(c.id);
+  if (clientsVerifies.has(c.id)) return false;
+  if (reservations.length > 0 && prochaineActiviteDate(c.id, reservations) === null) return false;
+  return true;
+}
+
+// Date de la prochaine activité à venir (non annulée, >= aujourd'hui) d'un
+// client, ou null s'il n'en reste aucune — sert à trier "Vérification de
+// dossier" par urgence réelle (prochaine activité), pas par date d'arrivée
+// du séjour qui peut être passée depuis longtemps sur un long séjour
+// (demande de Mélanie, 2026-10-19).
+export function prochaineActiviteDate(clientId: string, reservations: Reservation[]): string | null {
+  const today = todayStr();
+  const dates = reservations
+    .filter((r) => r.client_id === clientId && r.statut_resa !== "Annulée" && !!r.date_debut && r.date_debut >= today)
+    .map((r) => r.date_debut as string);
+  if (dates.length === 0) return null;
+  return dates.reduce((min, d) => (d < min ? d : min));
 }
 
 // Date la plus récente parmi tous les signaux de contact réel avec un

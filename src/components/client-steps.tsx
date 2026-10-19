@@ -70,6 +70,7 @@ import HebergementSection from "@/components/clientSteps/HebergementSection";
 import { contactViaSummary, datesSummary, euros, fmtDateDMY, whatsappSummary } from "@/lib/contactStepFormat";
 import { AgeChips, parseAges, PropIcon, SearchableSelect } from "@/components/clientSteps/ContactStepPrimitives";
 import { EncaisseButton, INTEGRAL_MODES, PaiementResteFlow } from "@/components/clientSteps/PaiementResteFlow";
+import { getCurrentUserNom } from "@/lib/currentUser";
 import {
   ACTION_ICONS,
   ACTION_STYLES,
@@ -3417,7 +3418,7 @@ export function SuiviStep({
   const toast = useToast();
   const [remboursements, setRemboursements] = useState<Remboursement[]>([]);
   const [verifications, setVerifications] = useState<Verification[]>([]);
-  const [verifNom, setVerifNom] = useState("");
+  const [monNom, setMonNom] = useState("");
   const [expandedRembId, setExpandedRembId] = useState<string | null>(null);
   const [marquerRembourseId, setMarquerRembourseId] = useState<string | null>(null);
   const [expandedAvoirId, setExpandedAvoirId] = useState<string | null>(null);
@@ -3451,6 +3452,11 @@ export function SuiviStep({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
+
+  useEffect(() => {
+    getCurrentUserNom(supabase).then(setMonNom);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addRemboursement = async () => {
     const { data, error } = await supabase
@@ -3519,17 +3525,26 @@ export function SuiviStep({
     toast(`${euros(montant)} € transformés en avoir.`);
   };
 
+  // Signe avec le compte réellement connecté (comme getCurrentUserNom
+  // partout ailleurs, ex. ClientDetail.tsx) plutôt qu'un champ texte libre
+  // — jusqu'ici n'importe qui pouvait taper/laisser traîner n'importe quel
+  // nom, y compris celui d'une autre employée (demande de Mélanie,
+  // 2026-10-19 : "tout le monde ne doit pas signer Mélanie, uniquement moi").
   const addVerification = async () => {
-    if (!verifNom.trim()) return;
-    const today = todayStr();
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    const nom = await getCurrentUserNom(supabase);
+    if (!nom) {
+      toast("Impossible d'identifier le compte connecté.");
+      return;
+    }
+    const today = todayStr();
     const { data, error } = await supabase
       .from("verifications")
       .insert({
         client_id: client.id,
-        nom: verifNom.trim(),
+        nom,
         date: today,
         verifie_par_id: user?.id || null,
       })
@@ -4192,17 +4207,11 @@ export function SuiviStep({
       <div>
         <h3 className="mb-2 text-sm font-semibold text-[#171717]">Vérification du dossier</h3>
         <div className="flex gap-2">
-          <input
-            value={verifNom}
-            onChange={(e) => setVerifNom(e.target.value)}
-            placeholder="Votre prénom"
-            className="input"
-          />
           <button
             onClick={addVerification}
             className="whitespace-nowrap rounded-md bg-[#C9973E] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
           >
-            Marquer vérifié aujourd&apos;hui
+            Vérifié — signer {monNom || "…"}
           </button>
         </div>
         {verifications.length === 0 && (

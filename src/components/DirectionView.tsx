@@ -443,6 +443,10 @@ function ComptabiliteBilanPage({
   mois,
   setMois,
   onNavigateSub,
+  clients,
+  reservations,
+  resaOptions,
+  resaTarifs,
 }: {
   sub: DirectionSub;
   annee: number;
@@ -450,8 +454,41 @@ function ComptabiliteBilanPage({
   mois: number | null;
   setMois: (m: number) => void;
   onNavigateSub: (sub: DirectionSub) => void;
+  clients: Client[];
+  reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
 }) {
   const moisDispos = moisDisponiblesPour(annee);
+
+  // Mois en cours (ex. "2026-10") : au lieu d'attendre l'import manuel
+  // Notion en fin de mois, ce mois-là se calcule en direct depuis les
+  // vraies données (ventes confirmées, CA), et se met donc à jour tout
+  // seul au fil des nouvelles réservations — affiché distinctement (bleu,
+  // badge "En cours") pour ne jamais le confondre avec un bilan figé
+  // (demande de Mélanie, 2026-10-19).
+  const todayYm = todayStr();
+  const anneeEnCours = Number(todayYm.slice(0, 4));
+  const moisEnCours = Number(todayYm.slice(5, 7));
+  const jourEnCours = Number(todayYm.slice(8, 10));
+  const estMoisEnCours = mois !== null && annee === anneeEnCours && mois === moisEnCours;
+
+  const bilanEnDirect: BilanMensuel | null = useMemo(() => {
+    if (!estMoisEnCours) return null;
+    const ventesMois = reservationsVendues(reservations).filter(
+      (r) => (r.date_debut || "").slice(0, 7) === todayYm
+    );
+    const caTotal = ventesMois.reduce((s, r) => {
+      const client = clients.find((c) => c.id === r.client_id);
+      if (!client) return s;
+      return s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+    }, 0);
+    return {
+      ventes: ventesMois.length,
+      moyenneParJour: jourEnCours > 0 ? ventesMois.length / jourEnCours : 0,
+      caTotal,
+    };
+  }, [estMoisEnCours, reservations, clients, resaOptions, resaTarifs, todayYm, jourEnCours]);
 
   const changerAnnee = (a: number) => {
     setAnnee(a);
@@ -518,8 +555,36 @@ function ComptabiliteBilanPage({
         </div>
       )}
 
+      {sub === "compta_mois" && mois !== null && estMoisEnCours && bilanEnDirect && (
+        <div className="mt-5 space-y-3">
+          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+            ● En cours
+          </span>
+          <div className="grid grid-cols-2 gap-3">
+            <StatTile mono={false} tone="blue" label="Ventes au mois" value={`${bilanEnDirect.ventes}`} />
+            <StatTile
+              mono={false}
+              tone="blue"
+              label="Moyenne par jour"
+              value={(bilanEnDirect.moyenneParJour ?? 0).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <StatTile mono={false} tone="blue" label="CA total" value={`${eurosDec(bilanEnDirect.caTotal ?? 0)} €`} />
+            <StatTile mono={false} tone="blue" label="Bénéfices" value="—" />
+            <StatTile mono={false} tone="blue" label="Marge (CA/Bénef)" value="—" />
+          </div>
+          <p className="text-xs text-neutral-400">
+            Mois en cours — calculé en direct à partir des réservations confirmées, se met à jour
+            automatiquement au fil des ventes. Bénéfices/marge pas disponibles en direct (connus
+            seulement à la clôture du mois).
+          </p>
+        </div>
+      )}
+
       {sub === "compta_mois" &&
         mois !== null &&
+        !estMoisEnCours &&
         (bilanMois ? (
           <div className="mt-5 space-y-3">
             {(bilanMois.ventes !== undefined || bilanMois.moyenneParJour !== undefined) && (
@@ -583,7 +648,14 @@ function ComptabiliteBilanPage({
             const moisFixe = mois;
             const lignesAutresAnnees = COMPTA_ANNEES.map((a) => ({
               annee: a,
-              bilan: COMPTA_BILANS_MENSUELS[a]?.[moisFixe],
+              // Mois en cours : pas d'entrée figée dans COMPTA_BILANS_MENSUELS
+              // (normal, elle n'arrive qu'à la clôture) — le comparatif
+              // utilise alors le bilan en direct pour ne pas faire
+              // disparaître l'année en cours de ce tableau.
+              bilan:
+                a === anneeEnCours && moisFixe === moisEnCours && bilanEnDirect
+                  ? bilanEnDirect
+                  : COMPTA_BILANS_MENSUELS[a]?.[moisFixe],
             })).filter((l) => l.bilan);
             if (lignesAutresAnnees.length === 0) {
               return <p className="text-sm text-neutral-500">Aucune autre année avec des données.</p>;
@@ -1159,6 +1231,10 @@ export default function DirectionView({
         mois={sub === "compta_annee" ? null : comptaMois}
         setMois={setComptaMois}
         onNavigateSub={onNavigateSub}
+        clients={clients}
+        reservations={reservations}
+        resaOptions={resaOptions}
+        resaTarifs={resaTarifs}
       />
     );
   }

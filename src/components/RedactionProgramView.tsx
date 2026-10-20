@@ -7,6 +7,7 @@ import {
   CatalogueOption,
   CatalogueTransfertTarif,
   Client,
+  EMPTY_CLIENT,
   HotelReference,
   Reservation,
   ReservationOption,
@@ -123,6 +124,19 @@ export default function RedactionProgramView({
   const [clientQuery, setClientQuery] = useState("");
   const [clientFocused, setClientFocused] = useState(false);
   const [creatingLead, setCreatingLead] = useState(false);
+  // Devis généré sans créer de lead permanent (demande de Mélanie,
+  // 2026-10-20) — un dossier est créé en coulisses juste le temps de
+  // générer le PDF (réutilise la logique déjà fiable de
+  // champsReservationPourLigne/generateClientDocument), puis supprimé
+  // aussitôt : rien ne reste dans le CRM.
+  const [devisModalOpen, setDevisModalOpen] = useState(false);
+  const [devisNom, setDevisNom] = useState("");
+  const [devisWhatsapp, setDevisWhatsapp] = useState("");
+  const [devisEmail, setDevisEmail] = useState("");
+  const [devisHotel, setDevisHotel] = useState("");
+  const [devisDateDebut, setDevisDateDebut] = useState("");
+  const [devisDateFin, setDevisDateFin] = useState("");
+  const [devisGenerating, setDevisGenerating] = useState(false);
 
   const [dateDebut, setDateDebut] = useState(draftInitial?.dateDebut || "");
   const [dateFin, setDateFin] = useState(draftInitial?.dateFin || "");
@@ -623,6 +637,100 @@ export default function RedactionProgramView({
     }
   };
 
+  // Construit les champs `reservations` pour une Ligne du programme —
+  // extrait de addToClient pour être réutilisé aussi par
+  // genererDevisSansLead (dossier temporaire, voir plus bas), sans dupliquer
+  // cette grosse logique de répartition des tarifs.
+  const champsReservationPourLigne = (l: Ligne, item: CatalogueItem | undefined, villeClientLigne: string) => {
+    const totalPersonnesLigne = Math.max(nbPersonnesLigne(l), 1);
+    const remisePersonne = l.remise > 0 ? l.remise / totalPersonnesLigne : 0;
+    const parAdulte = l.repartition?.find((r) => r.tranche === "adulte");
+    const parEnfant = l.repartition?.find((r) => r.tranche === "enfant");
+    const parEnfant3 = l.repartition?.find((r) => r.tranche === "enfant_3ans");
+    const parBebe = l.repartition?.find((r) => r.tranche === "bebe");
+    const parAccompagnateur = l.repartition?.find((r) => r.tranche === "accompagnateur");
+    const champsRepartition = l.estTaxeSeule
+      ? {
+          tarif_mode: "personne" as const,
+          participants_adultes: 0,
+          pu_adulte: 0,
+          pax_override: "Taxe de transfert",
+        }
+      : l.vehicules
+      ? {
+          // Aucune colonne dédiée à "plusieurs types de véhicules à
+          // l'unité" — on réutilise le forfait groupe (déjà supporté
+          // partout ailleurs dans l'app) avec le total déjà calculé
+          // comme base, et le détail lisible dans pax_override.
+          tarif_mode: "groupe" as const,
+          prix_groupe_base: Math.max(l.vehicules.reduce((s, v) => s + v.pu * v.nb, 0) - l.remise, 0),
+          pax_override: l.vehicules
+            .filter((v) => v.nb > 0)
+            .map((v) => `${v.nb} ${v.label}${v.nb > 1 ? "s" : ""}`)
+            .join(", "),
+        }
+      : l.transfertVehicule
+      ? {
+          // Un véhicule entier, pas un prix par tête : on l'enregistre en
+          // forfait groupe (seul mode "prix global" que la fiche client
+          // sait afficher) et le véhicule retenu reste lisible dans
+          // pax_override, pour que personne n'ait à le redeviner.
+          tarif_mode: "groupe" as const,
+          prix_groupe_base: Math.max(l.transfertVehicule.prix - l.remise, 0),
+          pax_override: `${l.transfertVehicule.label} — ${nbPersonnesLigne(l)} personnes`,
+        }
+      : l.groupe
+      ? {
+          tarif_mode: "groupe" as const,
+          participants_adultes: nbPersonnesLigne(l),
+          prix_groupe_base: Math.max(l.groupe.base - l.remise, 0),
+          prix_groupe_extra1: l.groupe.prixExtra1,
+          prix_groupe_extra_enfant: l.groupe.prixExtraEnfant,
+          participants_extra1: l.groupe.extra1,
+          participants_extra_enfants: l.groupe.extraEnfants,
+          pax_override: `${nbPersonnesLigne(l)} personnes`,
+        }
+      : l.repartition
+      ? {
+          tarif_mode: "personne" as const,
+          participants_adultes: parAdulte?.nb || 0,
+          participants_enfants: parEnfant?.nb || 0,
+          participants_bebes: parBebe?.nb || 0,
+          participants_enfants_3ans: parEnfant3?.nb || 0,
+          participants_accompagnateurs: parAccompagnateur?.nb || 0,
+          pu_adulte: Math.max((parAdulte?.pu || 0) - remisePersonne, 0),
+          pu_enfant: Math.max((parEnfant?.pu || 0) - remisePersonne, 0),
+          pu_bebe: Math.max((parBebe?.pu || 0) - remisePersonne, 0),
+          pu_enfant_3ans: Math.max((parEnfant3?.pu || 0) - remisePersonne, 0),
+          pu_accompagnateur: Math.max((parAccompagnateur?.pu || 0) - remisePersonne, 0),
+          pax_override: "",
+        }
+      : {
+          tarif_mode: "personne" as const,
+          participants_adultes: l.nbPersonnes,
+          pu_adulte: l.remise > 0 ? Math.max(l.prixParPersonne - l.remise / Math.max(l.nbPersonnes, 1), 0) : l.prixParPersonne,
+          pax_override: `${l.nbPersonnes} personnes`,
+        };
+    return {
+      nom_activite: l.nom,
+      catalogue_item_id: l.catalogueItemId || null,
+      participants_mode: "custom" as const,
+      ...champsRepartition,
+      horaire_approx: item?.horaire_approx || "",
+      inclus: (item?.inclus_liste || []).join(", ") || item?.inclus || "",
+      non_inclus: (item?.non_inclus_liste || []).join(", ") || item?.non_inclus || "",
+      a_prevoir: (item?.a_prevoir_liste || []).join(", ") || item?.a_prevoir || "",
+      point_rdv: item?.point_rdv || "",
+      creneau: l.creneau || "",
+      photo_path: item?.photo_path || "",
+      date_debut: l.date || null,
+      date_fin: l.dateFin && l.dateFin !== l.date ? l.dateFin : null,
+      transfert_inclus: !(l.taxeTransfert > 0),
+      transfert_montant: l.taxeTransfert || 0,
+      zone_transfert: villeClientLigne,
+    };
+  };
+
   // genererDevisApres : une fois les activités enregistrées, génère
   // directement le devis PDF avec les réservations qui viennent d'être
   // créées — évite de rouvrir la fiche complète juste pour ce PDF
@@ -661,95 +769,12 @@ export default function RedactionProgramView({
     const resaOptionsInserees: Record<string, ReservationOption[]> = {};
     for (const l of lignes) {
       const item = catalogue.find((a) => a.id === l.catalogueItemId);
-      const totalPersonnesLigne = Math.max(nbPersonnesLigne(l), 1);
-      const remisePersonne = l.remise > 0 ? l.remise / totalPersonnesLigne : 0;
-      const parAdulte = l.repartition?.find((r) => r.tranche === "adulte");
-      const parEnfant = l.repartition?.find((r) => r.tranche === "enfant");
-      const parEnfant3 = l.repartition?.find((r) => r.tranche === "enfant_3ans");
-      const parBebe = l.repartition?.find((r) => r.tranche === "bebe");
-      const parAccompagnateur = l.repartition?.find((r) => r.tranche === "accompagnateur");
-      const champsRepartition = l.estTaxeSeule
-        ? {
-            tarif_mode: "personne" as const,
-            participants_adultes: 0,
-            pu_adulte: 0,
-            pax_override: "Taxe de transfert",
-          }
-        : l.vehicules
-        ? {
-            // Aucune colonne dédiée à "plusieurs types de véhicules à
-            // l'unité" — on réutilise le forfait groupe (déjà supporté
-            // partout ailleurs dans l'app) avec le total déjà calculé
-            // comme base, et le détail lisible dans pax_override.
-            tarif_mode: "groupe" as const,
-            prix_groupe_base: Math.max(l.vehicules.reduce((s, v) => s + v.pu * v.nb, 0) - l.remise, 0),
-            pax_override: l.vehicules
-              .filter((v) => v.nb > 0)
-              .map((v) => `${v.nb} ${v.label}${v.nb > 1 ? "s" : ""}`)
-              .join(", "),
-          }
-        : l.transfertVehicule
-        ? {
-            // Un véhicule entier, pas un prix par tête : on l'enregistre en
-            // forfait groupe (seul mode "prix global" que la fiche client
-            // sait afficher) et le véhicule retenu reste lisible dans
-            // pax_override, pour que personne n'ait à le redeviner.
-            tarif_mode: "groupe" as const,
-            prix_groupe_base: Math.max(l.transfertVehicule.prix - l.remise, 0),
-            pax_override: `${l.transfertVehicule.label} — ${nbPersonnesLigne(l)} personnes`,
-          }
-        : l.groupe
-        ? {
-            tarif_mode: "groupe" as const,
-            participants_adultes: nbPersonnesLigne(l),
-            prix_groupe_base: Math.max(l.groupe.base - l.remise, 0),
-            prix_groupe_extra1: l.groupe.prixExtra1,
-            prix_groupe_extra_enfant: l.groupe.prixExtraEnfant,
-            participants_extra1: l.groupe.extra1,
-            participants_extra_enfants: l.groupe.extraEnfants,
-            pax_override: `${nbPersonnesLigne(l)} personnes`,
-          }
-        : l.repartition
-        ? {
-            tarif_mode: "personne" as const,
-            participants_adultes: parAdulte?.nb || 0,
-            participants_enfants: parEnfant?.nb || 0,
-            participants_bebes: parBebe?.nb || 0,
-            participants_enfants_3ans: parEnfant3?.nb || 0,
-            participants_accompagnateurs: parAccompagnateur?.nb || 0,
-            pu_adulte: Math.max((parAdulte?.pu || 0) - remisePersonne, 0),
-            pu_enfant: Math.max((parEnfant?.pu || 0) - remisePersonne, 0),
-            pu_bebe: Math.max((parBebe?.pu || 0) - remisePersonne, 0),
-            pu_enfant_3ans: Math.max((parEnfant3?.pu || 0) - remisePersonne, 0),
-            pu_accompagnateur: Math.max((parAccompagnateur?.pu || 0) - remisePersonne, 0),
-            pax_override: "",
-          }
-        : {
-            tarif_mode: "personne" as const,
-            participants_adultes: l.nbPersonnes,
-            pu_adulte: l.remise > 0 ? Math.max(l.prixParPersonne - l.remise / Math.max(l.nbPersonnes, 1), 0) : l.prixParPersonne,
-            pax_override: `${l.nbPersonnes} personnes`,
-          };
+      const champsLigne = champsReservationPourLigne(l, item, villeClient);
       const { data: inserted, error } = await supabase
         .from("reservations")
         .insert({
           client_id: clientId,
-          nom_activite: l.nom,
-          catalogue_item_id: l.catalogueItemId || null,
-          participants_mode: "custom",
-          ...champsRepartition,
-          horaire_approx: item?.horaire_approx || "",
-          inclus: (item?.inclus_liste || []).join(", ") || item?.inclus || "",
-          non_inclus: (item?.non_inclus_liste || []).join(", ") || item?.non_inclus || "",
-          a_prevoir: (item?.a_prevoir_liste || []).join(", ") || item?.a_prevoir || "",
-          point_rdv: item?.point_rdv || "",
-          creneau: l.creneau || "",
-          photo_path: item?.photo_path || "",
-          date_debut: l.date || null,
-          date_fin: l.dateFin && l.dateFin !== l.date ? l.dateFin : null,
-          transfert_inclus: !(l.taxeTransfert > 0),
-          transfert_montant: l.taxeTransfert || 0,
-          zone_transfert: villeClient,
+          ...champsLigne,
           cree_par_id: user?.id || null,
           cree_par_nom: creeParNom,
           statut_resa: clientSelectionne?.statut === "Client confirmé" ? "Confirmée" : "Brouillon",
@@ -795,6 +820,85 @@ export default function RedactionProgramView({
     } catch {
       // tant pis
     }
+  };
+
+  const genererDevisSansLead = async () => {
+    if (lignes.length === 0) {
+      toast("Ajoute au moins une activité au programme.");
+      return;
+    }
+    if (!devisNom.trim() || !devisWhatsapp.trim()) {
+      toast("Le nom et le WhatsApp sont nécessaires pour le devis.");
+      return;
+    }
+    setDevisGenerating(true);
+    const { data: tempClient, error: clientError } = await supabase
+      .from("clients")
+      .insert({
+        ...EMPTY_CLIENT,
+        nom: devisNom.trim(),
+        telephone: devisWhatsapp.trim(),
+        email: devisEmail.trim(),
+        hotel: devisHotel.trim(),
+        date_debut: devisDateDebut || null,
+        date_fin: devisDateFin || null,
+        statut: "Prospect",
+      })
+      .select()
+      .single();
+    if (clientError || !tempClient) {
+      toast("Échec de la génération du devis.");
+      setDevisGenerating(false);
+      return;
+    }
+    const villeClientDevis = matchHotel(devisHotel, hotels)?.ville || "";
+    const tempReservationIds: string[] = [];
+    const reservationsInserees: Reservation[] = [];
+    const resaOptionsInserees: Record<string, ReservationOption[]> = {};
+    for (const l of lignes) {
+      const item = catalogue.find((a) => a.id === l.catalogueItemId);
+      const champsLigne = champsReservationPourLigne(l, item, villeClientDevis);
+      const { data: inserted, error } = await supabase
+        .from("reservations")
+        .insert({ client_id: tempClient.id, ...champsLigne, statut_resa: "Confirmée" })
+        .select()
+        .single();
+      if (error || !inserted) continue;
+      tempReservationIds.push(inserted.id);
+      reservationsInserees.push(inserted as Reservation);
+      const optionsLigne: ReservationOption[] = [];
+      for (const o of l.options || []) {
+        const { data: insertedOption } = await supabase
+          .from("reservation_options")
+          .insert({
+            reservation_id: inserted.id,
+            nom: o.nom,
+            prix: o.prix,
+            quantite: o.mode === "personne" ? o.quantite : 1,
+            prix_compte_ailleurs: false,
+            verrouille: false,
+          })
+          .select()
+          .single();
+        if (insertedOption) optionsLigne.push(insertedOption as ReservationOption);
+      }
+      if (optionsLigne.length) resaOptionsInserees[inserted.id] = optionsLigne;
+    }
+    generateClientDocument("devis", tempClient as Client, reservationsInserees, resaOptionsInserees);
+    // Dossier jamais destiné à rester — supprimé aussitôt le PDF généré,
+    // rien ne doit en subsister dans le CRM.
+    await supabase.from("reservation_options").delete().in("reservation_id", tempReservationIds);
+    await supabase.from("reservations").delete().eq("client_id", tempClient.id);
+    await supabase.from("clients").delete().eq("id", tempClient.id);
+    setDevisGenerating(false);
+    setDevisModalOpen(false);
+    setDevisNom("");
+    setDevisWhatsapp("");
+    setDevisEmail("");
+    setDevisHotel("");
+    setDevisDateDebut("");
+    setDevisDateFin("");
+    toast("Devis généré.", "success");
   };
 
   return (
@@ -1377,6 +1481,107 @@ export default function RedactionProgramView({
             >
               {saving ? "Ajout…" : "Ajouter + générer le devis"}
             </button>
+            <button
+              onClick={() => {
+                setDevisHotel(hotel);
+                setDevisDateDebut(dateDebut);
+                setDevisDateFin(dateFin);
+                setDevisModalOpen(true);
+              }}
+              disabled={lignes.length === 0}
+              className="rounded-md border border-dashed border-[#C9973E] px-3 py-1.5 text-sm font-medium text-[#8B4531] hover:bg-[#fafafa] disabled:opacity-50"
+            >
+              Générer un devis sans créer de lead
+            </button>
+          </div>
+        </div>
+      )}
+
+      {devisModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-lg border border-[#eaeaea] bg-white p-5 shadow-xl">
+            <h2 className="font-heading text-base font-semibold text-[#171717]">
+              Devis sans créer de lead
+            </h2>
+            <p className="mt-2 text-xs text-neutral-500">
+              Rien n&apos;est conservé dans le CRM après génération — juste de quoi écrire le devis.
+            </p>
+            <div className="mt-3 space-y-2.5">
+              <label className="block text-xs text-neutral-500">
+                Nom *
+                <input
+                  type="text"
+                  value={devisNom}
+                  onChange={(e) => setDevisNom(e.target.value)}
+                  className="input mt-1"
+                  placeholder="Nom à afficher sur le devis"
+                />
+              </label>
+              <label className="block text-xs text-neutral-500">
+                WhatsApp *
+                <input
+                  type="text"
+                  value={devisWhatsapp}
+                  onChange={(e) => setDevisWhatsapp(e.target.value)}
+                  className="input mt-1"
+                />
+              </label>
+              <label className="block text-xs text-neutral-500">
+                Email (optionnel)
+                <input
+                  type="email"
+                  value={devisEmail}
+                  onChange={(e) => setDevisEmail(e.target.value)}
+                  className="input mt-1"
+                />
+              </label>
+              <label className="block text-xs text-neutral-500">
+                Hôtel (optionnel)
+                <input
+                  type="text"
+                  value={devisHotel}
+                  onChange={(e) => setDevisHotel(e.target.value)}
+                  className="input mt-1"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-xs text-neutral-500">
+                  Arrivée (optionnel)
+                  <input
+                    type="date"
+                    value={devisDateDebut}
+                    onChange={(e) => setDevisDateDebut(e.target.value)}
+                    className="input mt-1"
+                  />
+                </label>
+                <label className="block text-xs text-neutral-500">
+                  Départ (optionnel)
+                  <input
+                    type="date"
+                    value={devisDateFin}
+                    onChange={(e) => setDevisDateFin(e.target.value)}
+                    className="input mt-1"
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDevisModalOpen(false)}
+                className="rounded-md px-3 py-1.5 text-sm text-neutral-500 hover:bg-[#fafafa]"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                disabled={devisGenerating}
+                onClick={genererDevisSansLead}
+                className="rounded-md bg-[#171717] px-3.5 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {devisGenerating ? "Génération…" : "Générer le devis"}
+              </button>
+            </div>
           </div>
         </div>
       )}

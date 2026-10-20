@@ -87,11 +87,23 @@ export default function RedactionProgramView({
   clients,
   catalogueOptions,
   transfertTarifs,
+  onCreateClient,
 }: {
   catalogue: CatalogueItem[];
   clients: Client[];
   catalogueOptions: Record<string, CatalogueOption[]>;
   transfertTarifs: Record<string, CatalogueTransfertTarif[]>;
+  // Jusqu'ici impossible de rédiger un programme pour un lead qui
+  // n'existait pas encore dans le CRM — il fallait d'abord aller le créer
+  // ailleurs (Prospects/"+ Nouveau client") avant de pouvoir revenir ici
+  // (demande de Mélanie, 2026-10-20). Optionnel pour ne pas casser un
+  // appelant qui ne l'aurait pas encore branché.
+  onCreateClient?: (quick: {
+    nom: string;
+    telephone: string;
+    canal: string;
+    statut?: "Prospect" | "Client confirmé";
+  }) => Promise<Client | null>;
 }) {
   const supabase = createClient();
   const toast = useToast();
@@ -110,6 +122,7 @@ export default function RedactionProgramView({
   const [clientId, setClientId] = useState(draftInitial?.clientId || "");
   const [clientQuery, setClientQuery] = useState("");
   const [clientFocused, setClientFocused] = useState(false);
+  const [creatingLead, setCreatingLead] = useState(false);
 
   const [dateDebut, setDateDebut] = useState(draftInitial?.dateDebut || "");
   const [dateFin, setDateFin] = useState(draftInitial?.dateFin || "");
@@ -210,6 +223,19 @@ export default function RedactionProgramView({
       })
     );
   }, [taxeTransfertMontant, catalogue]);
+
+  const creerNouveauLead = async () => {
+    const nom = clientQuery.trim();
+    if (!nom || !onCreateClient) return;
+    setCreatingLead(true);
+    try {
+      const created = await onCreateClient({ nom, telephone: "", canal: "WhatsApp", statut: "Prospect" });
+      if (created) selectClient(created);
+      else toast("Impossible de créer ce lead.");
+    } finally {
+      setCreatingLead(false);
+    }
+  };
 
   const selectClient = (c: Client) => {
     setClientId(c.id);
@@ -803,6 +829,16 @@ export default function RedactionProgramView({
               <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-md border border-[#eaeaea] bg-white shadow-lg">
                 {clientsFiltres.length === 0 && (
                   <div className="p-3 text-sm text-neutral-400">Aucun résultat.</div>
+                )}
+                {onCreateClient && (
+                  <button
+                    type="button"
+                    disabled={creatingLead}
+                    onMouseDown={creerNouveauLead}
+                    className="block w-full border-b border-[#eaeaea] px-3 py-2 text-left text-sm font-medium text-[#C9973E] hover:bg-[#fafafa] disabled:opacity-50"
+                  >
+                    {creatingLead ? "Création…" : `+ Créer « ${clientQuery.trim()} » comme nouveau lead`}
+                  </button>
                 )}
                 {clientsFiltres.map((c) => (
                   <button

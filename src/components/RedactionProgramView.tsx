@@ -2,8 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogueItem, CatalogueOption, CatalogueTransfertTarif, Client, HotelReference, TransfertTaxe } from "@/lib/types";
+import {
+  CatalogueItem,
+  CatalogueOption,
+  CatalogueTransfertTarif,
+  Client,
+  HotelReference,
+  Reservation,
+  ReservationOption,
+  TransfertTaxe,
+} from "@/lib/types";
 import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
+import { generateClientDocument } from "@/lib/generateClientDocument";
 import { creneauxDisponiblesPour, groupeExtraCounts, normalizeJoursDisponibles } from "@/lib/resa";
 import { deaccent } from "@/lib/deaccent";
 import { useToast } from "@/components/ToastProvider";
@@ -587,7 +597,14 @@ export default function RedactionProgramView({
     }
   };
 
-  const addToClient = async () => {
+  // genererDevisApres : une fois les activités enregistrées, génère
+  // directement le devis PDF avec les réservations qui viennent d'être
+  // créées — évite de rouvrir la fiche complète juste pour ce PDF
+  // (demande de Mélanie, 2026-10-20). Le devis n'exclut que les
+  // réservations "Annulée" (voir generateClientDocument.ts), donc
+  // fonctionne tel quel même si tout est encore en Brouillon (prospect
+  // pas confirmé).
+  const addToClient = async (genererDevisApres = false) => {
     if (!clientId) {
       toast("Choisis un lead pour y ajouter ces activités.");
       return;
@@ -614,6 +631,8 @@ export default function RedactionProgramView({
         .single();
       creeParNom = prof?.prenom || (prof?.email || "").split("@")[0] || "";
     }
+    const reservationsInserees: Reservation[] = [];
+    const resaOptionsInserees: Record<string, ReservationOption[]> = {};
     for (const l of lignes) {
       const item = catalogue.find((a) => a.id === l.catalogueItemId);
       const totalPersonnesLigne = Math.max(nbPersonnesLigne(l), 1);
@@ -716,20 +735,31 @@ export default function RedactionProgramView({
         setSaving(false);
         return;
       }
+      reservationsInserees.push(inserted as Reservation);
+      const optionsLigne: ReservationOption[] = [];
       for (const o of l.options || []) {
-        const { error: optError } = await supabase.from("reservation_options").insert({
-          reservation_id: inserted.id,
-          nom: o.nom,
-          prix: o.prix,
-          quantite: o.mode === "personne" ? o.quantite : 1,
-          prix_compte_ailleurs: false,
-          verrouille: false,
-        });
+        const { data: insertedOption, error: optError } = await supabase
+          .from("reservation_options")
+          .insert({
+            reservation_id: inserted.id,
+            nom: o.nom,
+            prix: o.prix,
+            quantite: o.mode === "personne" ? o.quantite : 1,
+            prix_compte_ailleurs: false,
+            verrouille: false,
+          })
+          .select()
+          .single();
         if (optError) toast(`Activité ajoutée mais échec de l'option "${o.nom}".`);
+        else if (insertedOption) optionsLigne.push(insertedOption as ReservationOption);
       }
+      if (optionsLigne.length) resaOptionsInserees[inserted.id] = optionsLigne;
     }
     setSaving(false);
     toast(`${lignes.length} activité(s) ajoutée(s) au dossier.`, "success");
+    if (genererDevisApres && clientSelectionne) {
+      generateClientDocument("devis", clientSelectionne, reservationsInserees, resaOptionsInserees);
+    }
     // Une fois enregistré dans le vrai dossier, le brouillon local n'a plus
     // de raison d'être repris — sinon la prochaine ouverture de l'onglet
     // réafficherait un programme déjà traité.
@@ -1298,11 +1328,18 @@ export default function RedactionProgramView({
               {copied ? "Copié ✓" : "Copier le message"}
             </button>
             <button
-              onClick={addToClient}
+              onClick={() => addToClient(false)}
               disabled={saving || !clientId}
               className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               {saving ? "Ajout…" : `Ajouter ${lignes.length} activité(s) au dossier`}
+            </button>
+            <button
+              onClick={() => addToClient(true)}
+              disabled={saving || !clientId}
+              className="rounded-md border border-[#171717] px-3 py-1.5 text-sm font-medium text-[#171717] hover:bg-[#fafafa] disabled:opacity-50"
+            >
+              {saving ? "Ajout…" : "Ajouter + générer le devis"}
             </button>
           </div>
         </div>

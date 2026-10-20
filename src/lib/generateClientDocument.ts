@@ -307,11 +307,15 @@ export function generateClientDocument(
       if (data.section !== "body") return;
       const kind = rowKinds[data.row.index];
       if (kind === "date") {
-        data.cell.styles.fontStyle = "italic";
-        data.cell.styles.textColor = [140, 130, 120];
-        data.cell.styles.fontSize = 8;
+        // Demande de Mélanie, 2026-10-20 : la date passait trop inaperçue
+        // (gris clair, petite, italique) à côté du nom de l'activité juste
+        // en dessous — même poids visuel que l'en-tête du tableau (gras,
+        // couleur terracotta de la marque) pour qu'elle saute aux yeux.
+        data.cell.styles.fontStyle = "bold";
+        data.cell.styles.textColor = [92, 42, 29];
+        data.cell.styles.fontSize = 10;
         data.cell.styles.lineWidth = 0;
-        data.cell.styles.cellPadding = { top: 3, right: 2.6, bottom: 0, left: 2.6 };
+        data.cell.styles.cellPadding = { top: 3, right: 2.6, bottom: 0.5, left: 2.6 };
       } else if (kind === "nom") {
         data.cell.styles.fontStyle = "bold";
         data.cell.styles.textColor = [20, 20, 20];

@@ -151,15 +151,21 @@ export function coutPrestataireEstimeBrut(r: Reservation, client: Client): CoutE
   if (match("louxor") && match("bus") && !match("mini")) {
     return { eur: 0, egp: nbAd * 3000 + nbEnf * 1500, avertissements: [] };
   }
-  if (match("le caire") && match("mini-bus") && (match("vip") || match("vip"))) {
-    return {
-      eur: 0,
-      egp: nbAd * 4350 + nbEnf * 2600,
-      avertissements:
-        r.date_debut && r.date_debut < "2026-11-01"
-          ? ["Tarif 4350/2600 EGP annoncé comme valable à partir de début novembre 2026 — le tarif avant cette date n'a pas été communiqué."]
-          : [],
-    };
+  if (match("le caire") && match("mini-bus") && match("vip")) {
+    // Le tarif 4350/2600 EGP n'est valable qu'À PARTIR de début novembre
+    // 2026 (demande de Mélanie) — l'appliquer à une activité d'octobre
+    // donnerait un coût inventé, pas juste approximatif. Sans l'ancien
+    // tarif, le coût reste inconnu pour ces dates-là plutôt que de
+    // deviner (demande de Mélanie, 2026-10-20 : "c'est octobre donc ne
+    // mets pas tarif novembre c'est pas logique").
+    if (r.date_debut && r.date_debut < "2026-11-01") {
+      // null, pas un coût à 0€ : un 0€ silencieux afficherait une fausse
+      // marge à 100%, exactement ce que la distinction "coût jamais
+      // saisi" (reservation_couts) sert déjà à éviter ailleurs dans
+      // l'app.
+      return null;
+    }
+    return { eur: 0, egp: nbAd * 4350 + nbEnf * 2600, avertissements: [] };
   }
   if ((match("le caire") || match("caire")) && (match("mini-bus") || match("van")) && !match("vip")) {
     return { eur: 0, egp: nbAd * 3000 + nbEnf * 1900, avertissements: [] };

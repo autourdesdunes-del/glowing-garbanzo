@@ -24,7 +24,7 @@ function daysSince(dateStr: string) {
 
 function estAuRevoirEnAttente(c: Client) {
   return (
-    c.statut !== "Client annulé" &&
+    c.statut === "Client confirmé" &&
     !!c.date_fin &&
     !c.au_revoir_envoye &&
     addDays(c.date_fin, 1) <= todayStr()
@@ -33,7 +33,7 @@ function estAuRevoirEnAttente(c: Client) {
 
 function estAvisEnAttente(c: Client) {
   return (
-    c.statut !== "Client annulé" &&
+    c.statut === "Client confirmé" &&
     !!c.date_fin &&
     !c.avis_envoye &&
     c.avis_statut === "À demander" &&

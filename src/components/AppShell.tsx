@@ -2362,6 +2362,10 @@ function AppShellInner({
       if (!r.catalogue_item_id) return;
       const client = clients.find((c) => c.id === r.client_id);
       if (!client) return;
+      // Une activité peut être validée isolément sur un prospect sans que
+      // son dossier soit confirmé — ne doit jamais peser dans ce
+      // classement (incident vécu, 2026-10-19/20).
+      if (client.statut !== "Client confirmé") return;
       const total = resaTotalMontant(
         r,
         client,

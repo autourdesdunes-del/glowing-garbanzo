@@ -286,8 +286,16 @@ export default function DashboardView({
     .filter((c) => c.prochain_appel_date === todayStr)
     .sort((a, b) => a.prochain_appel_heure.localeCompare(b.prochain_appel_heure));
 
+  // Un prospect non confirmé n'a jamais de vrai pick-up à organiser —
+  // même garde que Suivis > Pick-ups (J-1), ratée ici la première fois
+  // (incident vécu : Sylvain Mormentyn, prospect, apparaissait quand même
+  // dans ce badge/cette carte, 2026-10-19 soir).
   const pickupsMissingTomorrow = reservationsActives(reservations).filter(
-    (r) => r.date_debut === tomorrowStr && !r.pickup_reel && !r.pickup_non_requis
+    (r) =>
+      r.date_debut === tomorrowStr &&
+      !r.pickup_reel &&
+      !r.pickup_non_requis &&
+      clientById(r.client_id)?.statut === "Client confirmé"
   );
 
   // Même règle que Suivis > Numéros de chambre (SuivisView.tsx) — sinon ce
@@ -607,6 +615,10 @@ export default function DashboardView({
         // ignorer cette réservation le temps que tout se resynchronise.
         const client = clientById(r.client_id);
         if (!client) return s;
+        // Une activité peut être validée isolément sur un prospect sans
+        // que son dossier soit confirmé — ne doit jamais compter dans le
+        // CA Direction (incident vécu, 2026-10-19/20).
+        if (client.statut !== "Client confirmé") return s;
         return s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
       }, 0)
     : 0;

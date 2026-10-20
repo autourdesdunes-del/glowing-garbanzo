@@ -476,8 +476,15 @@ function ComptabiliteBilanPage({
 
   const bilanEnDirect: BilanMensuel | null = useMemo(() => {
     if (!estMoisEnCours) return null;
+    // Une activité peut être validée ("Confirmée") isolément sur un
+    // prospect sans que son dossier entier ne soit confirmé (bouton
+    // "✓ Valider cette activité") — sans ce filtre, un prospect jamais
+    // confirmé gonflait quand même le CA en direct (incident vécu,
+    // 2026-10-19/20, même famille que Sylvain Mormentyn).
     const ventesMois = reservationsVendues(reservations).filter(
-      (r) => (r.date_debut || "").slice(0, 7) === todayYm
+      (r) =>
+        (r.date_debut || "").slice(0, 7) === todayYm &&
+        clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé"
     );
     const caTotal = ventesMois.reduce((s, r) => {
       const client = clients.find((c) => c.id === r.client_id);
@@ -982,7 +989,14 @@ export default function DirectionView({
   };
 
   const rows = reservationsVendues(reservations)
-    .filter((r) => inRange(r.date_debut))
+    .filter(
+      (r) =>
+        inRange(r.date_debut) &&
+        // Une activité peut être validée isolément sur un prospect sans
+        // que son dossier soit confirmé — sans ce filtre, ça gonflait le
+        // CA/classement rentabilité (incident vécu, 2026-10-19/20).
+        clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé"
+    )
     .map((r) => {
       const client = clients.find((c) => c.id === r.client_id);
       const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
@@ -1083,7 +1097,11 @@ export default function DirectionView({
   // au résumé du mois "en direct"). Même logique que `rows`, filtrée sur le
   // mois courant plutôt que sur `dateFrom`/`dateTo`.
   const rowsMoisActuel = reservationsVendues(reservations)
-    .filter((r) => (r.date_debut || "").slice(0, 7) === currentMonth)
+    .filter(
+      (r) =>
+        (r.date_debut || "").slice(0, 7) === currentMonth &&
+        clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé"
+    )
     .map((r) => {
       const client = clients.find((c) => c.id === r.client_id);
       const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
@@ -1133,6 +1151,10 @@ export default function DirectionView({
     const key = (r.date_debut || "").slice(0, 7);
     if (!key) return;
     const client = clients.find((c) => c.id === r.client_id);
+    // Même garde que rows/rowsMoisActuel ci-dessus — une activité validée
+    // isolément sur un prospect ne doit jamais entrer dans la tendance
+    // CA/marge (incident vécu, 2026-10-19/20).
+    if (client?.statut !== "Client confirmé") return;
     const total = resaTotalMontant(r, client as Client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
     const cout = Number(coutsMap[r.id]) || 0;
     const impacts = remboursements.filter((rb) => rb.activite_id === r.id).map(remboursementImpact);

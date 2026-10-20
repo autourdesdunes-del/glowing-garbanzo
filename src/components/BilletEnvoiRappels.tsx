@@ -36,6 +36,10 @@ export default function BilletEnvoiRappels({
         if (!billetRequisEffectif(r)) continue;
         const client = clients.find((c) => c.id === r.client_id);
         if (!client) continue;
+        // Un prospect non confirmé n'a jamais de vrai billet à envoyer —
+        // même garde que BilletRappels.tsx, oubliée ici (incident vécu,
+        // 2026-10-19/20).
+        if (client.statut !== "Client confirmé") continue;
         const storageKey = "billet-envoi-rappel-" + r.id;
         const lastShown = localStorage.getItem(storageKey);
         const due = billetEnvoiRappelDueKey(r, lastShown, now);

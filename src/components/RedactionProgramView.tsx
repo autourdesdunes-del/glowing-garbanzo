@@ -17,6 +17,8 @@ import { matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
 import { generateClientDocument } from "@/lib/generateClientDocument";
 import { creneauxDisponiblesPour, groupeExtraCounts, normalizeJoursDisponibles } from "@/lib/resa";
 import { deaccent } from "@/lib/deaccent";
+import { DuplicateMatch, findDuplicateClients } from "@/lib/duplicates";
+import DuplicateClientModal from "@/components/DuplicateClientModal";
 import { useToast } from "@/components/ToastProvider";
 import {
   buildRedactionText,
@@ -89,6 +91,8 @@ export default function RedactionProgramView({
   catalogueOptions,
   transfertTarifs,
   onCreateClient,
+  onDeleteClient,
+  onOpenClient,
 }: {
   catalogue: CatalogueItem[];
   clients: Client[];
@@ -105,6 +109,13 @@ export default function RedactionProgramView({
     canal: string;
     statut?: "Prospect" | "Client confirmé";
   }) => Promise<Client | null>;
+  // Pour prévenir d'un doublon juste après "+ Créer comme nouveau lead" —
+  // ce chemin de création passait jusqu'ici à côté de la détection de
+  // doublon branchée partout ailleurs (QuickAddClient), ce qui a entraîné
+  // plusieurs fiches en double créées en plein milieu de la rédaction d'un
+  // programme (constaté le 2026-10-24).
+  onDeleteClient?: (id: string) => Promise<boolean>;
+  onOpenClient?: (id: string) => void;
 }) {
   const supabase = createClient();
   const toast = useToast();
@@ -124,6 +135,8 @@ export default function RedactionProgramView({
   const [clientQuery, setClientQuery] = useState("");
   const [clientFocused, setClientFocused] = useState(false);
   const [creatingLead, setCreatingLead] = useState(false);
+  const [dupCreated, setDupCreated] = useState<Client | null>(null);
+  const [dupMatches, setDupMatches] = useState<DuplicateMatch[]>([]);
   // Devis généré sans créer de lead permanent (demande de Mélanie,
   // 2026-10-20) — un dossier est créé en coulisses juste le temps de
   // générer le PDF (réutilise la logique déjà fiable de
@@ -244,8 +257,16 @@ export default function RedactionProgramView({
     setCreatingLead(true);
     try {
       const created = await onCreateClient({ nom, telephone: "", canal: "WhatsApp", statut: "Prospect" });
-      if (created) selectClient(created);
-      else toast("Impossible de créer ce lead.");
+      if (!created) {
+        toast("Impossible de créer ce lead.");
+        return;
+      }
+      selectClient(created);
+      const matches = findDuplicateClients({ nom: created.nom }, clients, created.id);
+      if (matches.length > 0) {
+        setDupCreated(created);
+        setDupMatches(matches);
+      }
     } finally {
       setCreatingLead(false);
     }
@@ -1632,6 +1653,28 @@ export default function RedactionProgramView({
             </div>
           </div>
         </div>
+      )}
+
+      {dupCreated && dupMatches.length > 0 && (
+        <DuplicateClientModal
+          current={dupCreated}
+          matches={dupMatches}
+          onOpenClient={(id) => {
+            setDupMatches([]);
+            onOpenClient?.(id);
+          }}
+          onDeleteClient={async (id) => {
+            if (!onDeleteClient) return;
+            const deleted = await onDeleteClient(id);
+            if (deleted === false) return;
+            setDupMatches([]);
+            if (id === dupCreated.id) {
+              setClientId("");
+              setClientQuery("");
+            }
+          }}
+          onKeepBoth={() => setDupMatches([])}
+        />
       )}
     </div>
   );

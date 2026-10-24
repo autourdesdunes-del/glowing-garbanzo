@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetchAll";
 import { cleanKommoName, CRM_STATUT_TO_KOMMO_STATUS_ID, parseKommoFormBody } from "@/lib/kommoWebhook";
 import { addKommoLeadNote, updateKommoLeadStatus } from "@/lib/kommoApi";
 import { extractProspectInfoFromMessage, KommoExtractedInfo } from "@/lib/kommoExtraction";
@@ -19,11 +20,19 @@ async function findClientIdByPhone(
 ): Promise<string | null> {
   const target = normPhone(telephone);
   if (!target || target.length < 6) return null;
-  const { data, error } = await admin.from("clients").select("id, telephone").not("telephone", "is", null);
-  if (error) throw new Error(`findClientIdByPhone: ${error.message}`);
-  const match = (data as { id: string; telephone: string }[] | null)?.find(
-    (c) => normPhone(c.telephone) === target
+  // fetchAllRows, pas .select() seul : PostgREST plafonne à 1000 lignes par
+  // requête (voir src/lib/supabase/fetchAll.ts) — la table clients a
+  // dépassé 1000 lignes, un .select() simple perdait silencieusement les
+  // fiches hors de cette fenêtre et ne les proposait jamais en doublon
+  // (pic de doublons constaté le 2026-10-24).
+  const { data } = await fetchAllRows<{ id: string; telephone: string }>(
+    admin,
+    "clients",
+    "id, telephone",
+    "created_at",
+    false
   );
+  const match = data.filter((c) => c.telephone).find((c) => normPhone(c.telephone) === target);
   return match?.id ?? null;
 }
 

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllRows } from "@/lib/supabase/fetchAll";
 import { fetchKommoLeadContactInfo, fetchKommoUnsortedCanal } from "@/lib/kommoApi";
 import { localDateStr } from "@/lib/dates";
 import { normText, normPhone } from "@/lib/duplicates";
@@ -40,9 +41,20 @@ async function findPossibleDuplicateByName(
   // AppShell.tsx) — sans ça, un nouveau lead au nom identique pouvait être
   // proposé en doublon de l'ancienne fiche vidée par la fusion, au lieu de
   // la fiche vivante qui a récupéré l'historique réel.
-  const { data, error } = await admin.from("clients").select("id, nom, statut").neq("statut", "Client annulé");
-  if (error) throw new Error(`findPossibleDuplicateByName: ${error.message}`);
-  const match = (data as { id: string; nom: string }[] | null)?.find((c) => normText(c.nom) === target);
+  // fetchAllRows, pas .select() seul : PostgREST plafonne à 1000 lignes par
+  // requête (voir src/lib/supabase/fetchAll.ts) — la table clients a
+  // dépassé 1000 lignes, un .select() simple perdait silencieusement les
+  // fiches hors de cette fenêtre et ne les proposait jamais en doublon
+  // (pic de doublons constaté le 2026-10-24, cette fois sans lien avec la
+  // charge CPU évoquée plus haut pour l'incident du 22/09).
+  const { data } = await fetchAllRows<{ id: string; nom: string; statut: string }>(
+    admin,
+    "clients",
+    "id, nom, statut",
+    "created_at",
+    false
+  );
+  const match = data.filter((c) => c.statut !== "Client annulé").find((c) => normText(c.nom) === target);
   return match?.id ?? null;
 }
 
@@ -59,14 +71,16 @@ async function findClientIdByPhone(
 ): Promise<{ id: string; statut: string; nom: string; nom_verrouille: boolean } | null> {
   const target = normPhone(telephone);
   if (!target || target.length < 6) return null;
-  const { data, error } = await admin
-    .from("clients")
-    .select("id, telephone, statut, nom, nom_verrouille")
-    .not("telephone", "is", null);
-  if (error) throw new Error(`findClientIdByPhone: ${error.message}`);
-  const match = (
-    data as { id: string; telephone: string; statut: string; nom: string; nom_verrouille: boolean }[] | null
-  )?.find((c) => normPhone(c.telephone) === target);
+  // fetchAllRows, voir le commentaire de findPossibleDuplicateByName
+  // ci-dessus — même plafond de 1000 lignes sur ce .select().
+  const { data } = await fetchAllRows<{
+    id: string;
+    telephone: string;
+    statut: string;
+    nom: string;
+    nom_verrouille: boolean;
+  }>(admin, "clients", "id, telephone, statut, nom, nom_verrouille", "created_at", false);
+  const match = data.filter((c) => c.telephone).find((c) => normPhone(c.telephone) === target);
   return match ? { id: match.id, statut: match.statut, nom: match.nom, nom_verrouille: match.nom_verrouille } : null;
 }
 

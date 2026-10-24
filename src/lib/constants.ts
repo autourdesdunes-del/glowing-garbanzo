@@ -26,6 +26,15 @@ export const PROSPECT_STATUTS: string[] = [
 ];
 export const CLIENT_STATUTS: string[] = ["Client confirmé", "Client perdu", "Client annulé"];
 export const STATUTS: string[] = [...PROSPECT_STATUTS, ...CLIENT_STATUTS];
+// "Client confirmé" ne doit jamais être écrit automatiquement par Kommo/le
+// CRM (seule une employée ou la direction crée/transforme une fiche en
+// client confirmé, en créant sa propre nouvelle fiche à la main — demande
+// de Mélanie, 2026-10-24). Quand Kommo signale un lead "Réservé" sur une
+// fiche encore Prospect, elle bascule ici au lieu de "Client confirmé" :
+// elle sort des listes actives (ni dans PROSPECT_STATUTS, ni dans
+// CLIENT_STATUTS, volontairement) sans jamais se faire passer pour la
+// vraie fiche confirmée que l'employée aura créée séparément.
+export const CONFIRME_AILLEURS = "Confirmé ailleurs";
 export const CANAUX = ["Instagram", "WhatsApp", "TikTok", "Email", "Autre"] as const;
 export const RELATIONS = [
   "Bouche à oreille",
@@ -275,6 +284,7 @@ export const STATUT_COLORS: Record<string, string> = {
   "Client confirmé": "#059669",
   "Client perdu": "#9CA3AF",
   "Client annulé": "#C4453A",
+  [CONFIRME_AILLEURS]: "#9CA3AF",
 };
 
 // Options de règle d'annulation par activité (Catalogue) — voir

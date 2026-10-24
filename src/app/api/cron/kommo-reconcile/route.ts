@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchKommoLead } from "@/lib/kommoApi";
 import { KOMMO_STATUS_MAP, cleanKommoName } from "@/lib/kommoWebhook";
+import { CONFIRME_AILLEURS } from "@/lib/constants";
 
 // Filet de sécurité pour le sync Kommo → CRM : constaté que le webhook
 // classique ("lead_status_changed") n'émet pas toujours d'événement quand
@@ -48,26 +49,27 @@ export async function GET(request: Request) {
     // moment de le clôturer "Réservé".
     const cleanedNom = cleanKommoName(lead?.name || "");
 
+    // "Client confirmé" n'est jamais écrit automatiquement — seule une
+    // employée/la direction crée ou transforme une fiche en client confirmé
+    // (elle créera sa propre nouvelle fiche à la main). Ce job partait d'un
+    // statut "actif" (cf. ACTIVE_STATUSES, jamais déjà confirmé) : une
+    // bascule vers CONFIRME_AILLEURS à la place, comme pour le webhook
+    // classique (demande de Mélanie, 2026-10-24).
+    const statutAEcrire = mapped.statutCrm === "Client confirmé" ? CONFIRME_AILLEURS : mapped.statutCrm;
+
     const { error: updateError } = await admin
       .from("clients")
       .update({
-        statut: mapped.statutCrm,
+        statut: statutAEcrire,
         kommo_pipeline_status_id: statusId,
         kommo_pipeline_status_nom: mapped.nom,
         kommo_synced_at: new Date().toISOString(),
         ...(cleanedNom ? { nom: cleanedNom } : {}),
-        // Le client partait d'un statut "actif" (jamais déjà confirmé, cf.
-        // ACTIVE_STATUSES) : toute bascule vers "Client confirmé" ici est
-        // une vraie nouvelle confirmation — déclenche la pop-up bloquante
-        // "à compléter" côté équipe, comme pour le webhook classique.
-        ...(mapped.statutCrm === "Client confirmé"
-          ? { confirmation_a_traiter: true, confirmation_assignee_a: null }
-          : {}),
       })
       .eq("id", client.id);
 
     if (!updateError) {
-      updates.push({ nom: client.nom as string, from: client.statut as string, to: mapped.statutCrm });
+      updates.push({ nom: client.nom as string, from: client.statut as string, to: statutAEcrire });
     }
   }
 

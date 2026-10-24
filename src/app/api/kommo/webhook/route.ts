@@ -3,6 +3,7 @@ import { fetchAllRows } from "@/lib/supabase/fetchAll";
 import { fetchKommoLeadContactInfo, fetchKommoUnsortedCanal } from "@/lib/kommoApi";
 import { localDateStr } from "@/lib/dates";
 import { normText, normPhone } from "@/lib/duplicates";
+import { CONFIRME_AILLEURS } from "@/lib/constants";
 import {
     cleanKommoName,
     detectKommoEventType,
@@ -206,13 +207,19 @@ async function processLeadEvent(
                         // personne n'ait rouvert le lead côté Kommo) ne doit jamais les
                         // écraser silencieusement en le repassant "Client confirmé".
                         if (mapped && existing.statut !== "Client annulé" && existing.statut !== "Client perdu") {
-                                    patch.statut = mapped.statutCrm;
-                                    // Nouvelle confirmation (pas un simple re-sync d'un lead déjà
-                                    // confirmé) : déclenche la pop-up bloquante "à compléter" côté
-                                    // équipe — voir NouveauClientConfirmeAlert.
-                                    if (mapped.statutCrm === "Client confirmé" && existing.statut !== "Client confirmé") {
-                                                patch.confirmation_a_traiter = true;
-                                                patch.confirmation_assignee_a = null;
+                                    // "Client confirmé" n'est jamais écrit automatiquement : seule
+                                    // une employée/la direction crée ou transforme une fiche en
+                                    // client confirmé (elle créera sa propre nouvelle fiche à la
+                                    // main). Un lead qui passe "Réservé" côté Kommo sur une fiche
+                                    // encore Prospect bascule donc vers CONFIRME_AILLEURS — elle
+                                    // sort des listes actives sans jamais se faire passer pour la
+                                    // vraie fiche confirmée (demande de Mélanie, 2026-10-24). Si la
+                                    // fiche est déjà "Client confirmé" (posé à la main), on ne
+                                    // touche plus à son statut du tout.
+                                    if (mapped.statutCrm === "Client confirmé") {
+                                                if (existing.statut !== "Client confirmé") patch.statut = CONFIRME_AILLEURS;
+                                    } else {
+                                                patch.statut = mapped.statutCrm;
                                     }
                         }
                         // Horodate l'entrée dans "Demande d'infos envoyée" une seule fois
@@ -312,8 +319,17 @@ async function processLeadEvent(
 
               if (matchedId) {
                         const gardeStatut = matchedStatut === "Client annulé" || matchedStatut === "Client perdu";
-                        const nouvelleConfirmation =
-                                  mapped?.statutCrm === "Client confirmé" && !gardeStatut && matchedStatut !== "Client confirmé";
+                        // Même garde-fou que ci-dessus (existing/patch.statut) : jamais
+                        // d'écriture automatique de "Client confirmé" — CONFIRME_AILLEURS à
+                        // la place, sauf si la fiche l'est déjà (posé à la main).
+                        const statutAEcrire =
+                                  mapped && !gardeStatut
+                                        ? mapped.statutCrm === "Client confirmé"
+                                              ? matchedStatut === "Client confirmé"
+                                                    ? null
+                                                    : CONFIRME_AILLEURS
+                                              : mapped.statutCrm
+                                        : null;
                         await admin
                                     .from("clients")
                                     .update({
@@ -321,12 +337,9 @@ async function processLeadEvent(
                                                   kommo_pipeline_status_id: statusId,
                                                   kommo_pipeline_status_nom: statusNom,
                                                   kommo_synced_at: new Date().toISOString(),
-                                                  ...(mapped && !gardeStatut ? { statut: mapped.statutCrm } : {}),
+                                                  ...(statutAEcrire ? { statut: statutAEcrire } : {}),
                                                   ...(nom && !(matchedNomVerrouille || nomSembleComplet(matchedNom)) ? { nom } : {}),
                                                   ...(contactId ? { kommo_contact_id: contactId } : {}),
-                                                  ...(nouvelleConfirmation
-                                                        ? { confirmation_a_traiter: true, confirmation_assignee_a: null }
-                                                        : {}),
                                     })
                                     .eq("id", matchedId);
                         lastClientId = matchedId;

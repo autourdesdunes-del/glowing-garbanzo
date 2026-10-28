@@ -1576,7 +1576,10 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Le Caire en avion(\s+avec\s+(Citadelle|GEM))?$/i.test(n)) {
     return "Le Caire en avion";
   }
-  if (/^Le Caire 1 jour \(déjà sur place\)(\s+avec\s+GEM(\s*\(sans déjeuner\))?)?$/i.test(n)) {
+  if (
+    /^Le Caire 1 jour \(déjà sur place\)(\s+avec\s+GEM(\s*\(sans déjeuner\))?)?$/i.test(n) ||
+    /^Cairo 1 day private$/i.test(n)
+  ) {
     return "Le Caire 1 jour (déjà sur place)";
   }
   if (/^Le Caire 2 jours \(déjà sur place\)(\s+avec\s+GEM)?$/i.test(n)) {

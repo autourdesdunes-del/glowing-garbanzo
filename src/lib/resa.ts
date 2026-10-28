@@ -1609,6 +1609,15 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Le Caire en mini-bus avec GEM$/i.test(n)) {
     return "Le Caire en mini-bus ViP (avec Grand Egyptian Museum)";
   }
+  // Speedboat "avec 1 île" — l'île précisée entre parenthèses ou en
+  // suffixe ne compte pas comme une activité différente, regroupées sans
+  // distinction d'île (demande de Mélanie, 2026-10-28).
+  if (/^Speedboat priv[ée]\s*-\s*demi-journ[ée]e avec 1 [îi]le\b/i.test(n)) {
+    return "Speedboat privé - demi-journée avec 1 île (4h)";
+  }
+  if (/^Speedboat priv[ée]\s*-\s*journ[ée]e compl[èe]te avec 1 [îi]le\b/i.test(n)) {
+    return "Speedboat privé - journée complète avec 1 île";
+  }
   return n;
 }
 

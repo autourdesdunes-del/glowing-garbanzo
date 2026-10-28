@@ -272,6 +272,14 @@ export function computePaiementsDuJour(
             // silence dans un "Payé" qui ne l'a jamais couverte (voir
             // paiementProgress dans resa.ts).
             solde_montant: totalSejourDe(c, reservations, resaOptions, resaTarifs),
+            // Fige aussi le montant réellement réglé ici (montant, déjà
+            // affiché dans ce widget) — sans lui, une étape ajoutée plus
+            // tard pour une tout autre activité se soustrayait du total
+            // figé ci-dessus et faisait "disparaître" ce paiement déjà
+            // encaissé (vécu : Elisa Simon, 46,22 € réglés au Safari quad
+            // effacés par les 750 € de la plongée ajoutée après coup,
+            // demande de Mélanie, 2026-10-28).
+            solde_montant_recu: montant,
           }),
         onAnnulerPaye: () => onUpdateClient(c.id, { solde_paye: false, solde_date: null }),
         reporterReste,

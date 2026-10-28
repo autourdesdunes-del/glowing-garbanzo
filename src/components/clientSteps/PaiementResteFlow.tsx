@@ -311,7 +311,17 @@ export function PaiementResteFlow({
     setSoldePayeConfirm({
       label: "Payé - rendez-vous paiement finalisé",
       key: MODE_TO_PAIEMENT_STATUT_KEY[client.solde_mode] || "paye_eur",
-      patch: { solde_paye: true, solde_rdv_finalise: true, solde_montant: totalSejour },
+      patch: {
+        solde_paye: true,
+        solde_rdv_finalise: true,
+        solde_montant: totalSejour,
+        // Fige le montant réellement couvert par ce RDV finalisé — sinon
+        // une étape ajoutée plus tard pour une tout autre activité se
+        // soustrait du total figé ci-dessus et fait "disparaître" ce qui
+        // a déjà été réglé ici (même bug que marquerEncaisse, voir
+        // paiementProgress dans resa.ts).
+        solde_montant_recu: montantACouvrir,
+      },
     });
   };
 

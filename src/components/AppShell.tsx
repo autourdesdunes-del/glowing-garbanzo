@@ -1655,6 +1655,11 @@ function AppShellInner({
           solde_paye: true,
           solde_mode: "PayPal",
           solde_montant: totalSejour,
+          // Fige le montant réellement reçu (net des frais PayPal) — sinon
+          // une étape ajoutée plus tard pour une tout autre activité se
+          // soustrait du total figé ci-dessus et fait "disparaître" ce
+          // paiement pourtant bien encaissé (vécu : Elisa Simon, 2026-10-28).
+          solde_montant_recu: paiement.montant_net,
           solde_date: paiement.paypal_recu_le.slice(0, 10),
           solde_rdv_valide: true,
         },

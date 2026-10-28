@@ -83,13 +83,22 @@ function GroupedBarChart({
     return <div className="text-sm text-neutral-400">Pas encore de données sur cette période.</div>;
   }
   const max = Math.max(...data.map((d) => Math.max(d.a, d.b)), 1);
-  const width = 720;
+  const minWidth = 720;
   const height = 180;
   const groupGap = 10;
   const barGap = 2;
-  const groupWidthRaw = (width - groupGap * (data.length - 1)) / data.length;
-  const groupWidth = Math.min(groupWidthRaw, 56);
+  // Largeur minimale par groupe pour que la date reste lisible — sans ce
+  // plancher, un graphique avec beaucoup de barres (ex. tous les jours
+  // depuis le 20/09, ~39 barres) tassait tout dans une largeur fixe de
+  // 720px, rendant les dates illisibles et les barres trop fines pour
+  // distinguer entrants/sortants (vécu, 2026-10-28). Le graphique s'élargit
+  // maintenant et défile horizontalement (overflow-x-auto du conteneur) au
+  // lieu de tout écraser.
+  const MIN_GROUP_WIDTH = 26;
+  const groupWidthForMinWidth = (minWidth - groupGap * (data.length - 1)) / data.length;
+  const groupWidth = Math.min(Math.max(groupWidthForMinWidth, MIN_GROUP_WIDTH), 56);
   const totalRowWidth = groupWidth * data.length + groupGap * (data.length - 1);
+  const width = Math.max(minWidth, totalRowWidth);
   const offsetX = Math.max((width - totalRowWidth) / 2, 0);
   const barWidth = (groupWidth - barGap) / 2;
 
@@ -105,7 +114,13 @@ function GroupedBarChart({
           {seriesB}
         </span>
       </div>
-      <svg viewBox={`0 0 ${width} ${height + 28}`} width="100%" role="img" aria-label={`${seriesA} vs ${seriesB}`}>
+      <svg
+        viewBox={`0 0 ${width} ${height + 28}`}
+        width={width}
+        style={{ minWidth: "100%" }}
+        role="img"
+        aria-label={`${seriesA} vs ${seriesB}`}
+      >
         {data.map((d, i) => {
           const x = offsetX + i * (groupWidth + groupGap);
           const hA = Math.max((d.a / max) * (height - 10), d.a > 0 ? 2 : 0);

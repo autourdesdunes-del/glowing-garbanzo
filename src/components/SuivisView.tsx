@@ -566,13 +566,14 @@ export default function SuivisView({
   // à part, sinon il restait "manquant" indéfiniment.
   const pickupsJ1NonRequis = pickupsJ1.filter(({ r }) => r.pickup_non_requis);
   const pickupsJ1MissingAll = pickupsJ1.filter(({ r }) => !r.pickup_reel && !r.pickup_non_requis);
-  const pickupsJ1Done = pickupsJ1.filter(({ r }) => r.pickup_reel && !r.pickup_non_requis);
+  const pickupsJ1DoneAll = pickupsJ1.filter(({ r }) => r.pickup_reel && !r.pickup_non_requis);
   const pickupSearchNorm = deaccent(pickupSearch.trim().toLowerCase());
-  const pickupsJ1Missing = pickupSearchNorm
-    ? pickupsJ1MissingAll.filter(({ client }) =>
-        deaccent((client.nom || "").toLowerCase()).includes(pickupSearchNorm)
-      )
-    : pickupsJ1MissingAll;
+  const filterByPickupSearch = <T extends { client: Client }>(rows: T[]) =>
+    pickupSearchNorm
+      ? rows.filter(({ client }) => deaccent((client.nom || "").toLowerCase()).includes(pickupSearchNorm))
+      : rows;
+  const pickupsJ1Missing = filterByPickupSearch(pickupsJ1MissingAll);
+  const pickupsJ1Done = filterByPickupSearch(pickupsJ1DoneAll);
 
   // Le numéro de chambre se demande à J-1 de la toute première activité du
   // client (pas de son arrivée à l'hôtel) — donc calculé depuis la date la

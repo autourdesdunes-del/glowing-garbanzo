@@ -1471,12 +1471,19 @@ export function dureeJoursActivite(nom: string): number | null {
 // regroupement. Demande de Mélanie, 2026-10-28.
 export function canonicalRecapActivityName(nom: string): string {
   const n = nom || "";
-  if (
-    /^Transfert a[ée]roport\s+Hurghada\s*-\s*h[oô]tel\b/i.test(n) ||
-    /^Transfert h[oô]tel\s+Hurghada\s*-\s*a[ée]roport\b/i.test(n) ||
-    /^Transfert a[ée]roport\s*-\s*Hurghada$/i.test(n)
-  ) {
-    return "Transfert aéroport Hurghada";
+  // Transferts aéroport, quel que soit le sens — appliqué à toute ville
+  // connue (demande de Mélanie, 2026-10-28, d'abord pour Hurghada puis
+  // Louxor : même mécanisme pour toutes, pas la peine de redemander ville
+  // par ville).
+  for (const ville of VILLES_TRANSFERT_CONNUES) {
+    const villeRe = ville.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (
+      new RegExp(`^Transfert a[ée]roport\\s+${villeRe}\\s*-\\s*h[oô]tel\\b`, "i").test(n) ||
+      new RegExp(`^Transfert h[oô]tel\\s+${villeRe}\\s*-\\s*a[ée]roport\\b`, "i").test(n) ||
+      new RegExp(`^Transfert a[ée]roport\\s*-\\s*${villeRe}$`, "i").test(n)
+    ) {
+      return `Transfert aéroport ${ville}`;
+    }
   }
   // "City tour Hurghada", "City tour Hurghada — Matin", "... — Après-midi"
   // — mais pas "City Tour – El Gouna", une activité différente.

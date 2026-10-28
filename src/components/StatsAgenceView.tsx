@@ -191,6 +191,7 @@ function ChartTotals({
   colorA,
   colorB,
   currentRange,
+  windowLabel,
 }: {
   data: { label: string; a: number; b: number }[];
   seriesA: string;
@@ -200,6 +201,10 @@ function ChartTotals({
   // Omis pour les graphiques non chronologiques (par heure, par jour de la
   // semaine) : là, seul le total sur la période a un sens.
   currentRange?: Range;
+  // Surcharge RANGE_WINDOW_LABEL — pour les messages, la fenêtre est fixe
+  // depuis le 20/09 (voir route API), pas glissante 30j/26sem/12mois comme
+  // pour les réservations.
+  windowLabel?: string;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const totalA = data.reduce((s, d) => s + d.a, 0);
@@ -250,7 +255,7 @@ function ChartTotals({
       </div>
       {currentRange && (
         <p className="mt-0.5 text-xs text-neutral-400">
-          Total {RANGE_WINDOW_LABEL[currentRange]} : {totalA}
+          Total {windowLabel || RANGE_WINDOW_LABEL[currentRange]} : {totalA}
           {showB ? ` / ${totalB}` : ""} ·{" "}
           <span className="italic">{RANGE_CURRENT_LABEL[currentRange]} n&apos;est pas terminé(e), ce chiffre va encore monter.</span>
         </p>
@@ -345,16 +350,22 @@ export default function StatsAgenceView() {
           <RangeToggle value={messagesRange} onChange={setMessagesRange} />
         </div>
         {!messagesData ? (
-          <div className="text-sm text-neutral-400">Chargement…</div>
+          <div className="text-sm text-neutral-400">
+            Chargement… (jusqu&apos;à une minute — données récupérées en direct depuis Kommo).
+          </div>
         ) : (
           <div className="space-y-4">
+            <p className="text-xs text-neutral-400">
+              Depuis le 20 septembre 2026 — comptés directement depuis Kommo (notre suivi interne s&apos;est avéré
+              très incomplet).
+            </p>
             <SectionCard
               title={
                 messagesRange === "day"
-                  ? "Par jour (30 derniers jours)"
+                  ? "Par jour"
                   : messagesRange === "week"
-                    ? "Par semaine (26 dernières semaines)"
-                    : "Par mois (12 derniers mois)"
+                    ? "Par semaine"
+                    : "Par mois"
               }
             >
               <ChartTotals
@@ -364,6 +375,7 @@ export default function StatsAgenceView() {
                 colorA="#8B4531"
                 colorB="#0F5C56"
                 currentRange={messagesRange}
+                windowLabel="depuis le 20 septembre"
               />
               <GroupedBarChart
                 data={messagesData.messages.trend.map((t) => ({ label: t.label, a: t.in, b: t.out }))}
@@ -371,12 +383,8 @@ export default function StatsAgenceView() {
                 seriesB="Sortants"
               />
             </SectionCard>
-            <SectionCard
-              title="Par heure de la journée"
-              subtitle={`Cumul sur la période — heure d'Égypte, ${
-                messagesRange === "day" ? "30 derniers jours" : messagesRange === "week" ? "26 dernières semaines" : "12 derniers mois"
-              }.`}
-            >
+            <SectionCard title="Par heure de la journée" subtitle="Cumul depuis le 20 septembre — heure d'Égypte.">
+
               <ChartTotals
                 data={messagesData.messages.byHour.map((h) => ({ label: `${h.hour}h`, a: h.in, b: h.out }))}
                 seriesA="Entrants"
@@ -396,9 +404,7 @@ export default function StatsAgenceView() {
             </SectionCard>
             <SectionCard
               title="Par jour de la semaine"
-              subtitle={`Cumul sur la période — ${
-                messagesRange === "day" ? "30 derniers jours" : messagesRange === "week" ? "26 dernières semaines" : "12 derniers mois"
-              }.`}
+              subtitle="Cumul depuis le 20 septembre."
             >
               {(() => {
                 const jours = messagesData.messages.byWeekday;

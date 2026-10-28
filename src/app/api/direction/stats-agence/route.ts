@@ -2,6 +2,77 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAllRows } from "@/lib/supabase/fetchAll";
 
+// Les messages viennent directement de l'API Kommo (events), pas de notre
+// table interne kommo_webhook_events — celle-ci s'est avérée ne capter
+// qu'environ 8% des messages réels (175 vs 8 constatés le 2026-10-28, le
+// Salesbot Kommo qui l'alimente ne couvre visiblement pas tout le
+// pipeline/tous les canaux). Fenêtre fixe depuis le 20/09/2026 (demande de
+// Mélanie) plutôt qu'une fenêtre glissante de 30/182/365 jours : au-delà,
+// le volume réel (~300-500 messages/jour) demanderait des centaines voire
+// des milliers de pages à l'API Kommo à chaque chargement, bien trop lent.
+const MESSAGES_HISTORY_START = "2026-09-19T22:00:00Z"; // 2026-09-20 00:00 heure d'Égypte
+
+// La récupération séquentielle des messages Kommo (voir plus bas) peut
+// prendre jusqu'à ~45-60s sur la fenêtre depuis le 20/09 — bien au-delà des
+// 10s par défaut de Vercel.
+export const maxDuration = 90;
+
+type KommoEvent = { created_at: number; entity_id: number; entity_type: string };
+
+// Une seule page à la fois, jamais en parallèle : testé en parallèle
+// (lots de 3 à 6), l'API Kommo renvoie sporadiquement des réponses vides ou
+// un JSON tronqué sous cette charge — indiscernable d'une "dernière page"
+// (moins de 250 résultats), ce qui tronquait silencieusement des milliers
+// d'événements sans erreur visible. Plus lent (~45s pour toute la fenêtre
+// depuis le 20/09) mais fiable — un chiffre faux dans une page Direction
+// est pire qu'une page un peu longue à charger.
+async function fetchKommoEventsPage(
+  type: "incoming_chat_message" | "outgoing_chat_message",
+  fromEpoch: number,
+  toEpoch: number,
+  page: number,
+  attempt = 1
+): Promise<{ ok: boolean; items: KommoEvent[] }> {
+  const subdomain = process.env.KOMMO_SUBDOMAIN;
+  const token = process.env.KOMMO_ACCESS_TOKEN;
+  if (!subdomain || !token) return { ok: false, items: [] };
+  const base = `https://${subdomain}.kommo.com/api/v4`;
+  const url = `${base}/events?filter[type]=${type}&filter[created_at][from]=${fromEpoch}&filter[created_at][to]=${toEpoch}&page=${page}&limit=250`;
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const items = (json?._embedded?.events || []) as KommoEvent[];
+    return { ok: true, items };
+  } catch {
+    // Jamais traiter un échec réseau/JSON comme "plus de pages" — on
+    // réessaie avant d'abandonner cette page précise.
+    if (attempt < 4) {
+      await new Promise((r) => setTimeout(r, 300 * attempt));
+      return fetchKommoEventsPage(type, fromEpoch, toEpoch, page, attempt + 1);
+    }
+    return { ok: false, items: [] };
+  }
+}
+
+async function fetchKommoEventsAll(
+  type: "incoming_chat_message" | "outgoing_chat_message",
+  fromEpoch: number,
+  toEpoch: number
+): Promise<KommoEvent[]> {
+  const all: KommoEvent[] = [];
+  const MAX_PAGES = 400; // garde-fou (~100 000 events par type)
+  let page = 1;
+  for (;;) {
+    const { ok, items } = await fetchKommoEventsPage(type, fromEpoch, toEpoch, page);
+    if (!ok) break; // échec persistant malgré les tentatives : on s'arrête là plutôt que de boucler indéfiniment
+    all.push(...items);
+    if (items.length < 250 || page >= MAX_PAGES) break;
+    page++;
+  }
+  return all;
+}
+
 // Stat agences (Direction > Statistiques) — demande de Mélanie, 2026-10-28 :
 // messages entrants/sortants (par jour/semaine/mois + répartition par
 // heure + temps de réponse moyen), réservations rentrées (par jour/semaine/
@@ -37,13 +108,13 @@ export async function GET(request: Request) {
   const joursParRange: Record<string, number> = { day: 30, week: 182, month: 365 };
   const depuis = new Date(Date.now() - joursParRange[range as string] * 86400000).toISOString();
 
-  const [{ data: events }, { data: reservations }, { data: profiles }, { data: shifts }, { data: clientsCanal }] =
+  const messagesFromEpoch = Math.floor(new Date(MESSAGES_HISTORY_START).getTime() / 1000);
+  const messagesToEpoch = Math.floor(Date.now() / 1000);
+
+  const [inEvents, outEvents, { data: reservations }, { data: profiles }, { data: shifts }, { data: clientsCanal }] =
     await Promise.all([
-      admin
-        .from("kommo_webhook_events")
-        .select("payload, created_at, client_id")
-        .eq("event_type", "prospect_message")
-        .gte("created_at", depuis),
+      fetchKommoEventsAll("incoming_chat_message", messagesFromEpoch, messagesToEpoch),
+      fetchKommoEventsAll("outgoing_chat_message", messagesFromEpoch, messagesToEpoch),
       fetchAllRows<{ created_at: string; cree_par_nom: string }>(
         admin,
         "reservations",
@@ -56,9 +127,22 @@ export async function GET(request: Request) {
       admin.from("clients").select("canal, statut, created_at").gte("created_at", depuis),
     ]);
 
+  const events: { created_at: string; direction: "in" | "out"; groupKey: string }[] = [
+    ...inEvents.map((e) => ({
+      created_at: new Date(e.created_at * 1000).toISOString(),
+      direction: "in" as const,
+      groupKey: `${e.entity_type}:${e.entity_id}`,
+    })),
+    ...outEvents.map((e) => ({
+      created_at: new Date(e.created_at * 1000).toISOString(),
+      direction: "out" as const,
+      groupKey: `${e.entity_type}:${e.entity_id}`,
+    })),
+  ];
+
   return Response.json({
     range,
-    messages: buildMessagesStats(events || [], range as string),
+    messages: buildMessagesStats(events, range as string),
     reservations: buildReservationsStats(
       (reservations || []).filter((r) => r.created_at >= depuis),
       range as string,
@@ -111,7 +195,7 @@ function bucketSortKey(dateStr: string, range: string): string {
 }
 
 function buildMessagesStats(
-  events: { payload: unknown; created_at: string; client_id: string | null }[],
+  events: { created_at: string; direction: "in" | "out"; groupKey: string }[],
   range: string
 ) {
   const trendMap = new Map<string, { label: string; sortKey: string; in: number; out: number }>();
@@ -125,16 +209,16 @@ function buildMessagesStats(
   const JOURS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
   const byWeekday = JOURS_FR.map((name) => ({ name, in: 0, out: 0 }));
 
-  // Temps de réponse : pour chaque client, on apparie le premier message
-  // entrant d'une "rafale" (le client peut écrire plusieurs messages de
-  // suite avant une réponse) avec le prochain message sortant — jamais
-  // l'inverse (un sortant qui suit un sortant, ou un entrant déjà "répondu"
-  // ne redémarre pas le chrono). Pas d'auteur dans ces events (webhook
-  // Kommo générique) : le temps de réponse reste global, pas par employée.
-  const parClient = new Map<string, { created_at: string; direction: "in" | "out" }[]>();
+  // Temps de réponse : pour chaque conversation (lead/contact Kommo), on
+  // apparie le premier message entrant d'une "rafale" (le client peut
+  // écrire plusieurs messages de suite avant une réponse) avec le prochain
+  // message sortant — jamais l'inverse (un sortant qui suit un sortant, ou
+  // un entrant déjà "répondu" ne redémarre pas le chrono). Pas d'auteur
+  // dans ces events Kommo : le temps de réponse reste global, pas par
+  // employée.
+  const parConversation = new Map<string, { created_at: string; direction: "in" | "out" }[]>();
   for (const e of events) {
-    const payload = (e.payload || {}) as Record<string, unknown>;
-    const direction = payload.direction === "out" ? "out" : "in";
+    const direction = e.direction;
     const key = bucketSortKey(e.created_at, range);
     if (!trendMap.has(key)) {
       trendMap.set(key, { label: bucketLabel(e.created_at, range), sortKey: key, in: 0, out: 0 });
@@ -152,14 +236,12 @@ function buildMessagesStats(
     const mondayFirst = jsWeekday === 0 ? 6 : jsWeekday - 1;
     byWeekday[mondayFirst][direction] += 1;
 
-    if (e.client_id) {
-      if (!parClient.has(e.client_id)) parClient.set(e.client_id, []);
-      parClient.get(e.client_id)!.push({ created_at: e.created_at, direction });
-    }
+    if (!parConversation.has(e.groupKey)) parConversation.set(e.groupKey, []);
+    parConversation.get(e.groupKey)!.push({ created_at: e.created_at, direction });
   }
 
   const reponseTrendMap = new Map<string, { label: string; sortKey: string; totalMinutes: number; count: number }>();
-  for (const liste of parClient.values()) {
+  for (const liste of parConversation.values()) {
     liste.sort((a, b) => a.created_at.localeCompare(b.created_at));
     let pendingInAt: string | null = null;
     for (const evt of liste) {

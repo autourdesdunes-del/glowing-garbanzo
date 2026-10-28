@@ -65,7 +65,10 @@ export default function RecapMoisView({
     return Array.from(set).sort().reverse();
   }, [reservations]);
 
-  const [mois, setMois] = useState(monthsAvailable[0] || monthKey(localDateStr(new Date())));
+  // Toujours le mois en cours par défaut, pas le mois le plus récent trouvé
+  // dans les réservations (qui peut être un mois futur, ex. une activité
+  // saisie trop loin à l'avance) — demande de Mélanie, 2026-10-28.
+  const [mois, setMois] = useState(monthKey(localDateStr(new Date())));
   const [recherche, setRecherche] = useState("");
 
   const reservationsDuMois = useMemo(

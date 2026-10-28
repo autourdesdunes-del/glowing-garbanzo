@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Client, Reservation } from "@/lib/types";
 import {
-  canonicalTransfertAeroportHurghada,
+  canonicalRecapActivityName,
   cleanActivityTitle,
   participantsFor,
   reservationsActives,
@@ -16,6 +16,13 @@ function monthKey(dateStr: string) {
 function monthLabel(key: string) {
   const [y, m] = key.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+}
+function normalizeSearch(s: string) {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toLowerCase();
 }
 
 type ReservationDetail = {
@@ -59,7 +66,7 @@ export default function RecapMoisView({
   }, [reservations]);
 
   const [mois, setMois] = useState(monthsAvailable[0] || monthKey(localDateStr(new Date())));
-  const [activiteFiltre, setActiviteFiltre] = useState<string>("toutes");
+  const [recherche, setRecherche] = useState("");
 
   const reservationsDuMois = useMemo(
     () =>
@@ -77,7 +84,7 @@ export default function RecapMoisView({
   const parActivite = useMemo(() => {
     const map: Record<string, ActiviteAgg> = {};
     reservationsDuMois.forEach((r) => {
-      const nom = canonicalTransfertAeroportHurghada(cleanActivityTitle(r.nom_activite)) || "(sans nom)";
+      const nom = canonicalRecapActivityName(cleanActivityTitle(r.nom_activite)) || "(sans nom)";
       const client = clientById[r.client_id];
       if (!map[nom]) {
         map[nom] = { nom, reservationsCount: 0, nbAd: 0, nbEnf: 0, nbBebe: 0, details: [] };
@@ -108,9 +115,10 @@ export default function RecapMoisView({
     return Object.values(map).sort((a, b) => b.nbAd + b.nbEnf + b.nbBebe - (a.nbAd + a.nbEnf + a.nbBebe));
   }, [reservationsDuMois, clientById]);
 
-  const activitesOptions = useMemo(() => parActivite.map((a) => a.nom), [parActivite]);
-  const visibleActivites =
-    activiteFiltre === "toutes" ? parActivite : parActivite.filter((a) => a.nom === activiteFiltre);
+  const rechercheNorm = normalizeSearch(recherche);
+  const visibleActivites = rechercheNorm
+    ? parActivite.filter((a) => normalizeSearch(a.nom).includes(rechercheNorm))
+    : parActivite;
 
   const totalAd = parActivite.reduce((s, a) => s + a.nbAd, 0);
   const totalEnf = parActivite.reduce((s, a) => s + a.nbEnf, 0);
@@ -134,6 +142,14 @@ export default function RecapMoisView({
         </p>
       </div>
 
+      <input
+        type="text"
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        placeholder="Rechercher une activité (ex. Mahmya, transfert, speedboat…)"
+        className="w-full rounded-[8px] border border-[#eaeaea] bg-white px-3 py-2 text-sm"
+      />
+
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={mois}
@@ -143,18 +159,6 @@ export default function RecapMoisView({
           {monthsAvailable.map((m) => (
             <option key={m} value={m}>
               {monthLabel(m)}
-            </option>
-          ))}
-        </select>
-        <select
-          value={activiteFiltre}
-          onChange={(e) => setActiviteFiltre(e.target.value)}
-          className="rounded-[8px] border border-[#eaeaea] bg-white px-3 py-2 text-sm"
-        >
-          <option value="toutes">Toutes les activités</option>
-          {activitesOptions.map((nom) => (
-            <option key={nom} value={nom}>
-              {nom}
             </option>
           ))}
         </select>

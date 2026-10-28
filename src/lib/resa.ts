@@ -1464,11 +1464,12 @@ export function dureeJoursActivite(nom: string): number | null {
   return null;
 }
 
-// Pour les récaps/rapports : les transferts aéroport Hurghada comptent pour
-// une seule et même activité, qu'ils soient Hôtel → Aéroport ou Aéroport →
-// Hôtel (demande de Mélanie, 2026-10-28 — jusque-là ils ressortaient en deux
-// lignes distinctes dans "Récap du mois").
-export function canonicalTransfertAeroportHurghada(nom: string): string {
+// Pour les récaps/rapports : certaines activités ressortent en plusieurs
+// lignes distinctes alors que c'est la même prestation (transferts aéroport
+// Hurghada dans les deux sens, city tour Hurghada matin/après-midi/sans
+// créneau précisé...) — on les ramène ici à un seul nom canonique avant
+// regroupement. Demande de Mélanie, 2026-10-28.
+export function canonicalRecapActivityName(nom: string): string {
   const n = nom || "";
   if (
     /^Transfert a[ée]roport\s+Hurghada\s*-\s*h[oô]tel\b/i.test(n) ||
@@ -1476,6 +1477,11 @@ export function canonicalTransfertAeroportHurghada(nom: string): string {
     /^Transfert a[ée]roport\s*-\s*Hurghada$/i.test(n)
   ) {
     return "Transfert aéroport Hurghada";
+  }
+  // "City tour Hurghada", "City tour Hurghada — Matin", "... — Après-midi"
+  // — mais pas "City Tour – El Gouna", une activité différente.
+  if (/^City\s*tour\s+Hurghada(\s*[—-]\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "City tour Hurghada";
   }
   return n;
 }

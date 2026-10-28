@@ -1606,6 +1606,12 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Speedboat priv[ée]\s.*journ[ée]e compl[èe]te/i.test(n)) {
     return "Speedboat privé - journée complète";
   }
+  // Transfert privatif Caire ↔ Siwa, dans les deux sens — syntaxe "de X vers
+  // Y" différente des autres transferts privatifs (d'où une règle à part,
+  // Siwa n'étant pas dans VILLES_TRANSFERT_CONNUES).
+  if (/^Transfert privatif (du Caire vers Siwa|de Siwa vers (Le )?Caire)$/i.test(n)) {
+    return "Transfert privatif Caire - Siwa";
+  }
   return n;
 }
 

@@ -2401,6 +2401,27 @@ export default function ClientDetail({
                   // badge choisi exprès juste avant).
                   const badgeSuit = repriseModal.badge === badgeParDefautPourMode(repriseModal.mode);
                   const patch = badgeSuit ? { badge: badgeParDefautPourMode(mode) } : {};
+                  // Le montant pré-rempli (diff de prix, toujours calculé en
+                  // €) ne se convertissait jamais en passant sur "Espèces
+                  // EGP" (ou inversement) — l'employée voyait "80" (le prix
+                  // en €) et validait tel quel en pensant que c'était déjà
+                  // en EGP, au lieu des ~5000 EGP réels (vécu sur Stephane
+                  // Vidouse, 2026-10-28 : 80 EGP affiché au lieu de 5100).
+                  // Conversion automatique seulement si un taux est connu et
+                  // que l'employée n'a pas déjà retapé le montant à la main
+                  // pour CE mode précis.
+                  const taux = Number(client.egp_taux) || 0;
+                  const montantActuel = Number(repriseModal.montant) || 0;
+                  const versEgp = mode === "Espèces EGP" && repriseModal.mode !== "Espèces EGP";
+                  const versEur = mode !== "Espèces EGP" && repriseModal.mode === "Espèces EGP";
+                  const montantConverti =
+                    taux > 0 && montantActuel > 0
+                      ? versEgp
+                        ? String(Math.round(montantActuel * taux))
+                        : versEur
+                          ? String(Math.round((montantActuel / taux) * 100) / 100)
+                          : repriseModal.montant
+                      : repriseModal.montant;
                   if (mode === "Modes différents" && !repriseModal.mixteEur && !repriseModal.mixteEgp) {
                     setRepriseModal({
                       ...repriseModal,
@@ -2410,7 +2431,7 @@ export default function ClientDetail({
                       ...patch,
                     });
                   } else {
-                    setRepriseModal({ ...repriseModal, mode, ...patch });
+                    setRepriseModal({ ...repriseModal, mode, montant: montantConverti, ...patch });
                   }
                 }}
               >

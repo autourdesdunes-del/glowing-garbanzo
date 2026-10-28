@@ -1472,8 +1472,11 @@ export default function AddActivityWizard({
                 // automatiquement, mais reste modifiable ensuite. On l'écrit
                 // toujours (explicitement null si l'activité n'est pas
                 // multi-jours) pour effacer une éventuelle date de fin
-                // restée d'une activité multi-jours précédemment liée.
-                date_fin: dureeJours && newDate ? addDays(newDate, dureeJours - 1) : null,
+                // restée d'une activité multi-jours précédemment liée. Une
+                // activité sur mesure n'a aucune durée détectable depuis son
+                // nom (texte libre) — sa date de fin, si elle en a une, est
+                // toujours saisie à la main : ne jamais l'effacer ici.
+                date_fin: dureeJours && newDate ? addDays(newDate, dureeJours - 1) : isCustomFlow ? r.date_fin : null,
               });
             }}
             className={`input max-w-[220px] ${
@@ -1482,8 +1485,8 @@ export default function AddActivityWizard({
           />
         </Field>
 
-        {dureeJours && (
-          <Field label="Date fin">
+        {(dureeJours || isCustomFlow) && (
+          <Field label={isCustomFlow ? "Date fin (si l'activité dure plusieurs jours)" : "Date fin"}>
             <input
               type="date"
               value={r.date_fin ?? ""}

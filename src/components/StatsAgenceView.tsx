@@ -8,8 +8,8 @@ type MessagesStats = {
   trend: { label: string; in: number; out: number }[];
   byHour: { hour: number; in: number; out: number }[];
   byWeekday: { name: string; in: number; out: number }[];
-  responseTrend: { label: string; averageMinutes: number; count: number }[];
-  averageMinutesGlobal: number | null;
+  responseTrend: { label: string; medianMinutes: number; count: number }[];
+  medianMinutesGlobal: number | null;
 };
 
 type ReservationsStats = {
@@ -451,27 +451,27 @@ export default function StatsAgenceView() {
               })()}
             </SectionCard>
             <SectionCard
-              title="Temps de réponse moyen"
-              subtitle="Délai entre un message client et la première réponse de l'équipe. Pas d'auteur dans ces données Kommo : impossible de le détailler par employée."
+              title="Temps de réponse médian"
+              subtitle="Délai entre un message client et la première réponse de l'équipe. Médiane, pas moyenne : quelques conversations abandonnées (jamais vraiment répondues) suffisent à faire exploser une moyenne, sans refléter le rythme réel. Pas d'auteur dans ces données Kommo : impossible de le détailler par employée."
             >
-              {messagesData.messages.averageMinutesGlobal == null ? (
+              {messagesData.messages.medianMinutesGlobal == null ? (
                 <div className="text-sm text-neutral-400">Pas assez de données pour calculer un temps de réponse.</div>
               ) : (
                 <>
                   <div className="mb-3 text-sm">
                     <span className="font-amounts text-lg font-semibold text-[#171717]">
-                      {fmtDuree(messagesData.messages.averageMinutesGlobal)}
+                      {fmtDuree(messagesData.messages.medianMinutesGlobal)}
                     </span>{" "}
-                    <span className="text-neutral-500">en moyenne sur la période</span>
+                    <span className="text-neutral-500">médian sur la période</span>
                   </div>
                   <div className="overflow-x-auto rounded-md bg-white p-4">
                     <div className="flex items-end gap-1.5" style={{ minHeight: 160 }}>
                       {messagesData.messages.responseTrend.map((b, i) => {
-                        const max = Math.max(...messagesData.messages.responseTrend.map((x) => x.averageMinutes), 1);
-                        const h = Math.max((b.averageMinutes / max) * 140, b.averageMinutes > 0 ? 2 : 0);
+                        const max = Math.max(...messagesData.messages.responseTrend.map((x) => x.medianMinutes), 1);
+                        const h = Math.max((b.medianMinutes / max) * 140, b.medianMinutes > 0 ? 2 : 0);
                         return (
                           <div key={`${b.label}-${i}`} className="flex flex-col items-center gap-1" style={{ width: 24 }}>
-                            <div title={`${b.label} : ${fmtDuree(b.averageMinutes)} (${b.count} réponse${b.count > 1 ? "s" : ""})`} className="flex h-[140px] w-full items-end">
+                            <div title={`${b.label} : ${fmtDuree(b.medianMinutes)} (${b.count} réponse${b.count > 1 ? "s" : ""})`} className="flex h-[140px] w-full items-end">
                               <div className="w-full rounded-t-sm bg-[#C9973E]" style={{ height: h }} />
                             </div>
                             <span className="text-[9px] text-neutral-400">{b.label}</span>

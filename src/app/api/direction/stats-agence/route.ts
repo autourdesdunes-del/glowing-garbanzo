@@ -240,7 +240,15 @@ function buildMessagesStats(
     parConversation.get(e.groupKey)!.push({ created_at: e.created_at, direction });
   }
 
-  const reponseTrendMap = new Map<string, { label: string; sortKey: string; totalMinutes: number; count: number }>();
+  // Médiane, pas moyenne : une poignée de conversations abandonnées
+  // (premier message jamais vraiment répondu, rattaché à tort à un message
+  // sortant sans rapport des jours plus tard) suffit à faire exploser une
+  // moyenne même quand l'immense majorité des réponses est rapide — vécu
+  // le 2026-10-28, moyenne à 4h17 pour une médiane réelle de 10 min
+  // (82% des réponses arrivent en moins d'1h, mais 2,6% des paires
+  // dépassent 24h, certaines jusqu'à 33 jours).
+  const reponseTrendMap = new Map<string, { label: string; sortKey: string; delaysMinutes: number[] }>();
+  const allDelaysMinutes: number[] = [];
   for (const liste of parConversation.values()) {
     liste.sort((a, b) => a.created_at.localeCompare(b.created_at));
     let pendingInAt: string | null = null;
@@ -252,26 +260,33 @@ function buildMessagesStats(
         if (minutes >= 0) {
           const key = bucketSortKey(pendingInAt, range);
           if (!reponseTrendMap.has(key)) {
-            reponseTrendMap.set(key, { label: bucketLabel(pendingInAt, range), sortKey: key, totalMinutes: 0, count: 0 });
+            reponseTrendMap.set(key, { label: bucketLabel(pendingInAt, range), sortKey: key, delaysMinutes: [] });
           }
-          const bucket = reponseTrendMap.get(key)!;
-          bucket.totalMinutes += minutes;
-          bucket.count += 1;
+          reponseTrendMap.get(key)!.delaysMinutes.push(minutes);
+          allDelaysMinutes.push(minutes);
         }
         pendingInAt = null;
       }
     }
   }
 
+  function median(values: number[]): number {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  }
+
   const trend = [...trendMap.values()].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
   const responseTrend = [...reponseTrendMap.values()]
     .sort((a, b) => a.sortKey.localeCompare(b.sortKey))
-    .map((b) => ({ label: b.label, averageMinutes: b.count > 0 ? Math.round(b.totalMinutes / b.count) : 0, count: b.count }));
-  const totalPaires = responseTrend.reduce((s, b) => s + b.count, 0);
-  const totalMinutes = [...reponseTrendMap.values()].reduce((s, b) => s + b.totalMinutes, 0);
-  const averageMinutesGlobal = totalPaires > 0 ? Math.round(totalMinutes / totalPaires) : null;
+    .map((b) => ({
+      label: b.label,
+      medianMinutes: b.delaysMinutes.length > 0 ? Math.round(median(b.delaysMinutes)) : 0,
+      count: b.delaysMinutes.length,
+    }));
+  const medianMinutesGlobal = allDelaysMinutes.length > 0 ? Math.round(median(allDelaysMinutes)) : null;
 
-  return { trend, byHour, byWeekday, responseTrend, averageMinutesGlobal };
+  return { trend, byHour, byWeekday, responseTrend, medianMinutesGlobal };
 }
 
 function buildReservationsStats(

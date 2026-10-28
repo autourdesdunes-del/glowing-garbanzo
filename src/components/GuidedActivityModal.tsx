@@ -84,8 +84,8 @@ export default function GuidedActivityModal({
   hotelHorsHurghada: boolean;
   hotelVille?: string;
   taxesRef: TransfertTaxe[];
-  coutsMap: Record<string, number>;
-  onUpdateCoutReel: (id: string, value: number) => void;
+  coutsMap: Record<string, { value: number; source: "manuel" | "estime" }>;
+  onUpdateCoutReel: (id: string, value: number, source?: "manuel" | "estime") => void;
   onBusEscalation: (nomActivite: string, reservationId: string | null) => Promise<void>;
   busEscalations: BusEscalation[];
   onJourEscalation: (

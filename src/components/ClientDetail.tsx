@@ -408,7 +408,12 @@ export default function ClientDetail({
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [resaOptions, setResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [resaTarifs, setResaTarifs] = useState<Record<string, ReservationTarif[]>>({});
-  const [coutsMap, setCoutsMap] = useState<Record<string, number>>({});
+  // source : "manuel" (tapé/corrigé à la main) ou "estime" (jamais vérifié
+  // par une humaine — pré-rempli automatiquement depuis les tarifs
+  // prestataires, voir src/lib/coutPrestataire.ts) — distinction demandée
+  // par Mélanie le 2026-10-28, pour ne jamais confondre une marge vérifiée
+  // avec une simple estimation affichée nulle part ailleurs auparavant.
+  const [coutsMap, setCoutsMap] = useState<Record<string, { value: number; source: "manuel" | "estime" }>>({});
   const [generatingDoc, setGeneratingDoc] = useState<"devis" | "facture" | null>(null);
   const [showAnnulerClientModal, setShowAnnulerClientModal] = useState(false);
   const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
@@ -859,10 +864,12 @@ export default function ClientDetail({
             "reservation_id",
             list.map((r) => r.id)
           );
-        const map: Record<string, number> = {};
-        ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
-          map[c.reservation_id] = c.cout_reel;
-        });
+        const map: Record<string, { value: number; source: "manuel" | "estime" }> = {};
+        ((couts as { reservation_id: string; cout_reel: number; source: "manuel" | "estime" }[]) || []).forEach(
+          (c) => {
+            map[c.reservation_id] = { value: c.cout_reel, source: c.source };
+          }
+        );
         setCoutsMap(map);
       } else {
         setCoutsMap({});
@@ -894,11 +901,14 @@ export default function ClientDetail({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservations, resaOptions, resaTarifs]);
 
-  const updateCoutReel = async (reservationId: string, value: number) => {
-    setCoutsMap((prev) => ({ ...prev, [reservationId]: value }));
+  // source "manuel" par défaut (saisie/correction directe dans le champ) —
+  // "estime" seulement quand explicitement passé (bouton "Suggérer", voir
+  // ItineraryView.tsx), jamais déduit en silence.
+  const updateCoutReel = async (reservationId: string, value: number, source: "manuel" | "estime" = "manuel") => {
+    setCoutsMap((prev) => ({ ...prev, [reservationId]: { value, source } }));
     const { error } = await supabase
       .from("reservation_couts")
-      .upsert({ reservation_id: reservationId, cout_reel: value });
+      .upsert({ reservation_id: reservationId, cout_reel: value, source });
     if (error) toast("Échec de l'enregistrement du coût.");
   };
 
@@ -1197,10 +1207,12 @@ export default function ClientDetail({
           "reservation_id",
           list.map((r) => r.id)
         );
-      const map: Record<string, number> = {};
-      ((couts as { reservation_id: string; cout_reel: number }[]) || []).forEach((c) => {
-        map[c.reservation_id] = c.cout_reel;
-      });
+      const map: Record<string, { value: number; source: "manuel" | "estime" }> = {};
+      ((couts as { reservation_id: string; cout_reel: number; source: "manuel" | "estime" }[]) || []).forEach(
+        (c) => {
+          map[c.reservation_id] = { value: c.cout_reel, source: c.source };
+        }
+      );
       setCoutsMap(map);
     } else {
       setCoutsMap({});

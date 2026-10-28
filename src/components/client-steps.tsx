@@ -1020,8 +1020,8 @@ export function ActivitesStep({
   clientHotels?: ClientHotel[];
   hotelsRef?: HotelReference[];
   taxesRef?: TransfertTaxe[];
-  coutsMap: Record<string, number>;
-  onUpdateCoutReel: (id: string, value: number) => void;
+  coutsMap: Record<string, { value: number; source: "manuel" | "estime" }>;
+  onUpdateCoutReel: (id: string, value: number, source?: "manuel" | "estime") => void;
   // Dans le dossier normal, ce bouton doit rouvrir la petite fenêtre
   // guidée plutôt que dérouler l'éditeur inline — mais le pas-à-pas de
   // création et la fenêtre guidée elle-même veulent garder le comportement

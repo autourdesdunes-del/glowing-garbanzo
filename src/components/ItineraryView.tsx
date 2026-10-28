@@ -157,8 +157,8 @@ export default function ItineraryView({
   canSeeMargins: boolean;
   hotelHorsHurghada?: boolean;
   hotelVille?: string;
-  coutsMap: Record<string, number>;
-  onUpdateCoutReel: (id: string, value: number) => void;
+  coutsMap: Record<string, { value: number; source: "manuel" | "estime" }>;
+  onUpdateCoutReel: (id: string, value: number, source?: "manuel" | "estime") => void;
   busEscalations?: BusEscalation[];
   onBusEscalation: (nomActivite: string, reservationId: string | null) => Promise<void>;
   onJourEscalation: (
@@ -873,14 +873,25 @@ export default function ItineraryView({
                     <input
                       type="number"
                       step="0.01"
-                      value={coutsMap[expandedReservation.id] ?? ""}
+                      value={coutsMap[expandedReservation.id]?.value ?? ""}
                       onChange={(e) =>
-                        onUpdateCoutReel(expandedReservation.id, Number(e.target.value) || 0)
+                        // Toute frappe directe dans ce champ vaut confirmation
+                        // humaine — même une estimation pré-remplie passe en
+                        // "manuel" dès qu'elle est retouchée à la main.
+                        onUpdateCoutReel(expandedReservation.id, Number(e.target.value) || 0, "manuel")
                       }
                       placeholder="—"
                       className="input w-24 text-sm"
                     />
                     <span>€</span>
+                    {coutsMap[expandedReservation.id]?.source === "estime" && (
+                      <span
+                        title="Jamais vérifié à la main — pré-rempli automatiquement depuis les tarifs prestataires."
+                        className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700"
+                      >
+                        estimé
+                      </span>
+                    )}
                     <button
                       type="button"
                       disabled={coutSuggestionLoading}
@@ -893,7 +904,7 @@ export default function ItineraryView({
                           );
                           const data = await res.json();
                           if (data.estimation) {
-                            onUpdateCoutReel(expandedReservation.id, data.estimation.montantEur);
+                            onUpdateCoutReel(expandedReservation.id, data.estimation.montantEur, "estime");
                             setCoutSuggestionAvertissements(data.estimation.avertissements || []);
                           } else {
                             setCoutSuggestionAvertissements(["Aucune règle de coût connue pour cette activité."]);
@@ -1143,8 +1154,15 @@ export default function ItineraryView({
               client={client}
               options={resaOptions[resaCible.id] || []}
               tarifs={resaTarifs[resaCible.id] || []}
-              coutReel={canSeeMargins ? coutsMap[resaCible.id] : undefined}
-              onUpdateCoutReel={canSeeMargins ? (value) => onUpdateCoutReel(resaCible.id, value) : undefined}
+              coutReel={canSeeMargins ? coutsMap[resaCible.id]?.value : undefined}
+              onUpdateCoutReel={
+                canSeeMargins
+                  ? // Ajustement proportionnel automatique (retrait de
+                    // participants) — jamais une vraie nouvelle estimation ni
+                    // une saisie humaine : garde la source déjà en place.
+                    (value) => onUpdateCoutReel(resaCible.id, value, coutsMap[resaCible.id]?.source ?? "manuel")
+                  : undefined
+              }
               onUpdate={(patch) => onUpdateReservation(resaCible.id, patch)}
               onUpdateOption={(optId, patch) => onUpdateOption(resaCible.id, optId, patch)}
               onUpdateClient={onUpdateClient}

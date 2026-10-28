@@ -216,6 +216,10 @@ export default function SuivisView({
   // (checklist + vraie fiche côte à côte) — voir VerifDossierDrawer.
   const [verifDrawerClientId, setVerifDrawerClientId] = useState<string | null>(null);
   const [newAppelClientId, setNewAppelClientId] = useState("");
+  // Recherche tapée au clavier (nom du client) pour retrouver vite un
+  // pick-up précis dans la liste des manquants — même besoin que la
+  // recherche "Appels" juste en dessous, la liste peut être longue.
+  const [pickupSearch, setPickupSearch] = useState("");
   // Recherche tapée au clavier (nom du client/prospect) pour programmer un
   // appel — le <select> listant les ~1500 clients était inutilisable pour
   // retrouver quelqu'un (demande de Mélanie, 2026-10-08).
@@ -561,8 +565,14 @@ export default function SuivisView({
   // prévu...) ne relance jamais pickup_reel — il sort des deux listes et vit
   // à part, sinon il restait "manquant" indéfiniment.
   const pickupsJ1NonRequis = pickupsJ1.filter(({ r }) => r.pickup_non_requis);
-  const pickupsJ1Missing = pickupsJ1.filter(({ r }) => !r.pickup_reel && !r.pickup_non_requis);
+  const pickupsJ1MissingAll = pickupsJ1.filter(({ r }) => !r.pickup_reel && !r.pickup_non_requis);
   const pickupsJ1Done = pickupsJ1.filter(({ r }) => r.pickup_reel && !r.pickup_non_requis);
+  const pickupSearchNorm = deaccent(pickupSearch.trim().toLowerCase());
+  const pickupsJ1Missing = pickupSearchNorm
+    ? pickupsJ1MissingAll.filter(({ client }) =>
+        deaccent((client.nom || "").toLowerCase()).includes(pickupSearchNorm)
+      )
+    : pickupsJ1MissingAll;
 
   // Le numéro de chambre se demande à J-1 de la toute première activité du
   // client (pas de son arrivée à l'hôtel) — donc calculé depuis la date la
@@ -595,9 +605,22 @@ export default function SuivisView({
             <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
               Pick-ups manquants pour demain ({fmtDate(tomorrowStr)})
             </h3>
+            {pickupsJ1MissingAll.length > 0 && (
+              <input
+                type="text"
+                value={pickupSearch}
+                onChange={(e) => setPickupSearch(e.target.value)}
+                placeholder="Rechercher un client…"
+                className="mb-3 w-full rounded-[8px] border border-[#eaeaea] bg-white px-3 py-2 text-sm"
+              />
+            )}
             {pickupsJ1Missing.length === 0 ? (
               <div className="text-sm text-neutral-400">
-                {pickupsJ1.length === 0 ? "Aucune activité prévue demain." : "Tous les pick-ups sont renseignés ✓"}
+                {pickupsJ1.length === 0
+                  ? "Aucune activité prévue demain."
+                  : pickupsJ1MissingAll.length === 0
+                    ? "Tous les pick-ups sont renseignés ✓"
+                    : "Aucun résultat pour cette recherche."}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

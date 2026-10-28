@@ -51,16 +51,20 @@ function CompareRow({
             <span className="w-16 flex-shrink-0 text-xs text-neutral-500">{v.prenom}</span>
             <div className="h-5 flex-1 overflow-hidden rounded bg-neutral-100">
               <div
-                className="flex h-full items-center rounded px-2 text-xs font-medium text-white"
+                className="h-full rounded"
                 style={{
-                  width: `${v.value != null ? Math.max((v.value / max) * 100, v.value > 0 ? 8 : 0) : 0}%`,
+                  width: `${v.value != null && v.value > 0 ? Math.max((v.value / max) * 100, 4) : 0}%`,
                   background: colors[i],
                 }}
-              >
-                {v.value != null && v.value > 0 ? format(v.value) : ""}
-              </div>
+              />
             </div>
-            {v.value == null && <span className="text-xs text-neutral-400">—</span>}
+            {/* Toujours affiché à côté, jamais DANS la barre — une barre à 0
+                ou presque vide ne peut pas contenir de texte lisible, le
+                chiffre disparaissait silencieusement (vécu : "Justine" à 0
+                vérification semblait manquant plutôt que nul, 2026-10-28). */}
+            <span className="w-16 flex-shrink-0 text-right text-xs font-medium text-[#171717]">
+              {v.value != null ? format(v.value) : "—"}
+            </span>
           </div>
         ))}
       </div>

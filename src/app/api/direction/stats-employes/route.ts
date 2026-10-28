@@ -44,10 +44,20 @@ export async function GET() {
   ] = await Promise.all([
     admin
       .from("reservations")
-      .select("id, client_id, cree_par_nom, created_at, statut_resa")
+      // "*", pas une liste réduite de colonnes : resaTotalMontant a besoin de
+      // tous les champs de prix (pu_adulte, tarif_mode, transfert_montant,
+      // reduction_montant...) — une sélection étroite ici faisait retomber
+      // silencieusement tous ces champs à undefined/0, donnant un panier
+      // moyen et un CA absurdement bas (1,68€ au lieu de ~150€, vécu
+      // 2026-10-28).
+      .select("*")
       .in("cree_par_nom", EMPLOYEES)
       .gte("created_at", WINDOW_START),
-    admin.from("clients").select("id, statut"),
+    // "*", pas "id, statut" seuls : resaTotalMontant a besoin du client
+    // complet (adultes/enfants/bébés...) pour résoudre le nombre de
+    // participants quand participants_mode="tous" (participantsFor, resa.ts)
+    // — même bug que pour les réservations ci-dessus.
+    admin.from("clients").select("*"),
     admin.from("reservation_options").select("*"),
     admin.from("reservation_tarifs").select("*"),
     admin.from("reservation_couts").select("reservation_id, cout_reel"),
@@ -67,7 +77,7 @@ export async function GET() {
       .gte("created_at", WINDOW_START),
   ]);
 
-  const clientById = new Map((clients as Pick<Client, "id" | "statut">[] | null)?.map((c) => [c.id, c]) ?? []);
+  const clientById = new Map((clients as Client[] | null)?.map((c) => [c.id, c]) ?? []);
   const optionsByResa = new Map<string, ReservationOption[]>();
   ((options as ReservationOption[]) || []).forEach((o) => {
     optionsByResa.set(o.reservation_id, [...(optionsByResa.get(o.reservation_id) || []), o]);

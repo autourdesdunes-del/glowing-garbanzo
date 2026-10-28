@@ -119,6 +119,11 @@ function buildMessagesStats(
   // de l'heure d'été égyptienne en 2016) — c'est l'heure à laquelle
   // l'équipe sur place lit/répond réellement aux messages.
   const byHour = Array.from({ length: 24 }, (_, h) => ({ hour: h, in: 0, out: 0 }));
+  // Lundi en premier (convention FR), toujours en heure d'Égypte — demande
+  // de Mélanie, 2026-10-28 : quels jours de la semaine reçoivent le plus/le
+  // moins de messages entrants.
+  const JOURS_FR = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+  const byWeekday = JOURS_FR.map((name) => ({ name, in: 0, out: 0 }));
 
   // Temps de réponse : pour chaque client, on apparie le premier message
   // entrant d'une "rafale" (le client peut écrire plusieurs messages de
@@ -138,6 +143,14 @@ function buildMessagesStats(
 
     const heureEgypte = (new Date(e.created_at).getUTCHours() + 2) % 24;
     byHour[heureEgypte][direction] += 1;
+
+    // +2h d'abord (décalage Égypte), puis le jour de la semaine de la date
+    // décalée — sinon un message reçu après 22h UTC (après minuit en
+    // Égypte) se comptait sur le mauvais jour.
+    const dateEgypte = new Date(new Date(e.created_at).getTime() + 2 * 3600000);
+    const jsWeekday = dateEgypte.getUTCDay(); // 0 = dimanche ... 6 = samedi
+    const mondayFirst = jsWeekday === 0 ? 6 : jsWeekday - 1;
+    byWeekday[mondayFirst][direction] += 1;
 
     if (e.client_id) {
       if (!parClient.has(e.client_id)) parClient.set(e.client_id, []);
@@ -176,7 +189,7 @@ function buildMessagesStats(
   const totalMinutes = [...reponseTrendMap.values()].reduce((s, b) => s + b.totalMinutes, 0);
   const averageMinutesGlobal = totalPaires > 0 ? Math.round(totalMinutes / totalPaires) : null;
 
-  return { trend, byHour, responseTrend, averageMinutesGlobal };
+  return { trend, byHour, byWeekday, responseTrend, averageMinutesGlobal };
 }
 
 function buildReservationsStats(

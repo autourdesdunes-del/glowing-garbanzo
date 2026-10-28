@@ -7,6 +7,7 @@ type Range = "day" | "week" | "month";
 type MessagesStats = {
   trend: { label: string; in: number; out: number }[];
   byHour: { hour: number; in: number; out: number }[];
+  byWeekday: { name: string; in: number; out: number }[];
   responseTrend: { label: string; averageMinutes: number; count: number }[];
   averageMinutesGlobal: number | null;
 };
@@ -358,6 +359,41 @@ export default function StatsAgenceView() {
                 seriesA="Entrants"
                 seriesB="Sortants"
               />
+            </SectionCard>
+            <SectionCard
+              title="Par jour de la semaine"
+              subtitle={`Cumul sur la période — ${
+                messagesRange === "day" ? "30 derniers jours" : messagesRange === "week" ? "26 dernières semaines" : "12 derniers mois"
+              }.`}
+            >
+              {(() => {
+                const jours = messagesData.messages.byWeekday;
+                const plus = [...jours].sort((a, b) => b.in - a.in)[0];
+                const moins = [...jours].sort((a, b) => a.in - b.in)[0];
+                return (
+                  <>
+                    <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                      <span>
+                        📈 <span className="font-medium text-[#171717]">{plus.name}</span>{" "}
+                        <span className="text-neutral-500">
+                          le plus chargé ({plus.in} entrant{plus.in > 1 ? "s" : ""})
+                        </span>
+                      </span>
+                      <span>
+                        📉 <span className="font-medium text-[#171717]">{moins.name}</span>{" "}
+                        <span className="text-neutral-500">
+                          le plus calme ({moins.in} entrant{moins.in > 1 ? "s" : ""})
+                        </span>
+                      </span>
+                    </div>
+                    <GroupedBarChart
+                      data={jours.map((j) => ({ label: j.name.slice(0, 3), a: j.in, b: j.out }))}
+                      seriesA="Entrants"
+                      seriesB="Sortants"
+                    />
+                  </>
+                );
+              })()}
             </SectionCard>
             <SectionCard
               title="Temps de réponse moyen"

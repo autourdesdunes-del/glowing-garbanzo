@@ -1615,7 +1615,7 @@ export function canonicalRecapActivityName(nom: string): string {
   // Toutes les formules "journée complète" en speedboat privé ensemble,
   // quelle que soit l'île ou la combinaison d'îles (demande de Mélanie,
   // 2026-10-28) — mais pas le catamaran, un autre type de bateau.
-  if (/^Speedboat priv[ée]\b.*journ[ée]e compl[èe]te/i.test(n)) {
+  if (/^Speedboat priv[ée]\s.*journ[ée]e compl[èe]te/i.test(n)) {
     return "Speedboat privé - journée complète";
   }
   return n;

@@ -467,7 +467,14 @@ export function paiementProgress(
   // 0 = jamais renseigné (anciennes données) : on garde alors l'ancien
   // calcul plutôt que d'écraser à tort un solde légitimement payé.
   const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejour;
-  const croissanceApresSolde = Math.max(totalSejour - soldeBaseline, 0);
+  // etapesSum/avoirUtilise déjà déduits ici : une étape ajoutée exprès pour
+  // régler cette croissance (ex. "Ajout d'une activité sur place réglée à
+  // part") doit la couvrir, sinon soldeCouvert la soustrait quand même plus
+  // bas et l'étape se retrouve neutralisée — le total payé reste figé pile
+  // au même montant qu'avant l'étape (vécu : Charlotte PENZ, étape PayPal de
+  // 125€ ajoutée pour couvrir 125€ de croissance, "Payé" resté à 444€ au
+  // lieu de 569€, demande de Mélanie, 2026-10-28).
+  const croissanceApresSolde = Math.max(totalSejour - soldeBaseline - etapesSum - avoirUtilise, 0);
   // Équivalent de soldeRestant, mais figé au total du séjour tel qu'il
   // était AU MOMENT du règlement (soldeBaseline) plutôt que recalculé en
   // direct — sinon supprimer une activité après coup fait rétrécir

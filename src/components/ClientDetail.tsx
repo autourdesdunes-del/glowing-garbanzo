@@ -1540,7 +1540,13 @@ export default function ClientDetail({
   // jamais renseigné (anciennes données) : on garde alors l'ancien calcul
   // plutôt que d'écraser à tort un solde légitimement payé.
   const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejourHeader;
-  const croissanceApresSolde = Math.max(totalSejourHeader - soldeBaseline, 0);
+  // Même correctif que paiementProgress() dans resa.ts (Charlotte PENZ,
+  // 2026-10-28) : une étape ajoutée pour couvrir cette croissance doit la
+  // réduire, sinon elle est neutralisée par soldeCouvertHeader plus bas.
+  const croissanceApresSolde = Math.max(
+    totalSejourHeader - soldeBaseline - etapesSumHeader - avoirUtiliseHeader,
+    0
+  );
   // Même correctif que paiementProgress() dans resa.ts : soldeRestantHeader
   // est recalculé en direct et bouge dès qu'une activité est
   // supprimée/ajoutée après coup — jamais la bonne base une fois le solde

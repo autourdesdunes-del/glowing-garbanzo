@@ -178,8 +178,13 @@ function ChartTotals({
   const totalA = data.reduce((s, d) => s + d.a, 0);
   const totalB = data.reduce((s, d) => s + d.b, 0);
   const showB = seriesB !== "";
-  const last = data[data.length - 1];
-  const prev = data[data.length - 2];
+  // Jamais le tout dernier bucket (aujourd'hui / cette semaine / ce mois en
+  // cours, toujours partiel puisque la période n'est pas finie) — sinon la
+  // comparaison était systématiquement et faussement négative, le jour en
+  // cours ayant mécaniquement moins d'événements qu'une veille complète.
+  // On compare donc le dernier jour/semaine/mois COMPLET à celui d'avant.
+  const last = data[data.length - 2];
+  const prev = data[data.length - 3];
   return (
     <div className="mb-3">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1">

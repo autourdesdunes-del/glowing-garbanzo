@@ -1603,6 +1603,12 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Le Caire en voiture priv[ée]e(,\s*avec\s+Saqqarah)?$/i.test(n)) {
     return "Le Caire en voiture privée";
   }
+  // "Le Caire en mini-bus avec GEM" = la formule ViP avec musée, confirmé
+  // par Mélanie — pas la même chose que "Le Caire en mini-bus" tout court
+  // (sans musée), qui reste à part.
+  if (/^Le Caire en mini-bus avec GEM$/i.test(n)) {
+    return "Le Caire en mini-bus ViP (avec Grand Egyptian Museum)";
+  }
   return n;
 }
 

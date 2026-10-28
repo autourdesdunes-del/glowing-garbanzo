@@ -252,9 +252,7 @@ function ChartTotals({
         <p className="mt-0.5 text-xs text-neutral-400">
           Total {RANGE_WINDOW_LABEL[currentRange]} : {totalA}
           {showB ? ` / ${totalB}` : ""} ·{" "}
-          <span className="italic">
-            {RANGE_CURRENT_LABEL[currentRange]} n&apos;est pas terminé(e), ce chiffre va encore monter.
-          </span>
+          <span className="italic">{RANGE_CURRENT_LABEL[currentRange]} n&apos;est pas terminé(e), ce chiffre va encore monter.</span>
         </p>
       )}
       {detailOpen && (

@@ -105,18 +105,29 @@ export function ReservationSummaryCard({
   const infosManquantes = infosManquantesToutes(client, reservations, hotelsRef, clientHotels);
   const infoComplet = infosManquantes.length === 0;
   const infoStatut = infoComplet ? null : infosManquantes[0];
+  // Une activité sur plusieurs jours (ex. croisière, circuit) se repère
+  // moins vite au milieu des activités d'une seule journée — distinguée en
+  // bleu/gris pastel (demande de Mélanie, 2026-10-28). Le tri qui la fait
+  // remonter en haut de son groupe de date vit dans PlanningView.tsx.
+  const isMultiDay = !!(r.date_fin && r.date_fin !== r.date_debut);
+  const cardBg = isMultiDay ? "border-[#B8C4D0] bg-[#EAF0F5]" : "border-[#666666]/20 bg-white";
 
   if (size === "medium") {
     return (
       <div
         onClick={onClick}
-        className="cursor-pointer rounded-md border border-[#666666]/20 bg-white p-3"
+        className={`cursor-pointer rounded-md border p-3 ${cardBg}`}
       >
         <div className="flex flex-wrap items-center gap-1.5">
           <p className="text-sm font-medium leading-snug text-[#171717]">
             {cleanActivityTitle(r.nom_activite) || "Activité"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </p>
+          {isMultiDay && (
+            <span className="whitespace-nowrap rounded-full bg-[#B8C4D0]/40 px-1.5 py-0.5 text-[10px] font-medium text-[#45586B]">
+              📅 Plusieurs jours
+            </span>
+          )}
           {r.info_importante.trim() && (
             <span
               title={r.info_importante}
@@ -248,7 +259,7 @@ export function ReservationSummaryCard({
     return (
       <div
         onClick={onClick}
-        className="cursor-pointer rounded-md border border-[#666666]/20 bg-white p-2"
+        className={`cursor-pointer rounded-md border p-2 ${cardBg}`}
       >
         <div className="flex flex-wrap items-center gap-1">
           <p className="text-xs font-medium leading-tight text-[#171717]">
@@ -325,13 +336,18 @@ export function ReservationSummaryCard({
   return (
     <div
       onClick={onClick}
-      className="cursor-pointer rounded-md border border-[#666666]/20 bg-white p-3"
+      className={`cursor-pointer rounded-md border p-3 ${cardBg}`}
     >
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-medium text-[#171717]">
           {cleanActivityTitle(r.nom_activite) || "Activité"}
           {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
         </p>
+        {isMultiDay && (
+          <span className="rounded-full bg-[#B8C4D0]/40 px-2 py-0.5 text-xs font-medium text-[#45586B]">
+            📅 Plusieurs jours
+          </span>
+        )}
         {r.info_importante.trim() && (
           <span
             title={r.info_importante}

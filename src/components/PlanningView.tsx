@@ -167,10 +167,17 @@ export default function PlanningView({
       rows.push({ client, r });
     });
 
-    // Dès qu'un pick-up réel est renseigné, les activités d'une même journée
-    // se trient par heure de pick-up croissante — celles sans pick-up gardent
-    // l'ordre par date derrière (demande de Mélanie, 2026-09-19).
+    // Une activité sur plusieurs jours (croisière, circuit...) remonte en
+    // haut de son groupe de date — plus facile à repérer avant les
+    // activités d'une seule journée (demande de Mélanie, 2026-10-28).
+    // Ensuite, dès qu'un pick-up réel est renseigné, les activités d'une
+    // même journée se trient par heure de pick-up croissante — celles sans
+    // pick-up gardent l'ordre par date derrière (demande de Mélanie,
+    // 2026-09-19).
     rows.sort((a, b) => {
+      const ma = a.r.date_fin && a.r.date_fin !== a.r.date_debut ? 1 : 0;
+      const mb = b.r.date_fin && b.r.date_fin !== b.r.date_debut ? 1 : 0;
+      if (ma !== mb) return mb - ma;
       const pa = pickupSortMinutes(a.r);
       const pb = pickupSortMinutes(b.r);
       if (pa !== null && pb !== null) return pa - pb;

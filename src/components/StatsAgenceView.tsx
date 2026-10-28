@@ -7,20 +7,34 @@ type Range = "day" | "week" | "month";
 type MessagesStats = {
   trend: { label: string; in: number; out: number }[];
   byHour: { hour: number; in: number; out: number }[];
+  responseTrend: { label: string; averageMinutes: number; count: number }[];
+  averageMinutesGlobal: number | null;
 };
 
 type ReservationsStats = {
   trend: { label: string; count: number }[];
-  byEmployee: { nom: string; count: number }[];
+  byEmployee: { nom: string; count: number; joursTravailles: number; moyenneParJour: number | null }[];
   matin: number;
   apresMidi: number;
 };
+
+type ConversionStat = { canal: string; total: number; confirmes: number; tauxPct: number };
 
 type StatsResponse = {
   range: Range;
   messages: MessagesStats;
   reservations: ReservationsStats;
+  conversion: ConversionStat[];
 };
+
+// "2h30" plutôt que "150 min" — plus lisible pour un temps de réponse
+// d'agence (souvent plusieurs heures, jamais des secondes).
+function fmtDuree(minutes: number): string {
+  if (minutes < 60) return `${Math.round(minutes)} min`;
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return m > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${h}h`;
+}
 
 const RANGE_OPTIONS: { key: Range; label: string }[] = [
   { key: "day", label: "Jour" },
@@ -121,6 +135,26 @@ function GroupedBarChart({
   );
 }
 
+// Dernière période complète vs celle d'avant (dernier jour vs la veille,
+// dernière semaine vs la précédente, dernier mois vs le précédent) — même
+// principe que "CA du mois vs mois précédent" sur le Tableau de bord
+// Direction. "inverse" pour une métrique où baisser est une amélioration
+// (temps de réponse) : la couleur s'inverse, pas le signe affiché.
+function VsPrecedent({ current, previous, inverse = false }: { current: number; previous: number; inverse?: boolean }) {
+  if (previous === 0 && current === 0) return null;
+  if (previous === 0) return <span className="text-xs font-medium text-neutral-400">(pas de référence)</span>;
+  const pct = Math.round(((current - previous) / previous) * 100);
+  const hausse = pct > 0;
+  const bon = inverse ? !hausse : hausse;
+  const couleur = pct === 0 ? "text-neutral-400" : bon ? "text-[#0F5C56]" : "text-red-600";
+  return (
+    <span className={`text-xs font-medium ${couleur}`}>
+      {pct > 0 ? "+" : ""}
+      {pct}% vs précédent
+    </span>
+  );
+}
+
 // Les barres seules ne donnent le chiffre exact qu'au survol (jamais au
 // doigt sur mobile) — demande de Mélanie, 2026-10-28 : un total toujours
 // visible au-dessus du graphique, plus un tableau dépliable avec chaque
@@ -131,17 +165,21 @@ function ChartTotals({
   seriesB,
   colorA,
   colorB,
+  showComparison = false,
 }: {
   data: { label: string; a: number; b: number }[];
   seriesA: string;
   seriesB: string;
   colorA: string;
   colorB: string;
+  showComparison?: boolean;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const totalA = data.reduce((s, d) => s + d.a, 0);
   const totalB = data.reduce((s, d) => s + d.b, 0);
   const showB = seriesB !== "";
+  const last = data[data.length - 1];
+  const prev = data[data.length - 2];
   return (
     <div className="mb-3">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
@@ -150,6 +188,11 @@ function ChartTotals({
             {totalA}
           </span>{" "}
           <span className="text-neutral-500">{seriesA.toLowerCase()}</span>
+          {showComparison && last && prev && (
+            <span className="ml-1.5">
+              <VsPrecedent current={last.a} previous={prev.a} />
+            </span>
+          )}
         </span>
         {showB && (
           <span className="text-sm">
@@ -157,6 +200,11 @@ function ChartTotals({
               {totalB}
             </span>{" "}
             <span className="text-neutral-500">{seriesB.toLowerCase()}</span>
+            {showComparison && last && prev && (
+              <span className="ml-1.5">
+                <VsPrecedent current={last.b} previous={prev.b} />
+              </span>
+            )}
           </span>
         )}
         <button
@@ -238,6 +286,7 @@ export default function StatsAgenceView() {
 
   const messagesData = dataByRange[messagesRange];
   const resaData = dataByRange[resaRange];
+  const conversionData = resaData?.conversion || [];
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 p-6">
@@ -274,6 +323,7 @@ export default function StatsAgenceView() {
                 seriesB="Sortants"
                 colorA="#8B4531"
                 colorB="#0F5C56"
+                showComparison
               />
               <GroupedBarChart
                 data={messagesData.messages.trend.map((t) => ({ label: t.label, a: t.in, b: t.out }))}
@@ -304,6 +354,39 @@ export default function StatsAgenceView() {
                 seriesB="Sortants"
               />
             </SectionCard>
+            <SectionCard
+              title="Temps de réponse moyen"
+              subtitle="Délai entre un message client et la première réponse de l'équipe. Pas d'auteur dans ces données Kommo : impossible de le détailler par employée."
+            >
+              {messagesData.messages.averageMinutesGlobal == null ? (
+                <div className="text-sm text-neutral-400">Pas assez de données pour calculer un temps de réponse.</div>
+              ) : (
+                <>
+                  <div className="mb-3 text-sm">
+                    <span className="font-amounts text-lg font-semibold text-[#171717]">
+                      {fmtDuree(messagesData.messages.averageMinutesGlobal)}
+                    </span>{" "}
+                    <span className="text-neutral-500">en moyenne sur la période</span>
+                  </div>
+                  <div className="overflow-x-auto rounded-md bg-white p-4">
+                    <div className="flex items-end gap-1.5" style={{ minHeight: 160 }}>
+                      {messagesData.messages.responseTrend.map((b, i) => {
+                        const max = Math.max(...messagesData.messages.responseTrend.map((x) => x.averageMinutes), 1);
+                        const h = Math.max((b.averageMinutes / max) * 140, b.averageMinutes > 0 ? 2 : 0);
+                        return (
+                          <div key={`${b.label}-${i}`} className="flex flex-col items-center gap-1" style={{ width: 24 }}>
+                            <div title={`${b.label} : ${fmtDuree(b.averageMinutes)} (${b.count} réponse${b.count > 1 ? "s" : ""})`} className="flex h-[140px] w-full items-end">
+                              <div className="w-full rounded-t-sm bg-[#C9973E]" style={{ height: h }} />
+                            </div>
+                            <span className="text-[9px] text-neutral-400">{b.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </SectionCard>
           </div>
         )}
       </div>
@@ -332,6 +415,7 @@ export default function StatsAgenceView() {
                 seriesB=""
                 colorA="#171717"
                 colorB="#0F5C56"
+                showComparison
               />
               <GroupedBarChart
                 data={resaData.reservations.trend.map((t) => ({ label: t.label, a: t.count, b: 0 }))}
@@ -340,7 +424,10 @@ export default function StatsAgenceView() {
               />
             </SectionCard>
             <div className="grid gap-4 sm:grid-cols-2">
-              <SectionCard title="Qui en rentre le plus">
+              <SectionCard
+                title="Qui en rentre le plus"
+                subtitle="Moyenne par jour travaillé entre parenthèses — sinon le classement ne fait que refléter qui a eu le plus de shifts."
+              >
                 {resaData.reservations.byEmployee.length === 0 ? (
                   <div className="text-sm text-neutral-400">Aucune activité attribuée sur cette période.</div>
                 ) : (
@@ -350,7 +437,14 @@ export default function StatsAgenceView() {
                         <span className="text-[#171717]">
                           {i + 1}. {e.nom}
                         </span>
-                        <span className="font-medium text-[#171717]">{e.count}</span>
+                        <span className="font-medium text-[#171717]">
+                          {e.count}
+                          {e.moyenneParJour != null && (
+                            <span className="ml-1 font-normal text-neutral-400">
+                              ({e.moyenneParJour}/j · {e.joursTravailles}j)
+                            </span>
+                          )}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -391,6 +485,40 @@ export default function StatsAgenceView() {
               </SectionCard>
             </div>
           </div>
+        )}
+      </div>
+
+      <div>
+        <h3 className="font-heading mb-2 text-base font-semibold text-[#171717]">Conversion par canal</h3>
+        {!resaData ? (
+          <div className="text-sm text-neutral-400">Chargement…</div>
+        ) : (
+          <SectionCard
+            title="% de prospects devenus Client confirmé"
+            subtitle={`Parmi les prospects arrivés sur la période (${
+              resaRange === "day" ? "30 derniers jours" : resaRange === "week" ? "26 dernières semaines" : "12 derniers mois"
+            }) — un prospect très récent n'a souvent pas encore eu le temps de se confirmer, à garder en tête sur "Jour".`}
+          >
+            {conversionData.length === 0 ? (
+              <div className="text-sm text-neutral-400">Aucun prospect sur cette période.</div>
+            ) : (
+              <div className="space-y-2.5">
+                {conversionData.map((c) => (
+                  <div key={c.canal}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-[#171717]">{c.canal}</span>
+                      <span className="font-medium text-[#171717]">
+                        {c.tauxPct}% <span className="font-normal text-neutral-400">({c.confirmes}/{c.total})</span>
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-neutral-200">
+                      <div className="h-full bg-[#8B4531]" style={{ width: `${c.tauxPct}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
         )}
       </div>
     </div>

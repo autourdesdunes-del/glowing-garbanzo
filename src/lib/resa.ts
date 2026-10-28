@@ -1554,21 +1554,6 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Speedboat semi-priv[ée]\s*(avec|-)\s*Maison des dauphins$/i.test(n)) {
     return "Speedboat semi-privé - Maison des dauphins";
   }
-  if (/^Speedboat priv[ée] 4h\s*-\s*White Island(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
-    return "Speedboat privé 4h - White Island";
-  }
-  if (/^Speedboat priv[ée] 4h avec Hula Hula(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
-    return "Speedboat privé 4h avec Hula Hula";
-  }
-  if (/^Speedboat priv[ée] 4h avec Magawish(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
-    return "Speedboat privé 4h avec Magawish";
-  }
-  if (/^Speedboat priv[ée] 4h avec Orange Bay(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
-    return "Speedboat privé 4h avec Orange Bay";
-  }
-  if (/^Speedboat priv[ée] 4h avec Ozir[ée]a(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
-    return "Speedboat privé 4h avec Oziréa";
-  }
   if (/^Croisière (au fil du|sur le) Nil de Louxor vers Assouan \(5 jours\s*(et 4 nuits|\/4 nuits)\)$/i.test(n)) {
     return "Croisière au fil du Nil de Louxor vers Assouan (5 jours et 4 nuits)";
   }
@@ -1606,10 +1591,10 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Le Caire en mini-bus avec GEM$/i.test(n)) {
     return "Le Caire en mini-bus ViP (avec Grand Egyptian Museum)";
   }
-  // Speedboat "avec 1 île" — l'île précisée entre parenthèses ou en
-  // suffixe ne compte pas comme une activité différente, regroupées sans
-  // distinction d'île (demande de Mélanie, 2026-10-28).
-  if (/^Speedboat priv[ée]\s*-\s*demi-journ[ée]e avec 1 [îi]le\b/i.test(n)) {
+  // Toutes les formules "demi-journée (4h)" en speedboat privé ensemble,
+  // quelle que soit l'île (demande de Mélanie, 2026-10-28) — même principe
+  // que la fusion "journée complète" juste en dessous.
+  if (/^Speedboat priv[ée]\s.*(4h|demi-journ[ée]e)/i.test(n)) {
     return "Speedboat privé - demi-journée avec 1 île (4h)";
   }
   // Toutes les formules "journée complète" en speedboat privé ensemble,

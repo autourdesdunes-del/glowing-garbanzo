@@ -1569,9 +1569,6 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Speedboat priv[ée] 4h avec Ozir[ée]a(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
     return "Speedboat privé 4h avec Oziréa";
   }
-  if (/^Speedboat priv[ée]\s*-?\s*journ[ée]e compl[èe]te,?\s*(avec\s*)?Hula Hula$/i.test(n)) {
-    return "Speedboat privé journée complète avec Hula Hula";
-  }
   if (/^Croisière (au fil du|sur le) Nil de Louxor vers Assouan \(5 jours\s*(et 4 nuits|\/4 nuits)\)$/i.test(n)) {
     return "Croisière au fil du Nil de Louxor vers Assouan (5 jours et 4 nuits)";
   }
@@ -1615,8 +1612,11 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Speedboat priv[ée]\s*-\s*demi-journ[ée]e avec 1 [îi]le\b/i.test(n)) {
     return "Speedboat privé - demi-journée avec 1 île (4h)";
   }
-  if (/^Speedboat priv[ée]\s*-\s*journ[ée]e compl[èe]te avec 1 [îi]le\b/i.test(n)) {
-    return "Speedboat privé - journée complète avec 1 île";
+  // Toutes les formules "journée complète" en speedboat privé ensemble,
+  // quelle que soit l'île ou la combinaison d'îles (demande de Mélanie,
+  // 2026-10-28) — mais pas le catamaran, un autre type de bateau.
+  if (/^Speedboat priv[ée]\b.*journ[ée]e compl[èe]te/i.test(n)) {
+    return "Speedboat privé - journée complète";
   }
   return n;
 }

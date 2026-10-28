@@ -6,6 +6,8 @@ import {
   CatalogueModificationRequest,
   Client,
   DirectionTache,
+  PaiementEtape,
+  PaiementPrevu,
   Profile,
   Remboursement,
   Reservation,
@@ -925,6 +927,11 @@ export default function DirectionView({
   teamProfiles,
   onOpenClient,
   onNavigateSub,
+  paiementsEtapes,
+  paiementsPrevus,
+  onOpenRdvPaiement,
+  onUpdateReservation,
+  onUpdateClient,
 }: {
   sub: DirectionSub;
   clients: Client[];
@@ -946,6 +953,12 @@ export default function DirectionView({
   teamProfiles: Profile[];
   onOpenClient: (id: string) => void;
   onNavigateSub: (sub: DirectionSub) => void;
+  // Pour le popup "Voir l'activité" de Récap du mois (sub === "recap").
+  paiementsEtapes: PaiementEtape[];
+  paiementsPrevus: PaiementPrevu[];
+  onOpenRdvPaiement: (clientId: string) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onUpdateClient: (id: string, patch: Partial<Client>) => void;
 }) {
   // Partagé entre les 3 pages Comptabilité (pas un state local à chacune) —
   // pour que cliquer un mois dans "par an" fasse déjà atterrir "par mois"
@@ -1252,7 +1265,18 @@ export default function DirectionView({
 
   if (sub === "recap") {
     return (
-      <RecapMoisView reservations={reservations} clients={clients} />
+      <RecapMoisView
+        reservations={reservations}
+        clients={clients}
+        resaOptions={resaOptions}
+        resaTarifs={resaTarifs}
+        paiementsEtapes={paiementsEtapes}
+        paiementsPrevus={paiementsPrevus}
+        onOpenClient={onOpenClient}
+        onOpenRdvPaiement={onOpenRdvPaiement}
+        onUpdateReservation={onUpdateReservation}
+        onUpdateClient={onUpdateClient}
+      />
     );
   }
 

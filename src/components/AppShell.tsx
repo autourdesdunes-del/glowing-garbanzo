@@ -3373,7 +3373,18 @@ function AppShellInner({
           {!planningLoaded ? (
             <Spinner />
           ) : (
-            <RecapMoisView reservations={allReservations} clients={clients} />
+            <RecapMoisView
+              reservations={allReservations}
+              clients={clients}
+              resaOptions={allResaOptions}
+              resaTarifs={allResaTarifs}
+              paiementsEtapes={allPaiementsEtapes}
+              paiementsPrevus={allPaiementsPrevus}
+              onOpenClient={openClient}
+              onOpenRdvPaiement={openRdvPaiements}
+              onUpdateReservation={updateReservationById}
+              onUpdateClient={updateClientById}
+            />
           )}
         </div>
       )}
@@ -3584,6 +3595,11 @@ function AppShellInner({
               teamProfiles={teamProfiles}
               onOpenClient={openClient}
               onNavigateSub={setDirectionSub}
+              paiementsEtapes={allPaiementsEtapes}
+              paiementsPrevus={allPaiementsPrevus}
+              onOpenRdvPaiement={openRdvPaiements}
+              onUpdateReservation={updateReservationById}
+              onUpdateClient={updateClientById}
             />
           )}
         </div>

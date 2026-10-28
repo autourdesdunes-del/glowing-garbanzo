@@ -1,7 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Client, Reservation } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import {
+  Client,
+  HotelReference,
+  PaiementEtape,
+  PaiementPrevu,
+  Reservation,
+  ReservationOption,
+  ReservationTarif,
+} from "@/lib/types";
 import {
   canonicalRecapActivityName,
   cleanActivityTitle,
@@ -9,13 +18,16 @@ import {
   reservationsActives,
 } from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
+import { generateRecapActiviteReport } from "@/lib/generateRecapActiviteReport";
+import { ActivityDetailModal } from "@/components/planning/ActivityDetailModal";
 
 function monthKey(dateStr: string) {
   return dateStr.slice(0, 7); // "YYYY-MM"
 }
 function monthLabel(key: string) {
   const [y, m] = key.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  const label = new Date(y, m - 1, 1).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 function normalizeSearch(s: string) {
   return (s || "")
@@ -26,7 +38,8 @@ function normalizeSearch(s: string) {
 }
 
 type ReservationDetail = {
-  clientNom: string;
+  client: Client;
+  r: Reservation;
   date: string;
   nbAd: number;
   nbEnf: number;
@@ -45,15 +58,43 @@ type ActiviteAgg = {
 export default function RecapMoisView({
   reservations,
   clients,
+  resaOptions,
+  resaTarifs,
+  paiementsEtapes = [],
+  paiementsPrevus = [],
+  onOpenClient,
+  onOpenRdvPaiement,
+  onUpdateReservation,
+  onUpdateClient,
 }: {
   reservations: Reservation[];
   clients: Client[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
+  paiementsEtapes?: PaiementEtape[];
+  paiementsPrevus?: PaiementPrevu[];
+  onOpenClient: (clientId: string) => void;
+  onOpenRdvPaiement: (clientId: string) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onUpdateClient: (id: string, patch: Partial<Client>) => void;
 }) {
   const clientById = useMemo(() => {
     const m: Record<string, Client> = {};
     clients.forEach((c) => (m[c.id] = c));
     return m;
   }, [clients]);
+
+  // Chargée ici (comme PlanningView.tsx) plutôt que reçue en prop — évite
+  // de faire remonter hotelsRef jusqu'à AppShell/DirectionView juste pour
+  // le popup "Voir l'activité".
+  const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const { data } = await supabase.from("hotels_reference").select("*");
+      if (data) setHotelsRef(data as HotelReference[]);
+    })();
+  }, []);
 
   const monthsAvailable = useMemo(() => {
     const set = new Set<string>();
@@ -89,30 +130,20 @@ export default function RecapMoisView({
     reservationsDuMois.forEach((r) => {
       const nom = canonicalRecapActivityName(cleanActivityTitle(r.nom_activite)) || "(sans nom)";
       const client = clientById[r.client_id];
+      if (!client) return;
       if (!map[nom]) {
         map[nom] = { nom, reservationsCount: 0, nbAd: 0, nbEnf: 0, nbBebe: 0, details: [] };
       }
       const agg = map[nom];
       agg.reservationsCount += 1;
-      let nbAd = 0;
-      let nbEnf = 0;
-      let nbBebe = 0;
-      if (client) {
-        const p = participantsFor(r, client);
-        nbAd = p.nbAd + p.nbAcc;
-        nbEnf = p.nbEnf + p.nbEnf3;
-        nbBebe = p.nbBebe;
-      }
+      const p = participantsFor(r, client);
+      const nbAd = p.nbAd + p.nbAcc;
+      const nbEnf = p.nbEnf + p.nbEnf3;
+      const nbBebe = p.nbBebe;
       agg.nbAd += nbAd;
       agg.nbEnf += nbEnf;
       agg.nbBebe += nbBebe;
-      agg.details.push({
-        clientNom: client?.nom || "—",
-        date: r.date_debut || "",
-        nbAd,
-        nbEnf,
-        nbBebe,
-      });
+      agg.details.push({ client, r, date: r.date_debut || "", nbAd, nbEnf, nbBebe });
     });
     Object.values(map).forEach((a) => a.details.sort((x, y) => x.date.localeCompare(y.date)));
     return Object.values(map).sort((a, b) => b.nbAd + b.nbEnf + b.nbBebe - (a.nbAd + a.nbEnf + a.nbBebe));
@@ -135,6 +166,25 @@ export default function RecapMoisView({
       else next.add(nom);
       return next;
     });
+
+  const [activeActivity, setActiveActivity] = useState<{ client: Client; r: Reservation } | null>(null);
+
+  const exportActivitePdf = (a: ActiviteAgg) => {
+    generateRecapActiviteReport({
+      activiteNom: a.nom,
+      moisLabel: monthLabel(mois),
+      rows: a.details.map((d) => ({
+        date: d.date,
+        clientNom: d.client.nom || "Sans nom",
+        nbAd: d.nbAd,
+        nbEnf: d.nbEnf,
+        nbBebe: d.nbBebe,
+      })),
+      totalAd: a.nbAd,
+      totalEnf: a.nbEnf,
+      totalBebe: a.nbBebe,
+    });
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-8">
@@ -190,17 +240,17 @@ export default function RecapMoisView({
             const isOpen = expanded.has(a.nom);
             return (
               <div key={a.nom} className="rounded-[10px] border border-[#eaeaea] bg-white">
-                <button
-                  onClick={() => toggleExpanded(a.nom)}
-                  className="flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left"
-                >
-                  <div className="flex items-center gap-2 font-medium text-[#171717]">
+                <div className="flex w-full flex-wrap items-center justify-between gap-2 p-4">
+                  <button
+                    onClick={() => toggleExpanded(a.nom)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left font-medium text-[#171717]"
+                  >
                     <span className={`inline-block transition-transform ${isOpen ? "rotate-90" : ""}`}>
                       ›
                     </span>
                     {a.nom}
-                  </div>
-                  <div className="flex gap-4 text-sm text-[#666666]">
+                  </button>
+                  <div className="flex items-center gap-4 text-sm text-[#666666]">
                     <span>
                       <strong className="text-[#171717]">{a.reservationsCount}</strong> réservation
                       {a.reservationsCount > 1 ? "s" : ""}
@@ -214,8 +264,15 @@ export default function RecapMoisView({
                     <span>
                       <strong className="text-[#171717]">{a.nbBebe}</strong> bébé{a.nbBebe > 1 ? "s" : ""}
                     </span>
+                    <button
+                      onClick={() => exportActivitePdf(a)}
+                      className="rounded-md border border-[#eaeaea] px-2 py-1 text-xs font-medium text-[#666666] hover:bg-[#fafafa]"
+                      title="Exporter cette catégorie en PDF"
+                    >
+                      Export PDF
+                    </button>
                   </div>
-                </button>
+                </div>
                 {isOpen && (
                   <div className="space-y-1 border-t border-[#f0f0f0] p-4 pt-3 text-sm">
                     {a.details.map((d, i) => (
@@ -223,12 +280,18 @@ export default function RecapMoisView({
                         <span className="w-20 shrink-0 text-[#999999]">
                           {d.date ? new Date(d.date + "T00:00:00").toLocaleDateString("fr-FR") : "—"}
                         </span>
-                        <span className="text-[#171717]">{d.clientNom}</span>
+                        <span className="text-[#171717]">{d.client.nom || "Sans nom"}</span>
                         <span className="text-[#666666]">
                           {d.nbAd} adulte{d.nbAd > 1 ? "s" : ""}
                           {d.nbEnf > 0 ? `, ${d.nbEnf} enfant${d.nbEnf > 1 ? "s" : ""}` : ""}
                           {d.nbBebe > 0 ? `, ${d.nbBebe} bébé${d.nbBebe > 1 ? "s" : ""}` : ""}
                         </span>
+                        <button
+                          onClick={() => setActiveActivity({ client: d.client, r: d.r })}
+                          className="ml-auto shrink-0 rounded-md border border-[#eaeaea] px-2 py-1 text-xs font-medium text-[#666666] hover:bg-[#fafafa]"
+                        >
+                          Voir l&apos;activité
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -237,6 +300,26 @@ export default function RecapMoisView({
             );
           })}
         </div>
+      )}
+
+      {activeActivity && (
+        <ActivityDetailModal
+          key={activeActivity.r.id}
+          client={activeActivity.client}
+          r={activeActivity.r}
+          reservations={reservations}
+          resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
+          paiementsPrevus={paiementsPrevus}
+          onOpenClient={onOpenClient}
+          onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
+          onOpenRdvPaiement={onOpenRdvPaiement}
+          onUpdateReservation={onUpdateReservation}
+          onUpdateClient={(patch) => onUpdateClient(activeActivity.client.id, patch)}
+          hotelsRef={hotelsRef}
+          onClose={() => setActiveActivity(null)}
+        />
       )}
     </div>
   );

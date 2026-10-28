@@ -2263,6 +2263,67 @@ export default function SuivisView({
                   ))}
               </div>
             )}
+
+            {/* Même besoin que la liste PayPal ci-dessus, mais pour les
+                virements bancaires : jusqu'ici invisibles nulle part dans le
+                CRM tant qu'une employée ne pensait pas à aller vérifier une
+                fiche précise — demande de Mélanie, 2026-10-28, après avoir dû
+                chercher à la main à qui correspondait un virement reçu par
+                Hossam. Couvre les 3 endroits où un virement peut être
+                attendu : acompte, solde, et reprise (nouvelle activité
+                ajoutée après un solde déjà réglé) — jamais "Client annulé",
+                dont les paiements en attente n'ont plus lieu d'être. */}
+            {(() => {
+              type LigneVirement = { client: Client; type: string; montant: number };
+              const lignes: LigneVirement[] = [];
+              clients
+                .filter((c) => c.statut !== "Client annulé")
+                .forEach((c) => {
+                  if (
+                    c.acompte_mode === "Virement bancaire" &&
+                    c.acompte_valide &&
+                    !c.acompte_paye &&
+                    Number(c.acompte_montant) > 0
+                  ) {
+                    lignes.push({ client: c, type: "Acompte", montant: Number(c.acompte_montant) });
+                  }
+                  if (c.solde_mode === "Virement bancaire" && !c.solde_paye && Number(c.solde_montant) > 0) {
+                    lignes.push({ client: c, type: "Solde", montant: Number(c.solde_montant) });
+                  }
+                  if (c.reprise_mode === "Virement bancaire" && Number(c.reprise_montant) > 0) {
+                    lignes.push({ client: c, type: "Nouvelle activité", montant: Number(c.reprise_montant) });
+                  }
+                });
+              return (
+                <div className="mt-6">
+                  <h3 className="font-heading mb-2 text-sm font-semibold text-[#171717]">
+                    Virements bancaires — en attente
+                  </h3>
+                  {lignes.length === 0 ? (
+                    <div className="text-sm text-neutral-400">Aucun virement en attente.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {lignes.map((l, i) => (
+                        <button
+                          key={`${l.client.id}-${i}`}
+                          onClick={() => onOpenClient(l.client.id)}
+                          className="flex w-full items-center justify-between rounded-md border border-neutral-200 bg-white px-3 py-2 text-left text-sm hover:bg-[#fafafa]"
+                        >
+                          <span className="text-[#171717]">
+                            {l.client.nom || "Sans nom"}{" "}
+                            <span className="text-xs text-neutral-400">
+                              ({l.type}
+                              {l.client.date_debut ? ` · ${fmtDate(l.client.date_debut)}` : ""})
+                            </span>
+                          </span>
+                          <span className="font-amounts font-medium text-[#171717]">{euros(l.montant)} €</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <PaypalHistorique paypalPaiements={paypalPaiements} clients={clients} onOpenClient={onOpenClient} />
         </div>

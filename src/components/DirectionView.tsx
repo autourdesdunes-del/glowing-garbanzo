@@ -13,7 +13,7 @@ import {
   ReservationTarif,
   TransfertTaxeModificationRequest,
 } from "@/lib/types";
-import { remboursementImpact, reservationsVendues, resaTotalMontant } from "@/lib/resa";
+import { cleanActivityTitle, remboursementImpact, reservationsVendues, resaTotalMontant } from "@/lib/resa";
 import { STATS_HISTORIQUES_MENSUELLES } from "@/lib/statsHistoriques";
 import { downloadCsv } from "@/lib/csv";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
@@ -988,6 +988,23 @@ export default function DirectionView({
     return true;
   };
 
+  // Rattache une réservation saisie à la main (sans catalogue_item_id) au
+  // catalogue par nom, si une correspondance exacte existe une fois
+  // nettoyé/normalisé — sinon "Louxor en mini-bus" ou "Yacht privé (grand
+  // modèle)" ressort en deux lignes distinctes dans les classements
+  // (certaines ventes liées au catalogue, d'autres saisies à la main avec
+  // exactement le même nom), demande de Mélanie, 2026-10-28.
+  const normalizeNom = (s: string) =>
+    (s || "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .trim()
+      .toLowerCase();
+  const catalogueByNom: Record<string, CatalogueItem> = {};
+  catalogue.forEach((a) => {
+    catalogueByNom[normalizeNom(a.nom)] = a;
+  });
+
   const rows = reservationsVendues(reservations)
     .filter(
       (r) =>
@@ -1016,12 +1033,14 @@ export default function DirectionView({
       const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
       const impactMarge = impacts.reduce((s, i) => s + i.marge, 0);
       // Groupe par modèle catalogue quand la réservation en vient (le nom
-      // catalogue à jour prime), sinon par nom d'activité saisi à la main.
+      // catalogue à jour prime) ; à défaut, tente un rattachement par nom
+      // normalisé (voir catalogueByNom plus haut) avant de retomber sur le
+      // nom d'activité saisi à la main.
       const catalogueMatch = r.catalogue_item_id
         ? catalogue.find((a) => a.id === r.catalogue_item_id)
-        : null;
+        : catalogueByNom[normalizeNom(cleanActivityTitle(r.nom_activite || ""))];
       return {
-        groupKey: r.catalogue_item_id || `manuel:${r.nom_activite || "Sans nom"}`,
+        groupKey: r.catalogue_item_id || catalogueMatch?.id || `manuel:${r.nom_activite || "Sans nom"}`,
         nom: catalogueMatch?.nom || r.nom_activite || "Sans nom",
         date: r.date_debut,
         total: total + impactCa,
@@ -1232,12 +1251,7 @@ export default function DirectionView({
 
   if (sub === "recap") {
     return (
-      <RecapMoisView
-        reservations={reservations}
-        clients={clients}
-        resaOptions={resaOptions}
-        resaTarifs={resaTarifs}
-      />
+      <RecapMoisView reservations={reservations} clients={clients} />
     );
   }
 

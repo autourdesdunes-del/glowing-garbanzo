@@ -3373,13 +3373,7 @@ function AppShellInner({
           {!planningLoaded ? (
             <Spinner />
           ) : (
-            <RecapMoisView
-              reservations={allReservations}
-              clients={clients}
-              resaOptions={allResaOptions}
-              resaTarifs={allResaTarifs}
-              paiementsEtapes={allPaiementsEtapes}
-            />
+            <RecapMoisView reservations={allReservations} clients={clients} />
           )}
         </div>
       )}

@@ -141,7 +141,17 @@ function GroupedBarChart({
 // principe que "CA du mois vs mois précédent" sur le Tableau de bord
 // Direction. "inverse" pour une métrique où baisser est une amélioration
 // (temps de réponse) : la couleur s'inverse, pas le signe affiché.
-function VsPrecedent({ current, previous, inverse = false }: { current: number; previous: number; inverse?: boolean }) {
+function VsPrecedent({
+  current,
+  previous,
+  inverse = false,
+  label = "vs précédent",
+}: {
+  current: number;
+  previous: number;
+  inverse?: boolean;
+  label?: string;
+}) {
   if (previous === 0 && current === 0) return null;
   if (previous === 0) return <span className="text-xs font-medium text-neutral-400">(pas de référence)</span>;
   const pct = Math.round(((current - previous) / previous) * 100);
@@ -151,64 +161,81 @@ function VsPrecedent({ current, previous, inverse = false }: { current: number; 
   return (
     <span className={`text-xs font-medium ${couleur}`}>
       {pct > 0 ? "+" : ""}
-      {pct}% vs précédent
+      {pct}% {label}
     </span>
   );
 }
+
+const RANGE_CURRENT_LABEL: Record<Range, string> = { day: "Aujourd'hui", week: "Cette semaine", month: "Ce mois-ci" };
+const RANGE_PREVIOUS_LABEL: Record<Range, string> = { day: "hier", week: "la semaine dernière", month: "le mois dernier" };
+const RANGE_WINDOW_LABEL: Record<Range, string> = {
+  day: "sur les 30 derniers jours",
+  week: "sur les 26 dernières semaines",
+  month: "sur les 12 derniers mois",
+};
 
 // Les barres seules ne donnent le chiffre exact qu'au survol (jamais au
 // doigt sur mobile) — demande de Mélanie, 2026-10-28 : un total toujours
 // visible au-dessus du graphique, plus un tableau dépliable avec chaque
 // valeur exacte, label par label.
+//
+// "currentRange" affiche le DERNIER bucket (aujourd'hui/cette semaine/ce
+// mois, même en cours) comme gros chiffre, avec le total période en petit à
+// côté — jamais l'inverse. Le premier essai affichait la somme sur toute la
+// période comme gros chiffre pendant qu'on était sur "Jour" : Mélanie s'y
+// attendait à voir "aujourd'hui" (2026-10-28), pas un total sur 30 jours.
 function ChartTotals({
   data,
   seriesA,
   seriesB,
   colorA,
   colorB,
-  showComparison = false,
+  currentRange,
 }: {
   data: { label: string; a: number; b: number }[];
   seriesA: string;
   seriesB: string;
   colorA: string;
   colorB: string;
-  showComparison?: boolean;
+  // Omis pour les graphiques non chronologiques (par heure, par jour de la
+  // semaine) : là, seul le total sur la période a un sens.
+  currentRange?: Range;
 }) {
   const [detailOpen, setDetailOpen] = useState(false);
   const totalA = data.reduce((s, d) => s + d.a, 0);
   const totalB = data.reduce((s, d) => s + d.b, 0);
   const showB = seriesB !== "";
-  // Jamais le tout dernier bucket (aujourd'hui / cette semaine / ce mois en
-  // cours, toujours partiel puisque la période n'est pas finie) — sinon la
-  // comparaison était systématiquement et faussement négative, le jour en
-  // cours ayant mécaniquement moins d'événements qu'une veille complète.
-  // On compare donc le dernier jour/semaine/mois COMPLET à celui d'avant.
-  const last = data[data.length - 2];
-  const prev = data[data.length - 3];
+  const last = data[data.length - 1];
+  const prev = data[data.length - 2];
+  const headlineA = currentRange ? last?.a ?? 0 : totalA;
+  const headlineB = currentRange ? last?.b ?? 0 : totalB;
   return (
     <div className="mb-3">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
         <span className="text-sm">
           <span className="font-amounts text-lg font-semibold" style={{ color: colorA }}>
-            {totalA}
+            {headlineA}
           </span>{" "}
-          <span className="text-neutral-500">{seriesA.toLowerCase()}</span>
-          {showComparison && last && prev && (
+          <span className="text-neutral-500">
+            {seriesA.toLowerCase()} {currentRange ? RANGE_CURRENT_LABEL[currentRange].toLowerCase() : "sur la période"}
+          </span>
+          {currentRange && last && prev && (
             <span className="ml-1.5">
-              <VsPrecedent current={last.a} previous={prev.a} />
+              <VsPrecedent current={last.a} previous={prev.a} label={`vs ${RANGE_PREVIOUS_LABEL[currentRange]}`} />
             </span>
           )}
         </span>
         {showB && (
           <span className="text-sm">
             <span className="font-amounts text-lg font-semibold" style={{ color: colorB }}>
-              {totalB}
+              {headlineB}
             </span>{" "}
-            <span className="text-neutral-500">{seriesB.toLowerCase()}</span>
-            {showComparison && last && prev && (
+            <span className="text-neutral-500">
+              {seriesB.toLowerCase()} {currentRange ? RANGE_CURRENT_LABEL[currentRange].toLowerCase() : "sur la période"}
+            </span>
+            {currentRange && last && prev && (
               <span className="ml-1.5">
-                <VsPrecedent current={last.b} previous={prev.b} />
+                <VsPrecedent current={last.b} previous={prev.b} label={`vs ${RANGE_PREVIOUS_LABEL[currentRange]}`} />
               </span>
             )}
           </span>
@@ -221,6 +248,15 @@ function ChartTotals({
           {detailOpen ? "Masquer le détail" : "Voir le détail (chiffres)"}
         </button>
       </div>
+      {currentRange && (
+        <p className="mt-0.5 text-xs text-neutral-400">
+          Total {RANGE_WINDOW_LABEL[currentRange]} : {totalA}
+          {showB ? ` / ${totalB}` : ""} ·{" "}
+          <span className="italic">
+            {RANGE_CURRENT_LABEL[currentRange]} n&apos;est pas terminé(e), ce chiffre va encore monter.
+          </span>
+        </p>
+      )}
       {detailOpen && (
         <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-neutral-200 bg-white">
           <table className="w-full text-xs">
@@ -329,7 +365,7 @@ export default function StatsAgenceView() {
                 seriesB="Sortants"
                 colorA="#8B4531"
                 colorB="#0F5C56"
-                showComparison
+                currentRange={messagesRange}
               />
               <GroupedBarChart
                 data={messagesData.messages.trend.map((t) => ({ label: t.label, a: t.in, b: t.out }))}
@@ -456,7 +492,7 @@ export default function StatsAgenceView() {
                 seriesB=""
                 colorA="#171717"
                 colorB="#0F5C56"
-                showComparison
+                currentRange={resaRange}
               />
               <GroupedBarChart
                 data={resaData.reservations.trend.map((t) => ({ label: t.label, a: t.count, b: 0 }))}

@@ -20,6 +20,7 @@ import { STATS_HISTORIQUES_MENSUELLES } from "@/lib/statsHistoriques";
 import { downloadCsv } from "@/lib/csv";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
 import StatsAgenceView from "@/components/StatsAgenceView";
+import StatsEmployesView from "@/components/StatsEmployesView";
 import { todayStr } from "@/lib/dates";
 import { generateMonthlyReport } from "@/lib/generateMonthlyReport";
 import RecapMoisView from "@/components/RecapMoisView";
@@ -1303,6 +1304,10 @@ export default function DirectionView({
 
   if (sub === "statsAgences") {
     return <StatsAgenceView />;
+  }
+
+  if (sub === "statsEmployes") {
+    return <StatsEmployesView />;
   }
 
   if (sub !== "dashboard" && sub !== "dashboardATraiter" && sub !== "dashboardRapport") {

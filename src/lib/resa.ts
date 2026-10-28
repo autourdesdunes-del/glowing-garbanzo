@@ -1618,14 +1618,6 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Speedboat priv[ée]\s*-\s*journ[ée]e compl[èe]te avec 1 [îi]le\b/i.test(n)) {
     return "Speedboat privé - journée complète avec 1 île";
   }
-  // Confirmé par Mélanie : ces deux saisies manuelles désignent la même
-  // formule Louxor 2 jours aller-retour Hurghada.
-  if (
-    /^Louxor 2 jours avec Medinet Habu & Montgolfière \(aller-retour Hurghada\)$/i.test(n) ||
-    /^Louxor 2 jours de visite \(aller-retour Hurghada\)$/i.test(n)
-  ) {
-    return "Louxor 2 jours avec Medinet Habu & Montgolfière (aller-retour Hurghada)";
-  }
   return n;
 }
 

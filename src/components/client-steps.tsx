@@ -296,6 +296,7 @@ export function ContactStep({
         onOpenHelp={onOpenHelp}
         onAddHotelRef={onAddHotelRef}
         onClientHotelsChange={setClientHotels}
+        reservations={reservations}
       />
 
       <PropertyRow label="Voyageurs" icon={<PropIcon name="person" />}>

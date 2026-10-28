@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Client, ClientHotel, HotelReference, TransfertTaxe } from "@/lib/types";
+import { Client, ClientHotel, HotelReference, Reservation, TransfertTaxe } from "@/lib/types";
 import { matchHotel, matchTransfertTaxe, villeTransfertInfo } from "@/lib/hotelHelp";
 import { ZONES_HOTEL } from "@/lib/constants";
 import { VILLES_SANS_TAXE_TRANSFERT } from "@/lib/resa";
@@ -25,10 +25,17 @@ export default function HebergementSection({
   onOpenHelp,
   onAddHotelRef,
   onClientHotelsChange,
+  reservations = [],
 }: {
   client: Client;
   onChange: (patch: Partial<Client>) => void;
   hotelsRef: HotelReference[];
+  // Sert à ne pas afficher "taxe de transfert possible" pour un hôtel dont
+  // la zone est déjà couverte par un transfert aéroport tarifé par zone
+  // (zone_transfert rempli sur la réservation) — sinon ça fait doublon avec
+  // le supplément de zone déjà payé (demande de Mélanie du 2026-10-12, vécu
+  // sur Charlotte PENZ à Sahl Hasheesh).
+  reservations?: Reservation[];
   // false pendant que le parent (ClientDetail) charge encore hotels_reference
   // pour ce client — le statut hôtel affiche alors un squelette plutôt que
   // "non répertorié dans HELP", qui serait faux tant que la vraie liste
@@ -135,6 +142,8 @@ export default function HebergementSection({
   // peut jamais être validé — sans la ville, impossible de savoir si une
   // taxe de transfert s'applique (voir villeTransfertInfo ci-dessous).
   const circuitIncomplet = clientHotels.some((h) => !h.date_arrivee || !h.date_depart || !h.ville.trim());
+  const zoneDejaCouverte = (ville: string) =>
+    reservations.some((r) => r.zone_transfert && r.zone_transfert === ville);
 
   return (
     <div className="space-y-1.5">
@@ -163,11 +172,16 @@ export default function HebergementSection({
                   {(info.kind === "hurghada" || info.kind === "sur_place") && (
                     <span className="text-xs text-emerald-600">✓ Pas de taxe de transfert.</span>
                   )}
-                  {info.kind === "taxe" && (
+                  {info.kind === "taxe" && !zoneDejaCouverte(h.ville) && (
                     <span className="text-xs text-orange-600">
                       ⚠ Taxe de transfert possible
                       {info.taxe.type === "montant" ? ` (${euros(info.taxe.montant)} €)` : ""}
                       {info.taxe.type === "a_demander" ? ` (${info.taxe.note})` : ""}.
+                    </span>
+                  )}
+                  {info.kind === "taxe" && zoneDejaCouverte(h.ville) && (
+                    <span className="text-xs text-emerald-600">
+                      ✓ Transfert déjà tarifé par zone — pas de taxe en plus.
                     </span>
                   )}
                 </div>
@@ -437,6 +451,13 @@ export default function HebergementSection({
                                 return (
                                   <p className="text-xs text-emerald-600">
                                     ✓ {info.ville} — pas de taxe de transfert (séjour sur place).
+                                  </p>
+                                );
+                              }
+                              if (info.kind === "taxe" && zoneDejaCouverte(h.ville)) {
+                                return (
+                                  <p className="text-xs text-emerald-600">
+                                    ✓ {info.ville} — transfert déjà tarifé par zone, pas de taxe en plus.
                                   </p>
                                 );
                               }

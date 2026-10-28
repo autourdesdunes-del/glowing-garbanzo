@@ -20,6 +20,7 @@ import {
   dateRangeIncludes,
   fmtDate,
   fmtDateLong,
+  isContinuationDay,
   monthEndOf,
   monthLabel,
   monthStartOf,
@@ -87,6 +88,9 @@ export function CalendarMonthView({
       // trient par heure de pick-up croissante (demande de Mélanie,
       // 2026-09-19) — celles sans pick-up gardent l'ordre par moment derrière.
       rows.sort((a, b) => {
+        const ca = isContinuationDay(a.r, day) ? 1 : 0;
+        const cb = isContinuationDay(b.r, day) ? 1 : 0;
+        if (ca !== cb) return cb - ca;
         const pa = pickupSortMinutes(a.r);
         const pb = pickupSortMinutes(b.r);
         if (pa !== null && pb !== null) return pa - pb;
@@ -239,6 +243,7 @@ export function CalendarMonthView({
                   onClick={() => onOpenActivity(row)}
                   onOpenClient={onOpenClient}
                   size="medium"
+                  displayDate={selectedDay ?? undefined}
                 />
               ))}
 

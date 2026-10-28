@@ -1483,6 +1483,11 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^City\s*tour\s+Hurghada(\s*[—-]\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
     return "City tour Hurghada";
   }
+  // "Louxor mini-bus" (saisie à la main, sans "en") et "Louxor en mini-bus"
+  // (nom catalogue) désignent la même activité.
+  if (/^Louxor\s+(en\s+)?mini-?bus$/i.test(n)) {
+    return "Louxor en mini-bus";
+  }
   return n;
 }
 

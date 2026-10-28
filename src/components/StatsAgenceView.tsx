@@ -121,6 +121,78 @@ function GroupedBarChart({
   );
 }
 
+// Les barres seules ne donnent le chiffre exact qu'au survol (jamais au
+// doigt sur mobile) — demande de Mélanie, 2026-10-28 : un total toujours
+// visible au-dessus du graphique, plus un tableau dépliable avec chaque
+// valeur exacte, label par label.
+function ChartTotals({
+  data,
+  seriesA,
+  seriesB,
+  colorA,
+  colorB,
+}: {
+  data: { label: string; a: number; b: number }[];
+  seriesA: string;
+  seriesB: string;
+  colorA: string;
+  colorB: string;
+}) {
+  const [detailOpen, setDetailOpen] = useState(false);
+  const totalA = data.reduce((s, d) => s + d.a, 0);
+  const totalB = data.reduce((s, d) => s + d.b, 0);
+  const showB = seriesB !== "";
+  return (
+    <div className="mb-3">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+        <span className="text-sm">
+          <span className="font-amounts text-lg font-semibold" style={{ color: colorA }}>
+            {totalA}
+          </span>{" "}
+          <span className="text-neutral-500">{seriesA.toLowerCase()}</span>
+        </span>
+        {showB && (
+          <span className="text-sm">
+            <span className="font-amounts text-lg font-semibold" style={{ color: colorB }}>
+              {totalB}
+            </span>{" "}
+            <span className="text-neutral-500">{seriesB.toLowerCase()}</span>
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setDetailOpen((v) => !v)}
+          className="ml-auto text-xs font-medium text-[#0F5C56] underline hover:no-underline"
+        >
+          {detailOpen ? "Masquer le détail" : "Voir le détail (chiffres)"}
+        </button>
+      </div>
+      {detailOpen && (
+        <div className="mt-2 max-h-56 overflow-y-auto rounded-md border border-neutral-200 bg-white">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-[#fafafa] text-neutral-500">
+              <tr>
+                <th className="px-2 py-1 text-left font-medium">Période</th>
+                <th className="px-2 py-1 text-right font-medium">{seriesA}</th>
+                {showB && <th className="px-2 py-1 text-right font-medium">{seriesB}</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((d, i) => (
+                <tr key={`${d.label}-${i}`} className="border-t border-neutral-100">
+                  <td className="px-2 py-1 text-[#171717]">{d.label}</td>
+                  <td className="px-2 py-1 text-right font-amounts text-[#171717]">{d.a}</td>
+                  {showB && <td className="px-2 py-1 text-right font-amounts text-[#171717]">{d.b}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-[6px] border border-[#eaeaea] bg-[#fafafa] p-4">
@@ -196,6 +268,13 @@ export default function StatsAgenceView() {
                     : "Par mois (12 derniers mois)"
               }
             >
+              <ChartTotals
+                data={messagesData.messages.trend.map((t) => ({ label: t.label, a: t.in, b: t.out }))}
+                seriesA="Entrants"
+                seriesB="Sortants"
+                colorA="#8B4531"
+                colorB="#0F5C56"
+              />
               <GroupedBarChart
                 data={messagesData.messages.trend.map((t) => ({ label: t.label, a: t.in, b: t.out }))}
                 seriesA="Entrants"
@@ -208,6 +287,13 @@ export default function StatsAgenceView() {
                 messagesRange === "day" ? "30 derniers jours" : messagesRange === "week" ? "26 dernières semaines" : "12 derniers mois"
               }.`}
             >
+              <ChartTotals
+                data={messagesData.messages.byHour.map((h) => ({ label: `${h.hour}h`, a: h.in, b: h.out }))}
+                seriesA="Entrants"
+                seriesB="Sortants"
+                colorA="#8B4531"
+                colorB="#0F5C56"
+              />
               <GroupedBarChart
                 data={messagesData.messages.byHour.map((h) => ({
                   label: `${h.hour}h`,
@@ -240,6 +326,13 @@ export default function StatsAgenceView() {
                     : "Par mois (12 derniers mois)"
               }
             >
+              <ChartTotals
+                data={resaData.reservations.trend.map((t) => ({ label: t.label, a: t.count, b: 0 }))}
+                seriesA="Réservations"
+                seriesB=""
+                colorA="#171717"
+                colorB="#0F5C56"
+              />
               <GroupedBarChart
                 data={resaData.reservations.trend.map((t) => ({ label: t.label, a: t.count, b: 0 }))}
                 seriesA="Réservations"

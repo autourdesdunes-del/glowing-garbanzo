@@ -26,6 +26,20 @@ export function resaActiveOn(r: Reservation, dateStr: string) {
   if (r.statut_resa === "Annulée") return false;
   return dateRangeIncludes(r, dateStr);
 }
+// Quel jour de l'activité représente `dateStr` (1 = jour de début) — sert à
+// distinguer le 1er jour d'une activité sur plusieurs jours (rien de
+// spécial à signaler, affiché sous sa propre date de début) de ses jours
+// suivants ("Day 2", "Day 3"...), repris en tête de liste et en bleu/gris
+// pastel dans la vue Réservations (demande de Mélanie, 2026-10-28).
+export function dayNumberFor(r: Reservation, dateStr: string): number {
+  if (!r.date_debut || !r.date_fin || r.date_fin === r.date_debut) return 1;
+  const start = new Date(r.date_debut + "T00:00:00").getTime();
+  const current = new Date(dateStr + "T00:00:00").getTime();
+  return Math.round((current - start) / 86400000) + 1;
+}
+export function isContinuationDay(r: Reservation, dateStr: string): boolean {
+  return dayNumberFor(r, dateStr) >= 2;
+}
 export function rangesOverlap(rStart: string | null, rEnd: string | null, fStart: string, fEnd: string) {
   if (!rStart) return false;
   const end = rEnd || rStart;

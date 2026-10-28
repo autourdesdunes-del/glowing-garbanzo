@@ -17,6 +17,7 @@ import {
   addMonths,
   FILTERS,
   fmtDate,
+  isContinuationDay,
   monthLabel,
   monthStartOf,
   pickupSortMinutes,
@@ -167,17 +168,14 @@ export default function PlanningView({
       rows.push({ client, r });
     });
 
-    // Une activité sur plusieurs jours (croisière, circuit...) remonte en
-    // haut de son groupe de date — plus facile à repérer avant les
-    // activités d'une seule journée (demande de Mélanie, 2026-10-28).
-    // Ensuite, dès qu'un pick-up réel est renseigné, les activités d'une
-    // même journée se trient par heure de pick-up croissante — celles sans
-    // pick-up gardent l'ordre par date derrière (demande de Mélanie,
-    // 2026-09-19).
+    // Dès qu'un pick-up réel est renseigné, les activités d'une même journée
+    // se trient par heure de pick-up croissante — celles sans pick-up gardent
+    // l'ordre par date derrière (demande de Mélanie, 2026-09-19). Le tri qui
+    // fait remonter les activités déjà en cours (2e jour et suivants) en
+    // tête de leur groupe de date est appliqué plus bas, une fois les
+    // groupes connus (il dépend de la date affichée, pas seulement de
+    // l'activité elle-même).
     rows.sort((a, b) => {
-      const ma = a.r.date_fin && a.r.date_fin !== a.r.date_debut ? 1 : 0;
-      const mb = b.r.date_fin && b.r.date_fin !== b.r.date_debut ? 1 : 0;
-      if (ma !== mb) return mb - ma;
       const pa = pickupSortMinutes(a.r);
       const pb = pickupSortMinutes(b.r);
       if (pa !== null && pb !== null) return pa - pb;
@@ -200,6 +198,20 @@ export default function PlanningView({
       const key = filterDateSingle || (row.r.date_debut as string);
       byDate[key] = [...(byDate[key] || []), row];
     });
+
+    // Au sein de chaque groupe, une activité déjà en cours ce jour-là (2e
+    // jour d'une croisière/circuit ou plus loin — jamais son 1er jour,
+    // affiché sous sa propre date de début sans rien de spécial à
+    // signaler) remonte en tête, avant le tri par heure de pick-up déjà
+    // appliqué (demande de Mélanie, 2026-10-28).
+    Object.keys(byDate).forEach((date) => {
+      byDate[date] = [...byDate[date]].sort((a, b) => {
+        const ca = isContinuationDay(a.r, date) ? 1 : 0;
+        const cb = isContinuationDay(b.r, date) ? 1 : 0;
+        return cb - ca;
+      });
+    });
+
     return { byDate, todayStr };
   }, [clients, reservations, filter, moisChoisi]);
 
@@ -301,6 +313,7 @@ export default function PlanningView({
                     onClick={() => setActiveActivity(row)}
                     onOpenClient={onOpenClient}
                     size="medium"
+                    displayDate={date}
                   />
                 ))}
               </div>

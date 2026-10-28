@@ -34,7 +34,7 @@ import {
   volBadge,
 } from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
-import { euros, fmtDate } from "@/lib/planningViewFormat";
+import { dayNumberFor, euros, fmtDate } from "@/lib/planningViewFormat";
 
 // Carte résumé d'une activité (Réservations) et petite ligne label/valeur
 // des modales de détail — extraites de PlanningView.tsx pour l'alléger,
@@ -55,6 +55,7 @@ export function ReservationSummaryCard({
   onClick,
   onOpenClient,
   size = "full",
+  displayDate,
 }: {
   client: Client;
   r: Reservation;
@@ -71,6 +72,12 @@ export function ReservationSummaryCard({
   onClick: () => void;
   onOpenClient: (clientId: string) => void;
   size?: "full" | "medium" | "compact";
+  // Date du groupe affiché (vue Réservations, carte sous une date précise)
+  // — sert à savoir si CE jour-là est le 1er jour de l'activité ou un jour
+  // suivant (ex. "Day 2" d'une croisière) : le style pastel/badge ne
+  // concerne que les jours suivants, pas le jour de début (demande de
+  // Mélanie, 2026-10-28). Absent (ex. fiche client) = pas de distinction.
+  displayDate?: string;
 }) {
   const { hotelHorsHurghada, hotelVille } = (() => {
     // hotelNomPourActivite résout l'étape du circuit à LA DATE de cette
@@ -106,11 +113,14 @@ export function ReservationSummaryCard({
   const infoComplet = infosManquantes.length === 0;
   const infoStatut = infoComplet ? null : infosManquantes[0];
   // Une activité sur plusieurs jours (ex. croisière, circuit) se repère
-  // moins vite au milieu des activités d'une seule journée — distinguée en
-  // bleu/gris pastel (demande de Mélanie, 2026-10-28). Le tri qui la fait
-  // remonter en haut de son groupe de date vit dans PlanningView.tsx.
-  const isMultiDay = !!(r.date_fin && r.date_fin !== r.date_debut);
-  const cardBg = isMultiDay ? "border-[#B8C4D0] bg-[#EAF0F5]" : "border-[#666666]/20 bg-white";
+  // moins vite quand elle est déjà en cours un jour donné — distinguée en
+  // bleu/gris pastel + badge "Day N" uniquement à partir du 2e jour (le 1er
+  // jour, affiché sous sa propre date de début, n'a rien de spécial à
+  // signaler). Le tri qui la fait remonter en haut de son groupe de date
+  // vit dans PlanningView.tsx (demande de Mélanie, 2026-10-28).
+  const dayNumber = displayDate ? dayNumberFor(r, displayDate) : 1;
+  const isContinuationDay = dayNumber >= 2;
+  const cardBg = isContinuationDay ? "border-[#B8C4D0] bg-[#EAF0F5]" : "border-[#666666]/20 bg-white";
 
   if (size === "medium") {
     return (
@@ -123,9 +133,9 @@ export function ReservationSummaryCard({
             {cleanActivityTitle(r.nom_activite) || "Activité"}
             {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
           </p>
-          {isMultiDay && (
+          {isContinuationDay && (
             <span className="whitespace-nowrap rounded-full bg-[#B8C4D0]/40 px-1.5 py-0.5 text-[10px] font-medium text-[#45586B]">
-              📅 Plusieurs jours
+              Day {dayNumber}
             </span>
           )}
           {r.info_importante.trim() && (
@@ -343,9 +353,9 @@ export function ReservationSummaryCard({
           {cleanActivityTitle(r.nom_activite) || "Activité"}
           {r.horaire_souhaite ? ` (${r.horaire_souhaite})` : ""}
         </p>
-        {isMultiDay && (
+        {isContinuationDay && (
           <span className="rounded-full bg-[#B8C4D0]/40 px-2 py-0.5 text-xs font-medium text-[#45586B]">
-            📅 Plusieurs jours
+            Day {dayNumber}
           </span>
         )}
         {r.info_importante.trim() && (

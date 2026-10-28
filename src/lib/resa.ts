@@ -1485,6 +1485,11 @@ export function canonicalRecapActivityName(nom: string): string {
       return `Transfert aéroport ${ville}`;
     }
   }
+  // Transfert Siwa bus station → aéroport du Caire : un transfert aéroport
+  // Le Caire, juste avec un point de départ inhabituel (pas un hôtel).
+  if (/^Transfert depuis la station Siwa bus station\b.*a[ée]roport du Caire/i.test(n)) {
+    return "Transfert aéroport Le Caire";
+  }
   // "City tour Hurghada", "City tour Hurghada — Matin", "... — Après-midi"
   // — mais pas "City Tour – El Gouna", une activité différente.
   if (/^City\s*tour\s+Hurghada(\s*[—-]\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {

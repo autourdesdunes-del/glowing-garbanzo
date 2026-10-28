@@ -137,11 +137,19 @@ function montantAffiche(ligne: Ligne) {
 // main. Même format de montant que montantAffiche, condensé sans espace
 // avant "€" (ex. "180€") et avec "egp" en minuscules (ex. "3600 egp"),
 // repris tel quel de l'exemple donné par Mélanie le 13/09.
+// Les lignes en retard (enRetard, voir computePaiementsDuJour) ne sont PAS
+// redemandées à Bodé chaque jour : elles restent visibles dans "Paiements
+// du jour" en priorité pour relancer l'équipe en interne, mais le message
+// ne redemande une activité que le jour où elle est vraiment prévue — sinon
+// Bodé recevrait indéfiniment la même question tant que personne n'a
+// reprogrammé le règlement (demande de Mélanie, 2026-10-28).
 export function bodePaiementsMessage(aPayer: Ligne[]) {
-  const lignes = aPayer.map((l) => {
-    const montant = montantAffiche(l).replace(/ €$/, "€").replace(/ EGP$/, " egp").replace(" € + ", "€ + ");
-    return `- ${prenom(l.client.nom)} ${activiteMot(l.libelle)} ${montant}`.trim();
-  });
+  const lignes = aPayer
+    .filter((l) => !l.enRetard)
+    .map((l) => {
+      const montant = montantAffiche(l).replace(/ €$/, "€").replace(/ EGP$/, " egp").replace(" € + ", "€ + ");
+      return `- ${prenom(l.client.nom)} ${activiteMot(l.libelle)} ${montant}`.trim();
+    });
   return `Can you confirm payments of the day ?\n${lignes.join("\n")}`;
 }
 
@@ -205,6 +213,13 @@ type Ligne = {
   onAnnulerPaye: () => void;
   reporterReste?: ReporterReste | null;
   onReporterReste?: (p: { montant: number; montantEgp: number; mode: string; date: string; prochaineActiviteId: string }) => void;
+  // Un règlement attendu un jour passé et toujours pas confirmé payé —
+  // reste visible ici (priorité) tant que personne ne l'a traité, mais ne
+  // doit PAS être redemandé à Bodé chaque jour via bodePaiementsMessage
+  // (sinon la question repart indéfiniment sans qu'une nouvelle date ait
+  // été reprogrammée) — demande de Mélanie, 2026-10-28, suite au règlement
+  // de Clélia Malardenti resté sans suite du 16 au 25/10 faute de relance.
+  enRetard?: boolean;
 };
 
 export function computePaiementsDuJour(
@@ -231,9 +246,14 @@ export function computePaiementsDuJour(
     const activiteLiee = c.solde_activite_id
       ? reservations.find((r) => r.id === c.solde_activite_id) || null
       : null;
-    const soldeConcerneAujourdhui = c.solde_activite_id
-      ? activiteLiee?.statut_resa !== "Annulée" && activiteLiee?.date_debut === todayStr
-      : c.solde_date === todayStr;
+    const soldeDateAttendue = c.solde_activite_id ? activiteLiee?.date_debut || null : c.solde_date;
+    const soldeDateValide = c.solde_activite_id ? activiteLiee?.statut_resa !== "Annulée" && !!soldeDateAttendue : !!soldeDateAttendue;
+    const soldeEstAujourdhui = soldeDateValide && soldeDateAttendue === todayStr;
+    // Un solde pas encore marqué payé dont la date attendue est dépassée
+    // reste affiché (priorité) au lieu de disparaître silencieusement —
+    // demande de Mélanie, 2026-10-28 (voir enRetard sur le type Ligne).
+    const soldeEnRetard = soldeDateValide && !c.solde_paye && (soldeDateAttendue as string) < todayStr;
+    const soldeConcerneAujourdhui = soldeEstAujourdhui || soldeEnRetard;
     if (soldeConcerneAujourdhui && (c.solde_activite_id || c.solde_rdv_heure || c.solde_rdv_lieu)) {
       const montant = soldeDe(c, reservations, resaOptions, resaTarifs, paiementsEtapes);
 
@@ -286,6 +306,7 @@ export function computePaiementsDuJour(
         onReporterReste: reporterReste
           ? (p) => onReporterReste(c.id, { ...p, activiteId: reporterReste!.activiteId, activiteNom: reporterReste!.activiteNom })
           : undefined,
+        enRetard: soldeEnRetard,
       };
       (c.solde_paye ? encaisses : aPayer).push(ligne);
     }
@@ -298,15 +319,30 @@ export function computePaiementsDuJour(
     // à distance (PayPal/Virement) n'a pas de date propre (pas de
     // "reprise_date") — seul le cas "réglée à une activité précise,
     // aujourd'hui" est détectable ici.
-    const activiteRepriseLiee = c.reprise_activite_id
-      ? reservations.find((r) => r.id === c.reprise_activite_id) || null
-      : null;
-    if (
-      Number(c.reprise_montant) > 0 &&
-      activiteRepriseLiee &&
-      activiteRepriseLiee.statut_resa !== "Annulée" &&
-      activiteRepriseLiee.date_debut === todayStr
-    ) {
+    //
+    // Une reprise peut couvrir PLUSIEURS activités accumulées en même
+    // temps (reprise_activite_ids, migration 0130) — avant ce correctif,
+    // seule la première (reprise_activite_id, singulier) était vérifiée,
+    // donc une 2ème activité ajoutée avec sa propre date (ex. Clélia
+    // Malardenti : transfert du 17/10 réglé mais Caire 2 jours du 20/10
+    // jamais vérifié) restait invisible ici dès que la 1ère activité de la
+    // liste n'était plus "aujourd'hui" (demande de Mélanie, 2026-10-28).
+    const activitesRepriseLiees = (
+      Array.isArray(c.reprise_activite_ids) && c.reprise_activite_ids.length > 0
+        ? c.reprise_activite_ids
+        : c.reprise_activite_id
+          ? [c.reprise_activite_id]
+          : []
+    )
+      .map((id) => reservations.find((r) => r.id === id) || null)
+      .filter((r): r is Reservation => !!r && r.statut_resa !== "Annulée" && !!r.date_debut);
+    const activiteRepriseAujourdhui = activitesRepriseLiees.find((r) => r.date_debut === todayStr) || null;
+    const activiteRepriseEnRetard =
+      !activiteRepriseAujourdhui
+        ? activitesRepriseLiees.find((r) => (r.date_debut as string) < todayStr) || null
+        : null;
+    const activiteRepriseLiee = activiteRepriseAujourdhui || activiteRepriseEnRetard;
+    if (Number(c.reprise_montant) > 0 && activiteRepriseLiee) {
       aPayer.push({
         client: c,
         libelle: `Reprise à l'activité — ${activiteRepriseLiee.nom_activite || "activité"}`,
@@ -319,6 +355,7 @@ export function computePaiementsDuJour(
         // dédié de la fiche client (⚠️ En attente de règlement), qui sait
         // distinguer "jamais payé" de "payé puis annulé".
         onAnnulerPaye: () => {},
+        enRetard: !activiteRepriseAujourdhui,
       });
     }
     // Une reprise réglée aujourd'hui (bouton "Marquer réglé") efface
@@ -348,6 +385,11 @@ export function computePaiementsDuJour(
     // Volontairement pas d'acompte ici (PayPal ou autre) — cette popup ne
     // couvre que le solde et la reprise réglés à une activité précise.
   }
+
+  // Les retards remontent en premier — c'est la liste "priorité" demandée
+  // par Mélanie, les nouveaux paiements du jour restant visibles juste
+  // après plutôt que noyés au milieu.
+  aPayer.sort((a, b) => Number(!!b.enRetard) - Number(!!a.enRetard));
 
   return { encaisses, aPayer };
 }
@@ -405,6 +447,11 @@ export default function PaiementsDuJourModal({
           >
             {ligne.client.nom || "Sans nom"}
           </button>
+          {ligne.enRetard && (
+            <span className="ml-2 rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">
+              En retard
+            </span>
+          )}
           <p className="text-xs text-neutral-500">{ligne.libelle}</p>
         </div>
         <span className="font-amounts flex-shrink-0 text-sm text-[#171717]">{montantAffiche(ligne)}</span>

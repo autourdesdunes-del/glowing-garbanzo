@@ -2150,6 +2150,20 @@ export function PaiementsStep({
               // au moment de la migration 0117) > la nouvelle valeur en tout
               // dernier recours (vraiment le tout premier choix jamais fait).
               paiement_type_prevu: client.paiement_type_prevu || client.paiement_type || value,
+              // Un acompte jamais réellement encaissé (acompte_paye=false,
+              // ex. un acompte PayPal prévu puis abandonné) ne devait plus
+              // compter une fois le client passé sur un autre type de
+              // paiement — sans ça, activitePaiementWarning (resa.ts)
+              // continuait de le soustraire du montant à payer à l'activité
+              // (acompte_valide ne regarde jamais paiement_type), ce qui
+              // affichait un montant faux dans le bloc équipe Égypte alors
+              // que la fiche client, elle, affichait le bon total (vécu sur
+              // Thomas Bechu, 170€ réels vs 120€ affichés, 2026-10-28). Un
+              // acompte déjà encaissé (confirmé juste au-dessus) n'est
+              // jamais touché ici.
+              ...(value !== client.paiement_type && client.acompte_valide && !client.acompte_paye
+                ? { acompte_valide: false }
+                : {}),
             });
           }}
           className="input"

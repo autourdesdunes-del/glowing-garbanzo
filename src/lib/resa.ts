@@ -1495,6 +1495,114 @@ export function canonicalRecapActivityName(nom: string): string {
   if (/^Louxor\s+(en\s+)?mini-?bus$/i.test(n)) {
     return "Louxor en mini-bus";
   }
+  // Transferts privatifs entre deux villes connues, dans les deux sens (même
+  // principe que les transferts aéroport ci-dessus) — on ne fusionne que la
+  // forme exacte "Transfert privatif VilleA - VilleB" (sans texte en plus
+  // après la seconde ville), pour ne jamais mélanger une variante avec
+  // arrêts/étapes supplémentaires (ex. "... avec arrêts Edfou et Kom Ombo")
+  // qui est un circuit différent.
+  const privatifMatch = /^Transfert privatif (.+?) - (.+)$/i.exec(n);
+  if (privatifMatch) {
+    const villeA = privatifMatch[1].trim();
+    const villeB = privatifMatch[2].trim();
+    if (VILLES_TRANSFERT_CONNUES.includes(villeA) && VILLES_TRANSFERT_CONNUES.includes(villeB)) {
+      const [first, second] = [villeA, villeB].sort((a, b) => a.localeCompare(b, "fr"));
+      return `Transfert privatif ${first} - ${second}`;
+    }
+  }
+  // Balade à cheval "classique" (Matin/Après-midi) — distincte de la
+  // variante "à la mer" juste en dessous.
+  if (/^Balade à cheval(\s*[—-]\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Balade à cheval";
+  }
+  if (/^Balade à cheval\s*-\s*mer(\s*—\s*(Matin|Apr[eè]s-midi|Coucher de soleil))?$/i.test(n)) {
+    return "Balade à cheval - mer";
+  }
+  if (/^Balade à chameau(\s*[—-]\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Balade à chameau";
+  }
+  if (/^City\s*Tour\s*[–-]?\s*El\s*Gouna(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "City Tour – El Gouna";
+  }
+  if (/^Désert Blanc\s*\(?2 jours\s*(et|&)\s*1 nuit\)?$/i.test(n)) {
+    return "Désert Blanc (2 jours et 1 nuit)";
+  }
+  if (/^Mini Egypt(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Mini Egypt";
+  }
+  if (/^Ozir[ée]a Island$/i.test(n)) {
+    return "Oziréa Island";
+  }
+  if (/^Safari Buggy Famille(\s*—\s*(Matin|Apr[eè]s-midi|Coucher de soleil))?$/i.test(n)) {
+    return "Safari Buggy Famille";
+  }
+  if (/^Safari Mix Quad\/Buggy(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Safari Mix Quad/Buggy";
+  }
+  if (/^Safari Quad Makadi(\s*—\s*Coucher de soleil)?$/i.test(n)) {
+    return "Safari Quad Makadi";
+  }
+  if (/^Seascope(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Seascope";
+  }
+  if (/^Shooting photos (avec les dauphins \(en bassin\)|dauphins)$/i.test(n)) {
+    return "Shooting photos avec les dauphins (en bassin)";
+  }
+  if (/^Speedboat priv[ée]\s*-\s*Maison des dauphins(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Speedboat privé - Maison des dauphins";
+  }
+  if (/^Speedboat semi-priv[ée]\s*(avec|-)\s*Maison des dauphins$/i.test(n)) {
+    return "Speedboat semi-privé - Maison des dauphins";
+  }
+  if (/^Speedboat priv[ée] 4h\s*-\s*White Island(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Speedboat privé 4h - White Island";
+  }
+  if (/^Speedboat priv[ée] 4h avec Hula Hula(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Speedboat privé 4h avec Hula Hula";
+  }
+  if (/^Speedboat priv[ée] 4h avec Magawish(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Speedboat privé 4h avec Magawish";
+  }
+  if (/^Speedboat priv[ée] 4h avec Orange Bay(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Speedboat privé 4h avec Orange Bay";
+  }
+  if (/^Speedboat priv[ée] 4h avec Ozir[ée]a(\s*—\s*(Matin|Apr[eè]s-midi))?$/i.test(n)) {
+    return "Speedboat privé 4h avec Oziréa";
+  }
+  if (/^Speedboat priv[ée]\s*-?\s*journ[ée]e compl[èe]te,?\s*(avec\s*)?Hula Hula$/i.test(n)) {
+    return "Speedboat privé journée complète avec Hula Hula";
+  }
+  if (/^Croisière (au fil du|sur le) Nil de Louxor vers Assouan \(5 jours\s*(et 4 nuits|\/4 nuits)\)$/i.test(n)) {
+    return "Croisière au fil du Nil de Louxor vers Assouan (5 jours et 4 nuits)";
+  }
+  if (/^Yacht priv[ée]\s*[-(]\s*grand mod[èe]le\)?$/i.test(n)) {
+    return "Yacht privé (grand modèle)";
+  }
+  // "Yatch" (faute de frappe, sans précision) — l'unique réservation
+  // concernée compte 12 adultes, au-delà du maximum du petit modèle (10
+  // personnes), donc forcément le grand modèle (2 à 15 personnes).
+  if (/^Yatch$/i.test(n)) {
+    return "Yacht privé (grand modèle)";
+  }
+  if (/^Plong[ée]e sous-marine$/i.test(n)) {
+    return "Plongée sous-marine (initiation)";
+  }
+  // "City Tour" seul, sans précision de ville — rattaché à Hurghada.
+  if (/^City\s*Tour$/i.test(n)) {
+    return "City tour Hurghada";
+  }
+  if (/^Le Caire en avion(\s+avec\s+(Citadelle|GEM))?$/i.test(n)) {
+    return "Le Caire en avion";
+  }
+  if (/^Le Caire 1 jour \(déjà sur place\)(\s+avec\s+GEM(\s*\(sans déjeuner\))?)?$/i.test(n)) {
+    return "Le Caire 1 jour (déjà sur place)";
+  }
+  if (/^Le Caire 2 jours \(déjà sur place\)(\s+avec\s+GEM)?$/i.test(n)) {
+    return "Le Caire 2 jours (déjà sur place)";
+  }
+  if (/^Le Caire en voiture priv[ée]e(,\s*avec\s+Saqqarah)?$/i.test(n)) {
+    return "Le Caire en voiture privée";
+  }
   return n;
 }
 

@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { Client, Reservation } from "@/lib/types";
-import { cleanActivityTitle, participantsFor, reservationsActives } from "@/lib/resa";
+import {
+  canonicalTransfertAeroportHurghada,
+  cleanActivityTitle,
+  participantsFor,
+  reservationsActives,
+} from "@/lib/resa";
 import { localDateStr } from "@/lib/dates";
 
 function monthKey(dateStr: string) {
@@ -72,7 +77,7 @@ export default function RecapMoisView({
   const parActivite = useMemo(() => {
     const map: Record<string, ActiviteAgg> = {};
     reservationsDuMois.forEach((r) => {
-      const nom = cleanActivityTitle(r.nom_activite) || "(sans nom)";
+      const nom = canonicalTransfertAeroportHurghada(cleanActivityTitle(r.nom_activite)) || "(sans nom)";
       const client = clientById[r.client_id];
       if (!map[nom]) {
         map[nom] = { nom, reservationsCount: 0, nbAd: 0, nbEnf: 0, nbBebe: 0, details: [] };

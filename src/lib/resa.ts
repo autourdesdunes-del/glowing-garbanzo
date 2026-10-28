@@ -1464,6 +1464,22 @@ export function dureeJoursActivite(nom: string): number | null {
   return null;
 }
 
+// Pour les récaps/rapports : les transferts aéroport Hurghada comptent pour
+// une seule et même activité, qu'ils soient Hôtel → Aéroport ou Aéroport →
+// Hôtel (demande de Mélanie, 2026-10-28 — jusque-là ils ressortaient en deux
+// lignes distinctes dans "Récap du mois").
+export function canonicalTransfertAeroportHurghada(nom: string): string {
+  const n = nom || "";
+  if (
+    /^Transfert a[ée]roport\s+Hurghada\s*-\s*h[oô]tel\b/i.test(n) ||
+    /^Transfert h[oô]tel\s+Hurghada\s*-\s*a[ée]roport\b/i.test(n) ||
+    /^Transfert a[ée]roport\s*-\s*Hurghada$/i.test(n)
+  ) {
+    return "Transfert aéroport Hurghada";
+  }
+  return n;
+}
+
 // Distingue le sens à partir du titre actuel — utilisé pour adapter le
 // libellé du champ horaire ("arrivée" vs "départ") au bon moment du trajet.
 export function senseTransfertAeroport(

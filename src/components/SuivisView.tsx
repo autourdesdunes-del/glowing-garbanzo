@@ -220,6 +220,10 @@ export default function SuivisView({
   // pick-up précis dans la liste des manquants — même besoin que la
   // recherche "Appels" juste en dessous, la liste peut être longue.
   const [pickupSearch, setPickupSearch] = useState("");
+  // Recherche tapée au clavier (nom du client) dans "Vérification de
+  // dossier" — même besoin que pickupSearch/appelQuery juste en dessous
+  // (demande de Mélanie, 2026-10-29).
+  const [verifSearch, setVerifSearch] = useState("");
   // Recherche tapée au clavier (nom du client/prospect) pour programmer un
   // appel — le <select> listant les ~1500 clients était inutilisable pour
   // retrouver quelqu'un (demande de Mélanie, 2026-10-08).
@@ -388,6 +392,12 @@ export default function SuivisView({
           prochaineActiviteDate(b.client.id, reservations) || ""
         )
     );
+  // Recherche par nom — même pattern que pickupSearch/appelQuery juste au
+  // dessus (demande de Mélanie, 2026-10-29).
+  const verifSearchNorm = deaccent(verifSearch.trim().toLowerCase());
+  const verifsRowsFiltered = verifSearchNorm
+    ? verifsRows.filter(({ client: c }) => deaccent((c.nom || "").toLowerCase()).includes(verifSearchNorm))
+    : verifsRows;
 
   const monPrenom = profiles.find((p) => p.id === currentUserId)?.prenom || "";
 
@@ -1678,11 +1688,20 @@ export default function SuivisView({
               depuis leur dernière vérification. Clique un dossier pour l&apos;ouvrir avec sa checklist à
               côté — le CRM ne juge rien, c&apos;est juste un rappel de ce qu&apos;il reste à relire.
             </p>
-            {verifsRows.length === 0 && (
-              <div className="text-sm text-neutral-400">Rien à vérifier pour l&apos;instant.</div>
+            <input
+              type="text"
+              value={verifSearch}
+              onChange={(e) => setVerifSearch(e.target.value)}
+              placeholder="Rechercher un client…"
+              className="mb-3 w-full max-w-sm rounded-[8px] border border-[#eaeaea] bg-white px-3 py-2 text-sm"
+            />
+            {verifsRowsFiltered.length === 0 && (
+              <div className="text-sm text-neutral-400">
+                {verifSearch.trim() ? "Aucun dossier à vérifier pour cette recherche." : "Rien à vérifier pour l'instant."}
+              </div>
             )}
             <div className="divide-y divide-neutral-100 overflow-hidden rounded-lg border border-neutral-200 bg-white">
-              {verifsRows.map(({ client: c }) => (
+              {verifsRowsFiltered.map(({ client: c }) => (
                 <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <ClientNameLink
@@ -1735,6 +1754,7 @@ export default function SuivisView({
               catalogueOptions={catalogueOptions || {}}
               packs={packs || []}
               onOpenHelp={() => onOpenHelp?.()}
+              reservations={reservations}
             />
           );
         })()}

@@ -8,6 +8,7 @@ import {
   CatalogueTransfertTarif,
   Client,
   Pack,
+  Reservation,
 } from "@/lib/types";
 import { DOSSIER_CHECKLIST_GENERALE, DossierChecklistCategorie } from "@/lib/dossierChecklistGenerale";
 import { createClient } from "@/lib/supabase/client";
@@ -56,6 +57,7 @@ export default function VerifDossierDrawer({
   catalogueOptions,
   packs,
   onOpenHelp,
+  reservations,
 }: {
   client: Client;
   monPrenom: string;
@@ -73,6 +75,10 @@ export default function VerifDossierDrawer({
   catalogueOptions: Record<string, CatalogueOption[]>;
   packs: Pack[];
   onOpenHelp: () => void;
+  // Pour les items de checklist sous condition (ex. pointure seulement si
+  // Tortues à Marsa Alam dans les activités de CE client) — demande de
+  // Mélanie, 2026-10-29.
+  reservations: Reservation[];
 }) {
   const supabase = createClient();
   const [autoOpenSection, setAutoOpenSection] = useState<"Activités" | "Suivi" | "Paiements" | undefined>(
@@ -126,8 +132,15 @@ export default function VerifDossierDrawer({
     }
   };
 
+  // Items sous condition (ex. "Pointure si Tortues") retirés s'ils ne
+  // concernent pas ce dossier précis, à partir de SES réservations.
+  const clientReservations = reservations.filter((r) => r.client_id === client.id);
+  const checklistVisible = DOSSIER_CHECKLIST_GENERALE.filter(
+    (it) => !it.condition || it.condition({ reservations: clientReservations, catalogue })
+  );
+
   const nbCoches = coches.size;
-  const nbTotal = DOSSIER_CHECKLIST_GENERALE.length;
+  const nbTotal = checklistVisible.length;
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/30">
@@ -143,7 +156,7 @@ export default function VerifDossierDrawer({
           </div>
           <div className="flex-1 space-y-4 overflow-y-auto">
             {CATEGORIES_ORDRE.map((categorie) => {
-              const items = DOSSIER_CHECKLIST_GENERALE.filter((it) => it.categorie === categorie);
+              const items = checklistVisible.filter((it) => it.categorie === categorie);
               if (items.length === 0) return null;
               return (
                 <div key={categorie}>

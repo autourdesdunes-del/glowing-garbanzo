@@ -75,6 +75,7 @@ export type DirectionSub =
   | "compta_jour"
   | "compta_mois"
   | "compta_annee"
+  | "benefices"
   | "marketing"
   | "statistiques"
   | "statsAgences"
@@ -113,6 +114,10 @@ export const DIRECTION_SUBS: readonly DirectionSubNode[] = [
       { key: "compta_jour", label: "Bilan financier par jour" },
       { key: "compta_mois", label: "Bilan financier par mois" },
       { key: "compta_annee", label: "Bilan financier par an" },
+      // Année > mois > jour > détail par client/activité du jour — demande
+      // de Mélanie, 2026-10-29 : voir le détail des bénéfices, pas
+      // seulement un total agrégé par mois.
+      { key: "benefices", label: "Bénéfices" },
     ],
   },
   { key: "marketing", label: "Digital marketing" },
@@ -907,6 +912,307 @@ function ComptabiliteBilanPage({
   );
 }
 
+// Bénéfices — demande de Mélanie, 2026-10-29. Contrairement aux bilans
+// jour/mois/an ci-dessus (souvent saisis à la main depuis l'import Notion),
+// cette page part toujours des vraies réservations du CRM : année > mois >
+// jour > détail par client/activité, avec le même calcul CA/marge que le
+// classement rentabilité (garde "Client confirmé", distinction coût
+// saisi/non saisi, impact remboursements — voir `rows` plus bas).
+function BeneficesView({
+  clients,
+  reservations,
+  resaOptions,
+  resaTarifs,
+  catalogue,
+  coutsMap,
+  remboursements,
+  onOpenClient,
+}: {
+  clients: Client[];
+  reservations: Reservation[];
+  resaOptions: Record<string, ReservationOption[]>;
+  resaTarifs: Record<string, ReservationTarif[]>;
+  catalogue: CatalogueItem[];
+  coutsMap: Record<string, number>;
+  remboursements: Remboursement[];
+  onOpenClient: (id: string) => void;
+}) {
+  const [annee, setAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
+  const [mois, setMois] = useState<number | null>(null);
+  const [jour, setJour] = useState<string | null>(null);
+
+  const normalizeNom = (s: string) =>
+    (s || "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .trim()
+      .toLowerCase();
+  const catalogueByNom: Record<string, CatalogueItem> = {};
+  catalogue.forEach((a) => {
+    catalogueByNom[normalizeNom(a.nom)] = a;
+  });
+
+  const ventesAnnee = useMemo(
+    () =>
+      reservationsVendues(reservations).filter(
+        (r) =>
+          (r.date_debut || "").slice(0, 4) === String(annee) &&
+          clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé"
+      ),
+    [reservations, clients, annee]
+  );
+
+  const moisDispos = useMemo(() => {
+    const set = new Set<number>();
+    ventesAnnee.forEach((r) => {
+      if (r.date_debut) set.add(Number(r.date_debut.slice(5, 7)));
+    });
+    return set;
+  }, [ventesAnnee]);
+
+  const ventesMois = useMemo(
+    () => (mois === null ? [] : ventesAnnee.filter((r) => Number((r.date_debut || "").slice(5, 7)) === mois)),
+    [ventesAnnee, mois]
+  );
+
+  // Agrégat par jour (nombre de ventes, CA, bénéfice) pour la liste de
+  // jours du mois choisi — même calcul que le détail, juste sommé.
+  const joursDispos = useMemo(() => {
+    const map = new Map<string, { ca: number; benefice: number; nb: number }>();
+    ventesMois.forEach((r) => {
+      const date = r.date_debut as string;
+      const client = clients.find((c) => c.id === r.client_id);
+      if (!client) return;
+      const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+      const cout = Number(coutsMap[r.id]) || 0;
+      const impacts = remboursements.filter((rb) => rb.activite_id === r.id).map(remboursementImpact);
+      const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
+      const impactMarge = impacts.reduce((s, i) => s + i.marge, 0);
+      const prev = map.get(date) || { ca: 0, benefice: 0, nb: 0 };
+      map.set(date, {
+        ca: prev.ca + total + impactCa,
+        benefice: prev.benefice + (total - cout + impactMarge),
+        nb: prev.nb + 1,
+      });
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [ventesMois, clients, resaOptions, resaTarifs, coutsMap, remboursements]);
+
+  // Détail client/activité du jour choisi — mêmes champs que `rows` plus
+  // bas dans ce fichier (classement rentabilité), appliqués à une seule
+  // journée.
+  const detailJour = useMemo(() => {
+    if (!jour) return [];
+    return ventesMois
+      .filter((r) => r.date_debut === jour)
+      .map((r) => {
+        const client = clients.find((c) => c.id === r.client_id);
+        const total = client ? resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []) : 0;
+        const coutSaisi = coutsMap[r.id] !== undefined;
+        const cout = Number(coutsMap[r.id]) || 0;
+        const impacts = remboursements.filter((rb) => rb.activite_id === r.id).map(remboursementImpact);
+        const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
+        const impactMarge = impacts.reduce((s, i) => s + i.marge, 0);
+        const catalogueMatch = r.catalogue_item_id
+          ? catalogue.find((a) => a.id === r.catalogue_item_id)
+          : catalogueByNom[normalizeNom(cleanActivityTitle(r.nom_activite || ""))];
+        return {
+          id: r.id,
+          clientId: r.client_id,
+          clientNom: client?.nom || "Sans nom",
+          activite: catalogueMatch?.nom || r.nom_activite || "Sans nom",
+          ca: total + impactCa,
+          cout,
+          coutSaisi,
+          benefice: total - cout + impactMarge,
+        };
+      })
+      .sort((a, b) => a.clientNom.localeCompare(b.clientNom));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jour, ventesMois, clients, resaOptions, resaTarifs, coutsMap, remboursements, catalogue]);
+
+  const totalJour = detailJour.reduce(
+    (acc, r) => ({ ca: acc.ca + r.ca, cout: acc.cout + r.cout, benefice: acc.benefice + r.benefice }),
+    { ca: 0, cout: 0, benefice: 0 }
+  );
+
+  return (
+    <div className="mx-auto max-w-4xl p-6">
+      <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
+        <span>Comptabilité</span>
+        <span>/</span>
+        <span className={mois === null ? "font-medium text-[#171717]" : ""}>Bénéfices</span>
+        {mois !== null && (
+          <>
+            <span>/</span>
+            <button
+              type="button"
+              onClick={() => setJour(null)}
+              className={jour === null ? "font-medium text-[#171717]" : "hover:underline"}
+            >
+              {MOIS_FR[mois - 1]} {annee}
+            </button>
+          </>
+        )}
+        {jour !== null && (
+          <>
+            <span>/</span>
+            <span className="font-medium text-[#171717] capitalize">{fmtDate(jour)}</span>
+          </>
+        )}
+      </div>
+
+      <h2 className="font-heading text-lg font-semibold text-[#171717]">Bénéfices</h2>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {COMPTA_ANNEES.map((a) => (
+          <button
+            key={a}
+            type="button"
+            onClick={() => {
+              setAnnee(a);
+              setMois(null);
+              setJour(null);
+            }}
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              annee === a
+                ? "border-[#171717] bg-[#171717] text-white"
+                : "border-[#eaeaea] text-[#666666] hover:bg-[#fafafa]"
+            }`}
+          >
+            {a}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+          const dispo = moisDispos.has(m);
+          return (
+            <button
+              key={m}
+              type="button"
+              disabled={!dispo}
+              onClick={() => {
+                setMois(m);
+                setJour(null);
+              }}
+              className={`rounded-full border px-3 py-1 text-xs font-medium capitalize ${
+                mois === m
+                  ? "border-[#171717] bg-[#171717] text-white"
+                  : dispo
+                    ? "border-[#eaeaea] text-[#666666] hover:bg-[#fafafa]"
+                    : "border-[#f5f5f5] text-neutral-300"
+              }`}
+            >
+              {MOIS_FR[m - 1]}
+            </button>
+          );
+        })}
+      </div>
+
+      {mois === null && (
+        <p className="mt-4 text-sm text-neutral-500">
+          Choisis un mois pour voir les jours avec des ventes confirmées.
+        </p>
+      )}
+
+      {mois !== null && jour === null && (
+        <div className="mt-5">
+          {joursDispos.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              Aucune vente confirmée en {MOIS_FR[mois - 1]} {annee}.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {joursDispos.map(([date, agg]) => (
+                <button
+                  key={date}
+                  type="button"
+                  onClick={() => setJour(date)}
+                  className="flex w-full items-center justify-between rounded-[6px] border border-[#eaeaea] bg-white px-4 py-2.5 text-left hover:border-[#171717]/30 hover:bg-[#fafafa]"
+                >
+                  <span className="font-heading text-sm font-medium text-[#171717] capitalize">{fmtDate(date)}</span>
+                  <span className="flex items-center gap-4 text-xs text-neutral-500">
+                    <span>
+                      {agg.nb} activité{agg.nb > 1 ? "s" : ""}
+                    </span>
+                    <span className="font-amounts text-[#171717]">CA {euros(agg.ca)} €</span>
+                    <span className="font-amounts font-medium text-green-700">Bénéf. {euros(agg.benefice)} €</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {jour !== null && (
+        <div className="mt-5">
+          <button
+            type="button"
+            onClick={() => setJour(null)}
+            className="mb-3 text-xs text-neutral-500 hover:underline"
+          >
+            ← retour aux jours de {MOIS_FR[mois! - 1]}
+          </button>
+
+          <div className="grid grid-cols-3 gap-3">
+            <StatTile label="CA du jour" value={`${euros(totalJour.ca)} €`} />
+            <StatTile label="Coût réel" value={`${euros(totalJour.cout)} €`} />
+            <StatTile tone="green" label="Bénéfices" value={`${euros(totalJour.benefice)} €`} />
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-[6px] border border-[#eaeaea]">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#eaeaea] bg-[#fafafa] text-xs uppercase tracking-wide text-neutral-400">
+                  <th className="px-3 py-2">Client</th>
+                  <th className="px-3 py-2">Activité</th>
+                  <th className="px-3 py-2 text-right">CA</th>
+                  <th className="px-3 py-2 text-right">Coût réel</th>
+                  <th className="px-3 py-2 text-right">Bénéfice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detailJour.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-4 text-center text-sm text-neutral-500">
+                      Rien ce jour-là.
+                    </td>
+                  </tr>
+                ) : (
+                  detailJour.map((r) => (
+                    <tr key={r.id} className="border-b border-[#f0f0f0] last:border-0">
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => onOpenClient(r.clientId)}
+                          className="text-[#171717] hover:underline"
+                        >
+                          {r.clientNom}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 text-neutral-600">{r.activite}</td>
+                      <td className="px-3 py-2 text-right font-amounts">{euros(r.ca)} €</td>
+                      <td className="px-3 py-2 text-right font-amounts">
+                        {r.coutSaisi ? `${euros(r.cout)} €` : <span className="text-neutral-400">non saisi</span>}
+                      </td>
+                      <td className="px-3 py-2 text-right font-amounts font-medium text-green-700">
+                        {euros(r.benefice)} €
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DirectionView({
   sub,
   clients,
@@ -1298,6 +1604,21 @@ export default function DirectionView({
         reservations={reservations}
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
+      />
+    );
+  }
+
+  if (sub === "benefices") {
+    return (
+      <BeneficesView
+        clients={clients}
+        reservations={reservations}
+        resaOptions={resaOptions}
+        resaTarifs={resaTarifs}
+        catalogue={catalogue}
+        coutsMap={coutsMap}
+        remboursements={remboursements}
+        onOpenClient={onOpenClient}
       />
     );
   }

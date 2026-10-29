@@ -20,6 +20,7 @@ import {
   Verification,
 } from "@/lib/types";
 import { addDays, localDateStr } from "@/lib/dates";
+import { fmtDateLong } from "@/lib/planningViewFormat";
 import { deaccent } from "@/lib/deaccent";
 import { CANAUX } from "@/lib/constants";
 import {
@@ -398,6 +399,28 @@ export default function SuivisView({
   const verifsRowsFiltered = verifSearchNorm
     ? verifsRows.filter(({ client: c }) => deaccent((c.nom || "").toLowerCase()).includes(verifSearchNorm))
     : verifsRows;
+  // Regroupe visuellement par urgence réelle (même date que le tri
+  // ci-dessus) pour que "tous les clients avec une activité demain" se
+  // voie d'un coup d'œil plutôt que de se deviner dans une liste plate —
+  // demande de Mélanie, 2026-10-29.
+  const apresDemainStr = addDays(todayStr, 2);
+  const verifUrgenceLabel = (dateStr: string | null) => {
+    if (!dateStr) return "Pas d'activité à venir";
+    if (dateStr === todayStr) return "Aujourd'hui";
+    if (dateStr === tomorrowStr) return "Demain";
+    if (dateStr === apresDemainStr) return "Après-demain";
+    return fmtDateLong(dateStr);
+  };
+  const verifsGroupes = (() => {
+    const groupes: { label: string; rows: typeof verifsRowsFiltered }[] = [];
+    verifsRowsFiltered.forEach((row) => {
+      const label = verifUrgenceLabel(prochaineActiviteDate(row.client.id, reservations));
+      const dernier = groupes[groupes.length - 1];
+      if (dernier && dernier.label === label) dernier.rows.push(row);
+      else groupes.push({ label, rows: [row] });
+    });
+    return groupes;
+  })();
 
   const monPrenom = profiles.find((p) => p.id === currentUserId)?.prenom || "";
 
@@ -1700,24 +1723,33 @@ export default function SuivisView({
                 {verifSearch.trim() ? "Aucun dossier à vérifier pour cette recherche." : "Rien à vérifier pour l'instant."}
               </div>
             )}
-            <div className="divide-y divide-neutral-100 overflow-hidden rounded-lg border border-neutral-200 bg-white">
-              {verifsRowsFiltered.map(({ client: c }) => (
-                <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <ClientNameLink
-                      nom={c.nom}
-                      onClick={() => setVerifDrawerClientId(c.id)}
-                      className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-                    />
-                    <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+            <div className="space-y-4">
+              {verifsGroupes.map((groupe) => (
+                <div key={groupe.label}>
+                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+                    {groupe.label} ({groupe.rows.length})
+                  </p>
+                  <div className="divide-y divide-neutral-100 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+                    {groupe.rows.map(({ client: c }) => (
+                      <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <ClientNameLink
+                            nom={c.nom}
+                            onClick={() => setVerifDrawerClientId(c.id)}
+                            className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                          />
+                          <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => validerVerification(c)}
+                          className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          Vérifié — signer {monPrenom || ""}
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => validerVerification(c)}
-                    className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
-                  >
-                    Vérifié — signer {monPrenom || ""}
-                  </button>
                 </div>
               ))}
             </div>

@@ -1069,6 +1069,12 @@ function BeneficesView({
     { ca: 0, cout: 0, benefice: 0 }
   );
 
+  // Somme des jours du mois choisi — demande de Mélanie, 2026-10-29.
+  const totalMois = joursDispos.reduce(
+    (acc, [, agg]) => ({ ca: acc.ca + agg.ca, benefice: acc.benefice + agg.benefice }),
+    { ca: 0, benefice: 0 }
+  );
+
   return (
     <div className="mx-auto max-w-4xl p-6">
       <div className="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-neutral-400">
@@ -1157,7 +1163,12 @@ function BeneficesView({
               Aucune vente confirmée en {MOIS_FR[mois - 1]} {annee}.
             </p>
           ) : (
-            <div className="space-y-1.5">
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <StatTile label={`CA de ${MOIS_FR[mois - 1]}`} value={`${euros(totalMois.ca)} €`} />
+                <StatTile tone="green" label={`Bénéfices de ${MOIS_FR[mois - 1]}`} value={`${euros(totalMois.benefice)} €`} />
+              </div>
+              <div className="mt-3 space-y-1.5">
               {joursDispos.map(([date, agg]) => (
                 <button
                   key={date}
@@ -1175,7 +1186,8 @@ function BeneficesView({
                   </span>
                 </button>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </div>
       )}

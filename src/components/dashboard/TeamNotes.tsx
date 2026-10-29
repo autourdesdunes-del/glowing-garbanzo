@@ -3,7 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ConfirmProvider";
-import { NOTE_EQUIPE_TAGS_DEFAUT } from "@/lib/constants";
+import { NOTE_EQUIPE_TAGS_DEFAUT, NOTE_EQUIPE_TAG_COLORS, NOTE_EQUIPE_TAG_PALETTE } from "@/lib/constants";
+
+// Couleur stable pour un tag : celle de NOTE_EQUIPE_TAG_COLORS si c'est un
+// tag par défaut, sinon une couleur de la palette de repli choisie à partir
+// d'un hash simple du texte — toujours la même pour un même tag, sans
+// dépendre de l'ordre de création (donc stable même après rechargement).
+function tagColorClass(tag: string) {
+  if (NOTE_EQUIPE_TAG_COLORS[tag]) return NOTE_EQUIPE_TAG_COLORS[tag];
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) hash = (hash * 31 + tag.charCodeAt(i)) >>> 0;
+  return NOTE_EQUIPE_TAG_PALETTE[hash % NOTE_EQUIPE_TAG_PALETTE.length];
+}
 
 type TeamNote = {
   id: string;
@@ -135,6 +146,11 @@ export default function TeamNotes({ monNom }: { monNom: string }) {
               ))}
               <option value="__autre__">+ Nouveau tag…</option>
             </select>
+            {tag !== "__autre__" && (
+              <span className={`inline-flex items-center rounded-[4px] px-2 py-0.5 text-[11px] font-medium ${tagColorClass(tag)}`}>
+                {tag}
+              </span>
+            )}
             {tag === "__autre__" && (
               <input
                 type="text"
@@ -186,7 +202,9 @@ export default function TeamNotes({ monNom }: { monNom: string }) {
                 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 accent-[#171717]"
               />
               <div className="min-w-0 flex-1">
-                <span className="mr-2 inline-block whitespace-nowrap rounded-[4px] border border-[#eaeaea] bg-[#fafafa] px-2 py-0.5 text-[11px] text-[#171717]">
+                <span
+                  className={`mr-2 inline-block whitespace-nowrap rounded-[4px] px-2 py-0.5 text-[11px] font-medium ${tagColorClass(n.tag)}`}
+                >
                   {n.tag}
                 </span>
                 <span className={`text-sm ${n.traite ? "text-neutral-400 line-through" : "text-[#171717]"}`}>

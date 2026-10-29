@@ -104,6 +104,36 @@ export const NOTE_EQUIPE_TAGS_DEFAUT = [
   "Coordination équipe",
 ] as const;
 
+// Couleur par tag par défaut — "Urgent"/"Problème client" ressortent en
+// rouge pour sauter aux yeux, les deux tags de transmission reprennent les
+// couleurs de marque (teal Bodé, or Hossam) pour les distinguer d'un coup
+// d'œil. Un tag tapé à la main (non listé ici) retombe sur une couleur de
+// NOTE_EQUIPE_TAG_PALETTE, choisie de façon stable selon son texte — voir
+// tagColorClass dans TeamNotes.tsx.
+export const NOTE_EQUIPE_TAG_COLORS: Record<string, string> = {
+  Info: "bg-blue-50 text-blue-700",
+  "Problème activité": "bg-orange-100 text-orange-700",
+  "Problème client": "bg-red-100 text-red-700",
+  Urgent: "bg-red-600 text-white",
+  Actualité: "bg-purple-50 text-purple-700",
+  "À transmettre à Bodé": "bg-[#0F5C56]/10 text-[#0F5C56]",
+  "À transmettre à Hossam": "bg-[#C9973E]/10 text-[#8B4531]",
+  "En attente": "bg-yellow-100 text-yellow-800",
+  "Coordination équipe": "bg-neutral-100 text-neutral-600",
+};
+
+// Palette de repli pour un tag personnalisé (pas dans NOTE_EQUIPE_TAG_COLORS)
+// — une couleur stable par texte de tag (voir tagColorClass), pas de gris
+// uniforme qui rendrait tous les tags persos indistinguables entre eux.
+export const NOTE_EQUIPE_TAG_PALETTE = [
+  "bg-teal-50 text-teal-700",
+  "bg-pink-50 text-pink-700",
+  "bg-indigo-50 text-indigo-700",
+  "bg-amber-50 text-amber-700",
+  "bg-lime-50 text-lime-700",
+  "bg-cyan-50 text-cyan-700",
+] as const;
+
 // Notes pré-écrites proposées pour chaque étape de paiement libre — la note
 // est obligatoire (voir PaiementsStep) mais doit rester rapide à saisir au
 // quotidien, d'où cette liste de raisons les plus fréquentes plutôt qu'un

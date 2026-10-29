@@ -11,7 +11,7 @@ import {
   Remboursement,
   Reservation,
 } from "@/lib/types";
-import { DOSSIER_CHECKLIST_GENERALE, DossierChecklistCategorie } from "@/lib/dossierChecklistGenerale";
+import { checklistVisibleFor, DossierChecklistCategorie } from "@/lib/dossierChecklistGenerale";
 import { createClient } from "@/lib/supabase/client";
 import ClientDetail from "@/components/ClientDetail";
 
@@ -140,14 +140,21 @@ export default function VerifDossierDrawer({
   // remboursements.
   const clientReservations = reservations.filter((r) => r.client_id === client.id);
   const clientRemboursements = remboursements.filter((r) => r.client_id === client.id);
-  const checklistVisible = DOSSIER_CHECKLIST_GENERALE.filter(
-    (it) =>
-      !it.condition ||
-      it.condition({ reservations: clientReservations, catalogue, remboursements: clientRemboursements, client })
-  );
+  const checklistVisible = checklistVisibleFor({
+    reservations: clientReservations,
+    catalogue,
+    remboursements: clientRemboursements,
+    client,
+  });
 
   const nbCoches = coches.size;
   const nbTotal = checklistVisible.length;
+  // Tant qu'il manque une case, signer effacerait du travail déjà fait pour
+  // rien (ex. il ne manque que la pointure, en attente de réponse du
+  // client) — la signature ne doit être possible qu'une fois tout coché,
+  // sinon ce qui est déjà vérifié doit rester tel quel pour la prochaine
+  // fois (demande de Mélanie, 2026-10-29).
+  const complet = loaded && nbTotal > 0 && nbCoches === nbTotal;
 
   return (
     <div className="fixed inset-0 z-50 flex bg-black/30">
@@ -196,14 +203,28 @@ export default function VerifDossierDrawer({
           </div>
           <button
             type="button"
-            onClick={async () => {
-              await supabase.from("dossier_checklist_coches").delete().eq("client_id", client.id);
-              onValider(client);
+            disabled={!complet}
+            onClick={() => {
+              // onValider (SuivisView.validerVerification) efface déjà les
+              // cases cochées en même temps que la signature — pas la peine
+              // de le refaire ici.
+              if (complet) onValider(client);
             }}
-            className="mt-3 rounded-full bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+            className={
+              complet
+                ? "mt-3 rounded-full bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                : "mt-3 cursor-not-allowed rounded-full bg-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-400"
+            }
           >
-            Vérifié — signer {monPrenom}
+            {complet
+              ? `Vérifié — signer ${monPrenom}`
+              : `Il reste ${nbTotal - nbCoches} case${nbTotal - nbCoches > 1 ? "s" : ""} à cocher`}
           </button>
+          {!complet && (
+            <p className="mt-1.5 text-[11px] text-neutral-400">
+              Ce qui est déjà coché reste enregistré — ferme (✕) et reviens plus tard, rien n&apos;est perdu.
+            </p>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto p-3 md:p-6">
           <ClientDetail

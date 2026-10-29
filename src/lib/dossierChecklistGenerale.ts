@@ -44,6 +44,14 @@ function catalogueItemFor(r: Reservation, catalogue: CatalogueItem[]) {
   return r.catalogue_item_id ? catalogue.find((a) => a.id === r.catalogue_item_id) : undefined;
 }
 
+// Items de la checklist générale qui concernent vraiment CE dossier (ceux
+// sans condition, + ceux dont la condition passe) — point d'entrée unique
+// utilisé à la fois par le panneau (VerifDossierDrawer) et par la liste
+// "Dossiers à vérifier" (badge de progression), pour ne jamais diverger.
+export function checklistVisibleFor(ctx: DossierChecklistContext): DossierChecklistItem[] {
+  return DOSSIER_CHECKLIST_GENERALE.filter((it) => !it.condition || it.condition(ctx));
+}
+
 export const DOSSIER_CHECKLIST_GENERALE: DossierChecklistItem[] = [
   { code: "contact_moyen", categorie: "Contact", texte: "WhatsApp / moyen de contact correct et actif" },
   { code: "contact_voyageurs", categorie: "Contact", texte: "Nombre de voyageurs correct" },

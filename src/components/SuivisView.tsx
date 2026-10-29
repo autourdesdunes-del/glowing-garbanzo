@@ -41,6 +41,7 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import { dernierChangementDossier } from "@/lib/dossierChecklist";
+import { checklistVisibleFor } from "@/lib/dossierChecklistGenerale";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUserNom } from "@/lib/currentUser";
@@ -216,6 +217,10 @@ export default function SuivisView({
   // Client dont le dossier est ouvert dans le panneau de vérification
   // (checklist + vraie fiche côte à côte) — voir VerifDossierDrawer.
   const [verifDrawerClientId, setVerifDrawerClientId] = useState<string | null>(null);
+  // Cases déjà cochées par client — pour afficher un badge "en attente
+  // (X/Y)" directement dans la liste "Dossiers à vérifier", sans attendre
+  // d'ouvrir le panneau (demande de Mélanie, 2026-10-29).
+  const [verifCoches, setVerifCoches] = useState<Record<string, Set<string>>>({});
   const [newAppelClientId, setNewAppelClientId] = useState("");
   // Recherche tapée au clavier (nom du client) pour retrouver vite un
   // pick-up précis dans la liste des manquants — même besoin que la
@@ -369,9 +374,11 @@ export default function SuivisView({
   // partie (statut/date/activité à venir) : le "jamais vérifié" est ensuite
   // recalculé ci-dessous — un dossier modifié depuis sa dernière
   // vérification redevient "à vérifier" même s'il a déjà été signé une fois
-  // (demande de Mélanie, 2026-10-13) — la checklist générale cochée à côté
-  // (voir VerifDossierDrawer) n'est qu'un rappel des éléments à relire,
-  // jamais un verdict qui bloquerait la signature.
+  // (demande de Mélanie, 2026-10-13). La checklist générale cochée à côté
+  // (voir VerifDossierDrawer) bloque désormais la signature tant qu'il
+  // manque une case — revirement du 2026-10-29 : signer avec des cases
+  // vides effaçait ce qui avait déjà été vérifié pour rien (ex. il ne
+  // manque que la pointure, en attente de réponse du client).
   const verifsEligibles = clients.filter((c) => estDossierNonVerifie(c, new Set(), reservations));
   const verifsRows = verifsEligibles
     .filter((c) => !dossiersVerifiesMaintenant.has(c.id))
@@ -426,6 +433,11 @@ export default function SuivisView({
 
   const validerVerification = async (c: Client) => {
     setDossiersVerifiesMaintenant((prev) => new Set(prev).add(c.id));
+    // Signature = dossier entièrement coché (bouton désactivé sinon, côté
+    // liste et côté panneau) — on repart donc à zéro pour la prochaine
+    // vérification, qu'on arrive ici depuis le raccourci de la liste ou
+    // depuis VerifDossierDrawer (demande de Mélanie, 2026-10-29).
+    await supabase.from("dossier_checklist_coches").delete().eq("client_id", c.id);
     const { error } = await supabase.from("verifications").insert({
       client_id: c.id,
       nom: monPrenom,
@@ -630,6 +642,38 @@ export default function SuivisView({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sub, clients, tomorrowStr]);
+
+  // Charge en une fois les cases déjà cochées pour tous les dossiers de la
+  // liste "à vérifier" — alimente le badge "en attente (X/Y)" de chaque
+  // ligne (voir verifsRowsFiltered plus haut).
+  const verifClientIdsKey = verifsRows.map((r) => r.client.id).join(",");
+  useEffect(() => {
+    if (sub !== "verifs" || !verifClientIdsKey) {
+      setVerifCoches({});
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from("dossier_checklist_coches")
+      .select("client_id, item_code")
+      .in("client_id", verifClientIdsKey.split(","))
+      .then(({ data }) => {
+        if (cancelled) return;
+        const map: Record<string, Set<string>> = {};
+        (data || []).forEach((row) => {
+          if (!map[row.client_id]) map[row.client_id] = new Set();
+          map[row.client_id].add(row.item_code);
+        });
+        setVerifCoches(map);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // verifDrawerClientId dans les deps : simple déclencheur pour
+    // rafraîchir le badge après une session de coches dans le panneau
+    // (ouverture puis fermeture), pas une vraie dépendance de la requête.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub, verifClientIdsKey, verifDrawerClientId]);
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
@@ -1709,7 +1753,8 @@ export default function SuivisView({
             <p className="mb-3 text-xs text-neutral-400">
               Clients confirmés dont le séjour arrive (ou a déjà commencé), jamais vérifiés, ou modifiés
               depuis leur dernière vérification. Clique un dossier pour l&apos;ouvrir avec sa checklist à
-              côté — le CRM ne juge rien, c&apos;est juste un rappel de ce qu&apos;il reste à relire.
+              côté — tout cocher avant de signer, ce qui est déjà coché reste enregistré si tu reviens
+              plus tard.
             </p>
             <input
               type="text"
@@ -1730,25 +1775,60 @@ export default function SuivisView({
                     {groupe.label} ({groupe.rows.length})
                   </p>
                   <div className="divide-y divide-neutral-100 overflow-hidden rounded-lg border border-neutral-200 bg-white">
-                    {groupe.rows.map(({ client: c }) => (
-                      <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <ClientNameLink
-                            nom={c.nom}
-                            onClick={() => setVerifDrawerClientId(c.id)}
-                            className="font-heading text-sm font-semibold text-[#171717] hover:underline"
-                          />
-                          <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                    {groupe.rows.map(({ client: c }) => {
+                      // Progression de la checklist pour ce dossier — même
+                      // calcul que VerifDossierDrawer (checklistVisibleFor),
+                      // pour afficher le badge "en attente" sans avoir à
+                      // ouvrir le panneau, et pour bloquer ce bouton raccourci
+                      // de la même façon que celui du panneau.
+                      const clientReservations = reservations.filter((r) => r.client_id === c.id);
+                      const clientRemboursements = remboursements.filter((r) => r.client_id === c.id);
+                      const visible = checklistVisibleFor({
+                        reservations: clientReservations,
+                        catalogue,
+                        remboursements: clientRemboursements,
+                        client: c,
+                      });
+                      const cochesSet = verifCoches[c.id] || new Set<string>();
+                      const nbCoches = visible.filter((it) => cochesSet.has(it.code)).length;
+                      const nbTotal = visible.length;
+                      const complet = nbTotal > 0 && nbCoches === nbTotal;
+                      return (
+                        <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <ClientNameLink
+                              nom={c.nom}
+                              onClick={() => setVerifDrawerClientId(c.id)}
+                              className="font-heading text-sm font-semibold text-[#171717] hover:underline"
+                            />
+                            <DateRangeBadge debut={c.date_debut} fin={c.date_fin} />
+                            {nbCoches > 0 && !complet && (
+                              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                ⏳ En attente ({nbCoches}/{nbTotal})
+                              </span>
+                            )}
+                            {complet && (
+                              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                                ✓ Prêt à signer
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            disabled={!complet}
+                            onClick={() => complet && validerVerification(c)}
+                            title={complet ? undefined : "Ouvre le dossier pour cocher le reste avant de signer"}
+                            className={
+                              complet
+                                ? "rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
+                                : "cursor-not-allowed rounded-full bg-neutral-200 px-3 py-1 text-xs font-medium text-neutral-400"
+                            }
+                          >
+                            Vérifié — signer {monPrenom || ""}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => validerVerification(c)}
-                          className="rounded-full bg-[#171717] px-3 py-1 text-xs font-medium text-white hover:opacity-90"
-                        >
-                          Vérifié — signer {monPrenom || ""}
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ))}

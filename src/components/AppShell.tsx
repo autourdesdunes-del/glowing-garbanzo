@@ -86,6 +86,7 @@ import AssouanVerificationCenter from "@/components/AssouanVerificationCenter";
 import AcompteAlerteCenter from "@/components/AcompteAlerteCenter";
 import RemarqueEmployeeCenter from "@/components/RemarqueEmployeeCenter";
 import PersonalNudgeAlert from "@/components/PersonalNudgeAlert";
+import LuisAssistant from "@/components/LuisAssistant";
 import {
   IconBook,
   IconCalendar,
@@ -266,6 +267,12 @@ function AppShellInner({
 
   const [mode, setMode] = useState<Mode>("dashboard");
   const [suivisSub, setSuivisSub] = useState<SuivisSub>("j1");
+  // Garde de navigation de Luis (LuisAssistant.tsx) : au 3e rappel sans
+  // vérif faite, impossible de quitter Suivis > Vérification de dossier
+  // (sidebar uniquement — même logique que PersonalNudgeAlert, mais ici ça
+  // empêche plutôt que ça propose) tant que le quota du jour n'est pas
+  // atteint ou que l'échappatoire "Urgence en cours" n'est pas activée.
+  const [luisGardeActive, setLuisGardeActive] = useState(false);
   const [planningSub, setPlanningSub] = useState<PlanningSub>("calendrier");
   const [directionSub, setDirectionSub] = useState<DirectionSub>("dashboard");
   // Sections Direction dépliées dans la barre latérale (façon pages/
@@ -2460,6 +2467,10 @@ function AppShellInner({
             <div key={t.key}>
               <button
                 onClick={() => {
+                  if (luisGardeActive && t.key !== "suivis") {
+                    toast("Encore un peu ! Termine tes 3 vérifications de dossier avant de repartir.");
+                    return;
+                  }
                   setMode(t.key);
                   if (t.key === "planning") setPlanningSub("calendrier");
                   if (t.key === "preview" && !previewId && clients[0]) setPreviewId(clients[0].id);
@@ -2489,6 +2500,10 @@ function AppShellInner({
                       <button
                         key={s.key}
                         onClick={() => {
+                          if (luisGardeActive && s.key !== "verifs") {
+                            toast("Encore un peu ! Termine tes 3 vérifications de dossier avant de repartir.");
+                            return;
+                          }
                           setSuivisSub(s.key);
                           setMobileMenuOpen(false);
                         }}
@@ -2522,6 +2537,10 @@ function AppShellInner({
                         <button
                           key={s.key}
                           onClick={() => {
+                            if (luisGardeActive && s.key !== "verifs") {
+                              toast("Encore un peu ! Termine tes 3 vérifications de dossier avant de repartir.");
+                              return;
+                            }
                             setSuivisSub(s.key);
                             setMobileMenuOpen(false);
                           }}
@@ -2806,6 +2825,22 @@ function AppShellInner({
           onOpenAuRevoir={openAuRevoir}
           onOpenAvisClients={openAvisClients}
           onOpenClients={() => setMode("team")}
+        />
+      )}
+      {!isDirection && (
+        <LuisAssistant
+          userId={userId}
+          monPrenom={prenom}
+          clients={clients}
+          reservations={allReservations}
+          verifications={allVerifications}
+          planningShifts={teamPlanningShifts}
+          clientHotels={allClientHotels}
+          onForcerVerifDossier={() => {
+            setMode("suivis");
+            setSuivisSub("verifs");
+          }}
+          onGardeChange={setLuisGardeActive}
         />
       )}
       <BilletRappels reservations={allReservations} clients={clients} userEmail={userEmail} />

@@ -125,6 +125,50 @@ Program day 2 :
 * Hatchepsut
 * Boat on the Nile
 * Stay in Louxor`,
+
+  "Louxor 1 jour visites & 1 jour Montgolfière (aller-retour Hurghada)": `Program day 1 :
+
+* Departure from Hurghada to Louxor
+* Karnak Temple
+* Valley of kings
+* Colosses of Memnon
+* Hatchepsut
+* Boat on the Nile
+
+Program day 2 :
+
+* Balloon
+* Transfer back from Louxor to Hurghada`,
+
+  // Sens "Louxor" (voir transfertSensOptions, resa.ts).
+  "Louxor 1 jour visites & 1 jour Montgolfière (depuis Louxor et transfert vers Hurghada)": `Program day 1 :
+
+* Departure from Louxor : clients already in Louxor
+* Karnak Temple
+* Valley of kings
+* Colosses of Memnon
+* Hatchepsut
+* Boat on the Nile
+
+Program day 2 :
+
+* Balloon
+* Transfer back from Louxor to Hurghada`,
+
+  // Sens "Hurghada" (voir transfertSensOptions, resa.ts).
+  "Louxor 1 jour visites & 1 jour Montgolfière (depuis Hurghada — reste à Louxor)": `Program day 1 :
+
+* Departure from Hurghada to Louxor
+* Karnak Temple
+* Valley of kings
+* Colosses of Memnon
+* Hatchepsut
+* Boat on the Nile
+
+Program day 2 :
+
+* Balloon
+* Stay in Louxor`,
 };
 
 // nomActivite doit être le nom RÉSOLU de la réservation (r.nom_activite),

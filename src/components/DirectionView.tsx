@@ -956,9 +956,11 @@ function BeneficesView({
   resaTarifs,
   catalogue,
   coutsMap,
+  coutsVerifieMap,
   remboursements,
   onOpenClient,
   onUpdateCoutReel,
+  onUpdateCoutVerifie,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -966,9 +968,11 @@ function BeneficesView({
   resaTarifs: Record<string, ReservationTarif[]>;
   catalogue: CatalogueItem[];
   coutsMap: Record<string, number>;
+  coutsVerifieMap: Record<string, boolean>;
   remboursements: Remboursement[];
   onOpenClient: (id: string) => void;
   onUpdateCoutReel: (reservationId: string, value: number) => void;
+  onUpdateCoutVerifie: (reservationId: string, verifie: boolean) => void;
 }) {
   const [annee, setAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
   const [mois, setMois] = useState<number | null>(null);
@@ -1058,11 +1062,12 @@ function BeneficesView({
           cout,
           coutSaisi,
           benefice: total - cout + impactMarge,
+          verifie: coutsVerifieMap[r.id] === true,
         };
       })
       .sort((a, b) => a.clientNom.localeCompare(b.clientNom));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jour, ventesMois, clients, resaOptions, resaTarifs, coutsMap, remboursements, catalogue]);
+  }, [jour, ventesMois, clients, resaOptions, resaTarifs, coutsMap, coutsVerifieMap, remboursements, catalogue]);
 
   const totalJour = detailJour.reduce(
     (acc, r) => ({ ca: acc.ca + r.ca, cout: acc.cout + r.cout, benefice: acc.benefice + r.benefice }),
@@ -1213,10 +1218,16 @@ function BeneficesView({
             <StatTile tone="green" label="Bénéfices" value={`${euros(totalJour.benefice)} €`} />
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded-[6px] border border-[#eaeaea]">
+          <p className="mt-3 text-xs text-neutral-500">
+            {detailJour.filter((r) => r.verifie).length} / {detailJour.length} ligne
+            {detailJour.length > 1 ? "s" : ""} vérifiée{detailJour.filter((r) => r.verifie).length > 1 ? "s" : ""}
+          </p>
+
+          <div className="mt-2 overflow-x-auto rounded-[6px] border border-[#eaeaea]">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-[#eaeaea] bg-[#fafafa] text-xs uppercase tracking-wide text-neutral-400">
+                  <th className="w-10 px-3 py-2"></th>
                   <th className="px-3 py-2">Client</th>
                   <th className="px-3 py-2">Activité</th>
                   <th className="px-3 py-2 text-right">CA</th>
@@ -1227,13 +1238,25 @@ function BeneficesView({
               <tbody>
                 {detailJour.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-3 py-4 text-center text-sm text-neutral-500">
+                    <td colSpan={6} className="px-3 py-4 text-center text-sm text-neutral-500">
                       Rien ce jour-là.
                     </td>
                   </tr>
                 ) : (
                   detailJour.map((r) => (
-                    <tr key={r.id} className="border-b border-[#f0f0f0] last:border-0">
+                    <tr
+                      key={r.id}
+                      className={`border-b border-[#f0f0f0] last:border-0 ${r.verifie ? "bg-green-50/60" : ""}`}
+                    >
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={r.verifie}
+                          onChange={(e) => onUpdateCoutVerifie(r.id, e.target.checked)}
+                          title="Coût et bénéfice vérifiés"
+                          className="h-4 w-4 accent-[#0F5C56]"
+                        />
+                      </td>
                       <td className="px-3 py-2">
                         <button
                           type="button"
@@ -1293,6 +1316,8 @@ export default function DirectionView({
   onUpdateReservation,
   onUpdateClient,
   onUpdateCoutReel,
+  coutsVerifieMap,
+  onUpdateCoutVerifie,
 }: {
   sub: DirectionSub;
   clients: Client[];
@@ -1323,6 +1348,8 @@ export default function DirectionView({
   // Saisie du coût réel depuis Bénéfices (sub === "benefices") — demande de
   // Mélanie, 2026-10-29. Toujours "manuel" (voir BeneficesView).
   onUpdateCoutReel: (reservationId: string, value: number) => void;
+  coutsVerifieMap: Record<string, boolean>;
+  onUpdateCoutVerifie: (reservationId: string, verifie: boolean) => void;
 }) {
   // Partagé entre les 3 pages Comptabilité (pas un state local à chacune) —
   // pour que cliquer un mois dans "par an" fasse déjà atterrir "par mois"
@@ -1677,6 +1704,8 @@ export default function DirectionView({
         remboursements={remboursements}
         onOpenClient={onOpenClient}
         onUpdateCoutReel={onUpdateCoutReel}
+        coutsVerifieMap={coutsVerifieMap}
+        onUpdateCoutVerifie={onUpdateCoutVerifie}
       />
     );
   }

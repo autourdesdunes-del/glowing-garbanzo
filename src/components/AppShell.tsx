@@ -315,6 +315,9 @@ function AppShellInner({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [allReservations, setAllReservations] = useState<Reservation[]>([]);
   const [allCoutsMap, setAllCoutsMap] = useState<Record<string, number>>({});
+  // Ligne cochée "vérifiée" dans Direction > Comptabilité > Bénéfices —
+  // demande de Mélanie, 2026-10-29.
+  const [allCoutsVerifieMap, setAllCoutsVerifieMap] = useState<Record<string, boolean>>({});
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
@@ -667,20 +670,22 @@ function AppShellInner({
         // Coûts réels : réservés à la Direction en base (table à part + RLS),
         // jamais fetchés dans le navigateur d'un compte équipe.
         if (isDirection) {
-          const { data: couts } = await fetchAllRows<{ reservation_id: string; cout_reel: number }>(
-            supabase,
-            "reservation_couts",
-            "*",
-            "reservation_id",
-            true
-          );
+          const { data: couts } = await fetchAllRows<{
+            reservation_id: string;
+            cout_reel: number;
+            verifie: boolean;
+          }>(supabase, "reservation_couts", "*", "reservation_id", true);
           const map: Record<string, number> = {};
+          const verifieMap: Record<string, boolean> = {};
           couts.forEach((c) => {
             map[c.reservation_id] = c.cout_reel;
+            verifieMap[c.reservation_id] = c.verifie;
           });
           setAllCoutsMap(map);
+          setAllCoutsVerifieMap(verifieMap);
         } else {
           setAllCoutsMap({});
+          setAllCoutsVerifieMap({});
         }
         const { data: etapes } = await supabase.from("paiements_etapes").select("*");
         setAllPaiementsEtapes((etapes as PaiementEtape[]) || []);
@@ -1185,20 +1190,22 @@ function AppShellInner({
         setAllResaTarifs(groupedTarifs);
 
         if (flags.isDirection) {
-          const { data: couts } = await fetchAllRows<{ reservation_id: string; cout_reel: number }>(
-            supabase,
-            "reservation_couts",
-            "*",
-            "reservation_id",
-            true
-          );
+          const { data: couts } = await fetchAllRows<{
+            reservation_id: string;
+            cout_reel: number;
+            verifie: boolean;
+          }>(supabase, "reservation_couts", "*", "reservation_id", true);
           const map: Record<string, number> = {};
+          const verifieMap: Record<string, boolean> = {};
           couts.forEach((c) => {
             map[c.reservation_id] = c.cout_reel;
+            verifieMap[c.reservation_id] = c.verifie;
           });
           setAllCoutsMap(map);
+          setAllCoutsVerifieMap(verifieMap);
         } else {
           setAllCoutsMap({});
+          setAllCoutsVerifieMap({});
         }
         const { data: etapes } = await supabase.from("paiements_etapes").select("*");
         setAllPaiementsEtapes((etapes as PaiementEtape[]) || []);
@@ -1865,6 +1872,15 @@ function AppShellInner({
       .from("reservation_couts")
       .upsert({ reservation_id: reservationId, cout_reel: value, source: "manuel" });
     if (error) toast("Échec de l'enregistrement du coût.");
+  };
+
+  // Coche "vérifié" sur une ligne de Bénéfices, une fois que Mélanie a
+  // contrôlé que le coût réel et le bénéfice affichés sont corrects —
+  // demande du 2026-10-29.
+  const updateCoutVerifieDepuisDirection = async (reservationId: string, verifie: boolean) => {
+    setAllCoutsVerifieMap((prev) => ({ ...prev, [reservationId]: verifie }));
+    const { error } = await supabase.from("reservation_couts").upsert({ reservation_id: reservationId, verifie });
+    if (error) toast("Échec de l'enregistrement de la vérification.");
   };
 
   // Suppression simple, réservée au panneau prospect (ProspectSummaryModal)
@@ -3637,6 +3653,8 @@ function AppShellInner({
               onUpdateCatalogueItem={updateCatalogueItem}
               coutsMap={allCoutsMap}
               onUpdateCoutReel={updateCoutReelDepuisDirection}
+              coutsVerifieMap={allCoutsVerifieMap}
+              onUpdateCoutVerifie={updateCoutVerifieDepuisDirection}
               catalogueModificationRequests={catalogueModificationRequests}
               onResolveCatalogueModificationRequest={resolveCatalogueModificationRequest}
               transfertTaxeModificationRequests={transfertTaxeModificationRequests}

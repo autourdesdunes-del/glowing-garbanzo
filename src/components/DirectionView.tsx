@@ -1202,6 +1202,11 @@ function BeneficesView({
             ← retour aux jours de {MOIS_FR[mois! - 1]}
           </button>
 
+          <p className="mb-3 text-xs text-neutral-400">
+            Total {MOIS_FR[mois! - 1]} : <span className="font-amounts text-[#171717]">CA {euros(totalMois.ca)} €</span>{" "}
+            · <span className="font-amounts font-medium text-green-700">Bénéf. {euros(totalMois.benefice)} €</span>
+          </p>
+
           <div className="grid grid-cols-3 gap-3">
             <StatTile label="CA du jour" value={`${euros(totalJour.ca)} €`} />
             <StatTile label="Coût réel" value={`${euros(totalJour.cout)} €`} />

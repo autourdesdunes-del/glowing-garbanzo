@@ -544,33 +544,53 @@ function ConfirmationTemplate({
           </div>
         </Section>
 
-        {/* Un acompte PayPal déjà réglé n'a plus besoin de cette FAQ : seul
-            un paiement PayPal encore à venir (acompte non payé, ou solde) la
-            justifie (demande de Mélanie, 2026-10-29). */}
-        {((acomptePaypal && !client.acompte_paye) || soldeInfo.isPaypal) && (
+        {/* "Pourquoi en une seule fois" s'applique quel que soit le mode de
+            règlement du solde (c'est la règle, pas une particularité
+            PayPal) — les deux questions PayPal, elles, ne se justifient que
+            s'il reste un vrai paiement PayPal à venir : un acompte PayPal
+            déjà réglé n'en a plus besoin (demande de Mélanie, 2026-10-29). */}
+        {soldeMontant > 0 && (
           <Section label="Questions fréquentes">
             <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 5 }}>
-                Pourquoi « paiement entre proches » ?
+                Pourquoi le solde doit-il être payé en une seule fois, en intégralité ?
               </div>
-              <div style={{ fontSize: 13.5, color: "#6B6558", lineHeight: 1.65, marginBottom: 16 }}>
-                Sans cette option, PayPal nous prélève 3,1 % du montant envoyé — nous devons alors vous refacturer
-                cette part pour ne pas la perdre, comme pour tous nos clients. Une facture justificative peut vous
-                être fournie sur demande. Si vous préférez régler en « Biens et services », ajoutez simplement 3,1 %
-                à votre montant d&apos;acompte.
+              <div
+                style={{
+                  fontSize: 13.5,
+                  color: "#6B6558",
+                  lineHeight: 1.65,
+                  marginBottom: (acomptePaypal && !client.acompte_paye) || soldeInfo.isPaypal ? 16 : 0,
+                }}
+              >
+                Dès que vous réservez, nous payons vos activités à l&apos;avance auprès de nos prestataires sur
+                place — le règlement complet nous permet donc de valider et garantir vos places.
               </div>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 5 }}>Vous n&apos;avez pas de compte PayPal ?</div>
-              <div style={{ fontSize: 13.5, color: "#6B6558", lineHeight: 1.65 }}>
-                Vous pouvez en créer un en une minute —{" "}
-                <a
-                  href="https://www.paypal.com/fr/webapps/mpp/account-selection"
-                  style={{ color: "#8B7F63", textDecoration: "underline" }}
-                >
-                  cliquez ici pour voir comment
-                </a>
-                . Vous pouvez aussi demander à un proche de régler à votre place : il suffit d&apos;indiquer le nom de
-                la réservation en référence du paiement.
-              </div>
+              {((acomptePaypal && !client.acompte_paye) || soldeInfo.isPaypal) && (
+                <>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 5 }}>
+                    Pourquoi « paiement entre proches » ?
+                  </div>
+                  <div style={{ fontSize: 13.5, color: "#6B6558", lineHeight: 1.65, marginBottom: 16 }}>
+                    Sans cette option, PayPal nous prélève 3,1 % du montant envoyé — nous devons alors vous refacturer
+                    cette part pour ne pas la perdre, comme pour tous nos clients. Une facture justificative peut vous
+                    être fournie sur demande. Si vous préférez régler en « Biens et services », ajoutez simplement 3,1 %
+                    à votre montant d&apos;acompte.
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 5 }}>Vous n&apos;avez pas de compte PayPal ?</div>
+                  <div style={{ fontSize: 13.5, color: "#6B6558", lineHeight: 1.65 }}>
+                    Vous pouvez en créer un en une minute —{" "}
+                    <a
+                      href="https://www.paypal.com/fr/webapps/mpp/account-selection"
+                      style={{ color: "#8B7F63", textDecoration: "underline" }}
+                    >
+                      cliquez ici pour voir comment
+                    </a>
+                    . Vous pouvez aussi demander à un proche de régler à votre place : il suffit d&apos;indiquer le nom
+                    de la réservation en référence du paiement.
+                  </div>
+                </>
+              )}
             </div>
           </Section>
         )}

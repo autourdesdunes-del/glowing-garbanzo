@@ -1,4 +1,4 @@
-import { CatalogueItem, Reservation } from "@/lib/types";
+import { CatalogueItem, Remboursement, Reservation } from "@/lib/types";
 import { billetRequisEffectif, needsMomentSpeedboat, reservationsActives } from "@/lib/resa";
 import { isSpaMassage } from "@/lib/addActivityWizardHelpers";
 import { CHAMP_SITE_VISITE_CAIRE } from "@/lib/constants";
@@ -29,6 +29,7 @@ export type DossierChecklistCategorie =
 export type DossierChecklistContext = {
   reservations: Reservation[];
   catalogue: CatalogueItem[];
+  remboursements: Remboursement[];
 };
 
 export type DossierChecklistItem = {
@@ -112,7 +113,20 @@ export const DOSSIER_CHECKLIST_GENERALE: DossierChecklistItem[] = [
 
   { code: "documents_passeport", categorie: "Documents", texte: "Photos du passeport présentes" },
 
-  { code: "suivi_remboursement", categorie: "Suivi", texte: "Remboursement ou avoir correspondant et justifié" },
-  { code: "suivi_paypal", categorie: "Suivi", texte: "Adresse PayPal renseignée" },
+  {
+    code: "suivi_remboursement",
+    categorie: "Suivi",
+    texte: "Remboursement ou avoir correspondant et justifié",
+    // Raw `reservations` (pas reservationsActives, qui exclut justement les
+    // annulées) : cet item ne concerne que les dossiers avec une activité
+    // annulée.
+    condition: ({ reservations }) => reservations.some((r) => r.statut_resa === "Annulée"),
+  },
+  {
+    code: "suivi_paypal",
+    categorie: "Suivi",
+    texte: "Adresse PayPal renseignée",
+    condition: ({ remboursements }) => remboursements.length > 0,
+  },
   { code: "suivi_doublon", categorie: "Suivi", texte: "Pas de dossier en double pour ce client" },
 ];

@@ -1755,6 +1755,7 @@ export default function SuivisView({
               packs={packs || []}
               onOpenHelp={() => onOpenHelp?.()}
               reservations={reservations}
+              remboursements={remboursements}
             />
           );
         })()}

@@ -8,6 +8,7 @@ import {
   CatalogueTransfertTarif,
   Client,
   Pack,
+  Remboursement,
   Reservation,
 } from "@/lib/types";
 import { DOSSIER_CHECKLIST_GENERALE, DossierChecklistCategorie } from "@/lib/dossierChecklistGenerale";
@@ -58,6 +59,7 @@ export default function VerifDossierDrawer({
   packs,
   onOpenHelp,
   reservations,
+  remboursements,
 }: {
   client: Client;
   monPrenom: string;
@@ -79,6 +81,7 @@ export default function VerifDossierDrawer({
   // Tortues à Marsa Alam dans les activités de CE client) — demande de
   // Mélanie, 2026-10-29.
   reservations: Reservation[];
+  remboursements: Remboursement[];
 }) {
   const supabase = createClient();
   const [autoOpenSection, setAutoOpenSection] = useState<"Activités" | "Suivi" | "Paiements" | undefined>(
@@ -133,10 +136,14 @@ export default function VerifDossierDrawer({
   };
 
   // Items sous condition (ex. "Pointure si Tortues") retirés s'ils ne
-  // concernent pas ce dossier précis, à partir de SES réservations.
+  // concernent pas ce dossier précis, à partir de SES réservations/
+  // remboursements.
   const clientReservations = reservations.filter((r) => r.client_id === client.id);
+  const clientRemboursements = remboursements.filter((r) => r.client_id === client.id);
   const checklistVisible = DOSSIER_CHECKLIST_GENERALE.filter(
-    (it) => !it.condition || it.condition({ reservations: clientReservations, catalogue })
+    (it) =>
+      !it.condition ||
+      it.condition({ reservations: clientReservations, catalogue, remboursements: clientRemboursements })
   );
 
   const nbCoches = coches.size;

@@ -1046,6 +1046,7 @@ function BeneficesView({
       const client = clients.find((c) => c.id === r.client_id);
       if (!client) return;
       const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+      const coutSaisi = coutsMap[r.id] !== undefined;
       const cout = Number(coutsMap[r.id]) || 0;
       const impacts = remboursements.filter((rb) => rb.activite_id === r.id).map(remboursementImpact);
       const impactCa = impacts.reduce((s, i) => s + i.ca, 0);
@@ -1053,7 +1054,11 @@ function BeneficesView({
       const prev = map.get(date) || { ca: 0, benefice: 0, nb: 0 };
       map.set(date, {
         ca: prev.ca + total + impactCa,
-        benefice: prev.benefice + (total - cout + impactMarge),
+        // Tant que le coût réel n'est pas saisi, on compte 0 € de bénéfice
+        // (pas le CA entier) — demande de Mélanie, 2026-10-29 : un coût
+        // manquant ne doit jamais gonfler artificiellement le bénéfice
+        // affiché.
+        benefice: prev.benefice + (coutSaisi ? total - cout + impactMarge : 0),
         nb: prev.nb + 1,
       });
     });
@@ -1086,7 +1091,9 @@ function BeneficesView({
           ca: total + impactCa,
           cout,
           coutSaisi,
-          benefice: total - cout + impactMarge,
+          // Coût jamais saisi = bénéfice affiché à 0 €, pas le CA entier
+          // (demande de Mélanie, 2026-10-29).
+          benefice: coutSaisi ? total - cout + impactMarge : 0,
           verifie: coutsVerifieMap[r.id] === true,
           reservation: r,
           client,

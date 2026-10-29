@@ -17,6 +17,7 @@ import {
   TransfertTaxeModificationRequest,
 } from "@/lib/types";
 import { cleanActivityTitle, remboursementImpact, reservationsVendues, resaTotalMontant } from "@/lib/resa";
+import { pickupSortMinutes } from "@/lib/planningViewFormat";
 import { STATS_HISTORIQUES_MENSUELLES } from "@/lib/statsHistoriques";
 import { downloadCsv } from "@/lib/csv";
 import MonthlyBarChart from "@/components/charts/MonthlyBarChart";
@@ -1091,7 +1092,17 @@ function BeneficesView({
           client,
         };
       })
-      .sort((a, b) => a.clientNom.localeCompare(b.clientNom));
+      .sort((a, b) => {
+        // Même ordre que Réservations (par heure de pick-up réel
+        // croissante, celles sans pick-up derrière) — demande de Mélanie,
+        // 2026-10-29, au lieu d'un tri alphabétique par client.
+        const pa = pickupSortMinutes(a.reservation);
+        const pb = pickupSortMinutes(b.reservation);
+        if (pa !== null && pb !== null) return pa - pb;
+        if (pa !== null) return -1;
+        if (pb !== null) return 1;
+        return a.clientNom.localeCompare(b.clientNom);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jour, ventesMois, clients, resaOptions, resaTarifs, coutsMap, coutsVerifieMap, remboursements, catalogue]);
 
@@ -1292,7 +1303,7 @@ function BeneficesView({
                         <button
                           type="button"
                           onClick={() => onOpenClient(r.clientId)}
-                          className="text-[#171717] hover:underline"
+                          className="text-left text-[#171717] hover:underline"
                         >
                           {r.clientNom}
                         </button>

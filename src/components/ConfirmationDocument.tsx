@@ -7,6 +7,7 @@ import QRCode from "qrcode";
 import { Client, PaiementEtape, Reservation, ReservationOption, ReservationTarif } from "@/lib/types";
 import {
   agesLabel,
+  fmtEncaisseLe,
   reservationsActives,
   resaTotalMontant,
   paxLine as paxLineActivite,
@@ -278,7 +279,14 @@ function ConfirmationTemplate({
                   color: "#0F5C56",
                 }}
               >
-                <span>✓ Acompte déjà réglé · {client.acompte_mode || "—"}</span>
+                <span>
+                  ✓ Acompte déjà réglé · {client.acompte_mode || "—"}
+                  {client.acompte_date_encaissement && (
+                    <span style={{ fontSize: 11.5, opacity: 0.75, marginLeft: 6 }}>
+                      (le {fmtEncaisseLe(client.acompte_date_encaissement, client.acompte_encaisse_ts)})
+                    </span>
+                  )}
+                </span>
                 <span style={{ fontWeight: 700 }}>{euros(acompteMontant)}</span>
               </div>
             )}
@@ -536,7 +544,10 @@ function ConfirmationTemplate({
           </div>
         </Section>
 
-        {(acomptePaypal || soldeInfo.isPaypal) && (
+        {/* Un acompte PayPal déjà réglé n'a plus besoin de cette FAQ : seul
+            un paiement PayPal encore à venir (acompte non payé, ou solde) la
+            justifie (demande de Mélanie, 2026-10-29). */}
+        {((acomptePaypal && !client.acompte_paye) || soldeInfo.isPaypal) && (
           <Section label="Questions fréquentes">
             <div style={{ background: "#FFFFFF", border: "0.5px solid #EBE6D9", borderRadius: 10, padding: "15px 17px" }}>
               <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 5 }}>

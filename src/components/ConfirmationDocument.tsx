@@ -262,7 +262,27 @@ function ConfirmationTemplate({
 
         <Section label="Conditions de paiement">
           <div style={{ background: "#F2E6D2", borderRadius: 10, padding: "15px 17px" }}>
-            {client.paiement_type === "acompte" && (
+            {client.paiement_type === "acompte" && client.acompte_paye && (
+              // Un bon régénéré après coup (ex. une activité ajoutée après
+              // le règlement de l'acompte) ne doit jamais redemander un
+              // acompte déjà payé — le client a déjà le lien/RIB du premier
+              // envoi, le re-proposer ici prête à confusion (demande de
+              // Mélanie, 2026-10-29).
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  fontSize: 15.5,
+                  marginBottom: 10,
+                  color: "#0F5C56",
+                }}
+              >
+                <span>✓ Acompte déjà réglé · {client.acompte_mode || "—"}</span>
+                <span style={{ fontWeight: 700 }}>{euros(acompteMontant)}</span>
+              </div>
+            )}
+            {client.paiement_type === "acompte" && !client.acompte_paye && (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 15.5, marginBottom: 10 }}>
                   <span>

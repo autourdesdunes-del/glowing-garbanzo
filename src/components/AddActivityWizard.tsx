@@ -508,11 +508,11 @@ export default function AddActivityWizard({
   // précédent) — voir programmeDefautPourActivite dans programmesDefaut.ts,
   // volontairement séparé du Catalogue/flyer.
   useEffect(() => {
-    if (!r || r.programme_personnalise.trim() || !catalogueItem) return;
-    const texte = programmeDefautPourActivite(catalogueItem.nom, r.site_caire);
+    if (!r || r.programme_personnalise.trim() || !r.nom_activite) return;
+    const texte = programmeDefautPourActivite(r.nom_activite, r.site_caire);
     if (texte) onUpdateReservation(r.id, { programme_personnalise: texte });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [r?.id, r?.programme_personnalise, r?.site_caire, catalogueItem?.nom]);
+  }, [r?.id, r?.programme_personnalise, r?.site_caire, r?.nom_activite]);
 
   // Client seul sur une activité où l'agence organise elle-même le
   // transfert (chameau, cheval, city tour, Aqua Park, spa, Mini Egypt,

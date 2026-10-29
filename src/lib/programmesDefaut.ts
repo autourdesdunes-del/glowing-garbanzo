@@ -75,11 +75,66 @@ Go and back from Hurghada (by plane)
 
 * Pyramids + Sphinx
 * Afternoon : {{site_caire}}`,
+
+  "Louxor 2 jours Montgolfière (aller-retour Hurghada)": `Program day 1 :
+
+* Departure from Hurghada to Louxor
+* Karnak Temple
+* Louxor Temple
+
+Program day 2 :
+
+* Balloon
+* Valley of kings
+* Colosses of Memnon
+* Hatchepsut
+* Boat on the Nile
+* Transfer back from Louxor to Hurghada`,
+
+  // Sens "Louxor" du choix proposé sur cette activité (voir
+  // transfertSensOptions dans resa.ts) — client déjà sur place à Louxor,
+  // transfert retour vers Hurghada en fin de séjour.
+  "Louxor 2 jours Montgolfière (depuis Louxor et transfert vers Hurghada)": `Program day 1 :
+
+* Departure from Louxor : clients already in Louxor
+* Karnak Temple
+* Louxor Temple
+
+Program day 2 :
+
+* Balloon
+* Valley of kings
+* Colosses of Memnon
+* Hatchepsut
+* Boat on the Nile
+* Transfer back from Louxor to Hurghada`,
+
+  // Sens "Hurghada" du même choix — client part de Hurghada, reste à
+  // Louxor ensuite (pas de retour vers Hurghada inclus ici).
+  "Louxor 2 jours Montgolfière (depuis Hurghada — reste à Louxor)": `Program day 1 :
+
+* Departure from Hurghada to Louxor
+* Karnak Temple
+* Louxor Temple
+
+Program day 2 :
+
+* Balloon
+* Valley of kings
+* Colosses of Memnon
+* Hatchepsut
+* Boat on the Nile
+* Stay in Louxor`,
 };
 
-// nomActivite doit être le nom EXACT du catalogue (CatalogueItem.nom) —
-// pas de normalisation ici, un nom qui ne matche pas ne pré-remplit
-// simplement rien (l'employée garde "+ Ajouter un programme" comme avant).
+// nomActivite doit être le nom RÉSOLU de la réservation (r.nom_activite),
+// pas forcément le nom du catalogue — certaines activités (ex. "Louxor 2
+// jours Montgolfière (depuis Louxor et transfert vers Hurghada)") ont un
+// choix de sens (voir transfertSensOptions, resa.ts) qui change le titre
+// dès la création, avant même d'atteindre l'étape "Options" ; s'appuyer sur
+// le nom catalogue générique aurait raté cette distinction. Un nom qui ne
+// matche aucune entrée ne pré-remplit simplement rien (l'employée garde
+// "+ Ajouter un programme" comme avant).
 export function programmeDefautPourActivite(nomActivite: string, siteCaire: string): string {
   const template = PROGRAMMES_DEFAUT[nomActivite];
   if (!template) return "";

@@ -54,9 +54,11 @@ export const DOSSIER_CHECKLIST_GENERALE: DossierChecklistItem[] = [
   { code: "sejour_taxe_transfert", categorie: "Séjour", texte: "Taxe de transfert correcte (absente si ville exclue)" },
 
   { code: "activites_dates", categorie: "Activités", texte: "Dates correctes, correspondent avec le programme envoyé" },
-  { code: "activites_total_pax", categorie: "Activités", texte: "Total de chaque activité correspondant au nombre de personnes" },
   { code: "activites_descriptif", categorie: "Activités", texte: "Descriptif de l'explication du montant cohérent dans la description" },
-  { code: "activites_pax", categorie: "Activités", texte: "PAX (adultes/enfants) correct pour chaque activité, ou override cohérent si rempli" },
+  // Fusion de "Total correspondant au nombre de personnes" et "PAX
+  // (adultes/enfants) correct" — les deux revenaient au même constat,
+  // demande de Mélanie, 2026-10-29.
+  { code: "activites_pax", categorie: "Activités", texte: "PAX (adultes/enfants) correct pour chaque activité (ou override cohérent), total cohérent avec ce nombre de personnes" },
   { code: "activites_programme_jour", categorie: "Activités", texte: "Journées à plusieurs activités : programme cohérent (pas de chevauchement horaire)" },
 
   {

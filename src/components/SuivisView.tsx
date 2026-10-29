@@ -41,7 +41,7 @@ import {
   resaTotalMontant,
 } from "@/lib/resa";
 import { dernierChangementDossier } from "@/lib/dossierChecklist";
-import { checklistVisibleFor } from "@/lib/dossierChecklistGenerale";
+import { checklistVisibleFor, staleChecklistCodes } from "@/lib/dossierChecklistGenerale";
 import { profileName, profilesOnShiftAt } from "@/lib/planning";
 import { createClient } from "@/lib/supabase/client";
 import { getCurrentUserNom } from "@/lib/currentUser";
@@ -655,14 +655,32 @@ export default function SuivisView({
     let cancelled = false;
     supabase
       .from("dossier_checklist_coches")
-      .select("client_id, item_code")
+      .select("client_id, item_code, updated_at")
       .in("client_id", verifClientIdsKey.split(","))
       .then(({ data }) => {
         if (cancelled) return;
+        const rows = data || [];
+        // Même logique que VerifDossierDrawer (staleChecklistCodes) : une
+        // coche périmée ne doit pas compter dans le badge "en attente
+        // (X/Y)" — pas besoin de la supprimer ici, le panneau s'en charge
+        // dès qu'on ouvre le dossier concerné.
+        const byClient: Record<string, typeof rows> = {};
+        rows.forEach((row) => {
+          if (!byClient[row.client_id]) byClient[row.client_id] = [];
+          byClient[row.client_id].push(row);
+        });
         const map: Record<string, Set<string>> = {};
-        (data || []).forEach((row) => {
-          if (!map[row.client_id]) map[row.client_id] = new Set();
-          map[row.client_id].add(row.item_code);
+        Object.entries(byClient).forEach(([clientId, clientRows]) => {
+          const perimes = new Set(
+            staleChecklistCodes(clientRows, {
+              reservations: reservations.filter((r) => r.client_id === clientId),
+              paiementsEtapes: paiementsEtapes.filter((e) => e.client_id === clientId),
+              remboursements: remboursements.filter((r) => r.client_id === clientId),
+            })
+          );
+          map[clientId] = new Set(
+            clientRows.filter((r) => !perimes.has(r.item_code)).map((r) => r.item_code)
+          );
         });
         setVerifCoches(map);
       });
@@ -1868,6 +1886,7 @@ export default function SuivisView({
               onOpenHelp={() => onOpenHelp?.()}
               reservations={reservations}
               remboursements={remboursements}
+              paiementsEtapes={paiementsEtapes}
             />
           );
         })()}

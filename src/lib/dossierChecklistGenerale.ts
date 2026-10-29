@@ -1,4 +1,4 @@
-import { CatalogueItem, Client, Remboursement, Reservation } from "@/lib/types";
+import { CatalogueItem, Client, PaiementEtape, Remboursement, Reservation } from "@/lib/types";
 import { billetRequisEffectif, needsMomentSpeedboat, reservationsActives } from "@/lib/resa";
 import { isSpaMassage } from "@/lib/addActivityWizardHelpers";
 import { CHAMP_SITE_VISITE_CAIRE } from "@/lib/constants";
@@ -50,6 +50,46 @@ function catalogueItemFor(r: Reservation, catalogue: CatalogueItem[]) {
 // "Dossiers à vérifier" (badge de progression), pour ne jamais diverger.
 export function checklistVisibleFor(ctx: DossierChecklistContext): DossierChecklistItem[] {
   return DOSSIER_CHECKLIST_GENERALE.filter((it) => !it.condition || it.condition(ctx));
+}
+
+// Codes des items dont la coche ne doit plus compter : une donnée plus
+// récente que la coche elle-même est apparue depuis. On ne peut repérer ça
+// finement que pour 3 sources distinctes (réservations/étapes de paiement/
+// remboursements ont chacune leur propre horodatage) — un changement sur LA
+// fiche client elle-même (hôtel, contact, acompte/solde, passeport...)
+// partage une seule date pour tous ses champs, impossible à isoler plus
+// précisément sans un vrai suivi champ par champ (demande de Mélanie,
+// 2026-10-29 — version volontairement partielle, assumée).
+export function staleChecklistCodes(
+  coches: { item_code: string; updated_at: string }[],
+  ctx: {
+    reservations: Reservation[];
+    paiementsEtapes: PaiementEtape[];
+    remboursements: Remboursement[];
+  }
+): string[] {
+  const dernier = (dates: (string | null | undefined)[]) =>
+    dates.filter((d): d is string => !!d).reduce((max, d) => (d > max ? d : max), "");
+  const dernierResa = dernier(ctx.reservations.map((r) => r.updated_at));
+  const dernierEtape = dernier(ctx.paiementsEtapes.map((e) => e.created_at));
+  const dernierRemb = dernier(ctx.remboursements.map((r) => r.created_at));
+
+  const activitesCodes = new Set(
+    DOSSIER_CHECKLIST_GENERALE.filter((it) => it.categorie === "Activités" || it.categorie === "Info manquantes").map(
+      (it) => it.code
+    )
+  );
+  const paiementCodes = new Set(DOSSIER_CHECKLIST_GENERALE.filter((it) => it.categorie === "Paiements").map((it) => it.code));
+  const remboursementCodes = new Set(["suivi_remboursement", "suivi_paypal"]);
+
+  return coches
+    .filter((c) => {
+      if (activitesCodes.has(c.item_code) && dernierResa > c.updated_at) return true;
+      if (paiementCodes.has(c.item_code) && dernierEtape > c.updated_at) return true;
+      if (remboursementCodes.has(c.item_code) && dernierRemb > c.updated_at) return true;
+      return false;
+    })
+    .map((c) => c.item_code);
 }
 
 export const DOSSIER_CHECKLIST_GENERALE: DossierChecklistItem[] = [

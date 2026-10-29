@@ -7,11 +7,12 @@ import {
   CatalogueTarif,
   CatalogueTransfertTarif,
   Client,
+  PaiementEtape,
   Pack,
   Remboursement,
   Reservation,
 } from "@/lib/types";
-import { checklistVisibleFor, DossierChecklistCategorie } from "@/lib/dossierChecklistGenerale";
+import { checklistVisibleFor, staleChecklistCodes, DossierChecklistCategorie } from "@/lib/dossierChecklistGenerale";
 import { createClient } from "@/lib/supabase/client";
 import ClientDetail from "@/components/ClientDetail";
 
@@ -60,6 +61,7 @@ export default function VerifDossierDrawer({
   onOpenHelp,
   reservations,
   remboursements,
+  paiementsEtapes,
 }: {
   client: Client;
   monPrenom: string;
@@ -82,6 +84,9 @@ export default function VerifDossierDrawer({
   // Mélanie, 2026-10-29.
   reservations: Reservation[];
   remboursements: Remboursement[];
+  // Pour décocher automatiquement les items périmés (ex. une nouvelle étape
+  // de paiement redécoche "Paiements") — même demande.
+  paiementsEtapes: PaiementEtape[];
 }) {
   const supabase = createClient();
   const [autoOpenSection, setAutoOpenSection] = useState<"Activités" | "Suivi" | "Paiements" | undefined>(
@@ -98,11 +103,32 @@ export default function VerifDossierDrawer({
     let cancelled = false;
     supabase
       .from("dossier_checklist_coches")
-      .select("item_code")
+      .select("item_code, updated_at")
       .eq("client_id", client.id)
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (cancelled) return;
-        setChecklistState({ clientId: client.id, coches: new Set((data || []).map((r) => r.item_code)) });
+        const rows = data || [];
+        // Une réservation/étape de paiement/remboursement plus récente que
+        // la coche la rend caduque — on la retire pour de bon plutôt que de
+        // la filtrer juste à l'affichage, sinon elle traîne indéfiniment en
+        // base (demande de Mélanie, 2026-10-29).
+        const perimes = staleChecklistCodes(rows, {
+          reservations: reservations.filter((r) => r.client_id === client.id),
+          paiementsEtapes: paiementsEtapes.filter((e) => e.client_id === client.id),
+          remboursements: remboursements.filter((r) => r.client_id === client.id),
+        });
+        if (perimes.length > 0) {
+          await supabase
+            .from("dossier_checklist_coches")
+            .delete()
+            .eq("client_id", client.id)
+            .in("item_code", perimes);
+        }
+        const perimesSet = new Set(perimes);
+        setChecklistState({
+          clientId: client.id,
+          coches: new Set(rows.filter((r) => !perimesSet.has(r.item_code)).map((r) => r.item_code)),
+        });
       });
     return () => {
       cancelled = true;

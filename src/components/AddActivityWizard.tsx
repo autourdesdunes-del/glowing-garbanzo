@@ -17,6 +17,7 @@ import {
   TransfertTaxe,
 } from "@/lib/types";
 import { hotelNomPourActivite, matchHotel, matchTransfertTaxe } from "@/lib/hotelHelp";
+import { programmeDefautPourActivite } from "@/lib/programmesDefaut";
 import {
   CHAMP_SITE_VISITE_CAIRE,
   CHAMPS_REQUIS_PRESETS,
@@ -496,6 +497,22 @@ export default function AddActivityWizard({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, r?.id, r?.transfert_inclus, r?.transfert_montant, hotelHorsHurghadaEffectif, hotelVilleEffectif]);
+
+  // Certaines activités "déjà sur place"/sur mesure (Caire, Louxor) ont
+  // toujours le même déroulé — pré-remplit automatiquement le programme
+  // propre à ce client (programme_personnalise) avec le texte standard dès
+  // que l'activité (et, si besoin, le site du Caire choisi) sont connus,
+  // au lieu de laisser l'employée cliquer "+ Ajouter un programme" et tout
+  // retaper à chaque fois (demande de Mélanie, 2026-10-29). Ne touche
+  // jamais un programme déjà rempli (saisi à la main ou lors d'un passage
+  // précédent) — voir programmeDefautPourActivite dans programmesDefaut.ts,
+  // volontairement séparé du Catalogue/flyer.
+  useEffect(() => {
+    if (!r || r.programme_personnalise.trim() || !catalogueItem) return;
+    const texte = programmeDefautPourActivite(catalogueItem.nom, r.site_caire);
+    if (texte) onUpdateReservation(r.id, { programme_personnalise: texte });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r?.id, r?.programme_personnalise, r?.site_caire, catalogueItem?.nom]);
 
   // Client seul sur une activité où l'agence organise elle-même le
   // transfert (chameau, cheval, city tour, Aqua Park, spa, Mini Egypt,

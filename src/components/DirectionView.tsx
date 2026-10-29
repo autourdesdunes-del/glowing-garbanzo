@@ -6,6 +6,7 @@ import {
   CatalogueModificationRequest,
   Client,
   DirectionTache,
+  HotelReference,
   PaiementEtape,
   PaiementPrevu,
   Profile,
@@ -30,6 +31,8 @@ import MarketingView from "@/components/direction/MarketingView";
 import RecentActivityFeed from "@/components/direction/RecentActivityFeed";
 import { Donut, MetricCardTrend } from "@/components/direction/DashboardWidgets";
 import { DirActionRow } from "@/components/direction/DirectionUI";
+import { ActivityDetailModal } from "@/components/planning/ActivityDetailModal";
+import { createClient } from "@/lib/supabase/client";
 
 const MOIS_FR = [
   "janvier",
@@ -938,7 +941,7 @@ function CoutReelCell({ value, onCommit }: { value: number | null; onCommit: (v:
         if (e.key === "Enter") (e.target as HTMLInputElement).blur();
       }}
       placeholder="—"
-      className="w-20 rounded-[4px] border border-[#eaeaea] px-2 py-1 text-right text-sm font-amounts focus:border-[#171717]/40 focus:outline-none"
+      className="w-20 rounded-[4px] border border-[#eaeaea] px-2 py-1 text-right text-sm focus:border-[#171717]/40 focus:outline-none"
     />
   );
 }
@@ -961,6 +964,11 @@ function BeneficesView({
   onOpenClient,
   onUpdateCoutReel,
   onUpdateCoutVerifie,
+  paiementsEtapes,
+  paiementsPrevus,
+  onOpenRdvPaiement,
+  onUpdateReservation,
+  onUpdateClient,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -973,10 +981,26 @@ function BeneficesView({
   onOpenClient: (id: string) => void;
   onUpdateCoutReel: (reservationId: string, value: number) => void;
   onUpdateCoutVerifie: (reservationId: string, verifie: boolean) => void;
+  paiementsEtapes: PaiementEtape[];
+  paiementsPrevus: PaiementPrevu[];
+  onOpenRdvPaiement: (clientId: string) => void;
+  onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
+  onUpdateClient: (id: string, patch: Partial<Client>) => void;
 }) {
   const [annee, setAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
   const [mois, setMois] = useState<number | null>(null);
   const [jour, setJour] = useState<string | null>(null);
+  // Popup détail activité — même modale que Réservations (demande de
+  // Mélanie, 2026-10-29), pour ne pas dupliquer sa logique.
+  const [activeActivity, setActiveActivity] = useState<{ client: Client; r: Reservation } | null>(null);
+  const [hotelsRef, setHotelsRef] = useState<HotelReference[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("hotels_reference")
+      .select("*")
+      .then(({ data }) => setHotelsRef((data as HotelReference[]) || []));
+  }, []);
 
   const normalizeNom = (s: string) =>
     (s || "")
@@ -1063,6 +1087,8 @@ function BeneficesView({
           coutSaisi,
           benefice: total - cout + impactMarge,
           verifie: coutsVerifieMap[r.id] === true,
+          reservation: r,
+          client,
         };
       })
       .sort((a, b) => a.clientNom.localeCompare(b.clientNom));
@@ -1170,8 +1196,13 @@ function BeneficesView({
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <StatTile label={`CA de ${MOIS_FR[mois - 1]}`} value={`${euros(totalMois.ca)} €`} />
-                <StatTile tone="green" label={`Bénéfices de ${MOIS_FR[mois - 1]}`} value={`${euros(totalMois.benefice)} €`} />
+                <StatTile mono={false} label={`CA de ${MOIS_FR[mois - 1]}`} value={`${euros(totalMois.ca)} €`} />
+                <StatTile
+                  mono={false}
+                  tone="green"
+                  label={`Bénéfices de ${MOIS_FR[mois - 1]}`}
+                  value={`${euros(totalMois.benefice)} €`}
+                />
               </div>
               <div className="mt-3 space-y-1.5">
               {joursDispos.map(([date, agg]) => (
@@ -1186,8 +1217,8 @@ function BeneficesView({
                     <span>
                       {agg.nb} activité{agg.nb > 1 ? "s" : ""}
                     </span>
-                    <span className="font-amounts text-[#171717]">CA {euros(agg.ca)} €</span>
-                    <span className="font-amounts font-medium text-green-700">Bénéf. {euros(agg.benefice)} €</span>
+                    <span className="text-[#171717]">CA {euros(agg.ca)} €</span>
+                    <span className="font-medium text-green-700">Bénéf. {euros(agg.benefice)} €</span>
                   </span>
                 </button>
               ))}
@@ -1208,14 +1239,14 @@ function BeneficesView({
           </button>
 
           <p className="mb-3 text-xs text-neutral-400">
-            Total {MOIS_FR[mois! - 1]} : <span className="font-amounts text-[#171717]">CA {euros(totalMois.ca)} €</span>{" "}
-            · <span className="font-amounts font-medium text-green-700">Bénéf. {euros(totalMois.benefice)} €</span>
+            Total {MOIS_FR[mois! - 1]} : <span className="text-[#171717]">CA {euros(totalMois.ca)} €</span>{" "}
+            · <span className="font-medium text-green-700">Bénéf. {euros(totalMois.benefice)} €</span>
           </p>
 
           <div className="grid grid-cols-3 gap-3">
-            <StatTile label="CA du jour" value={`${euros(totalJour.ca)} €`} />
-            <StatTile label="Coût réel" value={`${euros(totalJour.cout)} €`} />
-            <StatTile tone="green" label="Bénéfices" value={`${euros(totalJour.benefice)} €`} />
+            <StatTile mono={false} label="CA du jour" value={`${euros(totalJour.ca)} €`} />
+            <StatTile mono={false} label="Coût réel" value={`${euros(totalJour.cout)} €`} />
+            <StatTile mono={false} tone="green" label="Bénéfices" value={`${euros(totalJour.benefice)} €`} />
           </div>
 
           <p className="mt-3 text-xs text-neutral-500">
@@ -1266,17 +1297,27 @@ function BeneficesView({
                           {r.clientNom}
                         </button>
                       </td>
-                      <td className="px-3 py-2 text-neutral-600">{r.activite}</td>
-                      <td className="px-3 py-2 text-right font-amounts">{euros(r.ca)} €</td>
+                      <td className="px-3 py-2 text-neutral-600">
+                        {r.client ? (
+                          <button
+                            type="button"
+                            onClick={() => setActiveActivity({ client: r.client as Client, r: r.reservation })}
+                            className="text-left hover:underline"
+                          >
+                            {r.activite}
+                          </button>
+                        ) : (
+                          r.activite
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-right">{euros(r.ca)} €</td>
                       <td className="px-3 py-2 text-right">
                         <CoutReelCell
                           value={r.coutSaisi ? r.cout : null}
                           onCommit={(v) => onUpdateCoutReel(r.id, v)}
                         />
                       </td>
-                      <td className="px-3 py-2 text-right font-amounts font-medium text-green-700">
-                        {euros(r.benefice)} €
-                      </td>
+                      <td className="px-3 py-2 text-right font-medium text-green-700">{euros(r.benefice)} €</td>
                     </tr>
                   ))
                 )}
@@ -1284,6 +1325,26 @@ function BeneficesView({
             </table>
           </div>
         </div>
+      )}
+
+      {activeActivity && (
+        <ActivityDetailModal
+          key={activeActivity.r.id}
+          client={activeActivity.client}
+          r={activeActivity.r}
+          reservations={reservations}
+          resaOptions={resaOptions}
+          resaTarifs={resaTarifs}
+          paiementsEtapes={paiementsEtapes}
+          paiementsPrevus={paiementsPrevus}
+          onOpenClient={onOpenClient}
+          onOpenActivity={(rr) => setActiveActivity({ client: activeActivity.client, r: rr })}
+          onOpenRdvPaiement={onOpenRdvPaiement}
+          onUpdateReservation={onUpdateReservation}
+          onUpdateClient={(patch) => onUpdateClient(activeActivity.client.id, patch)}
+          hotelsRef={hotelsRef}
+          onClose={() => setActiveActivity(null)}
+        />
       )}
     </div>
   );
@@ -1706,6 +1767,11 @@ export default function DirectionView({
         onUpdateCoutReel={onUpdateCoutReel}
         coutsVerifieMap={coutsVerifieMap}
         onUpdateCoutVerifie={onUpdateCoutVerifie}
+        paiementsEtapes={paiementsEtapes}
+        paiementsPrevus={paiementsPrevus}
+        onOpenRdvPaiement={onOpenRdvPaiement}
+        onUpdateReservation={onUpdateReservation}
+        onUpdateClient={onUpdateClient}
       />
     );
   }

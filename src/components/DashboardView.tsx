@@ -44,6 +44,7 @@ import {
   InfoListModal,
   Metric,
 } from "@/components/dashboard/DashboardPrimitives";
+import TeamNotes from "@/components/dashboard/TeamNotes";
 
 export default function DashboardView({
   userEmail,
@@ -1374,6 +1375,7 @@ export default function DashboardView({
               </span>
             </div>
           )}
+          <TeamNotes monNom={firstName} />
         </div>
 
         <div className="space-y-6">

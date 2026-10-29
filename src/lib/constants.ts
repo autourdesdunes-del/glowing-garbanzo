@@ -87,6 +87,23 @@ export const MODES_PAIEMENT = [
   "Virement bancaire",
 ] as const;
 
+// Tags proposés par défaut pour les notes d'équipe (Tableau de bord > File
+// d'attente prioritaire) — liste choisie par Mélanie le 2026-10-29. L'équipe
+// peut en taper d'autres librement depuis le formulaire ; ceux déjà utilisés
+// réapparaissent ensuite dans la liste (voir TeamNotes.tsx), pas besoin de
+// les ajouter ici pour qu'ils soient réutilisables.
+export const NOTE_EQUIPE_TAGS_DEFAUT = [
+  "Info",
+  "Problème activité",
+  "Problème client",
+  "Urgent",
+  "Actualité",
+  "À transmettre à Bodé",
+  "À transmettre à Hossam",
+  "En attente",
+  "Coordination équipe",
+] as const;
+
 // Notes pré-écrites proposées pour chaque étape de paiement libre — la note
 // est obligatoire (voir PaiementsStep) mais doit rester rapide à saisir au
 // quotidien, d'où cette liste de raisons les plus fréquentes plutôt qu'un

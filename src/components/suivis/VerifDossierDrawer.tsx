@@ -143,7 +143,7 @@ export default function VerifDossierDrawer({
   const checklistVisible = DOSSIER_CHECKLIST_GENERALE.filter(
     (it) =>
       !it.condition ||
-      it.condition({ reservations: clientReservations, catalogue, remboursements: clientRemboursements })
+      it.condition({ reservations: clientReservations, catalogue, remboursements: clientRemboursements, client })
   );
 
   const nbCoches = coches.size;

@@ -1,4 +1,4 @@
-import { CatalogueItem, Remboursement, Reservation } from "@/lib/types";
+import { CatalogueItem, Client, Remboursement, Reservation } from "@/lib/types";
 import { billetRequisEffectif, needsMomentSpeedboat, reservationsActives } from "@/lib/resa";
 import { isSpaMassage } from "@/lib/addActivityWizardHelpers";
 import { CHAMP_SITE_VISITE_CAIRE } from "@/lib/constants";
@@ -30,6 +30,7 @@ export type DossierChecklistContext = {
   reservations: Reservation[];
   catalogue: CatalogueItem[];
   remboursements: Remboursement[];
+  client: Client;
 };
 
 export type DossierChecklistItem = {
@@ -107,7 +108,12 @@ export const DOSSIER_CHECKLIST_GENERALE: DossierChecklistItem[] = [
   },
 
   { code: "paiement_total", categorie: "Paiements", texte: "Total du séjour cohérent avec les activités réservées" },
-  { code: "paiement_acompte", categorie: "Paiements", texte: "Acompte(s) encaissé(s) correspondent au CRM — vérifier avec le montant dans la conversation client" },
+  {
+    code: "paiement_acompte",
+    categorie: "Paiements",
+    texte: "Acompte(s) encaissé(s) correspondent au CRM — vérifier avec le montant dans la conversation client",
+    condition: ({ client }) => !!client.acompte_paye,
+  },
   { code: "paiement_solde", categorie: "Paiements", texte: "Solde unique bien rattaché à une activité (date, lieu, mode)" },
   { code: "paiement_reste", categorie: "Paiements", texte: "Reste à payer cohérent" },
 

@@ -1854,6 +1854,19 @@ function AppShellInner({
     if (error) toast("Échec de l'enregistrement.");
   };
 
+  // Saisie du coût réel depuis Direction > Comptabilité > Bénéfices —
+  // demande de Mélanie, 2026-10-29 : elle veut pouvoir le modifier depuis
+  // cette rubrique, pas depuis la fiche client (ClientDetail.tsx a sa
+  // propre updateCoutReel, séparée, pour l'onglet Activités). Une saisie
+  // ici est toujours "manuel" (jamais "estime" — réservé au backfill/cron).
+  const updateCoutReelDepuisDirection = async (reservationId: string, value: number) => {
+    setAllCoutsMap((prev) => ({ ...prev, [reservationId]: value }));
+    const { error } = await supabase
+      .from("reservation_couts")
+      .upsert({ reservation_id: reservationId, cout_reel: value, source: "manuel" });
+    if (error) toast("Échec de l'enregistrement du coût.");
+  };
+
   // Suppression simple, réservée au panneau prospect (ProspectSummaryModal)
   // — un prospect n'a normalement encore aucun solde/reprise rattaché à ses
   // activités, contrairement à deleteReservation (ClientDetail.tsx) qui
@@ -3623,6 +3636,7 @@ function AppShellInner({
               catalogue={catalogue}
               onUpdateCatalogueItem={updateCatalogueItem}
               coutsMap={allCoutsMap}
+              onUpdateCoutReel={updateCoutReelDepuisDirection}
               catalogueModificationRequests={catalogueModificationRequests}
               onResolveCatalogueModificationRequest={resolveCatalogueModificationRequest}
               transfertTaxeModificationRequests={transfertTaxeModificationRequests}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CatalogueItem,
   CatalogueModificationRequest,
@@ -912,6 +912,37 @@ function ComptabiliteBilanPage({
   );
 }
 
+// Champ "Coût réel" éditable directement depuis Bénéfices — demande de
+// Mélanie, 2026-10-29 : elle veut saisir le coût depuis cette rubrique,
+// pas depuis la fiche client. State local pour rester tapable pendant la
+// frappe ; l'enregistrement part au blur ou sur Entrée, jamais à chaque
+// frappe.
+function CoutReelCell({ value, onCommit }: { value: number | null; onCommit: (v: number) => void }) {
+  const [draft, setDraft] = useState<string>(value === null ? "" : String(value));
+
+  useEffect(() => {
+    setDraft(value === null ? "" : String(value));
+  }, [value]);
+
+  return (
+    <input
+      type="number"
+      step="0.01"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        const n = Number(draft);
+        onCommit(Number.isFinite(n) ? n : 0);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      placeholder="—"
+      className="w-20 rounded-[4px] border border-[#eaeaea] px-2 py-1 text-right text-sm font-amounts focus:border-[#171717]/40 focus:outline-none"
+    />
+  );
+}
+
 // Bénéfices — demande de Mélanie, 2026-10-29. Contrairement aux bilans
 // jour/mois/an ci-dessus (souvent saisis à la main depuis l'import Notion),
 // cette page part toujours des vraies réservations du CRM : année > mois >
@@ -927,6 +958,7 @@ function BeneficesView({
   coutsMap,
   remboursements,
   onOpenClient,
+  onUpdateCoutReel,
 }: {
   clients: Client[];
   reservations: Reservation[];
@@ -936,6 +968,7 @@ function BeneficesView({
   coutsMap: Record<string, number>;
   remboursements: Remboursement[];
   onOpenClient: (id: string) => void;
+  onUpdateCoutReel: (reservationId: string, value: number) => void;
 }) {
   const [annee, setAnnee] = useState<number>(COMPTA_ANNEES[COMPTA_ANNEES.length - 1]);
   const [mois, setMois] = useState<number | null>(null);
@@ -1195,8 +1228,11 @@ function BeneficesView({
                       </td>
                       <td className="px-3 py-2 text-neutral-600">{r.activite}</td>
                       <td className="px-3 py-2 text-right font-amounts">{euros(r.ca)} €</td>
-                      <td className="px-3 py-2 text-right font-amounts">
-                        {r.coutSaisi ? `${euros(r.cout)} €` : <span className="text-neutral-400">non saisi</span>}
+                      <td className="px-3 py-2 text-right">
+                        <CoutReelCell
+                          value={r.coutSaisi ? r.cout : null}
+                          onCommit={(v) => onUpdateCoutReel(r.id, v)}
+                        />
                       </td>
                       <td className="px-3 py-2 text-right font-amounts font-medium text-green-700">
                         {euros(r.benefice)} €
@@ -1239,6 +1275,7 @@ export default function DirectionView({
   onOpenRdvPaiement,
   onUpdateReservation,
   onUpdateClient,
+  onUpdateCoutReel,
 }: {
   sub: DirectionSub;
   clients: Client[];
@@ -1266,6 +1303,9 @@ export default function DirectionView({
   onOpenRdvPaiement: (clientId: string) => void;
   onUpdateReservation: (id: string, patch: Partial<Reservation>) => void;
   onUpdateClient: (id: string, patch: Partial<Client>) => void;
+  // Saisie du coût réel depuis Bénéfices (sub === "benefices") — demande de
+  // Mélanie, 2026-10-29. Toujours "manuel" (voir BeneficesView).
+  onUpdateCoutReel: (reservationId: string, value: number) => void;
 }) {
   // Partagé entre les 3 pages Comptabilité (pas un state local à chacune) —
   // pour que cliquer un mois dans "par an" fasse déjà atterrir "par mois"
@@ -1619,6 +1659,7 @@ export default function DirectionView({
         coutsMap={coutsMap}
         remboursements={remboursements}
         onOpenClient={onOpenClient}
+        onUpdateCoutReel={onUpdateCoutReel}
       />
     );
   }

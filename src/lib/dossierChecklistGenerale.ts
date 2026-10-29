@@ -58,7 +58,7 @@ export const DOSSIER_CHECKLIST_GENERALE: DossierChecklistItem[] = [
   // Fusion de "Total correspondant au nombre de personnes" et "PAX
   // (adultes/enfants) correct" — les deux revenaient au même constat,
   // demande de Mélanie, 2026-10-29.
-  { code: "activites_pax", categorie: "Activités", texte: "PAX (adultes/enfants) correct pour chaque activité (ou override cohérent), total cohérent avec ce nombre de personnes" },
+  { code: "activites_pax", categorie: "Activités", texte: "Nombre d'adultes/enfants correct pour chaque activité (si un texte a été tapé à la main à la place, vérifier qu'il est cohérent), et montant total correspondant à ce nombre de personnes" },
   { code: "activites_programme_jour", categorie: "Activités", texte: "Journées à plusieurs activités : programme cohérent (pas de chevauchement horaire)" },
 
   {

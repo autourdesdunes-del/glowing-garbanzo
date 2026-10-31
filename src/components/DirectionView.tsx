@@ -342,6 +342,7 @@ const COMPTA_MOIS_COULEURS = [
 
 const COULEUR_VENTES = "#0F5C56";
 const COULEUR_CA = "#C9973E";
+const COULEUR_BENEFICES = "#8B4531";
 
 // Courbe double axe (nombre d'activités vendues à gauche, CA à droite) —
 // remplace l'ancien graphique en barres, qui ne montrait que le CA
@@ -363,15 +364,31 @@ function ComptaCourbeChart({
   const innerH = height - padTop - padBottom;
   const maxVentes = Math.max(...data.map((d) => d.ventes), 1);
   const maxCa = Math.max(...data.map((d) => d.ca), 1);
+  const beneficesConnus = data.filter((d) => d.benefices !== undefined).map((d) => d.benefices as number);
+  const maxBenefices = Math.max(...beneficesConnus, 1);
   const xFor = (i: number) => (data.length > 1 ? padX + (i / (data.length - 1)) * innerW : padX + innerW / 2);
   const yForVentes = (v: number) => padTop + innerH - (v / maxVentes) * innerH;
   const yForCa = (v: number) => padTop + innerH - (v / maxCa) * innerH;
+  const yForBenefices = (v: number) => padTop + innerH - (v / maxBenefices) * innerH;
   const pathVentes = data
     .map((d, i) => `${i === 0 ? "M" : "L"}${xFor(i).toFixed(1)},${yForVentes(d.ventes).toFixed(1)}`)
     .join(" ");
   const pathCa = data
     .map((d, i) => `${i === 0 ? "M" : "L"}${xFor(i).toFixed(1)},${yForCa(d.ca).toFixed(1)}`)
     .join(" ");
+  // Un mois sans bénéfice connu (ex. août/septembre 2026, pas encore clos)
+  // n'a pas de point sur cette ligne — la tracer à 0 laisserait croire à un
+  // vrai bénéfice nul. On relie seulement les mois connus entre eux, avec
+  // un "trou" visuel aux mois manquants plutôt qu'une fausse chute à zéro
+  // (demande de Mélanie, 2026-10-31 : voir où le bénéfice se situe vraiment
+  // d'un mois à l'autre, pas seulement CA/ventes).
+  let pathBenefices = "";
+  data.forEach((d, i) => {
+    if (d.benefices === undefined) return;
+    const precedentConnu = i > 0 && data[i - 1].benefices !== undefined;
+    const cmd = precedentConnu ? "L" : "M";
+    pathBenefices += `${cmd}${xFor(i).toFixed(1)},${yForBenefices(d.benefices).toFixed(1)} `;
+  });
 
   return (
     <div className="overflow-x-auto rounded-md bg-white p-4">
@@ -384,15 +401,22 @@ function ComptaCourbeChart({
           <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEUR_CA }} />
           Chiffre d&apos;affaires
         </span>
+        <span className="flex items-center gap-2">
+          <span className="h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: COULEUR_BENEFICES }} />
+          Bénéfices
+        </span>
       </div>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
         role="img"
-        aria-label="Activités vendues et chiffre d'affaires par mois"
+        aria-label="Activités vendues, chiffre d'affaires et bénéfices par mois"
       >
         <path d={pathVentes} fill="none" stroke={COULEUR_VENTES} strokeWidth="3" />
         <path d={pathCa} fill="none" stroke={COULEUR_CA} strokeWidth="3" />
+        {pathBenefices && (
+          <path d={pathBenefices} fill="none" stroke={COULEUR_BENEFICES} strokeWidth="3" strokeDasharray="6 4" />
+        )}
         {data.map((d, i) => {
           // Les cercles seuls sont une cible de clic bien trop petite —
           // une bande transparente sur toute la hauteur du mois, elle, se
@@ -404,7 +428,11 @@ function ComptaCourbeChart({
           // (natif, lent, peu fiable selon navigateur) — remplacé par une
           // vraie bulle qui s'affiche instantanément au survol
           // (group-hover), avec les deux valeurs dedans.
-          const topY = Math.min(yForVentes(d.ventes), yForCa(d.ca));
+          const topY = Math.min(
+            yForVentes(d.ventes),
+            yForCa(d.ca),
+            d.benefices !== undefined ? yForBenefices(d.benefices) : Infinity
+          );
           const tooltipW = 220;
           const tooltipH = 72;
           const tooltipX = Math.min(Math.max(xFor(i) - tooltipW / 2, 4), width - tooltipW - 4);
@@ -427,6 +455,9 @@ function ComptaCourbeChart({
               />
               <circle cx={xFor(i)} cy={yForVentes(d.ventes)} r={5.5} fill={COULEUR_VENTES} />
               <circle cx={xFor(i)} cy={yForCa(d.ca)} r={5.5} fill={COULEUR_CA} />
+              {d.benefices !== undefined && (
+                <circle cx={xFor(i)} cy={yForBenefices(d.benefices)} r={5.5} fill={COULEUR_BENEFICES} />
+              )}
               <text x={xFor(i)} y={height - 10} textAnchor="middle" fontSize="14" fill="#78716c">
                 {d.label}
               </text>

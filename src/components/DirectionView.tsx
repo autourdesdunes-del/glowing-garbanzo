@@ -299,6 +299,7 @@ const COMPTA_BILANS_MENSUELS: Record<number, Partial<Record<number, BilanMensuel
     // Bénéfice pas encore connu (demande de Mélanie, 2026-10-19) — à
     // compléter dès qu'il est disponible.
     9: { ventes: 486, moyenneParJour: 16.2, caTotal: 80332.51 },
+    10: { ventes: 724, moyenneParJour: 23.35, caTotal: 182910.31, benefices: 49483.8, margePct: 27.05 },
   },
 };
 

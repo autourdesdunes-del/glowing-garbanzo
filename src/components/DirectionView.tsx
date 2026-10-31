@@ -460,6 +460,7 @@ function ComptabiliteBilanPage({
   reservations,
   resaOptions,
   resaTarifs,
+  remboursements,
 }: {
   sub: DirectionSub;
   annee: number;
@@ -471,6 +472,7 @@ function ComptabiliteBilanPage({
   reservations: Reservation[];
   resaOptions: Record<string, ReservationOption[]>;
   resaTarifs: Record<string, ReservationTarif[]>;
+  remboursements: Remboursement[];
 }) {
   const moisDispos = moisDisponiblesPour(annee);
 
@@ -499,17 +501,26 @@ function ComptabiliteBilanPage({
         (r.date_debut || "").slice(0, 7) === todayYm &&
         clients.find((c) => c.id === r.client_id)?.statut === "Client confirmé"
     );
+    // Un remboursement/avoir sur une activité reste compté sans ça comme
+    // vendue à plein tarif — même garde que Bénéfices (BeneficesView) et le
+    // classement rentabilité (rows plus bas), sans quoi ce CA "en direct"
+    // divergeait de Bénéfices du montant exact des remboursements du mois
+    // (200€ d'écart constaté, Mélanie, 2026-10-31).
     const caTotal = ventesMois.reduce((s, r) => {
       const client = clients.find((c) => c.id === r.client_id);
       if (!client) return s;
-      return s + resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+      const total = resaTotalMontant(r, client, resaOptions[r.id] || [], resaTarifs[r.id] || []);
+      const impactCa = remboursements
+        .filter((rb) => rb.activite_id === r.id)
+        .reduce((sum, rb) => sum + remboursementImpact(rb).ca, 0);
+      return s + total + impactCa;
     }, 0);
     return {
       ventes: ventesMois.length,
       moyenneParJour: jourEnCours > 0 ? ventesMois.length / jourEnCours : 0,
       caTotal,
     };
-  }, [estMoisEnCours, reservations, clients, resaOptions, resaTarifs, todayYm, jourEnCours]);
+  }, [estMoisEnCours, reservations, clients, resaOptions, resaTarifs, remboursements, todayYm, jourEnCours]);
 
   const changerAnnee = (a: number) => {
     setAnnee(a);
@@ -1767,6 +1778,7 @@ export default function DirectionView({
         reservations={reservations}
         resaOptions={resaOptions}
         resaTarifs={resaTarifs}
+        remboursements={remboursements}
       />
     );
   }

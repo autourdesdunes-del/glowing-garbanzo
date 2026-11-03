@@ -48,6 +48,9 @@ export type CatalogueItem = {
   capacite_max_personnes: number | null;
   activite_alternative_id: string | null;
   activite_complement_id: string | null;
+  // Choisi manuellement par l'équipe pour la section "Nos incontournables"
+  // de la page d'accueil de la vitrine — jamais déduit automatiquement.
+  mis_en_avant: boolean;
   haute_saison_debut: string;
   haute_saison_fin: string;
   haute_saison_pu_adulte: number;

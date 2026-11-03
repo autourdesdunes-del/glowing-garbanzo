@@ -830,6 +830,16 @@ export default function CatalogueView({
                     </p>
                   </>
                 )}
+                <div className="col-span-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={a.mis_en_avant}
+                      onChange={(e) => onUpdate(a.id, { mis_en_avant: e.target.checked })}
+                    />
+                    Mettre en avant sur la page d&apos;accueil du site
+                  </label>
+                </div>
                 <div className="col-span-3 rounded-md border border-neutral-200 p-3">
                   <p className="mb-2 text-sm font-medium text-neutral-700">
                     Capacité physique (vitrine publique)

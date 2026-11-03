@@ -18,6 +18,7 @@ import {
   Client,
   ClientHotel,
   Conge,
+  DemandeReservation,
   EMPTY_CLIENT,
   JourEscalation,
   PaiementEtape,
@@ -321,6 +322,7 @@ function AppShellInner({
   const [allResaOptions, setAllResaOptions] = useState<Record<string, ReservationOption[]>>({});
   const [planningLoaded, setPlanningLoaded] = useState(false);
   const [allRemboursements, setAllRemboursements] = useState<Remboursement[]>([]);
+  const [allDemandesSite, setAllDemandesSite] = useState<DemandeReservation[]>([]);
   const [directionTaches, setDirectionTaches] = useState<DirectionTache[]>([]);
   const [allPaiementsEtapes, setAllPaiementsEtapes] = useState<PaiementEtape[]>([]);
   const [allPaiementsPrevus, setAllPaiementsPrevus] = useState<PaiementPrevu[]>([]);
@@ -704,6 +706,11 @@ function AppShellInner({
       if ((mode === "suivis" || mode === "direction") && !suivisLoaded) {
         const { data: rembs } = await supabase.from("remboursements").select("*");
         setAllRemboursements((rembs as Remboursement[]) || []);
+        const { data: demandesSite } = await supabase
+          .from("demandes_reservation")
+          .select("*")
+          .order("created_at", { ascending: false });
+        setAllDemandesSite((demandesSite as DemandeReservation[]) || []);
         const { data: taches } = await supabase
           .from("direction_taches")
           .select("*")
@@ -1457,6 +1464,60 @@ function AppShellInner({
         await updateReservationById(r.id, { statut_resa: "Confirmée" });
       }
     }
+  };
+
+  // Transforme une demande venue de la vitrine en vrai dossier — jamais
+  // automatique : seulement déclenché par le clic explicite "Créer le
+  // dossier client" sur une ligne de src/components/suivis/DemandesSiteView.tsx.
+  // Crée un client "Prospect" ordinaire (même point de départ qu'une demande
+  // WhatsApp), reporte les coordonnées + un récapitulatif du panier dans ses
+  // commentaires pour que l'équipe reprenne la main sans ressaisir, puis
+  // ouvre directement la fiche créée.
+  const creerDossierDepuisDemande = async (demande: DemandeReservation) => {
+    const nouveau = await addClient({
+      nom: demande.nom,
+      telephone: demande.telephone,
+      canal: "Autre",
+    });
+    if (!nouveau) return;
+    const recapPanier = (demande.panier || [])
+      .map(
+        (l) =>
+          `- ${l.nom}${l.date ? ` (${l.date})` : ""} — ${l.adultes} adulte${l.adultes > 1 ? "s" : ""}${
+            l.enfants ? `, ${l.enfants} enfant(s)` : ""
+          }${l.bebes ? `, ${l.bebes} bébé(s)` : ""} — ${l.prixTotal} €`
+      )
+      .join("\n");
+    await updateClientById(nouveau.id, {
+      email: demande.email,
+      canal_autre: "Vitrine web",
+      relation_grace_a: "Site internet",
+      commentaires: [
+        "Demande reçue depuis le site :",
+        recapPanier,
+        demande.message ? `Message du client : ${demande.message}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    });
+    await marquerDemandeStatut(demande.id, "traitee");
+    // Pas d'appel à openClient() ici : juste après addClient(), le state
+    // `clients` de ce composant n'a pas encore été re-rendu avec le nouveau
+    // client (setClients() dans addClient() est asynchrone), donc
+    // `clients.find(...)` dans openClient() ne le trouverait pas et
+    // basculerait à tort sur "team" au lieu de "prospects". On sait déjà
+    // que addClient() crée toujours un statut "Prospect" par défaut ici.
+    setMode(PROSPECT_STATUTS.includes(nouveau.statut) ? "prospects" : "team");
+    setProspectsSub("toutes");
+    setSelectedId(nouveau.id);
+  };
+
+  const marquerDemandeStatut = async (
+    id: string,
+    statut: DemandeReservation["statut"]
+  ) => {
+    setAllDemandesSite((prev) => prev.map((d) => (d.id === id ? { ...d, statut } : d)));
+    await supabase.from("demandes_reservation").update({ statut }).eq("id", id);
   };
 
   // Rassemble deux fiches identifiées comme doublon (voir DoublonPossibleAlert)
@@ -2460,6 +2521,8 @@ function AppShellInner({
     (p) => !p.rattache_client_id && !p.masque
   ).length;
 
+  const demandesSiteNouvelles = allDemandesSite.filter((d) => d.statut === "nouvelle").length;
+
   const currentTab = TABS.find((t) => t.key === mode);
   const visibleSuivisSubs = effectiveSuivisVisibles
     ? SUIVIS_SUBS.filter((s) => effectiveSuivisVisibles.includes(s.key))
@@ -2553,6 +2616,11 @@ function AppShellInner({
                         {s.key === "paypal" && paypalPaiementsNonRattaches > 0 && (
                           <span className="rounded-full bg-[#EE0000] px-1.5 py-0.5 text-[10px] font-semibold text-white">
                             +{paypalPaiementsNonRattaches}
+                          </span>
+                        )}
+                        {s.key === "demandes_site" && demandesSiteNouvelles > 0 && (
+                          <span className="rounded-full bg-[#EE0000] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                            +{demandesSiteNouvelles}
                           </span>
                         )}
                       </button>
@@ -3497,6 +3565,9 @@ function AppShellInner({
               onDeleteClientById={deleteClient}
               onDuplicateAsNewStay={duplicateAsNewStay}
               onOpenHelp={() => setMode("help")}
+              demandes={allDemandesSite}
+              onCreerDossierDepuisDemande={creerDossierDepuisDemande}
+              onMarquerDemandeStatut={marquerDemandeStatut}
             />
           )}
         </div>

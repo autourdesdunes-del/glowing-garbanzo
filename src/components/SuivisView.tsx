@@ -7,6 +7,7 @@ import {
   CatalogueTarif,
   CatalogueTransfertTarif,
   Client,
+  DemandeReservation,
   PaiementEtape,
   PaiementPrevu,
   Pack,
@@ -73,6 +74,7 @@ import {
   RemboursementCard,
 } from "@/components/suivis/SuivisRows";
 import VerifDossierDrawer from "@/components/suivis/VerifDossierDrawer";
+import DemandesSiteView from "@/components/suivis/DemandesSiteView";
 
 // Bloc copié-collé pour Hossam — le nom complet doit être recopié tel quel
 // (comme au passeport) pour éviter toute faute transmise au prestataire.
@@ -83,6 +85,7 @@ import VerifDossierDrawer from "@/components/suivis/VerifDossierDrawer";
 // labelAr : traduction arabe affichée en plus pour l'équipe Égypte
 // (Hossam, Bodé) — voir `arabicMode` dans AppShell.tsx.
 export const SUIVIS_SUBS = [
+  { key: "demandes_site", label: "Demandes du site", labelAr: "طلبات الموقع", groupe: "important" },
   { key: "j1", label: "Pick-ups (J-1)", labelAr: "الاستقبال (ي-1)", groupe: "important" },
   { key: "chambres", label: "Numéros de chambre", labelAr: "أرقام الغرف", groupe: "important" },
   { key: "rdv", label: "RDV paiements", labelAr: "مواعيد الدفع", groupe: "important" },
@@ -140,6 +143,9 @@ export default function SuivisView({
   onDeleteClientById,
   onDuplicateAsNewStay,
   onOpenHelp,
+  demandes = [],
+  onCreerDossierDepuisDemande,
+  onMarquerDemandeStatut,
 }: {
   sub: SuivisSub;
   clients: Client[];
@@ -190,6 +196,9 @@ export default function SuivisView({
   onDeleteClientById?: (id: string) => Promise<boolean> | void;
   onDuplicateAsNewStay?: (source: Client) => void;
   onOpenHelp?: () => void;
+  demandes?: DemandeReservation[];
+  onCreerDossierDepuisDemande?: (demande: DemandeReservation) => void;
+  onMarquerDemandeStatut?: (id: string, statut: DemandeReservation["statut"]) => void;
 }) {
   const supabase = createClient();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -695,6 +704,14 @@ export default function SuivisView({
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">
+      {sub === "demandes_site" && onCreerDossierDepuisDemande && onMarquerDemandeStatut && (
+        <DemandesSiteView
+          demandes={demandes}
+          onCreerDossier={onCreerDossierDepuisDemande}
+          onMarquerStatut={onMarquerDemandeStatut}
+        />
+      )}
+
       {sub === "j1" && (
         <div className="space-y-6">
           <div>

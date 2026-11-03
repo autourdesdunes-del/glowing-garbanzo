@@ -830,6 +830,73 @@ export default function CatalogueView({
                     </p>
                   </>
                 )}
+                <div className="col-span-3 rounded-md border border-neutral-200 p-3">
+                  <p className="mb-2 text-sm font-medium text-neutral-700">
+                    Capacité physique (vitrine publique)
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Field label="Max personnes (adultes + enfants, bébés non comptés)">
+                      <input
+                        type="number"
+                        min={0}
+                        value={a.capacite_max_personnes ?? ""}
+                        onChange={(e) =>
+                          onUpdate(a.id, {
+                            capacite_max_personnes:
+                              e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        placeholder="ex. 2 pour un Buggy"
+                        className="input"
+                      />
+                    </Field>
+                    <Field label="Si dépassée, proposer en remplacement">
+                      <select
+                        value={a.activite_alternative_id ?? ""}
+                        onChange={(e) =>
+                          onUpdate(a.id, {
+                            activite_alternative_id: e.target.value || null,
+                          })
+                        }
+                        className="input"
+                      >
+                        <option value="">—</option>
+                        {itemsAll
+                          .filter((i) => i.id !== a.id)
+                          .map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.nom}
+                            </option>
+                          ))}
+                      </select>
+                    </Field>
+                    <Field label="Si dépassée, proposer en complément">
+                      <select
+                        value={a.activite_complement_id ?? ""}
+                        onChange={(e) =>
+                          onUpdate(a.id, {
+                            activite_complement_id: e.target.value || null,
+                          })
+                        }
+                        className="input"
+                      >
+                        <option value="">—</option>
+                        {itemsAll
+                          .filter((i) => i.id !== a.id)
+                          .map((i) => (
+                            <option key={i.id} value={i.id}>
+                              {i.nom}
+                            </option>
+                          ))}
+                      </select>
+                    </Field>
+                  </div>
+                  <p className="mt-1.5 text-xs text-neutral-400">
+                    Laisse "Max personnes" vide si cette activité n&apos;a pas de limite
+                    physique. Ex. Buggy : 2 personnes, remplacement = Safari Buggy
+                    Famille, complément = Safari quad.
+                  </p>
+                </div>
                 {canSeeMargins && (
                   <Field label="Marge cible (%)">
                     <input
@@ -865,6 +932,19 @@ export default function CatalogueView({
                       "ex. Uniquement pour les familles avec enfants\nex. Nécessite un acompte de 120€ par personne à la réservation\nex. 2 adultes minimum\nex. Ne pas recommander cette activité, renvoyer vers Le Caire en mini-bus"
                     }
                     className="input min-h-[70px] resize-y"
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-3">
+                <Field label="Information importante pour le client (visible sur la vitrine publique)">
+                  <textarea
+                    value={a.info_importante}
+                    onChange={(e) => onUpdate(a.id, { info_importante: e.target.value })}
+                    placeholder={
+                      "ex. Minimum 2 personnes requises\nex. Réservation 48h à l'avance obligatoire"
+                    }
+                    className="input min-h-[50px] resize-y"
                   />
                 </Field>
               </div>

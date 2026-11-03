@@ -42,6 +42,12 @@ export type CatalogueItem = {
   prix_groupe_extra_enfant: number;
   prix_groupe_extra_enfant_age: string;
   prix_groupe_note: string;
+  // Capacité physique (ex. Buggy = 2 places, bébés non comptés) et
+  // suggestions affichées côté vitrine publique quand le groupe du client
+  // la dépasse — voir migration 0165.
+  capacite_max_personnes: number | null;
+  activite_alternative_id: string | null;
+  activite_complement_id: string | null;
   haute_saison_debut: string;
   haute_saison_fin: string;
   haute_saison_pu_adulte: number;
@@ -55,6 +61,10 @@ export type CatalogueItem = {
   supplement_solo_prix: number;
   marge_pct: number;
   specificites: string;
+  // Note client affichée sur la vitrine publique (ex. "Minimum 2 personnes
+  // requises") — à ne jamais confondre avec `specificites` ci-dessus, qui
+  // mélange des consignes internes et ne doit jamais partir au client.
+  info_importante: string;
   horaire_approx: string;
   duree: string;
   prochaine_disponibilite: string;
@@ -354,6 +364,36 @@ export type Reservation = {
   paiement_statut: string;
   created_at: string;
   updated_at: string;
+};
+
+// Une ligne du panier d'une demande (voir DemandeReservation) — exactement
+// la forme envoyée par le panier de la vitrine publique (projet
+// "autour-des-dunes-vitrine", src/lib/cart-context.tsx), jamais retouchée.
+export type DemandeReservationLigne = {
+  lineId: string;
+  catalogue_item_id: string;
+  nom: string;
+  date: string;
+  adultes: number;
+  enfants: number;
+  bebes: number;
+  prixTotal: number;
+};
+
+// Demande de réservation reçue depuis la vitrine publique — simple "boîte
+// de réception" que l'équipe consulte et transforme en vrai dossier client
+// à la main (comme pour une demande WhatsApp) ; rien ici ne crée jamais
+// automatiquement de client ni de réservation. Voir migration
+// 0163_demandes_reservation.sql.
+export type DemandeReservation = {
+  id: string;
+  nom: string;
+  email: string;
+  telephone: string;
+  panier: DemandeReservationLigne[];
+  message: string;
+  statut: "nouvelle" | "traitee" | "ignoree";
+  created_at: string;
 };
 
 export type Remboursement = {

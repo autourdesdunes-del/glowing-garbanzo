@@ -33,11 +33,38 @@ function groupesParAnnee(salaires: EmployeSalaire[]) {
   return groupes;
 }
 
+// Segments **gras** et ==surligné pastel== à l'intérieur d'une ligne — même
+// syntaxe légère que les titres/puces ci-dessous, demande de Mélanie,
+// 2026-11-03 ("des trucs surlignés en pastel, des trucs en gras").
+function InlineTexte({ text }: { text: string }) {
+  const parts = text.split(/(\*\*.+?\*\*|==.+?==)/g).filter(Boolean);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**"))
+          return (
+            <strong key={i} className="font-semibold text-[#171717]">
+              {part.slice(2, -2)}
+            </strong>
+          );
+        if (part.startsWith("==") && part.endsWith("=="))
+          return (
+            <mark key={i} className="rounded bg-amber-100 px-1 py-0.5 text-[#171717]">
+              {part.slice(2, -2)}
+            </mark>
+          );
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 // Rendu "page Notion" des conditions d'emploi en lecture — demande de
 // Mélanie, 2026-11-03 : un bloc de texte brut dans un <textarea> n'était
 // pas lisible. Le texte reste du markdown-lite en base (- puces, lignes
-// finissant par ":" = titre de section) ; seul l'affichage change, l'édition
-// reste en texte brut pour rester simple à saisir.
+// finissant par ":" = titre de section, **gras**, ==surligné==) ; seul
+// l'affichage change, l'édition reste en texte brut pour rester simple à
+// saisir.
 function ConditionsRendu({ text }: { text: string }) {
   const lignes = text.split("\n");
   const blocs: { type: "titre" | "liste" | "texte"; contenu: string[] }[] = [];
@@ -61,8 +88,11 @@ function ConditionsRendu({ text }: { text: string }) {
       {blocs.map((bloc, i) => {
         if (bloc.type === "titre")
           return (
-            <p key={i} className="text-sm font-semibold text-[#171717]">
-              {bloc.contenu[0]}
+            <p
+              key={i}
+              className="inline-block rounded bg-[#F2E6D2]/70 px-2 py-1 text-sm font-semibold text-[#5C2A1D]"
+            >
+              <InlineTexte text={bloc.contenu[0]} />
             </p>
           );
         if (bloc.type === "liste")
@@ -70,14 +100,14 @@ function ConditionsRendu({ text }: { text: string }) {
             <ul key={i} className="space-y-1 pl-4 text-sm text-[#171717]/90">
               {bloc.contenu.map((item, j) => (
                 <li key={j} className="list-disc">
-                  {item}
+                  <InlineTexte text={item} />
                 </li>
               ))}
             </ul>
           );
         return (
           <p key={i} className="text-sm text-[#171717]/90">
-            {bloc.contenu[0]}
+            <InlineTexte text={bloc.contenu[0]} />
           </p>
         );
       })}
@@ -237,7 +267,7 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
                           "Astuce de mise en forme :\n" +
                           "Un titre de section :\n" +
                           "- un point de liste\n" +
-                          "- un autre point"
+                          "- un **mot en gras**, un ==mot surligné=="
                         }
                         rows={8}
                         className="input font-mono text-xs"
@@ -297,18 +327,23 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
                                   {euros(totalAnnee)} €
                                 </td>
                               </tr>
-                              {lignes.map((h) => (
-                                <tr key={h.id} className="border-b border-neutral-100 last:border-0">
-                                  <td className="whitespace-nowrap px-3 py-1.5 text-neutral-600">
+                              {lignes.map((h, idx) => (
+                                <tr
+                                  key={h.id}
+                                  className={`border-b border-neutral-200 last:border-0 ${
+                                    idx % 2 === 1 ? "bg-[#fafafa]/70" : "bg-white"
+                                  }`}
+                                >
+                                  <td className="whitespace-nowrap px-3 py-2 text-neutral-600">
                                     {dateLabel(h.date_versement)}
                                   </td>
-                                  <td className="px-3 py-1.5 text-right font-medium tabular-nums text-[#171717]">
+                                  <td className="px-3 py-2 text-right font-medium tabular-nums text-[#171717]">
                                     {euros(h.montant)} €
                                   </td>
-                                  <td className="px-3 py-1.5 text-xs leading-snug text-neutral-500">
+                                  <td className="px-3 py-2 text-xs leading-snug text-neutral-500">
                                     {h.note || "—"}
                                   </td>
-                                  <td className="px-3 py-1.5 text-right align-top">
+                                  <td className="px-3 py-2 text-right align-top">
                                     <button
                                       onClick={() => supprimerSalaire(h.id)}
                                       className="text-xs text-red-600 hover:underline"

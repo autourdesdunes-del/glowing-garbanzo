@@ -967,6 +967,24 @@ export type Conge = {
   created_at: string;
 };
 
+// Fiche employé (conditions d'emploi) et historique des salaires versés —
+// Direction uniquement, voir migration 0169.
+export type EmployeFiche = {
+  user_id: string;
+  conditions_emploi: string;
+  updated_at: string;
+};
+
+export type EmployeSalaire = {
+  id: string;
+  user_id: string;
+  // 1er du mois concerné (ex. "2026-10-01" pour octobre).
+  mois: string;
+  montant: number;
+  note: string;
+  created_at: string;
+};
+
 export type ClientHotel = {
   id: string;
   client_id: string;

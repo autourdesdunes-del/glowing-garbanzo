@@ -20,6 +20,7 @@ import {
   WEEKDAY_JS_TO_FR,
 } from "@/lib/planningRHFormat";
 import { DetailModal, MiniMonth } from "@/components/planningRH/PlanningRHPrimitives";
+import EmployeFichesView from "@/components/planningRH/EmployeFichesView";
 
 // Laura ne travaille plus à l'agence et Bodé n'est pas concerné par le
 // planning équipe — les deux ne doivent jamais apparaître nulle part dans
@@ -43,7 +44,7 @@ export default function PlanningRHView({
   const supabase = createClient();
   const toast = useToast();
   const confirm = useConfirm();
-  const [tab, setTab] = useState<"planning" | "conges">("planning");
+  const [tab, setTab] = useState<"planning" | "conges" | "fiches">("planning");
   const [userId, setUserId] = useState<string | null>(null);
   // Pour tout ce qui est "affiché" (mes horaires, mes congés) : la personne
   // simulée si "Aperçu vu par" en désigne une, sinon le vrai compte connecté.
@@ -507,6 +508,18 @@ export default function PlanningRHView({
           >
             Congés
           </button>
+          {isDirection && (
+            <button
+              onClick={() => setTab("fiches")}
+              className={`border-b-2 pb-2.5 text-sm font-semibold ${
+                tab === "fiches"
+                  ? "border-[#171717] text-[#171717]"
+                  : "border-transparent text-neutral-400 hover:text-neutral-600"
+              }`}
+            >
+              Fiches employés
+            </button>
+          )}
         </div>
         {tab === "planning" && !isDirection && (
           <div className="-mt-px flex gap-4 border-t border-neutral-100 pl-1 pt-2">
@@ -1242,6 +1255,8 @@ export default function PlanningRHView({
           </div>
         </div>
       )}
+
+      {tab === "fiches" && isDirection && <EmployeFichesView profiles={teamProfiles} />}
 
       {detailDate && (
         <DetailModal

@@ -50,7 +50,7 @@ function InlineTexte({ text }: { text: string }) {
         if (part.startsWith("==") && part.endsWith("=="))
           return (
             <mark key={i} className="rounded bg-amber-100 px-1 py-0.5 text-[#171717]">
-              {part.slice(2, -2)}
+              <InlineTexte text={part.slice(2, -2)} />
             </mark>
           );
         return <span key={i}>{part}</span>;

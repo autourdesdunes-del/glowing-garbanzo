@@ -115,12 +115,22 @@ function ConditionsRendu({ text }: { text: string }) {
   );
 }
 
-// Fiche employé (conditions d'emploi + historique des salaires) — Direction
-// uniquement, demande de Mélanie, 2026-11-03. Données séparées de la table
-// profiles (lisible par toute l'équipe) : fetch et policies dédiées, voir
-// migration 0169. `profiles` est déjà filtré par l'appelant (role "equipe",
-// sans Laura/Bodé — voir teamProfiles dans PlanningRHView.tsx).
-export default function EmployeFichesView({ profiles }: { profiles: Profile[] }) {
+// Fiche employé (conditions d'emploi + historique des salaires). Données
+// séparées de la table profiles (lisible par toute l'équipe) : fetch et
+// policies dédiées, voir migration 0169. `profiles` est déjà filtré par
+// l'appelant — toute l'équipe pour Direction (voir teamProfiles dans
+// PlanningRHView.tsx), ou juste sa propre fiche pour un compte équipe.
+// `readOnly` (demande de Mélanie, 2026-11-03 : chaque employé doit pouvoir
+// voir SA fiche depuis son compte) masque l'édition — la lecture seule est
+// de toute façon imposée côté base par la policy "self read ..." (0171),
+// qui ne permet qu'un select sur sa propre ligne, jamais un write.
+export default function EmployeFichesView({
+  profiles,
+  readOnly = false,
+}: {
+  profiles: Profile[];
+  readOnly?: boolean;
+}) {
   const supabase = createClient();
   const toast = useToast();
   const confirm = useConfirm();
@@ -219,22 +229,27 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
   return (
     <div className="space-y-3">
       <p className="text-xs text-[#666666]">
-        Conditions d&apos;emploi et historique des salaires versés — visible uniquement par Direction.
+        {readOnly
+          ? "Tes conditions d'emploi et l'historique de tes salaires versés — visible par toi et par Direction."
+          : "Conditions d'emploi et historique des salaires versés — visible uniquement par Direction."}
       </p>
+      {employes.length === 0 && readOnly && (
+        <p className="text-xs text-neutral-400">Rien n&apos;est encore renseigné pour toi.</p>
+      )}
       {employes.map((p) => {
-        const open = openId === p.id;
+        const open = readOnly ? true : openId === p.id;
         const fiche = ficheFor(p.id);
         const histo = salairesFor(p.id);
         const totalHisto = histo.reduce((s, h) => s + Number(h.montant || 0), 0);
         return (
           <div key={p.id} className="rounded-md border border-neutral-200 bg-white">
             <button
-              onClick={() => setOpenId(open ? null : p.id)}
+              onClick={() => !readOnly && setOpenId(open ? null : p.id)}
               className="flex w-full items-center justify-between px-3 py-2.5 text-left"
             >
               <span className="text-sm font-medium text-[#171717]">{p.prenom || p.email}</span>
               <span className="text-xs text-neutral-400">
-                {histo.length} versement{histo.length > 1 ? "s" : ""} {open ? "▲" : "▼"}
+                {histo.length} versement{histo.length > 1 ? "s" : ""} {!readOnly && (open ? "▲" : "▼")}
               </span>
             </button>
             {open && (
@@ -244,7 +259,7 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
                       Conditions d&apos;emploi
                     </p>
-                    {!editingConditions[p.id] && (
+                    {!readOnly && !editingConditions[p.id] && (
                       <button
                         onClick={() =>
                           setEditingConditions((prev) => ({ ...prev, [p.id]: true }))
@@ -344,12 +359,14 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
                                     {h.note || "—"}
                                   </td>
                                   <td className="px-3 py-2 text-right align-top">
-                                    <button
-                                      onClick={() => supprimerSalaire(h.id)}
-                                      className="text-xs text-red-600 hover:underline"
-                                    >
-                                      Retirer
-                                    </button>
+                                    {!readOnly && (
+                                      <button
+                                        onClick={() => supprimerSalaire(h.id)}
+                                        className="text-xs text-red-600 hover:underline"
+                                      >
+                                        Retirer
+                                      </button>
+                                    )}
                                   </td>
                                 </tr>
                               ))}
@@ -361,41 +378,43 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-neutral-300 p-2.5">
-                  <label className="flex flex-col gap-1 text-xs text-neutral-500">
-                    Date de versement
-                    <input
-                      type="date"
-                      value={nouvelleDate[p.id] || ""}
-                      onChange={(e) => setNouvelleDate((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      className="input w-36"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1 text-xs text-neutral-500">
-                    Montant (€)
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={nouveauMontant[p.id] || ""}
-                      onChange={(e) => setNouveauMontant((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      className="input w-28"
-                    />
-                  </label>
-                  <label className="flex min-w-[140px] flex-1 flex-col gap-1 text-xs text-neutral-500">
-                    Note (optionnel)
-                    <input
-                      value={nouveauNote[p.id] || ""}
-                      onChange={(e) => setNouveauNote((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      className="input"
-                    />
-                  </label>
-                  <button
-                    onClick={() => ajouterSalaire(p.id)}
-                    className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
-                  >
-                    Ajouter
-                  </button>
-                </div>
+                {!readOnly && (
+                  <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-neutral-300 p-2.5">
+                    <label className="flex flex-col gap-1 text-xs text-neutral-500">
+                      Date de versement
+                      <input
+                        type="date"
+                        value={nouvelleDate[p.id] || ""}
+                        onChange={(e) => setNouvelleDate((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        className="input w-36"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-neutral-500">
+                      Montant (€)
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={nouveauMontant[p.id] || ""}
+                        onChange={(e) => setNouveauMontant((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        className="input w-28"
+                      />
+                    </label>
+                    <label className="flex min-w-[140px] flex-1 flex-col gap-1 text-xs text-neutral-500">
+                      Note (optionnel)
+                      <input
+                        value={nouveauNote[p.id] || ""}
+                        onChange={(e) => setNouveauNote((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                        className="input"
+                      />
+                    </label>
+                    <button
+                      onClick={() => ajouterSalaire(p.id)}
+                      className="rounded-md bg-[#171717] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
+                    >
+                      Ajouter
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

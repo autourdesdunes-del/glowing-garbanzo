@@ -508,18 +508,16 @@ export default function PlanningRHView({
           >
             Congés
           </button>
-          {isDirection && (
-            <button
-              onClick={() => setTab("fiches")}
-              className={`border-b-2 pb-2.5 text-sm font-semibold ${
-                tab === "fiches"
-                  ? "border-[#171717] text-[#171717]"
-                  : "border-transparent text-neutral-400 hover:text-neutral-600"
-              }`}
-            >
-              Fiches employés
-            </button>
-          )}
+          <button
+            onClick={() => setTab("fiches")}
+            className={`border-b-2 pb-2.5 text-sm font-semibold ${
+              tab === "fiches"
+                ? "border-[#171717] text-[#171717]"
+                : "border-transparent text-neutral-400 hover:text-neutral-600"
+            }`}
+          >
+            {isDirection ? "Fiches employés" : "Ma fiche"}
+          </button>
         </div>
         {tab === "planning" && !isDirection && (
           <div className="-mt-px flex gap-4 border-t border-neutral-100 pl-1 pt-2">
@@ -1256,7 +1254,15 @@ export default function PlanningRHView({
         </div>
       )}
 
-      {tab === "fiches" && isDirection && <EmployeFichesView profiles={teamProfiles} />}
+      {tab === "fiches" &&
+        (isDirection ? (
+          <EmployeFichesView profiles={teamProfiles} />
+        ) : (
+          <EmployeFichesView
+            profiles={profiles.filter((p) => p.id === effectiveUserId)}
+            readOnly
+          />
+        ))}
 
       {detailDate && (
         <DetailModal

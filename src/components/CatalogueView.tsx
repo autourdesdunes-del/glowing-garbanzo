@@ -270,7 +270,7 @@ export default function CatalogueView({
                 )}
               </div>
 
-              <div className="mb-3 flex items-center gap-2">
+              <div className="mb-2 flex items-center gap-2">
                 <input
                   placeholder="Nom de l'activité"
                   value={a.nom}
@@ -289,6 +289,17 @@ export default function CatalogueView({
                 >
                   Retirer
                 </button>
+              </div>
+
+              <div className="mb-3">
+                <Field label="Nom affiché sur le site (vide = reprend le nom interne ci-dessus)">
+                  <input
+                    placeholder={a.nom}
+                    value={a.nom_affichage}
+                    onChange={(e) => onUpdate(a.id, { nom_affichage: e.target.value })}
+                    className="input w-full"
+                  />
+                </Field>
               </div>
 
               <div className="mb-3">

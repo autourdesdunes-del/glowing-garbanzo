@@ -51,6 +51,10 @@ export type CatalogueItem = {
   // Choisi manuellement par l'équipe pour la section "Nos incontournables"
   // de la page d'accueil de la vitrine — jamais déduit automatiquement.
   mis_en_avant: boolean;
+  // Nom public de la vitrine, distinct du nom interne catalogue (qui peut
+  // contenir des parenthèses longues ou une casse incohérente) — vide =
+  // on affiche le nom interne tel quel côté public (migration 0174).
+  nom_affichage: string;
   // Vraies citations d'avis Google/TripAdvisor collées à la main par
   // l'équipe pour l'onglet "Avis" de la fiche vitrine (migration 0173) —
   // jamais générées automatiquement, jamais importées.

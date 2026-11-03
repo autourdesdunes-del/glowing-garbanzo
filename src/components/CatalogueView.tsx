@@ -842,6 +842,81 @@ export default function CatalogueView({
                 </div>
                 <div className="col-span-3 rounded-md border border-neutral-200 p-3">
                   <p className="mb-2 text-sm font-medium text-neutral-700">
+                    Avis clients (vitrine, onglet "Avis")
+                  </p>
+                  <p className="mb-3 text-xs text-neutral-400">
+                    Collez de vraies citations Google/TripAdvisor pour cette
+                    activité — jamais inventées.
+                  </p>
+                  <div className="space-y-3">
+                    {a.avis_verbatims.map((avis, i) => (
+                      <div key={i} className="rounded-md bg-neutral-50 p-3">
+                        <div className="mb-2 flex gap-2">
+                          <input
+                            type="text"
+                            value={avis.prenom}
+                            onChange={(e) => {
+                              const liste = [...a.avis_verbatims];
+                              liste[i] = { ...avis, prenom: e.target.value };
+                              onUpdate(a.id, { avis_verbatims: liste });
+                            }}
+                            className="input w-32"
+                            placeholder="Prénom"
+                          />
+                          <select
+                            value={avis.source}
+                            onChange={(e) => {
+                              const liste = [...a.avis_verbatims];
+                              liste[i] = { ...avis, source: e.target.value };
+                              onUpdate(a.id, { avis_verbatims: liste });
+                            }}
+                            className="input w-36"
+                          >
+                            <option value="Google">Google</option>
+                            <option value="TripAdvisor">TripAdvisor</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const liste = a.avis_verbatims.filter((_, j) => j !== i);
+                              onUpdate(a.id, { avis_verbatims: liste });
+                            }}
+                            className="ml-auto text-xs text-red-600 hover:underline"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                        <textarea
+                          value={avis.texte}
+                          onChange={(e) => {
+                            const liste = [...a.avis_verbatims];
+                            liste[i] = { ...avis, texte: e.target.value };
+                            onUpdate(a.id, { avis_verbatims: liste });
+                          }}
+                          className="input w-full"
+                          rows={2}
+                          placeholder="Texte de l'avis, copié tel quel"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdate(a.id, {
+                        avis_verbatims: [
+                          ...a.avis_verbatims,
+                          { prenom: "", texte: "", source: "Google" },
+                        ],
+                      })
+                    }
+                    className="mt-3 text-sm text-neutral-600 hover:underline"
+                  >
+                    + Ajouter un avis
+                  </button>
+                </div>
+                <div className="col-span-3 rounded-md border border-neutral-200 p-3">
+                  <p className="mb-2 text-sm font-medium text-neutral-700">
                     Capacité physique (vitrine publique)
                   </p>
                   <div className="grid grid-cols-3 gap-2">

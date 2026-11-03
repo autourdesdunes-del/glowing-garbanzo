@@ -51,6 +51,10 @@ export type CatalogueItem = {
   // Choisi manuellement par l'équipe pour la section "Nos incontournables"
   // de la page d'accueil de la vitrine — jamais déduit automatiquement.
   mis_en_avant: boolean;
+  // Vraies citations d'avis Google/TripAdvisor collées à la main par
+  // l'équipe pour l'onglet "Avis" de la fiche vitrine (migration 0173) —
+  // jamais générées automatiquement, jamais importées.
+  avis_verbatims: { prenom: string; texte: string; source: string }[];
   haute_saison_debut: string;
   haute_saison_fin: string;
   haute_saison_pu_adulte: number;

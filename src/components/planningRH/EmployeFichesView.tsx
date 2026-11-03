@@ -11,9 +11,9 @@ function euros(n: number) {
   return (Number(n) || 0).toLocaleString("fr-FR");
 }
 
-function moisLabel(moisIso: string) {
-  const [y, m] = moisIso.split("-");
-  return `${MONTH_NAMES_FULL[Number(m) - 1]} ${y}`;
+function dateLabel(iso: string) {
+  const d = new Date(`${iso}T00:00:00`);
+  return `${d.getDate()} ${MONTH_NAMES_FULL[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 // Rendu "page Notion" des conditions d'emploi en lecture — demande de
@@ -84,7 +84,7 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
   const [openId, setOpenId] = useState<string | null>(null);
   const [editingConditions, setEditingConditions] = useState<Record<string, boolean>>({});
   const [conditionsDraft, setConditionsDraft] = useState<Record<string, string>>({});
-  const [nouveauMois, setNouveauMois] = useState<Record<string, string>>({});
+  const [nouvelleDate, setNouvelleDate] = useState<Record<string, string>>({});
   const [nouveauMontant, setNouveauMontant] = useState<Record<string, string>>({});
   const [nouveauNote, setNouveauNote] = useState<Record<string, string>>({});
 
@@ -92,7 +92,7 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
     (async () => {
       const [{ data: f }, { data: s }] = await Promise.all([
         supabase.from("employe_fiches").select("*"),
-        supabase.from("employe_salaires").select("*").order("mois", { ascending: false }),
+        supabase.from("employe_salaires").select("*").order("date_versement", { ascending: false }),
       ]);
       setFiches((f as EmployeFiche[]) || []);
       setSalaires((s as EmployeSalaire[]) || []);
@@ -107,7 +107,10 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
   );
 
   const ficheFor = (userId: string) => fiches.find((f) => f.user_id === userId);
-  const salairesFor = (userId: string) => salaires.filter((s) => s.user_id === userId);
+  const salairesFor = (userId: string) =>
+    salaires
+      .filter((s) => s.user_id === userId)
+      .sort((a, b) => b.date_versement.localeCompare(a.date_versement));
 
   const saveConditions = async (userId: string) => {
     const value = (conditionsDraft[userId] ?? ficheFor(userId)?.conditions_emploi ?? "").trim();
@@ -128,25 +131,24 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
   };
 
   const ajouterSalaire = async (userId: string) => {
-    const moisInput = nouveauMois[userId];
+    const dateVersement = nouvelleDate[userId];
     const montantInput = Number(nouveauMontant[userId]);
-    if (!moisInput) {
-      toast("Choisis un mois.");
+    if (!dateVersement) {
+      toast("Choisis une date de versement.");
       return;
     }
-    const mois = `${moisInput}-01`;
     const note = nouveauNote[userId] || "";
     const { data, error } = await supabase
       .from("employe_salaires")
-      .upsert({ user_id: userId, mois, montant: montantInput || 0, note }, { onConflict: "user_id,mois" })
+      .insert({ user_id: userId, date_versement: dateVersement, montant: montantInput || 0, note })
       .select();
     if (error) {
       toast("Échec de l'enregistrement du salaire.");
       return;
     }
     const saved = (data as EmployeSalaire[])[0];
-    setSalaires((prev) => [...prev.filter((s) => !(s.user_id === userId && s.mois === mois)), saved]);
-    setNouveauMois((prev) => ({ ...prev, [userId]: "" }));
+    setSalaires((prev) => [...prev, saved]);
+    setNouvelleDate((prev) => ({ ...prev, [userId]: "" }));
     setNouveauMontant((prev) => ({ ...prev, [userId]: "" }));
     setNouveauNote((prev) => ({ ...prev, [userId]: "" }));
     toast("Salaire enregistré.", "success");
@@ -185,7 +187,7 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
             >
               <span className="text-sm font-medium text-[#171717]">{p.prenom || p.email}</span>
               <span className="text-xs text-neutral-400">
-                {histo.length} mois enregistré{histo.length > 1 ? "s" : ""} {open ? "▲" : "▼"}
+                {histo.length} versement{histo.length > 1 ? "s" : ""} {open ? "▲" : "▼"}
               </span>
             </button>
             {open && (
@@ -252,13 +254,13 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
                     Historique des salaires {histo.length > 0 && `— total ${euros(totalHisto)} €`}
                   </p>
                   {histo.length === 0 ? (
-                    <p className="text-xs text-neutral-400">Aucun mois enregistré pour l&apos;instant.</p>
+                    <p className="text-xs text-neutral-400">Aucun versement enregistré pour l&apos;instant.</p>
                   ) : (
                     <div className="overflow-hidden rounded-md border border-neutral-200">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-neutral-200 bg-[#fafafa] text-left text-[10px] uppercase tracking-wide text-neutral-400">
-                            <th className="px-3 py-1.5 font-medium">Mois</th>
+                            <th className="px-3 py-1.5 font-medium">Date</th>
                             <th className="px-3 py-1.5 text-right font-medium">Montant</th>
                             <th className="px-3 py-1.5 font-medium">Note</th>
                             <th className="px-3 py-1.5"></th>
@@ -267,7 +269,7 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
                         <tbody className="divide-y divide-neutral-100">
                           {histo.map((h) => (
                             <tr key={h.id}>
-                              <td className="px-3 py-1.5 capitalize">{moisLabel(h.mois)}</td>
+                              <td className="px-3 py-1.5">{dateLabel(h.date_versement)}</td>
                               <td className="px-3 py-1.5 text-right">{euros(h.montant)} €</td>
                               <td className="px-3 py-1.5 text-neutral-500">{h.note || "—"}</td>
                               <td className="px-3 py-1.5 text-right">
@@ -288,11 +290,11 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
 
                 <div className="flex flex-wrap items-end gap-2 rounded-md border border-dashed border-neutral-300 p-2.5">
                   <label className="flex flex-col gap-1 text-xs text-neutral-500">
-                    Mois
+                    Date de versement
                     <input
-                      type="month"
-                      value={nouveauMois[p.id] || ""}
-                      onChange={(e) => setNouveauMois((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                      type="date"
+                      value={nouvelleDate[p.id] || ""}
+                      onChange={(e) => setNouvelleDate((prev) => ({ ...prev, [p.id]: e.target.value }))}
                       className="input w-36"
                     />
                   </label>

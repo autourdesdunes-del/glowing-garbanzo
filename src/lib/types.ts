@@ -978,8 +978,10 @@ export type EmployeFiche = {
 export type EmployeSalaire = {
   id: string;
   user_id: string;
-  // 1er du mois concerné (ex. "2026-10-01" pour octobre).
-  mois: string;
+  // Vraie date de versement — pas de règle "un par mois" : une avance et un
+  // solde peuvent tomber le même mois, un versement peut couvrir le reste
+  // d'un mois précédent + le mois en cours (voir migration 0170).
+  date_versement: string;
   montant: number;
   note: string;
   created_at: string;

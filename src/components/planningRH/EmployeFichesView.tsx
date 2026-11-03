@@ -16,6 +16,58 @@ function moisLabel(moisIso: string) {
   return `${MONTH_NAMES_FULL[Number(m) - 1]} ${y}`;
 }
 
+// Rendu "page Notion" des conditions d'emploi en lecture — demande de
+// Mélanie, 2026-11-03 : un bloc de texte brut dans un <textarea> n'était
+// pas lisible. Le texte reste du markdown-lite en base (- puces, lignes
+// finissant par ":" = titre de section) ; seul l'affichage change, l'édition
+// reste en texte brut pour rester simple à saisir.
+function ConditionsRendu({ text }: { text: string }) {
+  const lignes = text.split("\n");
+  const blocs: { type: "titre" | "liste" | "texte"; contenu: string[] }[] = [];
+  lignes.forEach((ligne) => {
+    const trimmed = ligne.trim();
+    if (!trimmed) return;
+    if (trimmed.startsWith("- ")) {
+      const dernier = blocs[blocs.length - 1];
+      if (dernier?.type === "liste") dernier.contenu.push(trimmed.slice(2));
+      else blocs.push({ type: "liste", contenu: [trimmed.slice(2)] });
+      return;
+    }
+    if (trimmed.endsWith(":")) {
+      blocs.push({ type: "titre", contenu: [trimmed.slice(0, -1)] });
+      return;
+    }
+    blocs.push({ type: "texte", contenu: [trimmed] });
+  });
+  return (
+    <div className="space-y-2.5">
+      {blocs.map((bloc, i) => {
+        if (bloc.type === "titre")
+          return (
+            <p key={i} className="text-sm font-semibold text-[#171717]">
+              {bloc.contenu[0]}
+            </p>
+          );
+        if (bloc.type === "liste")
+          return (
+            <ul key={i} className="space-y-1 pl-4 text-sm text-[#171717]/90">
+              {bloc.contenu.map((item, j) => (
+                <li key={j} className="list-disc">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          );
+        return (
+          <p key={i} className="text-sm text-[#171717]/90">
+            {bloc.contenu[0]}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 // Fiche employé (conditions d'emploi + historique des salaires) — Direction
 // uniquement, demande de Mélanie, 2026-11-03. Données séparées de la table
 // profiles (lisible par toute l'équipe) : fetch et policies dédiées, voir
@@ -30,6 +82,7 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
   const [salaires, setSalaires] = useState<EmployeSalaire[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [editingConditions, setEditingConditions] = useState<Record<string, boolean>>({});
   const [conditionsDraft, setConditionsDraft] = useState<Record<string, string>>({});
   const [nouveauMois, setNouveauMois] = useState<Record<string, string>>({});
   const [nouveauMontant, setNouveauMontant] = useState<Record<string, string>>({});
@@ -66,8 +119,12 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
     const { error } = await supabase
       .from("employe_fiches")
       .upsert({ user_id: userId, conditions_emploi: value, updated_at: new Date().toISOString() });
-    if (error) toast("Échec de l'enregistrement des conditions d'emploi.");
-    else toast("Conditions d'emploi enregistrées.", "success");
+    if (error) {
+      toast("Échec de l'enregistrement des conditions d'emploi.");
+      return;
+    }
+    toast("Conditions d'emploi enregistrées.", "success");
+    setEditingConditions((prev) => ({ ...prev, [userId]: false }));
   };
 
   const ajouterSalaire = async (userId: string) => {
@@ -134,17 +191,60 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
             {open && (
               <div className="space-y-4 border-t border-neutral-100 px-3 pb-4 pt-3">
                 <div>
-                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-neutral-400">
-                    Conditions d&apos;emploi
-                  </p>
-                  <textarea
-                    value={conditionsDraft[p.id] ?? fiche?.conditions_emploi ?? ""}
-                    onChange={(e) => setConditionsDraft((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                    onBlur={() => saveConditions(p.id)}
-                    placeholder="Type de contrat, horaires, poste, date d'embauche…"
-                    rows={3}
-                    className="input"
-                  />
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                      Conditions d&apos;emploi
+                    </p>
+                    {!editingConditions[p.id] && (
+                      <button
+                        onClick={() =>
+                          setEditingConditions((prev) => ({ ...prev, [p.id]: true }))
+                        }
+                        className="text-xs text-neutral-500 hover:underline"
+                      >
+                        Modifier
+                      </button>
+                    )}
+                  </div>
+                  {editingConditions[p.id] ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={conditionsDraft[p.id] ?? fiche?.conditions_emploi ?? ""}
+                        onChange={(e) =>
+                          setConditionsDraft((prev) => ({ ...prev, [p.id]: e.target.value }))
+                        }
+                        placeholder={
+                          "Type de contrat, horaires, poste, date d'embauche…\n\n" +
+                          "Astuce de mise en forme :\n" +
+                          "Un titre de section :\n" +
+                          "- un point de liste\n" +
+                          "- un autre point"
+                        }
+                        rows={8}
+                        className="input font-mono text-xs"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => saveConditions(p.id)}
+                          className="rounded-md bg-[#171717] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                        >
+                          Enregistrer
+                        </button>
+                        <button
+                          onClick={() =>
+                            setEditingConditions((prev) => ({ ...prev, [p.id]: false }))
+                          }
+                          className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  ) : fiche?.conditions_emploi ? (
+                    <ConditionsRendu text={fiche.conditions_emploi} />
+                  ) : (
+                    <p className="text-xs text-neutral-400">Rien de renseigné pour l&apos;instant.</p>
+                  )}
                 </div>
 
                 <div>

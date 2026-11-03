@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { EmployeFiche, EmployeSalaire, Profile } from "@/lib/types";
 import { useToast } from "@/components/ToastProvider";
@@ -14,6 +14,23 @@ function euros(n: number) {
 function dateLabel(iso: string) {
   const d = new Date(`${iso}T00:00:00`);
   return `${d.getDate()} ${MONTH_NAMES_FULL[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// Regroupe l'historique par année (sous-total par année) — demande de
+// Mélanie, 2026-11-03 : sur 36+ lignes, un long tableau plat n'était plus
+// lisible. `salaires` est déjà trié par date décroissante par l'appelant.
+function groupesParAnnee(salaires: EmployeSalaire[]) {
+  const groupes: { annee: string; lignes: EmployeSalaire[]; totalAnnee: number }[] = [];
+  salaires.forEach((s) => {
+    const annee = s.date_versement.slice(0, 4);
+    const dernier = groupes[groupes.length - 1];
+    if (dernier?.annee === annee) dernier.lignes.push(s);
+    else groupes.push({ annee, lignes: [s], totalAnnee: 0 });
+  });
+  groupes.forEach((g) => {
+    g.totalAnnee = g.lignes.reduce((sum, s) => sum + Number(s.montant || 0), 0);
+  });
+  return groupes;
 }
 
 // Rendu "page Notion" des conditions d'emploi en lecture — demande de
@@ -261,26 +278,47 @@ export default function EmployeFichesView({ profiles }: { profiles: Profile[] })
                         <thead>
                           <tr className="border-b border-neutral-200 bg-[#fafafa] text-left text-[10px] uppercase tracking-wide text-neutral-400">
                             <th className="px-3 py-1.5 font-medium">Date</th>
-                            <th className="px-3 py-1.5 text-right font-medium">Montant</th>
+                            <th className="w-24 px-3 py-1.5 text-right font-medium">Montant</th>
                             <th className="px-3 py-1.5 font-medium">Note</th>
                             <th className="px-3 py-1.5"></th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-neutral-100">
-                          {histo.map((h) => (
-                            <tr key={h.id}>
-                              <td className="px-3 py-1.5">{dateLabel(h.date_versement)}</td>
-                              <td className="px-3 py-1.5 text-right">{euros(h.montant)} €</td>
-                              <td className="px-3 py-1.5 text-neutral-500">{h.note || "—"}</td>
-                              <td className="px-3 py-1.5 text-right">
-                                <button
-                                  onClick={() => supprimerSalaire(h.id)}
-                                  className="text-xs text-red-600 hover:underline"
+                        <tbody>
+                          {groupesParAnnee(histo).map(({ annee, lignes, totalAnnee }) => (
+                            <Fragment key={annee}>
+                              <tr className="bg-[#fafafa]">
+                                <td
+                                  colSpan={3}
+                                  className="px-3 py-1 text-xs font-semibold text-neutral-500"
                                 >
-                                  Retirer
-                                </button>
-                              </td>
-                            </tr>
+                                  {annee}
+                                </td>
+                                <td className="px-3 py-1 text-right text-xs text-neutral-400">
+                                  {euros(totalAnnee)} €
+                                </td>
+                              </tr>
+                              {lignes.map((h) => (
+                                <tr key={h.id} className="border-b border-neutral-100 last:border-0">
+                                  <td className="whitespace-nowrap px-3 py-1.5 text-neutral-600">
+                                    {dateLabel(h.date_versement)}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right font-medium tabular-nums text-[#171717]">
+                                    {euros(h.montant)} €
+                                  </td>
+                                  <td className="px-3 py-1.5 text-xs leading-snug text-neutral-500">
+                                    {h.note || "—"}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right align-top">
+                                    <button
+                                      onClick={() => supprimerSalaire(h.id)}
+                                      className="text-xs text-red-600 hover:underline"
+                                    >
+                                      Retirer
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </Fragment>
                           ))}
                         </tbody>
                       </table>

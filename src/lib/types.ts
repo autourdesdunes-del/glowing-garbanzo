@@ -67,6 +67,16 @@ export type CatalogueItem = {
   galerie: string[];
   // Décharge de responsabilité à signer sur place (migration 0177).
   decharge_requise: boolean;
+  // Options payantes génériques (ex. "Spa privé") — migration 0178.
+  options_supplementaires: {
+    nom: string;
+    description: string;
+    prix: number;
+    unite: "par_personne" | "par_groupe";
+  }[];
+  // Sous-ensemble de "Matin"/"Début d'après-midi"/"Fin d'après-midi"
+  // proposé au client pour cette activité — migration 0178.
+  creneaux_disponibles: string[];
   haute_saison_debut: string;
   haute_saison_fin: string;
   haute_saison_pu_adulte: number;
@@ -397,6 +407,10 @@ export type DemandeReservationLigne = {
   enfants: number;
   bebes: number;
   prixTotal: number;
+  // Réponses aux champs additionnels demandés par cette activité (ex.
+  // "Créneau souhaité" pour le Spa) — absent sur les demandes envoyées
+  // avant ce champ, d'où le optionnel.
+  champsRequis?: Record<string, string>;
 };
 
 // Demande de réservation reçue depuis la vitrine publique — simple "boîte

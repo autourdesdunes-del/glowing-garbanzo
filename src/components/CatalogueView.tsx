@@ -863,6 +863,121 @@ export default function CatalogueView({
                 </div>
                 <div className="col-span-3 rounded-md border border-neutral-200 p-3">
                   <p className="mb-2 text-sm font-medium text-neutral-700">
+                    Options supplémentaires (vitrine)
+                  </p>
+                  <p className="mb-3 text-xs text-neutral-400">
+                    Ex. "Spa privé" — nom, description, prix et unité.
+                  </p>
+                  <div className="space-y-3">
+                    {a.options_supplementaires.map((opt, i) => (
+                      <div key={i} className="rounded-md bg-neutral-50 p-3 space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={opt.nom}
+                            onChange={(e) => {
+                              const liste = [...a.options_supplementaires];
+                              liste[i] = { ...opt, nom: e.target.value };
+                              onUpdate(a.id, { options_supplementaires: liste });
+                            }}
+                            className="input flex-1"
+                            placeholder="Nom (ex. Spa privé)"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            value={opt.prix}
+                            onChange={(e) => {
+                              const liste = [...a.options_supplementaires];
+                              liste[i] = { ...opt, prix: Number(e.target.value) };
+                              onUpdate(a.id, { options_supplementaires: liste });
+                            }}
+                            className="input w-24"
+                            placeholder="€"
+                          />
+                          <select
+                            value={opt.unite}
+                            onChange={(e) => {
+                              const liste = [...a.options_supplementaires];
+                              liste[i] = {
+                                ...opt,
+                                unite: e.target.value as "par_personne" | "par_groupe",
+                              };
+                              onUpdate(a.id, { options_supplementaires: liste });
+                            }}
+                            className="input w-32"
+                          >
+                            <option value="par_personne">€/pers.</option>
+                            <option value="par_groupe">€ (groupe)</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const liste = a.options_supplementaires.filter((_, j) => j !== i);
+                              onUpdate(a.id, { options_supplementaires: liste });
+                            }}
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={opt.description}
+                          onChange={(e) => {
+                            const liste = [...a.options_supplementaires];
+                            liste[i] = { ...opt, description: e.target.value };
+                            onUpdate(a.id, { options_supplementaires: liste });
+                          }}
+                          className="input w-full"
+                          placeholder="Description courte"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdate(a.id, {
+                        options_supplementaires: [
+                          ...a.options_supplementaires,
+                          { nom: "", description: "", prix: 0, unite: "par_personne" },
+                        ],
+                      })
+                    }
+                    className="mt-3 text-sm text-neutral-600 hover:underline"
+                  >
+                    + Ajouter une option
+                  </button>
+                </div>
+                <div className="col-span-3 rounded-md border border-neutral-200 p-3">
+                  <p className="mb-2 text-sm font-medium text-neutral-700">
+                    Créneaux proposés (vitrine)
+                  </p>
+                  <p className="mb-3 text-xs text-neutral-400">
+                    N&apos;a d&apos;effet que si "Créneau souhaité" est dans les champs requis
+                    ci-dessous.
+                  </p>
+                  <div className="flex gap-3">
+                    {["Matin", "Début d'après-midi", "Fin d'après-midi"].map((c) => (
+                      <label key={c} className="flex items-center gap-1.5 text-sm text-neutral-700">
+                        <input
+                          type="checkbox"
+                          checked={a.creneaux_disponibles.includes(c)}
+                          onChange={(e) => {
+                            const liste = e.target.checked
+                              ? [...a.creneaux_disponibles, c]
+                              : a.creneaux_disponibles.filter((x) => x !== c);
+                            onUpdate(a.id, { creneaux_disponibles: liste });
+                          }}
+                        />
+                        {c}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-span-3 rounded-md border border-neutral-200 p-3">
+                  <p className="mb-2 text-sm font-medium text-neutral-700">
                     Suppléments par zone d&apos;hôtel (vitrine)
                   </p>
                   <p className="mb-3 text-xs text-neutral-400">

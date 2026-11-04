@@ -420,6 +420,10 @@ export type DemandeReservationLigne = {
   // pour que l'équipe le voie sans recalculer — absent sur les demandes
   // envoyées avant ce champ.
   supplementSolo?: number;
+  // Zone d'hôtel déclarée par le client et taxe de transfert déjà incluse
+  // dans prixTotal, isolée ici pour que l'équipe la voie sans recalculer.
+  zoneHotel?: string;
+  taxeTransfert?: number;
 };
 
 // Demande de réservation reçue depuis la vitrine publique — simple "boîte

@@ -138,6 +138,11 @@ function DemandeCard({
                 Supplément voyageur seul inclus : +{euros(l.supplementSolo)} €
               </div>
             )}
+            {!!l.taxeTransfert && (
+              <div className="mt-0.5 text-xs text-amber-700">
+                Taxe de transfert ({l.zoneHotel}) incluse : +{euros(l.taxeTransfert)} €
+              </div>
+            )}
           </div>
         ))}
         <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-semibold">

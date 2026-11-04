@@ -411,6 +411,10 @@ export type DemandeReservationLigne = {
   // "Créneau souhaité" pour le Spa) — absent sur les demandes envoyées
   // avant ce champ, d'où le optionnel.
   champsRequis?: Record<string, string>;
+  // Supplément voyageur seul, déjà inclus dans prixTotal mais isolé ici
+  // pour que l'équipe le voie sans recalculer — absent sur les demandes
+  // envoyées avant ce champ.
+  supplementSolo?: number;
 };
 
 // Demande de réservation reçue depuis la vitrine publique — simple "boîte

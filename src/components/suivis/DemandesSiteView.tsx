@@ -114,16 +114,30 @@ function DemandeCard({
 
       <div className="mt-3 space-y-1.5">
         {(demande.panier || []).map((l) => (
-          <div key={l.lineId} className="flex items-center justify-between text-sm">
-            <span>
-              {l.nom}
-              {l.date && ` — ${fmtDate(l.date)}`}
-              {" — "}
-              {l.adultes} adulte{l.adultes > 1 ? "s" : ""}
-              {l.enfants > 0 && `, ${l.enfants} enfant${l.enfants > 1 ? "s" : ""}`}
-              {l.bebes > 0 && `, ${l.bebes} bébé${l.bebes > 1 ? "s" : ""}`}
-            </span>
-            <span className="font-mono text-neutral-600">{euros(l.prixTotal)} €</span>
+          <div key={l.lineId} className="text-sm">
+            <div className="flex items-center justify-between">
+              <span>
+                {l.nom}
+                {l.date && ` — ${fmtDate(l.date)}`}
+                {" — "}
+                {l.adultes} adulte{l.adultes > 1 ? "s" : ""}
+                {l.enfants > 0 && `, ${l.enfants} enfant${l.enfants > 1 ? "s" : ""}`}
+                {l.bebes > 0 && `, ${l.bebes} bébé${l.bebes > 1 ? "s" : ""}`}
+              </span>
+              <span className="font-mono text-neutral-600">{euros(l.prixTotal)} €</span>
+            </div>
+            {l.champsRequis && Object.keys(l.champsRequis).length > 0 && (
+              <div className="mt-0.5 text-xs text-neutral-500">
+                {Object.entries(l.champsRequis)
+                  .map(([champ, reponse]) => `${champ} : ${reponse}`)
+                  .join(" · ")}
+              </div>
+            )}
+            {!!l.supplementSolo && (
+              <div className="mt-0.5 text-xs text-amber-700">
+                Supplément voyageur seul inclus : +{euros(l.supplementSolo)} €
+              </div>
+            )}
           </div>
         ))}
         <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-semibold">

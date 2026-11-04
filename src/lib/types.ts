@@ -59,6 +59,14 @@ export type CatalogueItem = {
   // l'équipe pour l'onglet "Avis" de la fiche vitrine (migration 0173) —
   // jamais générées automatiquement, jamais importées.
   avis_verbatims: { prenom: string; texte: string; source: string }[];
+  // Suppléments par zone d'hôtel (ex. {"Sahl Hasheesh": 10}) — vide tant
+  // que le vrai barème n'a pas été communiqué (migration 0177).
+  supplements_zones: Record<string, number>;
+  // Photos supplémentaires pour le carrousel vitrine, photo_path reste la
+  // couverture (migration 0177).
+  galerie: string[];
+  // Décharge de responsabilité à signer sur place (migration 0177).
+  decharge_requise: boolean;
   haute_saison_debut: string;
   haute_saison_fin: string;
   haute_saison_pu_adulte: number;

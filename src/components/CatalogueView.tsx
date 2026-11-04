@@ -851,6 +851,79 @@ export default function CatalogueView({
                     Mettre en avant sur la page d&apos;accueil du site
                   </label>
                 </div>
+                <div className="col-span-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={a.decharge_requise}
+                      onChange={(e) => onUpdate(a.id, { decharge_requise: e.target.checked })}
+                    />
+                    Décharge de responsabilité à signer sur place
+                  </label>
+                </div>
+                <div className="col-span-3 rounded-md border border-neutral-200 p-3">
+                  <p className="mb-2 text-sm font-medium text-neutral-700">
+                    Suppléments par zone d&apos;hôtel (vitrine)
+                  </p>
+                  <p className="mb-3 text-xs text-neutral-400">
+                    Laisse vide tant que le barème exact n&apos;est pas confirmé — rien ne
+                    s&apos;affiche côté public tant qu&apos;aucune zone n&apos;est ajoutée.
+                  </p>
+                  <div className="space-y-2">
+                    {Object.entries(a.supplements_zones).map(([zone, montant]) => (
+                      <div key={zone} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={zone}
+                          onChange={(e) => {
+                            const { [zone]: ancien, ...reste } = a.supplements_zones;
+                            onUpdate(a.id, {
+                              supplements_zones: { ...reste, [e.target.value]: ancien },
+                            });
+                          }}
+                          className="input flex-1"
+                          placeholder="Zone (ex. Sahl Hasheesh)"
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          value={montant}
+                          onChange={(e) => {
+                            onUpdate(a.id, {
+                              supplements_zones: {
+                                ...a.supplements_zones,
+                                [zone]: Number(e.target.value),
+                              },
+                            });
+                          }}
+                          className="input w-24"
+                          placeholder="€"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const { [zone]: _supprime, ...reste } = a.supplements_zones;
+                            onUpdate(a.id, { supplements_zones: reste });
+                          }}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onUpdate(a.id, {
+                        supplements_zones: { ...a.supplements_zones, "": 0 },
+                      })
+                    }
+                    className="mt-3 text-sm text-neutral-600 hover:underline"
+                  >
+                    + Ajouter une zone
+                  </button>
+                </div>
                 <div className="col-span-3 rounded-md border border-neutral-200 p-3">
                   <p className="mb-2 text-sm font-medium text-neutral-700">
                     Avis clients (vitrine, onglet "Avis")

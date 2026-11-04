@@ -55,6 +55,11 @@ export type CatalogueItem = {
   // contenir des parenthèses longues ou une casse incohérente) — vide =
   // on affiche le nom interne tel quel côté public (migration 0174).
   nom_affichage: string;
+  // Zone où se déroule l'activité — exonère de taxe de transfert un client
+  // logé dans la même zone (migration 0180). Vide = pas d'exonération, à
+  // valider activité par activité (seule Mini Egypt confirmée pour
+  // l'instant).
+  zone_activite: string;
   // Vraies citations d'avis Google/TripAdvisor collées à la main par
   // l'équipe pour l'onglet "Avis" de la fiche vitrine (migration 0173) —
   // jamais générées automatiquement, jamais importées.

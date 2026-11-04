@@ -1205,6 +1205,22 @@ export default function CatalogueView({
                     className="input"
                   />
                 </Field>
+                <Field label="Zone de l'activité (exonère la taxe de transfert si identique à la zone de l'hôtel)">
+                  <select
+                    value={a.zone_activite}
+                    onChange={(e) => onUpdate(a.id, { zone_activite: e.target.value })}
+                    className="input"
+                  >
+                    <option value="">— Aucune (taxe toujours applicable) —</option>
+                    {["Hurghada", "Sahl Hasheesh", "Makadi Bay", "El Gouna", "Safaga", "Soma Bay"].map(
+                      (z) => (
+                        <option key={z} value={z}>
+                          {z}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </Field>
               </div>
 
               <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3">

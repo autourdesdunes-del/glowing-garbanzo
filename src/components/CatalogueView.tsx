@@ -1207,8 +1207,8 @@ export default function CatalogueView({
                 </Field>
               </div>
 
-              <div className="mt-3">
-                <Field label="Spécificités importantes (apparaissent en rouge sur la fiche)">
+              <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3">
+                <Field label="🔒 Spécificités — USAGE INTERNE UNIQUEMENT, jamais visible par le client">
                   <textarea
                     value={a.specificites}
                     onChange={(e) => onUpdate(a.id, { specificites: e.target.value })}
@@ -1218,10 +1218,15 @@ export default function CatalogueView({
                     className="input min-h-[70px] resize-y"
                   />
                 </Field>
+                <p className="mt-1.5 text-xs text-red-700">
+                  Pour qu&apos;une info apparaisse côté client, utilise le champ
+                  ci-dessous ("Information importante pour le client") — jamais
+                  celui-ci.
+                </p>
               </div>
 
-              <div className="mt-3">
-                <Field label="Information importante pour le client (visible sur la vitrine publique)">
+              <div className="mt-3 rounded-md border border-green-200 bg-green-50 p-3">
+                <Field label="✓ Information importante pour le client — VISIBLE sur la vitrine publique">
                   <textarea
                     value={a.info_importante}
                     onChange={(e) => onUpdate(a.id, { info_importante: e.target.value })}

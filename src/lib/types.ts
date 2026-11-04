@@ -424,6 +424,18 @@ export type DemandeReservationLigne = {
   // dans prixTotal, isolée ici pour que l'équipe la voie sans recalculer.
   zoneHotel?: string;
   taxeTransfert?: number;
+  // Texte libre saisi par le client à l'étape 3 du tunnel (récupération
+  // ailleurs, pas de retour à l'hôtel, etc.) — information opérationnelle
+  // critique, à transmettre telle quelle sans reformulation. Absent sur
+  // les demandes envoyées avant ce champ.
+  demandesSpeciales?: string;
+  // Consentement facultatif à l'usage promotionnel de photos — distinct de
+  // la décharge obligatoire ci-dessous.
+  consentementPhotos?: boolean;
+  // Horodatage ISO de l'acceptation de la décharge obligatoire, "" si
+  // l'activité n'en demandait pas, absent sur les demandes envoyées avant
+  // ce champ.
+  dechargeAccepteeLe?: string;
 };
 
 // Demande de réservation reçue depuis la vitrine publique — simple "boîte

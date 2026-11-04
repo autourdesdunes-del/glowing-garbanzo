@@ -143,6 +143,22 @@ function DemandeCard({
                 Taxe de transfert ({l.zoneHotel}) incluse : +{euros(l.taxeTransfert)} €
               </div>
             )}
+            {!!l.demandesSpeciales && (
+              <div className="mt-1.5 rounded-lg border border-[#D6544A]/40 bg-[#D6544A]/5 px-2.5 py-1.5 text-xs text-[#8a2f27]">
+                <span className="font-semibold">⚠️ Demande spéciale : </span>
+                {l.demandesSpeciales}
+              </div>
+            )}
+            {!!l.dechargeAccepteeLe && (
+              <div className="mt-0.5 text-xs text-neutral-500">
+                Décharge acceptée le {fmtHoraire(l.dechargeAccepteeLe)}
+              </div>
+            )}
+            {l.consentementPhotos && (
+              <div className="mt-0.5 text-xs text-neutral-500">
+                ✓ A consenti à l&apos;usage promotionnel de photos
+              </div>
+            )}
           </div>
         ))}
         <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-sm font-semibold">

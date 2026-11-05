@@ -1144,6 +1144,47 @@ export type InfoManquanteOption = {
   created_at: string;
 };
 
+// Arbre d'aide de la messagerie (BRIEF_MESSAGERIE.md, migration 0185) —
+// "des données, pas du code" : Mélanie ajoute une branche depuis le CRM
+// (Aide > Arbre d'aide) sans déploiement. 'donnee' n'est résolu que côté
+// vitrine, dans l'espace client où ces infos existent (jamais sur une
+// fiche publique avant réservation).
+export type ArbreNoeud = {
+  id: string;
+  parent_id: string | null;
+  libelle: string;
+  type_reponse: "menu" | "texte" | "donnee";
+  source: string;
+  reponse_texte: string;
+  ordre: number;
+  actif: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+// Escalade d'un parcours dans l'arbre d'aide — rattachée au client si
+// connu (espace client), sinon à des coordonnées saisies à la volée
+// (visiteur anonyme sur une fiche publique). Voir migration 0186.
+export type MessagerieConversation = {
+  id: string;
+  client_id: string | null;
+  nom: string;
+  email: string;
+  telephone: string;
+  catalogue_item_id: string | null;
+  chemin_parcouru: string;
+  statut: "nouvelle" | "traitee";
+  created_at: string;
+};
+
+export type MessagerieMessage = {
+  id: string;
+  conversation_id: string;
+  auteur: "client" | "equipe";
+  contenu: string;
+  created_at: string;
+};
+
 export type PaypalPaiement = {
   id: string;
   transaction_id: string;

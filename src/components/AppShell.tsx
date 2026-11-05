@@ -171,6 +171,7 @@ const HELP_SUBS = [
   { key: "hotels", label: "Localisation des hôtels", labelAr: "مواقع الفنادق" },
   { key: "taxes", label: "Taxes de transfert", labelAr: "رسوم النقل" },
   { key: "promos", label: "Codes promo", labelAr: "أكواد الخصم" },
+  { key: "arbre", label: "Arbre d'aide", labelAr: "شجرة المساعدة" },
 ] as const;
 type HelpSub = (typeof HELP_SUBS)[number]["key"];
 

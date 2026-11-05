@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CodePromo, HotelReference, TransfertTaxe } from "@/lib/types";
+import { ArbreNoeud, CodePromo, HotelReference, TransfertTaxe } from "@/lib/types";
 import { useConfirm } from "@/components/ConfirmProvider";
 import { useToast } from "@/components/ToastProvider";
 import TransfertTaxeModificationRequestModal from "@/components/TransfertTaxeModificationRequestModal";
@@ -20,7 +20,7 @@ const VILLES = [
   "Autre",
 ];
 
-export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" }) {
+export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" | "arbre" }) {
   const supabase = createClient();
   const confirm = useConfirm();
   const toast = useToast();
@@ -36,6 +36,9 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" }
   const [addHotelOpen, setAddHotelOpen] = useState(false);
   const [taxesOuvertes, setTaxesOuvertes] = useState<Record<string, boolean>>({});
   const [taxeRequestOpen, setTaxeRequestOpen] = useState(false);
+  const [noeuds, setNoeuds] = useState<ArbreNoeud[]>([]);
+  const [editNoeudId, setEditNoeudId] = useState<string | null>(null);
+  const [nouveauNoeudParent, setNouveauNoeudParent] = useState("");
 
   const submitTaxeModificationRequest = async (payload: {
     transfertTaxeId: string | null;
@@ -71,18 +74,61 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" }
 
   useEffect(() => {
     (async () => {
-      const [{ data: h }, { data: t }, { data: p }] = await Promise.all([
+      const [{ data: h }, { data: t }, { data: p }, { data: a }] = await Promise.all([
         supabase.from("hotels_reference").select("*").order("nom", { ascending: true }),
         supabase.from("transfert_taxes").select("*").order("ville", { ascending: true }),
         supabase.from("codes_promo").select("*").order("created_at", { ascending: false }),
+        supabase.from("arbre_noeuds").select("*").order("ordre", { ascending: true }),
       ]);
       setHotels((h as HotelReference[]) || []);
       setTaxes((t as TransfertTaxe[]) || []);
       setCodesPromo((p as CodePromo[]) || []);
+      setNoeuds((a as ArbreNoeud[]) || []);
       setLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const ajouterNoeud = async (parentId: string | null) => {
+    const { data, error } = await supabase
+      .from("arbre_noeuds")
+      .insert({
+        parent_id: parentId,
+        libelle: "Nouvelle question",
+        type_reponse: "texte",
+        reponse_texte: "",
+        ordre: noeuds.filter((n) => n.parent_id === parentId).length + 1,
+      })
+      .select()
+      .single();
+    if (!error && data) {
+      setNoeuds((prev) => [...prev, data as ArbreNoeud]);
+      setEditNoeudId((data as ArbreNoeud).id);
+    } else {
+      toast("Échec de l'ajout.");
+    }
+  };
+
+  const modifierNoeud = async (id: string, patch: Partial<ArbreNoeud>) => {
+    setNoeuds((prev) => prev.map((n) => (n.id === id ? { ...n, ...patch } : n)));
+    const { error } = await supabase.from("arbre_noeuds").update(patch).eq("id", id);
+    if (error) toast("Échec de l'enregistrement.");
+  };
+
+  const supprimerNoeud = async (id: string) => {
+    const aDesEnfants = noeuds.some((n) => n.parent_id === id);
+    const ok = await confirm({
+      message: aDesEnfants
+        ? "Ce nœud a des sous-questions, elles seront supprimées aussi. Continuer ?"
+        : "Supprimer cette question ?",
+      confirmLabel: "Supprimer",
+      danger: true,
+    });
+    if (!ok) return;
+    setNoeuds((prev) => prev.filter((n) => n.id !== id && n.parent_id !== id));
+    const { error } = await supabase.from("arbre_noeuds").delete().eq("id", id);
+    if (error) toast("Échec de la suppression.");
+  };
 
   const addHotel = async () => {
     if (!newHotelNom.trim()) return;
@@ -278,6 +324,118 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" }
                 ))}
             </div>
           )}
+        </div>
+      )}
+
+      {tab === "arbre" && (
+        <div>
+          <h2 className="font-heading text-lg font-semibold text-[#171717]">Arbre d&apos;aide</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Affiché aux clients (fiche activité et espace client) avant qu&apos;ils n&apos;écrivent
+            à l&apos;équipe. Type &quot;donnee&quot; : résolu automatiquement depuis la réservation du
+            client dans l&apos;espace client (jamais sur une fiche publique) — sources disponibles :
+            pickup, rdv, statut, inclus, aprevoir, montgolfiere, solde, annulation.
+          </p>
+
+          <button
+            onClick={() => ajouterNoeud(null)}
+            className="mt-4 rounded-md bg-[#171717] px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            + Nouvelle rubrique
+          </button>
+
+          <div className="mt-4 space-y-3">
+            {noeuds
+              .filter((n) => n.parent_id === null)
+              .sort((a, b) => a.ordre - b.ordre)
+              .map((racine) => (
+                <div key={racine.id} className="rounded-md border border-neutral-200 bg-white">
+                  <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+                    {editNoeudId === racine.id ? (
+                      <input
+                        value={racine.libelle}
+                        onChange={(e) => modifierNoeud(racine.id, { libelle: e.target.value })}
+                        onBlur={() => setEditNoeudId(null)}
+                        autoFocus
+                        className="input flex-1"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setEditNoeudId(racine.id)}
+                        className="flex-1 text-left text-sm font-semibold text-[#171717]"
+                      >
+                        {racine.libelle || "(sans titre)"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => supprimerNoeud(racine.id)}
+                      className="shrink-0 text-xs text-red-600 hover:underline"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                  <div className="divide-y divide-neutral-100 border-t border-neutral-100 px-3">
+                    {noeuds
+                      .filter((n) => n.parent_id === racine.id)
+                      .sort((a, b) => a.ordre - b.ordre)
+                      .map((enfant) => (
+                        <div key={enfant.id} className="py-2.5 text-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <input
+                              value={enfant.libelle}
+                              onChange={(e) => modifierNoeud(enfant.id, { libelle: e.target.value })}
+                              className="input flex-1 text-sm"
+                              placeholder="Question"
+                            />
+                            <select
+                              value={enfant.type_reponse}
+                              onChange={(e) =>
+                                modifierNoeud(enfant.id, {
+                                  type_reponse: e.target.value as ArbreNoeud["type_reponse"],
+                                })
+                              }
+                              className="input w-28 text-xs"
+                            >
+                              <option value="texte">Texte</option>
+                              <option value="donnee">Donnée</option>
+                            </select>
+                            <button
+                              onClick={() => supprimerNoeud(enfant.id)}
+                              className="shrink-0 text-xs text-red-600 hover:underline"
+                            >
+                              Suppr.
+                            </button>
+                          </div>
+                          {enfant.type_reponse === "texte" ? (
+                            <textarea
+                              value={enfant.reponse_texte}
+                              onChange={(e) => modifierNoeud(enfant.id, { reponse_texte: e.target.value })}
+                              rows={2}
+                              placeholder="Réponse affichée au client"
+                              className="input mt-1.5 w-full text-xs"
+                            />
+                          ) : (
+                            <input
+                              value={enfant.source}
+                              onChange={(e) => modifierNoeud(enfant.id, { source: e.target.value })}
+                              placeholder="pickup / rdv / statut / inclus / aprevoir / montgolfiere / solde / annulation"
+                              className="input mt-1.5 w-full text-xs"
+                            />
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                  <div className="px-3 py-2">
+                    <button
+                      onClick={() => ajouterNoeud(racine.id)}
+                      className="text-xs font-medium text-[#0F5C56] hover:underline"
+                    >
+                      + Ajouter une question ici
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
       )}
 

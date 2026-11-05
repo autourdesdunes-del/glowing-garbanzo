@@ -75,6 +75,7 @@ import {
 } from "@/components/suivis/SuivisRows";
 import VerifDossierDrawer from "@/components/suivis/VerifDossierDrawer";
 import DemandesSiteView from "@/components/suivis/DemandesSiteView";
+import HotelsAValiderView from "@/components/suivis/HotelsAValiderView";
 
 // Bloc copié-collé pour Hossam — le nom complet doit être recopié tel quel
 // (comme au passeport) pour éviter toute faute transmise au prestataire.
@@ -86,6 +87,7 @@ import DemandesSiteView from "@/components/suivis/DemandesSiteView";
 // (Hossam, Bodé) — voir `arabicMode` dans AppShell.tsx.
 export const SUIVIS_SUBS = [
   { key: "demandes_site", label: "Demandes du site", labelAr: "طلبات الموقع", groupe: "important" },
+  { key: "hotels_a_valider", label: "Hôtels à valider", labelAr: "فنادق للتحقق", groupe: "suivi_du_suivi" },
   { key: "j1", label: "Pick-ups (J-1)", labelAr: "الاستقبال (ي-1)", groupe: "important" },
   { key: "chambres", label: "Numéros de chambre", labelAr: "أرقام الغرف", groupe: "important" },
   { key: "rdv", label: "RDV paiements", labelAr: "مواعيد الدفع", groupe: "important" },
@@ -711,6 +713,8 @@ export default function SuivisView({
           onMarquerStatut={onMarquerDemandeStatut}
         />
       )}
+
+      {sub === "hotels_a_valider" && <HotelsAValiderView />}
 
       {sub === "j1" && (
         <div className="space-y-6">

@@ -138,9 +138,20 @@ function DemandeCard({
                 Supplément voyageur seul inclus : +{euros(l.supplementSolo)} €
               </div>
             )}
+            {!!l.hotelTexte && (
+              <div className="mt-0.5 text-xs text-neutral-500">
+                🏨 {l.hotelTexte}
+              </div>
+            )}
             {!!l.taxeTransfert && (
               <div className="mt-0.5 text-xs text-amber-700">
                 Taxe de transfert ({l.zoneHotel}) incluse : +{euros(l.taxeTransfert)} €
+              </div>
+            )}
+            {!l.taxeTransfert && l.hotelTexte && !l.zoneHotel && (
+              <div className="mt-0.5 rounded-lg border border-amber-400/40 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
+                ⚠️ Zone de l&apos;hôtel non détectée automatiquement — taxe de
+                transfert à confirmer à la main.
               </div>
             )}
             {!!l.demandesSpeciales && (

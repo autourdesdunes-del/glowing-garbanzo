@@ -334,7 +334,10 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" |
             Affiché aux clients (fiche activité et espace client) avant qu&apos;ils n&apos;écrivent
             à l&apos;équipe. Type &quot;donnee&quot; : résolu automatiquement depuis la réservation du
             client dans l&apos;espace client (jamais sur une fiche publique) — sources disponibles :
-            pickup, rdv, statut, inclus, aprevoir, montgolfiere, solde, annulation.
+            pickup, rdv, statut, inclus, aprevoir, montgolfiere, solde, annulation. Type
+            &quot;interactif&quot; : pose une question et attend une réponse avant de répondre
+            (hotel_zone, choix_ile, planning_sejour) — logique câblée côté site, ni le texte ni la
+            source ne se modifient ici.
           </p>
 
           <button
@@ -389,15 +392,19 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" |
                             />
                             <select
                               value={enfant.type_reponse}
+                              disabled={enfant.type_reponse === "interactif"}
                               onChange={(e) =>
                                 modifierNoeud(enfant.id, {
                                   type_reponse: e.target.value as ArbreNoeud["type_reponse"],
                                 })
                               }
-                              className="input w-28 text-xs"
+                              className="input w-28 text-xs disabled:opacity-60"
                             >
                               <option value="texte">Texte</option>
                               <option value="donnee">Donnée</option>
+                              {enfant.type_reponse === "interactif" && (
+                                <option value="interactif">Interactif</option>
+                              )}
                             </select>
                             <button
                               onClick={() => supprimerNoeud(enfant.id)}
@@ -406,7 +413,12 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" |
                               Suppr.
                             </button>
                           </div>
-                          {enfant.type_reponse === "texte" ? (
+                          {enfant.type_reponse === "interactif" ? (
+                            <p className="mt-1.5 text-xs italic text-neutral-400">
+                              Logique interactive câblée côté site ({enfant.source}) — libellé modifiable
+                              ci-dessus, le reste ne se modifie que dans le code.
+                            </p>
+                          ) : enfant.type_reponse === "texte" ? (
                             <textarea
                               value={enfant.reponse_texte}
                               onChange={(e) => modifierNoeud(enfant.id, { reponse_texte: e.target.value })}

@@ -1166,7 +1166,11 @@ export type ArbreNoeud = {
   id: string;
   parent_id: string | null;
   libelle: string;
-  type_reponse: "menu" | "texte" | "donnee";
+  // "interactif" pose une question et attend une réponse avant de
+  // pouvoir répondre (hotel_zone, choix_ile, planning_sejour) — logique
+  // câblée côté vitrine, pas éditable comme un texte (BRIEF_MESSAGERIE.md
+  // §4, 2026-11-06).
+  type_reponse: "menu" | "texte" | "donnee" | "interactif";
   source: string;
   reponse_texte: string;
   ordre: number;

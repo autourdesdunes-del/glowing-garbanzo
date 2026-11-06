@@ -1173,6 +1173,10 @@ export type ArbreNoeud = {
   type_reponse: "menu" | "texte" | "donnee" | "interactif";
   source: string;
   reponse_texte: string;
+  // Suites proposées après la réponse — un réseau, pas une arborescence
+  // : peuvent pointer n'importe où dans l'arbre, pas seulement vers des
+  // enfants (BRIEF_MESSAGERIE.md, 2026-11-06).
+  suites: string[];
   ordre: number;
   actif: boolean;
   created_at: string;

@@ -434,6 +434,30 @@ export default function HelpView({ tab }: { tab: "hotels" | "taxes" | "promos" |
                               className="input mt-1.5 w-full text-xs"
                             />
                           )}
+                          <label className="mt-1.5 block text-[11px] text-neutral-400">
+                            Suites proposées après la réponse (un nœud sans suite est mal conçu — ctrl/cmd-clic
+                            pour en choisir plusieurs) :
+                          </label>
+                          <select
+                            multiple
+                            value={enfant.suites ?? []}
+                            onChange={(e) =>
+                              modifierNoeud(enfant.id, {
+                                suites: Array.from(e.target.selectedOptions, (o) => o.value),
+                              })
+                            }
+                            className="input mt-1 w-full text-xs"
+                            size={3}
+                          >
+                            {noeuds
+                              .filter((n) => n.id !== enfant.id && n.type_reponse !== "menu")
+                              .sort((a, b) => a.libelle.localeCompare(b.libelle))
+                              .map((n) => (
+                                <option key={n.id} value={n.id}>
+                                  {n.libelle || "(sans titre)"}
+                                </option>
+                              ))}
+                          </select>
                         </div>
                       ))}
                   </div>

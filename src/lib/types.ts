@@ -1184,6 +1184,11 @@ export type MessagerieConversation = {
   nom: string;
   email: string;
   telephone: string;
+  // Jeton anonyme de navigateur (partagé avec les favoris côté vitrine) —
+  // permet au visiteur de retrouver son fil sans jamais donner de
+  // coordonnées pour pouvoir y répondre. Voir migration 0196,
+  // BRIEF_MESSAGERIE.md §1 ter.
+  jeton: string;
   catalogue_item_id: string | null;
   chemin_parcouru: string;
   statut: "nouvelle" | "traitee";
@@ -1195,6 +1200,9 @@ export type MessagerieMessage = {
   conversation_id: string;
   auteur: "client" | "equipe";
   contenu: string;
+  // Lu par la cliente — alimente le badge "réponse non lue" de la bulle
+  // de contact côté vitrine (migration 0196).
+  lu: boolean;
   created_at: string;
 };
 

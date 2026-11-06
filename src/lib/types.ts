@@ -48,6 +48,19 @@ export type CatalogueItem = {
   capacite_max_personnes: number | null;
   activite_alternative_id: string | null;
   activite_complement_id: string | null;
+  // Vente additionnelle (BRIEF_VENTE_ADDITIONNELLE.md, 2026-11-06) — sans
+  // rapport avec activite_complement_id ci-dessus (lui reste réservé au
+  // dépassement de capacité). "Pour compléter votre voyage" côté
+  // vitrine : une logique d'itinéraire que Mélanie choisit à la main,
+  // l'historique ne la devine pas (ex. Le Caire 1 jour → transfert
+  // Hurghada, croisière, Louxor). Ordre du tableau = ordre d'affichage.
+  complements: string[];
+  // "À découvrir" côté vitrine (calculé automatiquement, voir
+  // activites_co_reservees côté base) ne doit jamais proposer cette
+  // activité — versions bus, circuits, croisières (cannibalisent ou
+  // diluent la marge) et transferts (n'ont de sens que dans le bloc
+  // ci-dessus). Reste réservable et visible au catalogue normalement.
+  exclu_suggestions: boolean;
   // Choisi manuellement par l'équipe pour la section "Nos incontournables"
   // de la page d'accueil de la vitrine — jamais déduit automatiquement.
   mis_en_avant: boolean;

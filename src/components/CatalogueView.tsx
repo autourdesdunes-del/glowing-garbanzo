@@ -1181,6 +1181,96 @@ export default function CatalogueView({
                     Famille, complément = Safari quad.
                   </p>
                 </div>
+
+                <div className="col-span-3 rounded-md border border-neutral-200 p-3">
+                  <p className="mb-2 text-sm font-medium text-neutral-700">
+                    Vente additionnelle (vitrine publique)
+                  </p>
+                  <p className="mb-2 text-xs text-neutral-500">
+                    « Pour compléter votre voyage » — choisi à la main, logique d&apos;itinéraire
+                    (ex. Le Caire 1 jour → transfert Hurghada, croisière, Louxor). Vide = bloc
+                    masqué sur la fiche, aucun repli automatique.
+                  </p>
+                  <div className="space-y-1.5">
+                    {a.complements.map((id, i) => {
+                      const item = itemsAll.find((it) => it.id === id);
+                      return (
+                        <div
+                          key={id}
+                          className="flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-2.5 py-1.5 text-sm"
+                        >
+                          <span className="flex-1 truncate">{item?.nom || "(activité supprimée)"}</span>
+                          <button
+                            type="button"
+                            disabled={i === 0}
+                            onClick={() => {
+                              const next = [...a.complements];
+                              [next[i - 1], next[i]] = [next[i], next[i - 1]];
+                              onUpdate(a.id, { complements: next });
+                            }}
+                            className="text-neutral-400 hover:text-neutral-700 disabled:opacity-30"
+                            title="Monter"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            disabled={i === a.complements.length - 1}
+                            onClick={() => {
+                              const next = [...a.complements];
+                              [next[i + 1], next[i]] = [next[i], next[i + 1]];
+                              onUpdate(a.id, { complements: next });
+                            }}
+                            className="text-neutral-400 hover:text-neutral-700 disabled:opacity-30"
+                            title="Descendre"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onUpdate(a.id, { complements: a.complements.filter((c) => c !== id) })
+                            }
+                            className="text-xs text-red-600 hover:underline"
+                          >
+                            Retirer
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      onUpdate(a.id, { complements: [...a.complements, e.target.value] });
+                    }}
+                    className="input mt-2"
+                  >
+                    <option value="">+ Ajouter une activité…</option>
+                    {itemsAll
+                      .filter((i) => i.id !== a.id && !a.complements.includes(i.id))
+                      .map((i) => (
+                        <option key={i.id} value={i.id}>
+                          {i.nom}
+                        </option>
+                      ))}
+                  </select>
+
+                  <label className="mt-3 flex items-center gap-2 text-sm text-neutral-700">
+                    <input
+                      type="checkbox"
+                      checked={a.exclu_suggestions}
+                      onChange={(e) => onUpdate(a.id, { exclu_suggestions: e.target.checked })}
+                    />
+                    Exclure des suggestions automatiques (« À découvrir »)
+                  </label>
+                  <p className="mt-1 text-xs text-neutral-400">
+                    Reste réservable et visible au catalogue normalement — juste jamais
+                    suggérée automatiquement (versions bus, circuits, croisières, transferts…).
+                  </p>
+                </div>
+
                 {canSeeMargins && (
                   <Field label="Marge cible (%)">
                     <input

@@ -43,12 +43,11 @@ $$;
 -- profils_clients, qui vérifient déjà `auth.uid() = id` / `= compte_id`
 -- — jamais "true" — donc hors du filtre de toute façon.
 --
--- ⚠️ Tables de la même famille (jeton/compte_id d'un visiteur) repérées
--- en écrivant cette migration mais PAS encore corrigées, faute de
--- mandat explicite : messagerie_conversations, messagerie_messages,
--- notifications_client. Je ne les ai pas touchées — à trancher avec
--- Mélanie avant de les inclure, voir le message qui accompagne cette
--- migration.
+-- Même correction appliquée à messagerie_conversations, messagerie_
+-- messages et notifications_client (même famille : données liées à une
+-- visiteuse) — « seules des routes service role les utilisent »
+-- décrivait le code d'aujourd'hui, pas la base : dès l'inscription
+-- libre ouverte, n'importe qui les interroge en direct avec la clé anon.
 do $$
 declare
   pol record;
@@ -56,9 +55,6 @@ declare
   tables_exclues text[] := array[
     'favoris', 'jeton_hotel', 'demandes_reservation',
     'arbre_parcours', 'vente_additionnelle_evenements',
-    -- Même famille, pas encore tranchées (voir le commentaire plus haut) —
-    -- volontairement laissées de côté, pas un oubli : la vérification
-    -- finale les signalera donc comme "restantes", c'est attendu.
     'messagerie_conversations', 'messagerie_messages', 'notifications_client'
   ];
 begin
@@ -142,6 +138,61 @@ create policy "demandes_reservation_select_self" on demandes_reservation
 create policy "demandes_reservation_insert_self" on demandes_reservation
   for insert to authenticated
   with check (auth.uid() = compte_id);
+
+-- ── messagerie_conversations / messagerie_messages / notifications_client ──
+-- Correction de Mélanie : « seules des routes service role les
+-- utilisent » décrit le code d'aujourd'hui, pas la base — dès
+-- l'inscription libre ouverte, n'importe qui les interroge en direct
+-- depuis le navigateur avec la clé anon. Même modèle que favoris : la
+-- cliente voit/écrit les siens, l'équipe garde tout (elle doit lire tous
+-- les fils, pas seulement ceux d'un compte). Les règles "insert to anon"
+-- existantes restent intactes : elles couvrent la visiteuse non connectée.
+drop policy if exists "messagerie_conversations_all_authenticated" on messagerie_conversations;
+create policy "messagerie_conversations_equipe" on messagerie_conversations
+  for all to authenticated
+  using (est_equipe())
+  with check (est_equipe());
+create policy "messagerie_conversations_self" on messagerie_conversations
+  for all to authenticated
+  using (auth.uid() = compte_id)
+  with check (auth.uid() = compte_id);
+
+-- messagerie_messages n'a pas de compte_id propre (une ligne = un
+-- message, rattaché à une conversation) : l'accès de la cliente passe
+-- par la conversation à laquelle il appartient.
+drop policy if exists "messagerie_messages_all_authenticated" on messagerie_messages;
+create policy "messagerie_messages_equipe" on messagerie_messages
+  for all to authenticated
+  using (est_equipe())
+  with check (est_equipe());
+create policy "messagerie_messages_self" on messagerie_messages
+  for all to authenticated
+  using (exists (
+    select 1 from messagerie_conversations c
+    where c.id = messagerie_messages.conversation_id and c.compte_id = auth.uid()
+  ))
+  with check (exists (
+    select 1 from messagerie_conversations c
+    where c.id = messagerie_messages.conversation_id and c.compte_id = auth.uid()
+  ));
+
+-- notifications_client est rattachée à clients.id (client_id), pas
+-- directement à comptes_clients — l'accès de la cliente passe par le
+-- rapprochement déjà fait dans comptes_clients.client_id. Seule la
+-- lecture a un sens côté cliente : les notifications sont créées par un
+-- trigger (notifier_pickup_change, security definer, pas soumis à RLS),
+-- jamais saisies à la main par elle.
+drop policy if exists "notifications_client_all_authenticated" on notifications_client;
+create policy "notifications_client_equipe" on notifications_client
+  for all to authenticated
+  using (est_equipe())
+  with check (est_equipe());
+create policy "notifications_client_self_select" on notifications_client
+  for select to authenticated
+  using (exists (
+    select 1 from comptes_clients cc
+    where cc.id = auth.uid() and cc.client_id = notifications_client.client_id
+  ));
 
 -- ── arbre_parcours / vente_additionnelle_evenements : analyse interne ──
 -- Aucune colonne personnelle (ni jeton, ni compte_id) : une visiteuse

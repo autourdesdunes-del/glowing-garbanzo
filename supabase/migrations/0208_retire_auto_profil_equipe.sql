@@ -1,0 +1,21 @@
+-- Correction du 2026-11-09, trouvée en vérifiant 0207 en direct avec un
+-- compte de test : `0003_roles.sql` créait automatiquement une ligne
+-- `profiles` (rôle 'equipe') pour CHAQUE nouvelle inscription Supabase
+-- Auth, sans distinction — sûr tant que seule l'équipe pouvait
+-- s'inscrire. Un compte client qui s'inscrit par email (BRIEF_COMPTE_
+-- CLIENT.md) est désormais lui aussi "authenticated", et récupérait
+-- automatiquement le rôle équipe par ce trigger, annulant tout ce que
+-- 0207 vient de fermer. Vérifié en direct : un compte de test tout
+-- juste créé lisait clients/paiements/reservations sans restriction
+-- avant cette migration, plus aucune après.
+--
+-- Aucun compte équipe actuel n'a de ligne créée par ce trigger : chaque
+-- compte (Mélanie, Hossam, Justine, Sylvie, Bodé) a été créé à la main
+-- via le tableau de bord Supabase — retirer l'automatisme ne change rien
+-- à la façon d'ajouter quelqu'un, ça demande juste la même ligne
+-- manuelle que pour promouvoir en direction.
+drop trigger if exists on_auth_user_created on auth.users;
+
+-- La fonction reste (inoffensive sans le trigger) au cas où elle serait
+-- un jour rebranchée sur un vrai signal "c'est un membre de l'équipe"
+-- plutôt que "n'importe qui vient de s'inscrire".

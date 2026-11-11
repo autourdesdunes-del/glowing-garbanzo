@@ -3186,6 +3186,8 @@ function AppShellInner({
               displayFirstName={effectivePrenom}
               paiementsEtapes={allPaiementsEtapes}
               clientHotels={allClientHotels}
+              sharedAlerts={sharedAlerts}
+              onRevoirPlacesRestantes={() => setShowSharedAlertPopup(true)}
             />
           )}
         </div>

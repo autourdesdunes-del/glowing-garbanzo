@@ -25,6 +25,7 @@ import {
   resaTotalMontant,
   reservationsActives,
   reservationsVendues,
+  SharedActivityAlert,
   urgenceProspect,
 } from "@/lib/resa";
 import { infosManquantesToutes } from "@/lib/infosManquantes";
@@ -81,6 +82,8 @@ export default function DashboardView({
   displayFirstName,
   paiementsEtapes,
   clientHotels,
+  sharedAlerts,
+  onRevoirPlacesRestantes,
 }: {
   userEmail: string;
   // Simulation "Aperçu vu par" (AppShell) : affiche le shift du jour de
@@ -138,6 +141,12 @@ export default function DashboardView({
   // client ayant un circuit renseigné (seule la fiche individuelle avait
   // cette info jusqu'ici, voir client_hotels/ClientHotel).
   clientHotels?: Record<string, ClientHotel[]>;
+  // Déjà calculées par AppShell (popup "sorties partagées" affiché
+  // périodiquement) — demande de Mélanie, 2026-11-11 : pouvoir revoir ces
+  // places restantes à tout moment depuis le tableau de bord, pas
+  // seulement au moment où le popup s'affiche tout seul.
+  sharedAlerts: SharedActivityAlert[];
+  onRevoirPlacesRestantes: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [shift, setShift] = useState<UserShift | null>(null);
@@ -570,6 +579,8 @@ export default function DashboardView({
     paiementsAPayer.length +
     auRevoirToday.length +
     avisToday.length;
+
+  const placesRestantesTotal = sharedAlerts.reduce((s, a) => s + a.reste, 0);
 
   // -- Priority queue: every client needing attention soon, ranked by departure date.
   type QueueRow = { client: Client; motifs: string[] };
@@ -1379,6 +1390,24 @@ export default function DashboardView({
         </div>
 
         <div className="space-y-6">
+          {sharedAlerts.length > 0 && (
+            <div>
+              <h2 className="mb-3 font-heading text-lg font-semibold text-[#171717]">
+                Sorties partagées
+              </h2>
+              <div className="overflow-hidden rounded-[6px] border border-[#eaeaea] bg-white">
+                <ActionRow
+                  icon="users"
+                  title={`${sharedAlerts.length} sortie${sharedAlerts.length > 1 ? "s" : ""} avec des places libres`}
+                  sub={`${placesRestantesTotal} place${placesRestantesTotal > 1 ? "s" : ""} restante${
+                    placesRestantesTotal > 1 ? "s" : ""
+                  } au total`}
+                  onClick={onRevoirPlacesRestantes}
+                />
+              </div>
+            </div>
+          )}
+
           <div>
             <div className="mb-3 flex items-center gap-2">
               <h2 className="font-heading text-lg font-semibold text-[#171717]">Actions rapides</h2>

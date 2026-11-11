@@ -253,10 +253,12 @@ export default function ClientPreviewView({
   // le client voyait "séjour payé à 100%" sur SA PROPRE page alors qu'une
   // reprise restait due, pire encore que sur la facture PDF puisque cette
   // vue est en direct.
-  const soldeBaselineApercu = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : total;
-  const croissanceApresSoldeApercu = Math.max(total - soldeBaselineApercu, 0);
-  const soldeDuApercu = Math.max(soldeDuBaseApercu - croissanceApresSoldeApercu, 0);
-  const totalPaye = acomptePaye + (client.solde_paye ? soldeDuApercu : 0);
+  // soldeDuBaseApercu est déjà un fait figé (encaissé réel plafonné, ou
+  // soldeRestantApercu) : une croissance de "total" après coup se répercute
+  // déjà entièrement sur "reste" via "total" lui-même — la soustraire ici
+  // en plus comptait cette croissance deux fois (même bug que resa.ts,
+  // vécu : Marion FERRANTE, 2026-11-11).
+  const totalPaye = acomptePaye + (client.solde_paye ? soldeDuBaseApercu : 0);
   const reste = Math.max(total - totalPaye, 0);
   const pct = total > 0 ? Math.min(100, Math.round((totalPaye / total) * 100)) : 0;
   const trackerStep = computeTrackerStep(client, totalPaye);

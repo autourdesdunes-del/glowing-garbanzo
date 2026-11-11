@@ -1540,13 +1540,6 @@ export default function ClientDetail({
   // jamais renseigné (anciennes données) : on garde alors l'ancien calcul
   // plutôt que d'écraser à tort un solde légitimement payé.
   const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejourHeader;
-  // Même correctif que paiementProgress() dans resa.ts (Charlotte PENZ,
-  // 2026-10-28) : une étape ajoutée pour couvrir cette croissance doit la
-  // réduire, sinon elle est neutralisée par soldeCouvertHeader plus bas.
-  const croissanceApresSolde = Math.max(
-    totalSejourHeader - soldeBaseline - etapesSumHeader - avoirUtiliseHeader,
-    0
-  );
   // Même correctif que paiementProgress() dans resa.ts : soldeRestantHeader
   // est recalculé en direct et bouge dès qu'une activité est
   // supprimée/ajoutée après coup — jamais la bonne base une fois le solde
@@ -1564,7 +1557,13 @@ export default function ClientDetail({
   // même au-delà du total du séjour).
   const soldeDuHeader =
     client.solde_montant_recu > 0 ? Number(client.solde_montant_recu) || 0 : soldeRestantHeaderBaseline;
-  const soldeCouvertHeader = client.solde_paye ? Math.max(soldeDuHeader - croissanceApresSolde, 0) : 0;
+  // soldeDuHeader est déjà un fait figé (encaissé réel, ou soldeRestantHeaderBaseline
+  // calculé sur soldeBaseline) : une croissance de totalSejourHeader après coup se
+  // répercute déjà entièrement sur "reste" via totalSejourHeader lui-même — la
+  // soustraire ici en plus comptait cette croissance deux fois (vécu : Marion
+  // FERRANTE, supplément GEM de 60€ ajouté après solde réglé → "reste" affichait
+  // 120€ au lieu de 60€, demande de Mélanie, 2026-11-11).
+  const soldeCouvertHeader = client.solde_paye ? soldeDuHeader : 0;
   const totalPayeHeader = acomptePayeMontant + etapesSumHeader + avoirUtiliseHeader + soldeCouvertHeader;
   const paiementFullyPaid =
     totalSejourHeader > 0 && totalPayeHeader >= totalSejourHeader && !(client.reprise_montant > 0);
@@ -1661,9 +1660,11 @@ export default function ClientDetail({
     if (diff <= 0.01) {
       // Croissance intégralement couverte par l'avoir auto-appliqué : pas de
       // reprise à demander, MAIS sans rattraper solde_montant sur le nouveau
-      // total, paiementProgress() continue de soustraire cette croissance de
-      // soldeCouvert pour toujours (croissanceApresSolde), comme si elle
-      // restait due — "reste à payer" affiche alors à tort le montant de
+      // total, cet avoir se retrouve compté dans soldeRestantBaseline (qui
+      // le soustrait de l'ancien solde_montant) ET dans avoirUtilise en
+      // même temps dans paiementProgress(), comme s'il couvrait l'ancien
+      // solde au lieu de la croissance — "reste à payer" affiche alors à
+      // tort le montant de
       // l'activité pourtant déjà réglée par avoir (vécu sur Iman KASRI,
       // Plongée sous-marine à 100€ intégralement couverte par avoir, encore
       // comptée "100€ à payer" des jours après). Même principe que

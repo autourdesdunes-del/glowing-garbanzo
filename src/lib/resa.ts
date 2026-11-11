@@ -467,14 +467,6 @@ export function paiementProgress(
   // 0 = jamais renseigné (anciennes données) : on garde alors l'ancien
   // calcul plutôt que d'écraser à tort un solde légitimement payé.
   const soldeBaseline = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalSejour;
-  // etapesSum/avoirUtilise déjà déduits ici : une étape ajoutée exprès pour
-  // régler cette croissance (ex. "Ajout d'une activité sur place réglée à
-  // part") doit la couvrir, sinon soldeCouvert la soustrait quand même plus
-  // bas et l'étape se retrouve neutralisée — le total payé reste figé pile
-  // au même montant qu'avant l'étape (vécu : Charlotte PENZ, étape PayPal de
-  // 125€ ajoutée pour couvrir 125€ de croissance, "Payé" resté à 444€ au
-  // lieu de 569€, demande de Mélanie, 2026-10-28).
-  const croissanceApresSolde = Math.max(totalSejour - soldeBaseline - etapesSum - avoirUtilise, 0);
   // Équivalent de soldeRestant, mais figé au total du séjour tel qu'il
   // était AU MOMENT du règlement (soldeBaseline) plutôt que recalculé en
   // direct — sinon supprimer une activité après coup fait rétrécir
@@ -499,7 +491,17 @@ export function paiementProgress(
   // dépasse maintenant le total du séjour).
   const soldeDu =
     client.solde_montant_recu > 0 ? Number(client.solde_montant_recu) || 0 : soldeRestantBaseline;
-  const soldeCouvert = client.solde_paye ? Math.max(soldeDu - croissanceApresSolde, 0) : 0;
+  // soldeDu est déjà un fait figé (solde_montant_recu réellement encaissé,
+  // ou soldeRestantBaseline calculé sur soldeBaseline — ni l'un ni l'autre
+  // ne dépend de totalSejour en direct) : une croissance de totalSejour
+  // après coup (nouvelle activité, ou prix d'une activité existante qui
+  // change — ex. supplément Grand Egyptian Museum ajouté après le
+  // règlement) se répercute déjà intégralement sur "reste" via totalSejour
+  // lui-même, sans qu'il faille en plus la soustraire ici. La déduire
+  // revenait à compter cette croissance deux fois (vécu : Marion FERRANTE,
+  // supplément GEM de 60€ ajouté après solde réglé → "reste" affichait
+  // 120€ au lieu de 60€, demande de Mélanie, 2026-11-11).
+  const soldeCouvert = client.solde_paye ? soldeDu : 0;
   const totalPaye = acomptePaye + etapesSum + avoirUtilise + soldeCouvert;
   return {
     totalSejour,

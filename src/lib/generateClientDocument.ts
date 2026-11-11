@@ -381,11 +381,14 @@ export function generateClientDocument(
   // 50 € restait due. client.solde_montant fige le total au moment du
   // règlement du solde ; toute croissance au-delà n'est jamais couverte
   // par lui, seulement par un vrai règlement de reprise (étapesSum).
-  const soldeBaselineDocument = Number(client.solde_montant) > 0 ? Number(client.solde_montant) : totalHT;
-  const croissanceApresSoldeDocument = Math.max(totalHT - soldeBaselineDocument, 0);
-  const soldeCouvertDocument = client.solde_paye
-    ? Math.max(soldeDuDocument - croissanceApresSoldeDocument, 0)
-    : 0;
+  // soldeDuDocument est déjà un fait figé (encaissé réel plafonné, ou
+  // soldeApresEtapes calculé sur soldeMontant) : une croissance de totalHT
+  // après coup (reprise en cours) se répercute déjà entièrement sur "reste"
+  // via totalHT lui-même — la soustraire ici en plus comptait cette
+  // croissance deux fois (même bug que resa.ts, vécu : Marion FERRANTE,
+  // 2026-11-11). La ligne "Reprise en cours" ci-dessous reste le seul
+  // endroit où cette croissance est expliquée au client.
+  const soldeCouvertDocument = client.solde_paye ? soldeDuDocument : 0;
   const totalPaye = acompteReelPaye + etapesSum + avoirUtilise + soldeCouvertDocument;
   const reste = Math.max(totalHT - totalPaye, 0);
 
@@ -424,8 +427,8 @@ export function generateClientDocument(
   }
   // Reprise en cours (nouvelle activité ajoutée après que le solde a déjà
   // été marqué payé) — jusqu'ici totalement absente des documents. Sans
-  // cette ligne, le "reste à payer" ci-dessus (désormais correct grâce à
-  // croissanceApresSoldeDocument) apparaissait sans aucune explication.
+  // cette ligne, le "reste à payer" ci-dessus apparaissait sans aucune
+  // explication.
   if (Number(client.reprise_montant) > 0) {
     const detailMixteReprise =
       client.reprise_mode === "Modes différents" && client.reprise_mixte_egp > 0

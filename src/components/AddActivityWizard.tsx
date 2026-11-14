@@ -1479,11 +1479,17 @@ export default function AddActivityWizard({
               onUpdateReservation(r.id, {
                 date_debut: newDate,
                 ...(tarifSync ? { pu_adulte: tarifSync.pu_adulte, pu_enfant: tarifSync.pu_enfant } : {}),
-                // Le Caire en avion synchronise déjà sa date de billet via le
-                // popup Hossam plus loin — ici on couvre les autres cas
-                // (activité générique "Billets d'avion", circuits) qui n'ont
-                // pas ce popup.
-                ...(billetInterneGenerique ? { billet_date: newDate } : {}),
+                // Le Caire en avion synchronise sa date de billet via le
+                // popup Hossam à la création, mais ce popup ne se redéclenche
+                // jamais sur une activité déjà en place (voir proceedAfterDate
+                // plus haut) — sans la synchro ici aussi, corriger la date
+                // d'une activité "Le Caire en avion" existante laissait
+                // billet_date périmé, et donc le tableau Suivis > Billets
+                // d'avion affichait l'ancienne date alors que la fiche client
+                // montrait la bonne (vécu, demande de Mélanie, 2026-11-14).
+                ...(billetInterneGenerique || isLeCaireEnAvion(catalogueItem?.nom || r.nom_activite)
+                  ? { billet_date: newDate }
+                  : {}),
                 // Activités sur plusieurs jours (Le Caire/Louxor 2 jours,
                 // Montgolfière, Siwa...) — la date de fin se présélectionne
                 // automatiquement, mais reste modifiable ensuite. On l'écrit
